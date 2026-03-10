@@ -10,6 +10,7 @@ const isPublicRoute = createRouteMatcher([
   "/a/:slug",              // Public Agent Pages
   "/embed/:slug",          // Embed Widget
   "/api/embed/(.*)",       // Embed Script JS
+  "/api/waitlist",          // Waitlist Signup
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
