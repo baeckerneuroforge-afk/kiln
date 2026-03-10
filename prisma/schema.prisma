@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Clerk-synchronisierte User-Daten
+model User {
+  id               String   @id // Clerk User ID
+  email            String   @unique
+  firstName        String?
+  lastName         String?
+  imageUrl         String?
+  plan             Plan     @default(FREE)
+  stripeCustomerId String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  agents        Agent[]
+  conversations Conversation[]
+}
+
+enum Plan {
+  FREE
+  PRO
+  AGENCY
+}
+
+// AI Agent Konfiguration
+model Agent {
+  id                 String      @id @default(cuid())
+  userId             String
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name               String
+  slug               String      @unique
+  description        String?     @db.Text
+  systemPrompt       String      @db.Text
+  personality        Json?       // { tone, language, formality }
+  welcomeMessage     String?     @db.Text
+  suggestedQuestions String[]    // Array von Vorschlägen
+  llmModel           String      @default("claude-sonnet-4-20250514")
+  status             AgentStatus @default(DRAFT)
+
+  // White-Label
+  whiteLabel         Json?       // { logo, primaryColor, position, customCss }
+  customDomain       String?
+  showPoweredBy      Boolean     @default(true)
+
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  actions        AgentAction[]
+  knowledgeBases KnowledgeBase[]
+  conversations  Conversation[]
+  analytics      AgentAnalytics[]
+
+  @@index([userId])
+}
+
+enum AgentStatus {
+  DRAFT
+  LIVE
+  PAUSED
+}
+
+// Agent Actions (Terminbuchung, E-Mail, Lead-Scoring, etc.)
+model AgentAction {
+  id      String     @id @default(cuid())
+  agentId String
+  agent   Agent      @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  type    ActionType
+  enabled Boolean    @default(false)
+  config  Json?      // { calendlyUrl, emailTemplate, webhookUrl, etc. }
+
+  @@unique([agentId, type])
+  @@index([agentId])
+}
+
+enum ActionType {
+  BOOK_APPOINTMENT
+  COLLECT_EMAIL
+  SEND_EMAIL
+  SCORE_LEAD
+  NOTIFY_OWNER
+  FIRE_WEBHOOK
+  HANDOFF_HUMAN
+}
+
+// Knowledge Base Einträge
+model KnowledgeBase {
+  id              String      @id @default(cuid())
+  agentId         String
+  agent           Agent       @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  type            KBType
+  sourceName      String
+  content         String      @db.Text
+  chunkCount      Int         @default(0)
+  embeddingStatus EmbedStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+
+  @@index([agentId])
+}
+
+enum KBType {
+  PDF
+  URL
+  FAQ
+  TEXT
+}
+
+enum EmbedStatus {
+  PENDING
+  PROCESSING
+  READY
+  ERROR
+}
+
+// Chat-Konversationen
+model Conversation {
+  id          String   @id @default(cuid())
+  agentId     String
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  sessionId   String
+  leadScore   Int?
+  sentiment   Float?
+  actionsUsed String[]
+  channel     Channel  @default(WEB)
+
+  visitorName  String?
+  visitorEmail String?
+
+  messages  Message[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([agentId])
+  @@index([sessionId])
+}
+
+// Chat-Nachrichten
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  role    MessageRole
+  content String @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum Channel {
+  WEB
+  WHATSAPP
+  INSTAGRAM
+  TELEGRAM
+  VOICE
+  SLACK
+  EMAIL
+}
+
+// Gesammelte Leads
+model Lead {
+  id        String   @id @default(cuid())
+  agentId   String
+  email     String
+  name      String?
+  context   String?  @db.Text // Gesprächskontext, warum der Lead interessiert ist
+  score     Int?     // Lead-Score 1-10
+  createdAt DateTime @default(now())
+
+  @@index([agentId])
+  @@index([email])
+}
+
+// Agent Analytics (täglich aggregiert)
+model AgentAnalytics {
+  id                 String   @id @default(cuid())
+  agentId            String
+  agent              Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  date               DateTime @db.Date
+  totalConversations Int      @default(0)
+  avgMessagesPerConv Float    @default(0)
+  leadsCollected     Int      @default(0)
+  appointmentsBooked Int      @default(0)
+  estimatedValue     Float    @default(0)
+  topIntents         Json?
+
+  @@unique([agentId, date])
+  @@index([agentId])
+}

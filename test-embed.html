@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KILN Embed Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      color: #333;
+    }
+    .hero {
+      max-width: 800px;
+      margin: 80px auto;
+      padding: 0 24px;
+    }
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+    }
+    p {
+      font-size: 1.1rem;
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+    .badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #F97316, #DC2626);
+      color: white;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+    .info {
+      margin-top: 40px;
+      padding: 20px;
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #e5e5e5;
+    }
+    .info h2 { font-size: 1.2rem; margin-bottom: 8px; }
+    .info code {
+      display: block;
+      background: #1C1917;
+      color: #F97316;
+      padding: 16px;
+      border-radius: 8px;
+      margin-top: 12px;
+      font-size: 0.85rem;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <div class="badge">KILN Embed Test</div>
+    <h1>Willkommen auf meiner Website</h1>
+    <p>
+      Dies ist eine Test-Seite um das KILN Chat-Widget zu testen.
+      Klicke auf den orangen Chat-Button unten rechts um den Agent zu starten.
+    </p>
+    <p>
+      Das Widget wird per &lt;script&gt;-Tag eingebunden und erstellt automatisch
+      einen Floating-Button mit iframe-Chat.
+    </p>
+
+    <div class="info">
+      <h2>So funktioniert es:</h2>
+      <p>Ersetze <strong>DEIN-AGENT-SLUG</strong> im Script unten mit dem Slug deines Agents.</p>
+      <code>&lt;script src="http://localhost:3000/api/embed/DEIN-AGENT-SLUG.js" async&gt;&lt;/script&gt;</code>
+    </div>
+  </div>
+
+  <!--
+    KILN Chat Widget einbinden:
+    Ersetze "DEIN-AGENT-SLUG" mit dem tatsaechlichen Slug deines Agents.
+    z.B. wenn dein Agent-Slug "support-bot" ist:
+    <script src="http://localhost:3000/api/embed/support-bot.js" async></script>
+  -->
+  <script src="http://localhost:3000/api/embed/DEIN-AGENT-SLUG.js" async></script>
+</body>
+</html>
