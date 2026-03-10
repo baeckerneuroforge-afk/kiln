@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bot, Plus, MessageSquare, Trash2, Loader2 } from "lucide-react";
+import { Bot, Plus, MessageSquare, Trash2, Loader2, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -66,12 +66,20 @@ export default function AgentsPage() {
             Erstelle und verwalte deine AI Agents.
           </p>
         </div>
-        <Link href="/dashboard/agents/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Neuer Agent
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard/agents/templates">
+            <Button variant="outline">
+              <Sparkles className="mr-2 h-4 w-4" />
+              Templates
+            </Button>
+          </Link>
+          <Link href="/dashboard/agents/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Neuer Agent
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {agents.length === 0 ? (
@@ -87,12 +95,20 @@ export default function AgentsPage() {
             Beschreibe deinen Agent in natürlicher Sprache — KILN erstellt die
             Konfiguration automatisch.
           </p>
-          <Link href="/dashboard/agents/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Ersten Agent erstellen
-            </Button>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/dashboard/agents/templates">
+              <Button variant="outline">
+                <Sparkles className="mr-2 h-4 w-4" />
+                Aus Template starten
+              </Button>
+            </Link>
+            <Link href="/dashboard/agents/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Eigenen Agent erstellen
+              </Button>
+            </Link>
+          </div>
         </div>
       ) : (
         /* Agent Cards Grid */
