@@ -21,6 +21,7 @@ export async function GET() {
 
     return Response.json(agents);
   } catch (err) {
+    console.error("GET /api/agents error:", err);
     const message = err instanceof Error ? err.message : "Server-Fehler";
     return Response.json({ error: message }, { status: 500 });
   }

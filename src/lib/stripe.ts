@@ -11,11 +11,11 @@ export function getStripe(): Stripe {
   return stripeInstance;
 }
 
-// Plan-Limits
+// Plan-Limits (999999 statt Infinity wegen JSON.stringify(Infinity) → null)
 export const PLAN_LIMITS = {
   FREE: { agents: 1, chatsPerMonth: 50 },
-  PRO: { agents: Infinity, chatsPerMonth: 2000 },
-  AGENCY: { agents: Infinity, chatsPerMonth: 10000 },
+  PRO: { agents: 999999, chatsPerMonth: 2000 },
+  AGENCY: { agents: 999999, chatsPerMonth: 10000 },
 } as const;
 
 export type PlanType = keyof typeof PLAN_LIMITS;

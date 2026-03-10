@@ -27,14 +27,25 @@ const statusConfig = {
 export default function AgentsPage() {
   const [agents, setAgents] = useState<AgentWithCount[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/agents")
-      .then((res) => res.json())
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
         if (Array.isArray(data)) setAgents(data);
+        else throw new Error("Unerwartete API-Antwort");
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error("Agents laden fehlgeschlagen:", err);
+        setError(err.message || "Fehler beim Laden der Agents");
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -82,7 +93,19 @@ export default function AgentsPage() {
         </div>
       </div>
 
-      {agents.length === 0 ? (
+      {error ? (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 py-12">
+          <p className="mb-2 text-sm font-medium text-destructive">
+            Fehler: {error}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="text-sm text-muted-foreground underline hover:text-foreground"
+          >
+            Seite neu laden
+          </button>
+        </div>
+      ) : agents.length === 0 ? (
         /* Empty State */
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 py-16">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-kiln-orange/10">

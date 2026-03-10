@@ -179,7 +179,7 @@ function SettingsContent() {
                 <span className="text-muted-foreground">Agents</span>
                 <span className="text-foreground">
                   {userPlan.agentCount} /{" "}
-                  {userPlan.limits.agents === Infinity
+                  {userPlan.limits.agents >= 999999
                     ? "∞"
                     : userPlan.limits.agents}
                 </span>
@@ -189,7 +189,7 @@ function SettingsContent() {
                   className="h-full rounded-full bg-kiln-orange transition-all"
                   style={{
                     width: `${Math.min(
-                      (userPlan.agentCount / (userPlan.limits.agents === Infinity ? 100 : userPlan.limits.agents)) * 100,
+                      (userPlan.agentCount / (userPlan.limits.agents >= 999999 ? 100 : userPlan.limits.agents)) * 100,
                       100
                     )}%`,
                   }}

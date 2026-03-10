@@ -11,13 +11,16 @@ export function UpgradeBanner() {
 
   useEffect(() => {
     fetch("/api/stripe/plan")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Plan-API Fehler");
+        return res.json();
+      })
       .then((data) => {
-        if (!data.limits) return;
+        if (!data.limits || !data.limits.agents || !data.limits.chatsPerMonth) return;
 
+        // agents >= 999999 bedeutet "unbegrenzt"
         const agentLimitReached =
-          data.limits.agents !== null &&
-          data.limits.agents !== Infinity &&
+          data.limits.agents < 999999 &&
           data.agentCount >= data.limits.agents;
 
         const chatLimitNear =
