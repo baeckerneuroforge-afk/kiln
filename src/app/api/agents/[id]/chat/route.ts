@@ -171,6 +171,17 @@ async function executeTool(
   }
 }
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+// CORS Preflight
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: corsHeaders });
+}
+
 // Live-Chat mit Agent (Streaming + RAG + Tool Use)
 export async function POST(
   request: NextRequest,
@@ -318,6 +329,7 @@ export async function POST(
 
     return new Response(readable, {
       headers: {
+        ...corsHeaders,
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
@@ -325,6 +337,9 @@ export async function POST(
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server-Fehler";
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json(
+      { error: message },
+      { status: 500, headers: corsHeaders }
+    );
   }
 }
