@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/sidebar";
+import { UpgradeBanner } from "@/components/upgrade-banner";
 
 export default function DashboardLayout({
   children,
@@ -8,7 +9,10 @@ export default function DashboardLayout({
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto p-6 lg:p-8">{children}</main>
+      <div className="flex flex-1 flex-col overflow-y-auto">
+        <UpgradeBanner />
+        <main className="flex-1 p-6 lg:p-8">{children}</main>
+      </div>
     </div>
   );
 }

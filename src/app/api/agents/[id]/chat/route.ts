@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { getClaudeClient } from "@/lib/ai";
 import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
+import { canChat } from "@/lib/plan-limits";
 
 // Tool-Definitionen basierend auf aktivierten Actions
 function buildTools(
@@ -209,6 +210,15 @@ export async function POST(
 
     if (!agent) {
       return Response.json({ error: "Agent nicht gefunden" }, { status: 404 });
+    }
+
+    // Chat-Limit prüfen
+    const chatCheck = await canChat(agent.id);
+    if (!chatCheck.allowed) {
+      return Response.json(
+        { error: `Monatliches Gesprächslimit erreicht (${chatCheck.current}/${chatCheck.limit}). Der Besitzer muss seinen Plan upgraden.` },
+        { status: 429, headers: corsHeaders }
+      );
     }
 
     // RAG: Relevante Knowledge Base Chunks suchen

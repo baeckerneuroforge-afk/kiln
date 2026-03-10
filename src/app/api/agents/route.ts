@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { canCreateAgent } from "@/lib/plan-limits";
 
 // Alle Agents des Users laden
 export async function GET() {
@@ -49,6 +50,15 @@ export async function POST(request: NextRequest) {
       return Response.json(
         { error: "Name, Slug und System-Prompt sind erforderlich." },
         { status: 400 }
+      );
+    }
+
+    // Plan-Limit prüfen
+    const agentCheck = await canCreateAgent(userId);
+    if (!agentCheck.allowed) {
+      return Response.json(
+        { error: `Agent-Limit erreicht (${agentCheck.current}/${agentCheck.limit}). Bitte upgrade deinen Plan.` },
+        { status: 403 }
       );
     }
 
