@@ -74,6 +74,8 @@ export default function AgentDetailPage() {
   const [systemPrompt, setSystemPrompt] = useState("");
   const [welcomeMessage, setWelcomeMessage] = useState("");
   const [status, setStatus] = useState<string>("DRAFT");
+  const [primaryColor, setPrimaryColor] = useState("#F97316");
+  const [logoUrl, setLogoUrl] = useState("");
 
   useEffect(() => {
     fetch(`/api/agents/${params.id}`)
@@ -87,6 +89,9 @@ export default function AgentDetailPage() {
         setSystemPrompt(data.systemPrompt);
         setWelcomeMessage(data.welcomeMessage || "");
         setStatus(data.status);
+        const wl = (data.whiteLabel || {}) as Record<string, string>;
+        setPrimaryColor(wl.primaryColor || "#F97316");
+        setLogoUrl(wl.logo || "");
       })
       .catch(() => router.push("/dashboard/agents"))
       .finally(() => setLoading(false));
@@ -104,6 +109,11 @@ export default function AgentDetailPage() {
           systemPrompt,
           welcomeMessage,
           status,
+          whiteLabel: {
+            primaryColor,
+            logo: logoUrl || null,
+            position: "bottom-right",
+          },
         }),
       });
       if (res.ok) {
@@ -256,6 +266,79 @@ export default function AgentDetailPage() {
                       {q}
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* White-Label */}
+              <div className="rounded-xl border border-border bg-card/50 p-5 space-y-5">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    White-Label Design
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Passe das Erscheinungsbild deines Chat-Widgets an.
+                  </p>
+                </div>
+
+                {/* Primary Color */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                    Primärfarbe
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={primaryColor}
+                      onChange={(e) => setPrimaryColor(e.target.value)}
+                      className="h-10 w-10 cursor-pointer rounded-lg border border-border bg-transparent p-0.5"
+                    />
+                    <input
+                      type="text"
+                      value={primaryColor}
+                      onChange={(e) => setPrimaryColor(e.target.value)}
+                      className="w-28 rounded-lg border border-border bg-card px-3 py-2 font-mono text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      placeholder="#F97316"
+                    />
+                    <div
+                      className="flex h-10 items-center rounded-lg px-4 text-xs font-medium text-white"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      Vorschau
+                    </div>
+                  </div>
+                </div>
+
+                {/* Logo URL */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                    Logo-URL
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      (optional)
+                    </span>
+                  </label>
+                  <input
+                    type="url"
+                    value={logoUrl}
+                    onChange={(e) => setLogoUrl(e.target.value)}
+                    placeholder="https://example.com/logo.png"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  {logoUrl && (
+                    <div className="mt-2 flex items-center gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={logoUrl}
+                        alt="Logo Vorschau"
+                        className="h-10 w-10 rounded-full object-cover border border-border"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        Logo-Vorschau
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
