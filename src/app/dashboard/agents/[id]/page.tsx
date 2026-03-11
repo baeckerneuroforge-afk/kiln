@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { AgentLiveChat } from "@/components/agents/agent-live-chat";
 import { KnowledgeTab } from "@/components/agents/knowledge-tab";
 import { ActionsTab } from "@/components/agents/actions-tab";
+import { AnalyticsTab } from "@/components/agents/analytics-tab";
 import { cn } from "@/lib/utils";
 
 interface Agent {
@@ -205,9 +206,12 @@ export default function AgentDetailPage() {
       </div>
 
       {/* Tab Content */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        {/* Linke Seite: Tab-Inhalt */}
-        <div className="lg:col-span-3">
+      <div className={cn(
+        "grid grid-cols-1 gap-6",
+        activeTab !== "analytics" && "lg:grid-cols-5"
+      )}>
+        {/* Linke Seite: Tab-Inhalt (full width bei Analytics) */}
+        <div className={activeTab === "analytics" ? "" : "lg:col-span-3"}>
           {activeTab === "config" && (
             <div className="space-y-6">
               {/* Name */}
@@ -359,32 +363,7 @@ export default function AgentDetailPage() {
           )}
 
           {activeTab === "analytics" && (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                {[
-                  { label: "Conversations", value: agent._count.conversations.toString() },
-                  { label: "Leads", value: "0" },
-                  { label: "Appointments", value: "0" },
-                  { label: "Est. Value", value: "€0" },
-                ].map((stat) => (
-                  <div
-                    key={stat.label}
-                    className="rounded-xl border border-border bg-card p-4"
-                  >
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
-                    <p className="mt-1 text-2xl font-semibold text-foreground">
-                      {stat.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-xl border border-dashed border-border py-12 text-center">
-                <BarChart3 className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  Charts and detailed analytics coming in the next phase.
-                </p>
-              </div>
-            </div>
+            <AnalyticsTab agentId={agent.id} />
           )}
 
           {activeTab === "embed" && (
@@ -443,7 +422,8 @@ export default function AgentDetailPage() {
           )}
         </div>
 
-        {/* Rechte Seite: Live-Chat */}
+        {/* Rechte Seite: Live-Chat (versteckt bei Analytics) */}
+        {activeTab !== "analytics" && (
         <div className="lg:col-span-2">
           <div className="sticky top-6 h-[600px]">
             <AgentLiveChat
@@ -454,6 +434,7 @@ export default function AgentDetailPage() {
             />
           </div>
         </div>
+        )}
       </div>
     </div>
   );

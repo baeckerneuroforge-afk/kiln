@@ -51,6 +51,9 @@ model Agent {
   customDomain       String?
   showPoweredBy      Boolean     @default(true)
 
+  // ROI-Berechnung
+  avgDealValue       Float?      // Durchschnittlicher Deal-Wert in EUR
+
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 

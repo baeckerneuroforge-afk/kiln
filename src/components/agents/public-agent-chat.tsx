@@ -37,6 +37,7 @@ export function PublicAgentChat({
   );
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [sessionId] = useState(() => crypto.randomUUID());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -71,7 +72,7 @@ export function PublicAgentChat({
       const res = await fetch(`/api/agents/${agentId}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages }),
+        body: JSON.stringify({ messages: apiMessages, sessionId, channel: "WEB" }),
       });
 
       if (!res.ok) throw new Error("Chat error");

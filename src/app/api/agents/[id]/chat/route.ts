@@ -183,14 +183,14 @@ export async function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
 
-// Live chat with agent (Streaming + RAG + Tool Use)
+// Live chat with agent (Streaming + RAG + Tool Use + Persistence)
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const body = await request.json();
-    const { messages } = body;
+    const { messages, sessionId: clientSessionId, channel } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return Response.json(
@@ -219,6 +219,34 @@ export async function POST(
         { error: `Monthly conversation limit reached (${chatCheck.current}/${chatCheck.limit}). The owner needs to upgrade their plan.` },
         { status: 429, headers: corsHeaders }
       );
+    }
+
+    // Conversation-Persistenz: Session finden oder erstellen
+    const sessionId = clientSessionId || crypto.randomUUID();
+    let conversation = await prisma.conversation.findFirst({
+      where: { agentId: params.id, sessionId },
+    });
+
+    if (!conversation) {
+      conversation = await prisma.conversation.create({
+        data: {
+          agentId: params.id,
+          sessionId,
+          channel: channel === "EMBED" ? "WEB" : (channel || "WEB"),
+        },
+      });
+    }
+
+    // Letzte User-Nachricht speichern
+    const lastUserMsg = messages[messages.length - 1];
+    if (lastUserMsg && lastUserMsg.role === "user") {
+      await prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          role: "USER",
+          content: lastUserMsg.content,
+        },
+      });
     }
 
     // RAG: Search for relevant knowledge base chunks
@@ -260,15 +288,19 @@ export async function POST(
       })
     );
 
+    // Track für Persistenz
+    const conversationId = conversation.id;
+    const actionsUsed: string[] = [...(conversation.actionsUsed || [])];
+
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
       async start(controller) {
+        let fullAssistantText = "";
         try {
           let currentMessages = claudeMessages;
-          let maxToolRounds = 5; // Prevent infinite loops
+          let maxToolRounds = 5;
 
           while (maxToolRounds-- > 0) {
-            // Claude API call (with or without tools)
             const requestParams: Anthropic.MessageCreateParams = {
               model: agent.llmModel || "claude-sonnet-4-20250514",
               max_tokens: 2048,
@@ -287,13 +319,24 @@ export async function POST(
 
             for (const block of response.content) {
               if (block.type === "text" && block.text) {
-                // Stream text
+                fullAssistantText += block.text;
                 const chunk = `data: ${JSON.stringify({ text: block.text })}\n\n`;
                 controller.enqueue(encoder.encode(chunk));
               } else if (block.type === "tool_use") {
                 hasToolUse = true;
 
-                // Execute tool
+                // Track welche Actions benutzt wurden
+                const actionType = block.name === "book_appointment"
+                  ? "BOOK_APPOINTMENT"
+                  : block.name === "collect_email"
+                  ? "COLLECT_EMAIL"
+                  : block.name === "score_lead"
+                  ? "SCORE_LEAD"
+                  : block.name.toUpperCase();
+                if (!actionsUsed.includes(actionType)) {
+                  actionsUsed.push(actionType);
+                }
+
                 const result = await executeTool(
                   block.name,
                   block.input as Record<string, unknown>,
@@ -306,15 +349,36 @@ export async function POST(
                   tool_use_id: block.id,
                   content: result,
                 });
+
+                // Lead-Score auf Conversation speichern
+                if (block.name === "score_lead") {
+                  const input = block.input as Record<string, unknown>;
+                  const score = Math.min(10, Math.max(1, Number(input.score) || 5));
+                  await prisma.conversation.update({
+                    where: { id: conversationId },
+                    data: {
+                      leadScore: score,
+                      visitorEmail: (input.email as string) || undefined,
+                    },
+                  });
+                }
+
+                // E-Mail auf Conversation speichern
+                if (block.name === "collect_email") {
+                  const input = block.input as Record<string, unknown>;
+                  await prisma.conversation.update({
+                    where: { id: conversationId },
+                    data: {
+                      visitorEmail: (input.email as string) || undefined,
+                      visitorName: (input.name as string) || undefined,
+                    },
+                  });
+                }
               }
             }
 
-            if (!hasToolUse) {
-              // No more tool calls — done
-              break;
-            }
+            if (!hasToolUse) break;
 
-            // Append tool results to messages for next round
             currentMessages = [
               ...currentMessages,
               { role: "assistant", content: response.content },
@@ -322,9 +386,41 @@ export async function POST(
             ];
           }
 
+          // Assistant-Antwort speichern
+          if (fullAssistantText) {
+            await prisma.message.create({
+              data: {
+                conversationId,
+                role: "ASSISTANT",
+                content: fullAssistantText,
+              },
+            });
+          }
+
+          // Conversation-Metadaten aktualisieren
+          await prisma.conversation.update({
+            where: { id: conversationId },
+            data: { actionsUsed },
+          });
+
+          // Session-ID an Client senden
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ sessionId })}\n\n`)
+          );
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         } catch (err) {
+          // Auch bei Fehler: Teil-Antwort speichern
+          if (fullAssistantText) {
+            await prisma.message.create({
+              data: {
+                conversationId,
+                role: "ASSISTANT",
+                content: fullAssistantText,
+              },
+            }).catch(() => {});
+          }
+
           const errorMessage =
             err instanceof Error ? err.message : "Stream error";
           controller.enqueue(
