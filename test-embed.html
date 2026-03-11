@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KILN Embed Test</title>
+  <title>KILN Embed Test — Live</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -54,34 +54,64 @@
       font-size: 0.85rem;
       overflow-x: auto;
     }
+    .status {
+      margin-top: 24px;
+      padding: 16px;
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      color: #166534;
+    }
+    .status.error {
+      background: #FEF2F2;
+      border-color: #FECACA;
+      color: #991B1B;
+    }
   </style>
 </head>
 <body>
   <div class="hero">
-    <div class="badge">KILN Embed Test</div>
+    <div class="badge">KILN Embed Test — Live</div>
     <h1>Willkommen auf meiner Website</h1>
     <p>
-      Dies ist eine Test-Seite um das KILN Chat-Widget zu testen.
+      Dies ist eine Test-Seite um das KILN Chat-Widget auf der Live-URL zu testen.
       Klicke auf den orangen Chat-Button unten rechts um den Agent zu starten.
     </p>
     <p>
-      Das Widget wird per &lt;script&gt;-Tag eingebunden und erstellt automatisch
+      Das Widget wird per &lt;script&gt;-Tag von
+      <strong>kiln-topaz.vercel.app</strong> geladen und erstellt automatisch
       einen Floating-Button mit iframe-Chat.
     </p>
 
     <div class="info">
-      <h2>So funktioniert es:</h2>
-      <p>Ersetze <strong>yoga-munich-assistent</strong> im Script unten mit dem Slug deines Agents.</p>
-      <code>&lt;script src="http://localhost:3000/api/embed/yoga-munich-assistent.js" async&gt;&lt;/script&gt;</code>
+      <h2>Embed-Code:</h2>
+      <p>Ersetze <strong>yoga-munich-assistent</strong> mit dem Slug deines Agents.</p>
+      <code>&lt;script src="https://kiln-topaz.vercel.app/api/embed/yoga-munich-assistent.js" async&gt;&lt;/script&gt;</code>
+    </div>
+
+    <div id="status" class="status">
+      Widget wird geladen...
     </div>
   </div>
 
-  <!--
-    KILN Chat Widget einbinden:
-    Ersetze "yoga-munich-assistent" mit dem tatsaechlichen Slug deines Agents.
-    z.B. wenn dein Agent-Slug "support-bot" ist:
-    <script src="http://localhost:3000/api/embed/support-bot.js" async></script>
-  -->
-  <script src="http://localhost:3000/api/embed/yoga-munich-assistent.js" async></script>
+  <script>
+    // Status-Check: Prüfe ob Widget korrekt geladen wurde
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        var widget = document.getElementById('kiln-chat-widget');
+        var statusEl = document.getElementById('status');
+        if (widget) {
+          statusEl.textContent = '✅ Widget erfolgreich geladen! Chat-Button ist unten rechts sichtbar.';
+        } else {
+          statusEl.className = 'status error';
+          statusEl.textContent = '❌ Widget konnte nicht geladen werden. Prüfe die Browser-Konsole für Fehler.';
+        }
+      }, 3000);
+    });
+  </script>
+
+  <!-- KILN Chat Widget von Live-URL laden -->
+  <script src="https://kiln-topaz.vercel.app/api/embed/yoga-munich-assistent.js" async></script>
 </body>
 </html>
