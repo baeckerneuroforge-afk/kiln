@@ -190,7 +190,7 @@ export async function POST(
 ) {
   try {
     const body = await request.json();
-    const { messages, sessionId: clientSessionId, channel } = body;
+    const { messages, sessionId: clientSessionId, channel, debug } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return Response.json(
@@ -251,22 +251,23 @@ export async function POST(
 
     // RAG: Search for relevant knowledge base chunks
     let knowledgeContext = "";
+    let ragChunks: { content: string; similarity: number }[] = [];
     const lastUserMessage = [...messages]
       .reverse()
       .find((m: { role: string }) => m.role === "user");
 
     if (agent.knowledgeBases.length > 0 && lastUserMessage) {
       try {
-        const relevantChunks = await searchRelevantChunks(
+        ragChunks = await searchRelevantChunks(
           params.id,
           lastUserMessage.content,
           5
         );
 
-        if (relevantChunks.length > 0) {
+        if (ragChunks.length > 0) {
           knowledgeContext =
             "\n\n---\nRELEVANT KNOWLEDGE FROM THE KNOWLEDGE BASE:\n" +
-            relevantChunks
+            ragChunks
               .map((c, i) => `[${i + 1}] ${c.content}`)
               .join("\n\n") +
             "\n---\nUse the above knowledge to answer the question. If the knowledge is not relevant, answer from your general knowledge. Do not make up information.";
@@ -292,6 +293,11 @@ export async function POST(
     const conversationId = conversation.id;
     const actionsUsed: string[] = [...(conversation.actionsUsed || [])];
 
+    // Debug tracking
+    const debugToolCalls: { name: string; input: Record<string, unknown>; result: string }[] = [];
+    let debugInputTokens = 0;
+    let debugOutputTokens = 0;
+
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
       async start(controller) {
@@ -313,6 +319,12 @@ export async function POST(
             }
 
             const response = await client.messages.create(requestParams);
+
+            // Token-Tracking
+            if (response.usage) {
+              debugInputTokens += response.usage.input_tokens;
+              debugOutputTokens += response.usage.output_tokens;
+            }
 
             let hasToolUse = false;
             const toolResults: Anthropic.ToolResultBlockParam[] = [];
@@ -343,6 +355,12 @@ export async function POST(
                   params.id,
                   agent.actions
                 );
+
+                debugToolCalls.push({
+                  name: block.name,
+                  input: block.input as Record<string, unknown>,
+                  result,
+                });
 
                 toolResults.push({
                   type: "tool_result",
@@ -407,6 +425,32 @@ export async function POST(
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ sessionId })}\n\n`)
           );
+
+          // Debug-Info senden (nur wenn angefragt)
+          if (debug) {
+            const debugInfo = {
+              debug: {
+                ragChunks: ragChunks.map((c) => ({
+                  content: c.content.slice(0, 200) + (c.content.length > 200 ? "..." : ""),
+                  similarity: Math.round(c.similarity * 1000) / 1000,
+                })),
+                toolsEvaluated: tools.map((t) => t.name),
+                toolCalls: debugToolCalls,
+                systemPrompt: systemPrompt.slice(0, 500) + (systemPrompt.length > 500 ? "..." : ""),
+                systemPromptLength: systemPrompt.length,
+                tokens: {
+                  input: debugInputTokens,
+                  output: debugOutputTokens,
+                  total: debugInputTokens + debugOutputTokens,
+                },
+                model: agent.llmModel || "claude-sonnet-4-20250514",
+              },
+            };
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(debugInfo)}\n\n`)
+            );
+          }
+
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         } catch (err) {

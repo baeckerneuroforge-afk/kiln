@@ -15,6 +15,8 @@ import {
   Globe,
   Copy,
   Check,
+  Bug,
+  ScrollText,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -23,6 +25,7 @@ import { AgentLiveChat } from "@/components/agents/agent-live-chat";
 import { KnowledgeTab } from "@/components/agents/knowledge-tab";
 import { ActionsTab } from "@/components/agents/actions-tab";
 import { AnalyticsTab } from "@/components/agents/analytics-tab";
+import { LogsTab } from "@/components/agents/logs-tab";
 import { cn } from "@/lib/utils";
 
 interface Agent {
@@ -44,14 +47,19 @@ interface Agent {
   _count: { conversations: number };
 }
 
-type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed";
+type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "debug" | "logs";
 
-const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
+const baseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "config", label: "Configuration", icon: Settings2 },
   { id: "knowledge", label: "Knowledge", icon: BookOpen },
   { id: "actions", label: "Actions", icon: Zap },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "embed", label: "Embed Code", icon: Code2 },
+];
+
+const advancedTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
+  { id: "debug", label: "Debug", icon: Bug },
+  { id: "logs", label: "Logs", icon: ScrollText },
 ];
 
 const statusOptions = [
@@ -60,6 +68,7 @@ const statusOptions = [
   { value: "PAUSED", label: "Paused" },
 ];
 
+const fullWidthTabs: Tab[] = ["analytics", "logs"];
 
 export default function AgentDetailPage() {
   const params = useParams();
@@ -69,6 +78,7 @@ export default function AgentDetailPage() {
   const [activeTab, setActiveTab] = useState<Tab>("config");
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Editierbare Felder
   const [name, setName] = useState("");
@@ -144,6 +154,10 @@ export default function AgentDetailPage() {
     );
   }
 
+  const visibleTabs = showAdvanced ? [...baseTabs, ...advancedTabs] : baseTabs;
+  const isFullWidth = fullWidthTabs.includes(activeTab);
+  const isDebugTab = activeTab === "debug";
+
   return (
     <div className="mx-auto max-w-6xl">
       {/* Header */}
@@ -187,8 +201,8 @@ export default function AgentDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 flex gap-1 border-b border-border">
-        {tabs.map((tab) => (
+      <div className="mb-6 flex items-center gap-1 border-b border-border">
+        {visibleTabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
@@ -196,22 +210,44 @@ export default function AgentDetailPage() {
               "flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
               activeTab === tab.id
                 ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+              advancedTabs.some((at) => at.id === tab.id) && "text-purple-400 hover:text-purple-300",
+              activeTab === tab.id && advancedTabs.some((at) => at.id === tab.id) && "border-purple-500 text-purple-400"
             )}
           >
             <tab.icon className="h-4 w-4" />
             {tab.label}
           </button>
         ))}
+        <div className="ml-auto flex items-center">
+          <button
+            onClick={() => {
+              setShowAdvanced(!showAdvanced);
+              // Wenn Advanced ausgeschaltet wird und wir auf einem Advanced-Tab sind → zurück zu config
+              if (showAdvanced && advancedTabs.some((t) => t.id === activeTab)) {
+                setActiveTab("config");
+              }
+            }}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+              showAdvanced
+                ? "bg-purple-500/10 text-purple-400"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Bug className="h-3.5 w-3.5" />
+            Advanced
+          </button>
+        </div>
       </div>
 
       {/* Tab Content */}
       <div className={cn(
         "grid grid-cols-1 gap-6",
-        activeTab !== "analytics" && "lg:grid-cols-5"
+        !isFullWidth && !isDebugTab && "lg:grid-cols-5"
       )}>
-        {/* Linke Seite: Tab-Inhalt (full width bei Analytics) */}
-        <div className={activeTab === "analytics" ? "" : "lg:col-span-3"}>
+        {/* Linke Seite: Tab-Inhalt */}
+        <div className={isFullWidth ? "" : isDebugTab ? "lg:col-span-3" : "lg:col-span-3"}>
           {activeTab === "config" && (
             <div className="space-y-6">
               {/* Name */}
@@ -366,6 +402,26 @@ export default function AgentDetailPage() {
             <AnalyticsTab agentId={agent.id} />
           )}
 
+          {activeTab === "debug" && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-4">
+                <h3 className="mb-1 text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Bug className="h-4 w-4 text-purple-400" />
+                  Debug Mode Active
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  The test chat on the right now shows debug information under each response:
+                  RAG chunks with similarity scores, available tools, tool calls made, system prompt preview, and token counts.
+                  Send a message to see debug data.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "logs" && (
+            <LogsTab agentId={agent.id} />
+          )}
+
           {activeTab === "embed" && (
             <div className="space-y-6">
               {/* Public URL */}
@@ -422,8 +478,8 @@ export default function AgentDetailPage() {
           )}
         </div>
 
-        {/* Rechte Seite: Live-Chat (versteckt bei Analytics) */}
-        {activeTab !== "analytics" && (
+        {/* Rechte Seite: Live-Chat (versteckt bei Full-Width-Tabs) */}
+        {!isFullWidth && (
         <div className="lg:col-span-2">
           <div className="sticky top-6 h-[600px]">
             <AgentLiveChat
@@ -431,6 +487,7 @@ export default function AgentDetailPage() {
               agentName={agent.name}
               welcomeMessage={agent.welcomeMessage}
               suggestedQuestions={agent.suggestedQuestions}
+              debugMode={isDebugTab}
             />
           </div>
         </div>
