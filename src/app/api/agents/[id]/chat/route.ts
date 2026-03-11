@@ -277,7 +277,32 @@ export async function POST(
       }
     }
 
-    const systemPrompt = agent.systemPrompt + knowledgeContext;
+    // Variable-Replacement im System Prompt
+    const now = new Date();
+    const conversationCount = await prisma.conversation.count({
+      where: { agentId: params.id },
+    });
+
+    let resolvedPrompt = agent.systemPrompt
+      .replace(/\{\{agent\.name\}\}/g, agent.name)
+      .replace(/\{\{current\.time\}\}/g, now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }))
+      .replace(/\{\{current\.date\}\}/g, now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }))
+      .replace(/\{\{conversation\.count\}\}/g, conversationCount.toString())
+      .replace(/\{\{user\.name\}\}/g, conversation.visitorName || "Unknown")
+      .replace(/\{\{user\.email\}\}/g, conversation.visitorEmail || "Unknown");
+
+    // {{knowledge.context}} wird durch RAG-Kontext ersetzt oder entfernt
+    if (knowledgeContext) {
+      resolvedPrompt = resolvedPrompt.replace(/\{\{knowledge\.context\}\}/g, knowledgeContext);
+    } else {
+      resolvedPrompt = resolvedPrompt.replace(/\{\{knowledge\.context\}\}/g, "");
+    }
+
+    // Falls der Prompt kein {{knowledge.context}} hatte, RAG-Kontext trotzdem anhängen
+    const systemPrompt = resolvedPrompt.includes(knowledgeContext)
+      ? resolvedPrompt
+      : resolvedPrompt + knowledgeContext;
+
     const tools = buildTools(agent.actions);
     const client = getClaudeClient();
 

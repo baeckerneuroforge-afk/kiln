@@ -26,6 +26,7 @@ import { KnowledgeTab } from "@/components/agents/knowledge-tab";
 import { ActionsTab } from "@/components/agents/actions-tab";
 import { AnalyticsTab } from "@/components/agents/analytics-tab";
 import { LogsTab } from "@/components/agents/logs-tab";
+import { PromptEditor } from "@/components/agents/prompt-editor";
 import { cn } from "@/lib/utils";
 
 interface Agent {
@@ -79,6 +80,7 @@ export default function AgentDetailPage() {
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showPromptEditor, setShowPromptEditor] = useState(false);
 
   // Editierbare Felder
   const [name, setName] = useState("");
@@ -278,12 +280,25 @@ export default function AgentDetailPage() {
 
               {/* System Prompt */}
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">
-                  System Prompt
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    (Advanced)
-                  </span>
-                </label>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label className="text-sm font-medium text-foreground">
+                    System Prompt
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      (Advanced)
+                    </span>
+                  </label>
+                  {showAdvanced && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowPromptEditor(true)}
+                      className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300"
+                    >
+                      <Code2 className="mr-1.5 h-3.5 w-3.5" />
+                      Advanced Editor
+                    </Button>
+                  )}
+                </div>
                 <textarea
                   value={systemPrompt}
                   onChange={(e) => setSystemPrompt(e.target.value)}
@@ -493,6 +508,15 @@ export default function AgentDetailPage() {
         </div>
         )}
       </div>
+
+      {/* Advanced Prompt Editor Modal */}
+      {showPromptEditor && (
+        <PromptEditor
+          value={systemPrompt}
+          onChange={setSystemPrompt}
+          onClose={() => setShowPromptEditor(false)}
+        />
+      )}
     </div>
   );
 }
