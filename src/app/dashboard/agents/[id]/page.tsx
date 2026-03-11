@@ -34,6 +34,7 @@ import { LogsTab } from "@/components/agents/logs-tab";
 import { MemoryTab } from "@/components/agents/memory-tab";
 import { PromptEditor } from "@/components/agents/prompt-editor";
 import { cn } from "@/lib/utils";
+import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 
 interface Agent {
   id: string;
@@ -83,12 +84,12 @@ const fullWidthTabs: Tab[] = ["analytics", "logs", "memory"];
 export default function AgentDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { advancedMode } = useAdvancedMode();
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("config");
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [showPromptEditor, setShowPromptEditor] = useState(false);
 
   // Editierbare Felder
@@ -195,6 +196,13 @@ export default function AgentDetailPage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  // Wenn Advanced ausgeschaltet wird und wir auf einem Advanced-Tab sind → zurück zu config
+  useEffect(() => {
+    if (!advancedMode && advancedTabs.some((t) => t.id === activeTab)) {
+      setActiveTab("config");
+    }
+  }, [advancedMode, activeTab]);
+
   if (loading || !agent) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -203,7 +211,7 @@ export default function AgentDetailPage() {
     );
   }
 
-  const visibleTabs = showAdvanced ? [...baseTabs, ...advancedTabs] : baseTabs;
+  const visibleTabs = advancedMode ? [...baseTabs, ...advancedTabs] : baseTabs;
   const isFullWidth = fullWidthTabs.includes(activeTab);
   const isDebugTab = activeTab === "debug";
 
@@ -268,26 +276,6 @@ export default function AgentDetailPage() {
             {tab.label}
           </button>
         ))}
-        <div className="ml-auto flex items-center">
-          <button
-            onClick={() => {
-              setShowAdvanced(!showAdvanced);
-              // Wenn Advanced ausgeschaltet wird und wir auf einem Advanced-Tab sind → zurück zu config
-              if (showAdvanced && advancedTabs.some((t) => t.id === activeTab)) {
-                setActiveTab("config");
-              }
-            }}
-            className={cn(
-              "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-              showAdvanced
-                ? "bg-purple-500/10 text-purple-400"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Bug className="h-3.5 w-3.5" />
-            Advanced
-          </button>
-        </div>
       </div>
 
       {/* Tab Content */}
@@ -334,7 +322,7 @@ export default function AgentDetailPage() {
                       (Advanced)
                     </span>
                   </label>
-                  {showAdvanced && (
+                  {advancedMode && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -444,7 +432,8 @@ export default function AgentDetailPage() {
                 </div>
               </div>
 
-              {/* Persistent Memory Toggle */}
+              {/* Persistent Memory Toggle — nur im Advanced Mode */}
+              {advancedMode && (
               <div className="rounded-xl border border-border bg-card/50 p-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -476,9 +465,10 @@ export default function AgentDetailPage() {
                   </button>
                 </div>
               </div>
+              )}
 
-              {/* Custom Domain — nur für Pro/Agency/Admin */}
-              {(userPlan === "PRO" || userPlan === "AGENCY" || userPlan === "ADMIN") && (
+              {/* Custom Domain — nur für Pro/Agency/Admin im Advanced Mode */}
+              {advancedMode && (userPlan === "PRO" || userPlan === "AGENCY" || userPlan === "ADMIN") && (
                 <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10">

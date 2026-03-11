@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
-import { Bot, Globe, Zap, LayoutDashboard, Settings } from "lucide-react";
+import { Bot, Globe, Zap, LayoutDashboard, Settings, Bolt } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 
 const modules = [
   {
@@ -39,6 +40,7 @@ const modules = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { advancedMode, setAdvancedMode } = useAdvancedMode();
 
   return (
     <aside className="flex h-screen w-16 flex-col items-center border-r border-border bg-sidebar py-4 lg:w-56">
@@ -100,6 +102,29 @@ export function Sidebar() {
           <Settings className="h-5 w-5 shrink-0" />
           <span className="hidden lg:block">Settings</span>
         </Link>
+
+        {/* Advanced Mode Toggle */}
+        <button
+          onClick={() => setAdvancedMode(!advancedMode)}
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors w-full",
+            advancedMode
+              ? "bg-purple-500/10 text-purple-400"
+              : "text-muted-foreground hover:bg-sidebar-accent"
+          )}
+        >
+          <Bolt className={cn("h-5 w-5 shrink-0", advancedMode && "text-purple-400")} />
+          <span className="hidden lg:block">Advanced</span>
+          <div className={cn(
+            "ml-auto hidden lg:block relative h-5 w-9 rounded-full transition-colors",
+            advancedMode ? "bg-purple-500" : "bg-muted"
+          )}>
+            <div className={cn(
+              "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
+              advancedMode ? "translate-x-4" : "translate-x-0.5"
+            )} />
+          </div>
+        </button>
 
         <Separator className="w-10 lg:w-full" />
 
