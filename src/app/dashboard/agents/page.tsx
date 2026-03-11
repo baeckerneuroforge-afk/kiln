@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { OnboardingWizard } from "@/components/onboarding-wizard";
 
 interface AgentWithCount {
   id: string;
@@ -28,6 +29,7 @@ export default function AgentsPage() {
   const [agents, setAgents] = useState<AgentWithCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [wizardDismissed, setWizardDismissed] = useState(false);
 
   useEffect(() => {
     fetch("/api/agents")
@@ -66,32 +68,36 @@ export default function AgentsPage() {
     );
   }
 
+  const showWizard = agents.length === 0 && !wizardDismissed && !error;
+
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="font-serif text-3xl text-foreground">
-            AI Agent Studio
-          </h1>
-          <p className="mt-2 text-muted-foreground">
-            Create and manage your AI Agents.
-          </p>
+      {!showWizard && (
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="font-serif text-3xl text-foreground">
+              AI Agent Studio
+            </h1>
+            <p className="mt-2 text-muted-foreground">
+              Create and manage your AI Agents.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard/agents/templates">
+              <Button variant="outline">
+                <Sparkles className="mr-2 h-4 w-4" />
+                Templates
+              </Button>
+            </Link>
+            <Link href="/dashboard/agents/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                New Agent
+              </Button>
+            </Link>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard/agents/templates">
-            <Button variant="outline">
-              <Sparkles className="mr-2 h-4 w-4" />
-              Templates
-            </Button>
-          </Link>
-          <Link href="/dashboard/agents/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Agent
-            </Button>
-          </Link>
-        </div>
-      </div>
+      )}
 
       {error ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 py-12">
@@ -105,8 +111,11 @@ export default function AgentsPage() {
             Reload page
           </button>
         </div>
+      ) : agents.length === 0 && !wizardDismissed ? (
+        /* Onboarding Wizard */
+        <OnboardingWizard onDismiss={() => setWizardDismissed(true)} />
       ) : agents.length === 0 ? (
-        /* Empty State */
+        /* Empty State (after wizard dismissed) */
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 py-16">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-kiln-orange/10">
             <Bot className="h-8 w-8 text-kiln-orange" />

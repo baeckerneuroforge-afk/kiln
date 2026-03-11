@@ -17,6 +17,7 @@ model User {
   imageUrl         String?
   plan             Plan     @default(FREE)
   stripeCustomerId String?  @unique
+  companyName      String?
   referralCode     String?  @unique // KILN-XXXX
   referredBy       String?  // userId des Referrers
   createdAt        DateTime @default(now())
