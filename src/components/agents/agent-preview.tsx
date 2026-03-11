@@ -32,7 +32,7 @@ export function AgentPreview({ config, streamingText }: AgentPreviewProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Noch keine Config → Placeholder
+  // No config yet → Placeholder
   if (!config && !streamingText) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-center px-8">
@@ -40,11 +40,10 @@ export function AgentPreview({ config, streamingText }: AgentPreviewProps) {
           <MessageSquare className="h-8 w-8 text-muted-foreground" />
         </div>
         <h3 className="mb-2 text-lg font-semibold text-foreground">
-          Live-Vorschau
+          Live Preview
         </h3>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Beschreibe deinen Agent links im Chat. Die Vorschau zeigt dir in
-          Echtzeit, wie dein Agent aussehen und antworten wird.
+          Describe your agent in the chat on the left. The preview shows you in real-time how your agent will look and respond.
         </p>
       </div>
     );
@@ -58,7 +57,7 @@ export function AgentPreview({ config, streamingText }: AgentPreviewProps) {
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 animate-pulse text-kiln-orange" />
             <span className="text-sm font-medium text-foreground">
-              Agent wird generiert...
+              Generating agent...
             </span>
           </div>
         </div>
@@ -107,7 +106,7 @@ export function AgentPreview({ config, streamingText }: AgentPreviewProps) {
           messages: [
             {
               role: "user",
-              content: `[SYSTEM CONTEXT: Du bist jetzt der Agent "${config.name}". Antworte NUR als dieser Agent, basierend auf folgendem System-Prompt. Generiere KEIN JSON. Antworte einfach als der Agent.\n\nSystem-Prompt: ${config.system_prompt}\n\nWillkommensnachricht: ${config.welcome_message}]\n\nDie folgende Nachricht ist vom Besucher:`,
+              content: `[SYSTEM CONTEXT: You are now the agent "${config.name}". Respond ONLY as this agent, based on the following system prompt. Do NOT generate JSON. Simply respond as the agent.\n\nSystem Prompt: ${config.system_prompt}\n\nWelcome Message: ${config.welcome_message}]\n\nThe following message is from the visitor:`,
             },
             ...apiMessages,
           ],
@@ -150,7 +149,7 @@ export function AgentPreview({ config, streamingText }: AgentPreviewProps) {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantId
-            ? { ...m, content: "Vorschau-Fehler. Bitte erneut versuchen." }
+            ? { ...m, content: "Preview error. Please try again." }
             : m
         )
       );
@@ -228,7 +227,7 @@ export function AgentPreview({ config, streamingText }: AgentPreviewProps) {
         {/* Suggested Questions */}
         {showSuggestions && (
           <div className="space-y-1.5 pt-2">
-            <p className="text-xs text-muted-foreground">Häufige Fragen:</p>
+            <p className="text-xs text-muted-foreground">Suggested Questions:</p>
             {config!.suggested_questions.map((q, i) => (
               <button
                 key={i}
@@ -250,7 +249,7 @@ export function AgentPreview({ config, streamingText }: AgentPreviewProps) {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Nachricht eingeben..."
+            placeholder="Type a message..."
             className="flex-1 rounded-full border border-border bg-card px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {

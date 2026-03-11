@@ -6,23 +6,23 @@ export async function POST(request: Request) {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return Response.json({ error: "Nicht autorisiert" }, { status: 401 });
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { priceId } = await request.json();
     if (!priceId) {
-      return Response.json({ error: "Price ID fehlt" }, { status: 400 });
+      return Response.json({ error: "Price ID missing" }, { status: 400 });
     }
 
     const stripe = getStripe();
 
-    // User aus DB holen (für Stripe Customer ID)
+    // Get user from DB (for Stripe Customer ID)
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-      return Response.json({ error: "User nicht gefunden" }, { status: 404 });
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Stripe Customer erstellen oder existierenden nutzen
+    // Create Stripe customer or use existing one
     let customerId = user.stripeCustomerId;
     if (!customerId) {
       const customer = await stripe.customers.create({
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // Checkout Session erstellen
+    // Create checkout session
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 
     return Response.json({ url: session.url });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Server-Fehler";
+    const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });
   }
 }

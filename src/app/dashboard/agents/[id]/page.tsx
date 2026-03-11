@@ -46,17 +46,17 @@ interface Agent {
 type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed";
 
 const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: "config", label: "Konfiguration", icon: Settings2 },
-  { id: "knowledge", label: "Wissen", icon: BookOpen },
+  { id: "config", label: "Configuration", icon: Settings2 },
+  { id: "knowledge", label: "Knowledge", icon: BookOpen },
   { id: "actions", label: "Actions", icon: Zap },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
-  { id: "embed", label: "Embed-Code", icon: Code2 },
+  { id: "embed", label: "Embed Code", icon: Code2 },
 ];
 
 const statusOptions = [
-  { value: "DRAFT", label: "Entwurf" },
+  { value: "DRAFT", label: "Draft" },
   { value: "LIVE", label: "Live" },
-  { value: "PAUSED", label: "Pausiert" },
+  { value: "PAUSED", label: "Paused" },
 ];
 
 
@@ -180,7 +180,7 @@ export default function AgentDetailPage() {
             ) : (
               <Save className="mr-2 h-3.5 w-3.5" />
             )}
-            Speichern
+            Save
           </Button>
         </div>
       </div>
@@ -213,7 +213,7 @@ export default function AgentDetailPage() {
               {/* Name */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">
-                  Agent-Name
+                  Agent Name
                 </label>
                 <input
                   type="text"
@@ -226,7 +226,7 @@ export default function AgentDetailPage() {
               {/* Welcome Message */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">
-                  Willkommensnachricht
+                  Welcome Message
                 </label>
                 <textarea
                   value={welcomeMessage}
@@ -239,7 +239,7 @@ export default function AgentDetailPage() {
               {/* System Prompt */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">
-                  System-Prompt
+                  System Prompt
                   <span className="ml-2 text-xs font-normal text-muted-foreground">
                     (Advanced)
                   </span>
@@ -255,7 +255,7 @@ export default function AgentDetailPage() {
               {/* Suggested Questions */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">
-                  Vorgeschlagene Fragen
+                  Suggested Questions
                 </label>
                 <div className="space-y-2">
                   {agent.suggestedQuestions.map((q, i) => (
@@ -276,14 +276,14 @@ export default function AgentDetailPage() {
                     White-Label Design
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    Passe das Erscheinungsbild deines Chat-Widgets an.
+                    Customize the appearance of your chat widget.
                   </p>
                 </div>
 
                 {/* Primary Color */}
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-foreground">
-                    Primärfarbe
+                    Primary Color
                   </label>
                   <div className="flex items-center gap-3">
                     <input
@@ -303,7 +303,7 @@ export default function AgentDetailPage() {
                       className="flex h-10 items-center rounded-lg px-4 text-xs font-medium text-white"
                       style={{ backgroundColor: primaryColor }}
                     >
-                      Vorschau
+                      Preview
                     </div>
                   </div>
                 </div>
@@ -328,14 +328,14 @@ export default function AgentDetailPage() {
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={logoUrl}
-                        alt="Logo Vorschau"
+                        alt="Logo Preview"
                         className="h-10 w-10 rounded-full object-cover border border-border"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = "none";
                         }}
                       />
                       <span className="text-xs text-muted-foreground">
-                        Logo-Vorschau
+                        Logo Preview
                       </span>
                     </div>
                   )}
@@ -362,10 +362,10 @@ export default function AgentDetailPage() {
             <div className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 {[
-                  { label: "Gespräche", value: agent._count.conversations.toString() },
+                  { label: "Conversations", value: agent._count.conversations.toString() },
                   { label: "Leads", value: "0" },
-                  { label: "Termine", value: "0" },
-                  { label: "Gesch. Wert", value: "€0" },
+                  { label: "Appointments", value: "0" },
+                  { label: "Est. Value", value: "€0" },
                 ].map((stat) => (
                   <div
                     key={stat.label}
@@ -381,7 +381,7 @@ export default function AgentDetailPage() {
               <div className="rounded-xl border border-dashed border-border py-12 text-center">
                 <BarChart3 className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
-                  Charts und detaillierte Analytics kommen in der nächsten Phase.
+                  Charts and detailed analytics coming in the next phase.
                 </p>
               </div>
             </div>
@@ -392,7 +392,7 @@ export default function AgentDetailPage() {
               {/* Public URL */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">
-                  Öffentliche Agent-URL
+                  Public Agent URL
                 </label>
                 <div className="flex items-center gap-2">
                   <div className="flex-1 rounded-lg border border-border bg-card px-3 py-2 font-mono text-sm text-muted-foreground">
@@ -402,7 +402,7 @@ export default function AgentDetailPage() {
                   </div>
                   <Button size="sm" variant="outline">
                     <Globe className="mr-2 h-3.5 w-3.5" />
-                    Öffnen
+                    Open
                   </Button>
                 </div>
               </div>
@@ -412,11 +412,10 @@ export default function AgentDetailPage() {
               {/* Embed Code */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">
-                  Embed-Code
+                  Embed Code
                 </label>
                 <p className="mb-3 text-xs text-muted-foreground">
-                  Füge diesen Code in deine Website ein um das Chat-Widget
-                  einzubetten.
+                  Add this code to your website to embed the chat widget.
                 </p>
                 <div className="relative">
                   <pre className="rounded-lg border border-border bg-card p-4 font-mono text-xs text-foreground overflow-x-auto">
@@ -436,7 +435,7 @@ export default function AgentDetailPage() {
                     ) : (
                       <Copy className="mr-1.5 h-3 w-3" />
                     )}
-                    {copied ? "Kopiert" : "Kopieren"}
+                    {copied ? "Copied" : "Copy"}
                   </Button>
                 </div>
               </div>

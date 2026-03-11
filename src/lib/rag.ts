@@ -1,20 +1,20 @@
 import OpenAI from "openai";
 import { getSupabaseAdmin } from "./supabase";
 
-// Lazy-Init um Build-Time-Fehler zu vermeiden
+// Lazy init to avoid build-time errors
 let _openai: OpenAI | null = null;
 function getOpenAI(): OpenAI {
   if (!_openai) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      throw new Error("OPENAI_API_KEY ist nicht konfiguriert in .env.local");
+      throw new Error("OPENAI_API_KEY is not configured in .env.local");
     }
     _openai = new OpenAI({ apiKey });
   }
   return _openai;
 }
 
-// Text in Chunks aufteilen (mit Overlap)
+// Split text into chunks (with overlap)
 export function chunkText(
   text: string,
   chunkSize: number = 1000,
@@ -27,7 +27,7 @@ export function chunkText(
   for (const sentence of sentences) {
     if ((currentChunk + " " + sentence).length > chunkSize && currentChunk) {
       chunks.push(currentChunk.trim());
-      // Overlap: Letzte Sätze behalten
+      // Overlap: keep last sentences
       const words = currentChunk.split(" ");
       const overlapWords = words.slice(-Math.floor(overlap / 5));
       currentChunk = overlapWords.join(" ") + " " + sentence;
@@ -43,7 +43,7 @@ export function chunkText(
   return chunks;
 }
 
-// Embedding mit OpenAI text-embedding-ada-002
+// Embedding with OpenAI text-embedding-ada-002
 export async function generateEmbedding(text: string): Promise<number[]> {
   const response = await getOpenAI().embeddings.create({
     model: "text-embedding-ada-002",
@@ -52,7 +52,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   return response.data[0].embedding;
 }
 
-// Mehrere Chunks embedden (Batch)
+// Embed multiple chunks (batch)
 export async function generateEmbeddings(
   chunks: string[]
 ): Promise<number[][]> {
@@ -63,7 +63,7 @@ export async function generateEmbeddings(
   return response.data.map((d) => d.embedding);
 }
 
-// Chunks mit Embeddings in Supabase pgvector speichern
+// Store chunks with embeddings in Supabase pgvector
 export async function storeChunks(
   knowledgeBaseId: string,
   agentId: string,
@@ -83,11 +83,11 @@ export async function storeChunks(
   const { error } = await supabase.from("knowledge_chunks").insert(rows);
 
   if (error) {
-    throw new Error(`Fehler beim Speichern der Chunks: ${error.message}`);
+    throw new Error(`Error saving chunks: ${error.message}`);
   }
 }
 
-// Relevante Chunks suchen (Semantic Search)
+// Search relevant chunks (semantic search)
 export async function searchRelevantChunks(
   agentId: string,
   query: string,
@@ -104,7 +104,7 @@ export async function searchRelevantChunks(
   });
 
   if (error) {
-    console.error("RAG-Suche fehlgeschlagen:", error.message);
+    console.error("RAG search failed:", error.message);
     return [];
   }
 
@@ -114,19 +114,19 @@ export async function searchRelevantChunks(
   }));
 }
 
-// URL-Inhalt fetchen
+// Fetch URL content
 export async function fetchUrlContent(url: string): Promise<string> {
   const response = await fetch(url, {
     headers: { "User-Agent": "KILN-Bot/1.0" },
   });
 
   if (!response.ok) {
-    throw new Error(`URL konnte nicht geladen werden: ${response.status}`);
+    throw new Error(`Failed to load URL: ${response.status}`);
   }
 
   const html = await response.text();
 
-  // Einfaches HTML-to-Text (ohne externe Abhängigkeit)
+  // Simple HTML-to-text (without external dependency)
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")

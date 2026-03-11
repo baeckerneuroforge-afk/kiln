@@ -4,7 +4,7 @@ import Link from "next/link";
 const modules = [
   {
     title: "AI Agent Studio",
-    description: "Erstelle intelligente Chat-Agents mit eigener Knowledge Base.",
+    description: "Create intelligent chat agents with custom knowledge bases.",
     icon: Bot,
     href: "/dashboard/agents",
     color: "from-kiln-orange/20 to-kiln-ember/10",
@@ -14,7 +14,7 @@ const modules = [
   },
   {
     title: "Site Builder",
-    description: "Generiere Websites und Landing Pages per Natural Language.",
+    description: "Generate websites and landing pages with natural language.",
     icon: Globe,
     href: "/dashboard/sites",
     color: "from-kiln-blue/20 to-kiln-blue/5",
@@ -24,7 +24,7 @@ const modules = [
   },
   {
     title: "Flow Engine",
-    description: "Automatisiere Workflows mit AI-gestützten Automations.",
+    description: "Automate workflows with AI-powered automations.",
     icon: Zap,
     href: "/dashboard/flows",
     color: "from-kiln-green/20 to-kiln-green/5",
@@ -40,10 +40,10 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="font-serif text-3xl text-foreground">
-          Willkommen bei KILN
+          Welcome to KILN
         </h1>
         <p className="mt-2 text-muted-foreground">
-          Erstelle AI Agents, Websites und Workflows — alles an einem Ort.
+          Create AI Agents, Websites & Workflows — all in one place.
         </p>
       </div>
 
@@ -79,7 +79,7 @@ export default function DashboardPage() {
               </p>
               {mod.active && (
                 <div className="flex items-center gap-1 text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
-                  Starten
+                  Start
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </div>
               )}
@@ -92,9 +92,9 @@ export default function DashboardPage() {
       <div className="mt-8 grid gap-4 md:grid-cols-4">
         {[
           { label: "Agents", value: "0" },
-          { label: "Gespräche", value: "0" },
+          { label: "Conversations", value: "0" },
           { label: "Leads", value: "0" },
-          { label: "Gesch. Wert", value: "€0" },
+          { label: "Est. Value", value: "€0" },
         ].map((stat) => (
           <div
             key={stat.label}

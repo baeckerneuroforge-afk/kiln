@@ -25,7 +25,7 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   title: "KILN — AI Creation Platform",
   description:
-    "Erstelle AI Agents, Websites und Workflows per Natural Language.",
+    "Create AI Agents, Websites & Workflows with Natural Language.",
 };
 
 export default function RootLayout({
@@ -35,7 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider appearance={{ baseTheme: dark }}>
-      <html lang="de" className={`${dmSans.variable} ${dmMono.variable} ${instrumentSerif.variable}`}>
+      <html lang="en" className={`${dmSans.variable} ${dmMono.variable} ${instrumentSerif.variable}`}>
         <body className="font-sans antialiased">
           <TooltipProvider>{children}</TooltipProvider>
         </body>

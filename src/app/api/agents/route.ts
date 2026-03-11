@@ -3,12 +3,12 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { canCreateAgent } from "@/lib/plan-limits";
 
-// Alle Agents des Users laden
+// Load all agents for the user
 export async function GET() {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return Response.json({ error: "Nicht autorisiert" }, { status: 401 });
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const agents = await prisma.agent.findMany({
@@ -22,17 +22,17 @@ export async function GET() {
     return Response.json(agents);
   } catch (err) {
     console.error("GET /api/agents error:", err);
-    const message = err instanceof Error ? err.message : "Server-Fehler";
+    const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });
   }
 }
 
-// Neuen Agent erstellen
+// Create new agent
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return Response.json({ error: "Nicht autorisiert" }, { status: 401 });
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
@@ -49,28 +49,28 @@ export async function POST(request: NextRequest) {
 
     if (!name || !slug || !systemPrompt) {
       return Response.json(
-        { error: "Name, Slug und System-Prompt sind erforderlich." },
+        { error: "Name, slug, and system prompt are required." },
         { status: 400 }
       );
     }
 
-    // Plan-Limit prüfen
+    // Check plan limit
     const agentCheck = await canCreateAgent(userId);
     if (!agentCheck.allowed) {
       return Response.json(
-        { error: `Agent-Limit erreicht (${agentCheck.current}/${agentCheck.limit}). Bitte upgrade deinen Plan.` },
+        { error: `Agent limit reached (${agentCheck.current}/${agentCheck.limit}). Please upgrade your plan.` },
         { status: 403 }
       );
     }
 
-    // User in DB sicherstellen (Clerk Sync)
+    // Ensure user exists in DB (Clerk Sync)
     await prisma.user.upsert({
       where: { id: userId },
       update: {},
       create: { id: userId, email: `${userId}@clerk.temp` },
     });
 
-    // Slug-Kollision prüfen
+    // Check slug collision
     const existingSlug = await prisma.agent.findUnique({ where: { slug } });
     const finalSlug = existingSlug ? `${slug}-${Date.now().toString(36)}` : slug;
 
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
         llmModel: "claude-sonnet-4-20250514",
         status: "DRAFT",
         whiteLabel: { primaryColor: "#F97316", position: "bottom-right" },
-        // Actions aus suggested_actions erstellen
+        // Create actions from suggested_actions
         actions: {
           create: (() => {
             const typeMap: Record<string, string> = {
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
               webhook: "FIRE_WEBHOOK",
               handoff: "HANDOFF_HUMAN",
             };
-            // FAQ ist keine Action — filtern und Duplikate vermeiden
+            // FAQ is not an action — filter and avoid duplicates
             const seen = new Set<string>();
             return (suggestedActions || [])
               .filter((action: string) => {
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
 
     return Response.json(agent, { status: 201 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Server-Fehler";
+    const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });
   }
 }

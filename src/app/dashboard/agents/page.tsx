@@ -19,9 +19,9 @@ interface AgentWithCount {
 }
 
 const statusConfig = {
-  DRAFT: { label: "Entwurf", className: "bg-muted text-muted-foreground" },
+  DRAFT: { label: "Draft", className: "bg-muted text-muted-foreground" },
   LIVE: { label: "Live", className: "bg-kiln-green/10 text-kiln-green" },
-  PAUSED: { label: "Pausiert", className: "bg-kiln-orange/10 text-kiln-orange" },
+  PAUSED: { label: "Paused", className: "bg-kiln-orange/10 text-kiln-orange" },
 };
 
 export default function AgentsPage() {
@@ -40,11 +40,11 @@ export default function AgentsPage() {
       })
       .then((data) => {
         if (Array.isArray(data)) setAgents(data);
-        else throw new Error("Unerwartete API-Antwort");
+        else throw new Error("Unexpected API response");
       })
       .catch((err) => {
-        console.error("Agents laden fehlgeschlagen:", err);
-        setError(err.message || "Fehler beim Laden der Agents");
+        console.error("Failed to load agents:", err);
+        setError(err.message || "Error loading agents");
       })
       .finally(() => setLoading(false));
   }, []);
@@ -52,7 +52,7 @@ export default function AgentsPage() {
   async function handleDelete(id: string, e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm("Agent wirklich löschen?")) return;
+    if (!confirm("Delete this agent?")) return;
 
     await fetch(`/api/agents/${id}`, { method: "DELETE" });
     setAgents((prev) => prev.filter((a) => a.id !== id));
@@ -74,7 +74,7 @@ export default function AgentsPage() {
             AI Agent Studio
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Erstelle und verwalte deine AI Agents.
+            Create and manage your AI Agents.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -87,7 +87,7 @@ export default function AgentsPage() {
           <Link href="/dashboard/agents/new">
             <Button>
               <Plus className="mr-2 h-4 w-4" />
-              Neuer Agent
+              New Agent
             </Button>
           </Link>
         </div>
@@ -96,13 +96,13 @@ export default function AgentsPage() {
       {error ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 py-12">
           <p className="mb-2 text-sm font-medium text-destructive">
-            Fehler: {error}
+            Error: {error}
           </p>
           <button
             onClick={() => window.location.reload()}
             className="text-sm text-muted-foreground underline hover:text-foreground"
           >
-            Seite neu laden
+            Reload page
           </button>
         </div>
       ) : agents.length === 0 ? (
@@ -112,23 +112,23 @@ export default function AgentsPage() {
             <Bot className="h-8 w-8 text-kiln-orange" />
           </div>
           <h2 className="mb-2 text-lg font-semibold text-foreground">
-            Noch keine Agents
+            No Agents Yet
           </h2>
           <p className="mb-6 max-w-sm text-center text-sm text-muted-foreground">
-            Beschreibe deinen Agent in natürlicher Sprache — KILN erstellt die
-            Konfiguration automatisch.
+            Describe your agent in natural language — KILN generates the
+            config automatically.
           </p>
           <div className="flex items-center gap-3">
             <Link href="/dashboard/agents/templates">
               <Button variant="outline">
                 <Sparkles className="mr-2 h-4 w-4" />
-                Aus Template starten
+                Start from Template
               </Button>
             </Link>
             <Link href="/dashboard/agents/new">
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
-                Eigenen Agent erstellen
+                Create Custom Agent
               </Button>
             </Link>
           </div>
@@ -170,14 +170,14 @@ export default function AgentsPage() {
                   {agent.name}
                 </h3>
                 <p className="mb-4 text-xs text-muted-foreground line-clamp-2">
-                  {agent.description || agent.welcomeMessage || "Keine Beschreibung"}
+                  {agent.description || agent.welcomeMessage || "No description"}
                 </p>
 
                 {/* Stats */}
                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <MessageSquare className="h-3.5 w-3.5" />
-                    {agent._count.conversations} Gespräche
+                    {agent._count.conversations} Conversations
                   </div>
                 </div>
               </Link>
@@ -190,7 +190,7 @@ export default function AgentsPage() {
             className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/30 p-5 text-muted-foreground transition-all hover:border-primary/30 hover:text-foreground"
           >
             <Plus className="mb-2 h-8 w-8" />
-            <span className="text-sm font-medium">Neuer Agent</span>
+            <span className="text-sm font-medium">New Agent</span>
           </Link>
         </div>
       )}

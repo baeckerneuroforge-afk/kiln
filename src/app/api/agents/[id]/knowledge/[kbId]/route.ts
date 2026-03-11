@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-// Knowledge Base Eintrag löschen
+// Delete knowledge base entry
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: { id: string; kbId: string } }
@@ -11,25 +11,25 @@ export async function DELETE(
   try {
     const { userId } = await auth();
     if (!userId) {
-      return Response.json({ error: "Nicht autorisiert" }, { status: 401 });
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Ownership prüfen
+    // Check ownership
     const agent = await prisma.agent.findFirst({
       where: { id: params.id, userId },
     });
     if (!agent) {
-      return Response.json({ error: "Agent nicht gefunden" }, { status: 404 });
+      return Response.json({ error: "Agent not found" }, { status: 404 });
     }
 
     const kb = await prisma.knowledgeBase.findFirst({
       where: { id: params.kbId, agentId: params.id },
     });
     if (!kb) {
-      return Response.json({ error: "KB-Eintrag nicht gefunden" }, { status: 404 });
+      return Response.json({ error: "Knowledge entry not found" }, { status: 404 });
     }
 
-    // Chunks aus Supabase pgvector löschen
+    // Delete chunks from Supabase pgvector
     try {
       const supabase = getSupabaseAdmin();
       await supabase
@@ -37,15 +37,15 @@ export async function DELETE(
         .delete()
         .eq("knowledge_base_id", params.kbId);
     } catch {
-      // Stille Fehlerbehandlung — Chunks werden ggf. nicht gelöscht
+      // Silent error handling — chunks may not be deleted
     }
 
-    // KB-Eintrag aus Prisma löschen
+    // Delete KB entry from Prisma
     await prisma.knowledgeBase.delete({ where: { id: params.kbId } });
 
     return Response.json({ success: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Server-Fehler";
+    const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });
   }
 }

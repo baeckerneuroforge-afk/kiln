@@ -48,13 +48,13 @@ export default function NewAgentPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Fehler beim Speichern");
+        throw new Error(data.error || "Error saving");
       }
 
       const agent = await res.json();
       router.push(`/dashboard/agents/${agent.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unbekannter Fehler");
+      setError(err instanceof Error ? err.message : "Unknown error");
       setIsSaving(false);
     }
   }
@@ -72,10 +72,10 @@ export default function NewAgentPage() {
           </Link>
           <div>
             <h1 className="text-sm font-semibold text-foreground">
-              {config?.name || "Neuer Agent"}
+              {config?.name || "New Agent"}
             </h1>
             <p className="text-xs text-muted-foreground">
-              {config ? "Konfiguration generiert" : "Beschreibe deinen Agent"}
+              {config ? "Configuration Generated" : "Describe your Agent"}
             </p>
           </div>
         </div>
@@ -91,7 +91,7 @@ export default function NewAgentPage() {
               ) : (
                 <Save className="mr-2 h-3.5 w-3.5" />
               )}
-              Agent speichern
+              Save Agent
             </Button>
           )}
         </div>

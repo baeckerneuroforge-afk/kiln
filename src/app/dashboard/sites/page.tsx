@@ -6,7 +6,7 @@ export default function SitesPage() {
       <div className="mb-8">
         <h1 className="font-serif text-3xl text-foreground">Site Builder</h1>
         <p className="mt-2 text-muted-foreground">
-          Generiere Websites und Landing Pages per Natural Language.
+          Generate websites and landing pages with natural language.
         </p>
       </div>
 
@@ -18,8 +18,8 @@ export default function SitesPage() {
           Coming Soon
         </h2>
         <p className="mb-4 max-w-sm text-center text-sm text-muted-foreground">
-          Der Site Builder wird in Phase 2 freigeschaltet. Beschreibe deine
-          Website — KILN baut sie.
+          Site Builder will be available in Phase 2. Describe your website
+          — KILN builds it.
         </p>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Lock className="h-4 w-4" />

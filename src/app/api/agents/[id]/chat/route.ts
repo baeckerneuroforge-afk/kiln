@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
 import { canChat } from "@/lib/plan-limits";
 
-// Tool-Definitionen basierend auf aktivierten Actions
+// Tool definitions based on enabled actions
 function buildTools(
   actions: { type: string; enabled: boolean; config: unknown }[]
 ): Anthropic.Tool[] {
@@ -21,13 +21,13 @@ function buildTools(
           tools.push({
             name: "book_appointment",
             description:
-              "Nutze dieses Tool wenn der Nutzer einen Termin buchen möchte, ein Beratungsgespräch will, oder nach verfügbaren Zeiten fragt. Zeige dem Nutzer den Buchungslink.",
+              "Use this tool when the user wants to book an appointment, wants a consultation, or asks about available times. Show the user the booking link.",
             input_schema: {
               type: "object" as const,
               properties: {
                 reason: {
                   type: "string",
-                  description: "Grund für den Termin",
+                  description: "Reason for the appointment",
                 },
               },
               required: ["reason"],
@@ -40,21 +40,21 @@ function buildTools(
         tools.push({
           name: "collect_email",
           description:
-            "Nutze dieses Tool wenn der Nutzer Interesse zeigt, mehr Informationen möchte, oder seine E-Mail-Adresse teilt. Frage höflich nach der E-Mail wenn sie nicht gegeben wurde.",
+            "Use this tool when the user shows interest, wants more information, or shares their email address. Politely ask for the email if it was not provided.",
           input_schema: {
             type: "object" as const,
             properties: {
               email: {
                 type: "string",
-                description: "Die E-Mail-Adresse des Nutzers",
+                description: "The user's email address",
               },
               name: {
                 type: "string",
-                description: "Name des Nutzers (falls bekannt)",
+                description: "User's name (if known)",
               },
               context: {
                 type: "string",
-                description: "Woran der Nutzer interessiert ist",
+                description: "What the user is interested in",
               },
             },
             required: ["email"],
@@ -66,21 +66,21 @@ function buildTools(
         tools.push({
           name: "score_lead",
           description:
-            "Nutze dieses Tool am Ende eines Gesprächs oder wenn genug Informationen vorhanden sind um den Lead zu bewerten. Bewerte auf einer Skala von 1-10 basierend auf: Kaufinteresse, Budget-Signale, Dringlichkeit, Entscheidungsbefugnis.",
+            "Use this tool at the end of a conversation or when enough information is available to evaluate the lead. Rate on a scale of 1-10 based on: purchase interest, budget signals, urgency, decision-making authority.",
           input_schema: {
             type: "object" as const,
             properties: {
               score: {
                 type: "number",
-                description: "Lead-Score von 1 (kalt) bis 10 (kaufbereit)",
+                description: "Lead score from 1 (cold) to 10 (ready to buy)",
               },
               reasoning: {
                 type: "string",
-                description: "Begründung für den Score",
+                description: "Reasoning for the score",
               },
               email: {
                 type: "string",
-                description: "E-Mail des Leads (falls bekannt)",
+                description: "Lead's email (if known)",
               },
             },
             required: ["score", "reasoning"],
@@ -93,7 +93,7 @@ function buildTools(
   return tools;
 }
 
-// Tool-Aufrufe ausführen
+// Execute tool calls
 async function executeTool(
   toolName: string,
   toolInput: Record<string, unknown>,
@@ -107,7 +107,7 @@ async function executeTool(
       const url = config.calendlyUrl || "";
       return JSON.stringify({
         success: true,
-        message: `Hier ist der Buchungslink: ${url}`,
+        message: `Here is the booking link: ${url}`,
         calendlyUrl: url,
         reason: toolInput.reason,
       });
@@ -118,7 +118,7 @@ async function executeTool(
       if (!email || !email.includes("@")) {
         return JSON.stringify({
           success: false,
-          message: "Keine gültige E-Mail-Adresse erhalten.",
+          message: "No valid email address received.",
         });
       }
 
@@ -133,7 +133,7 @@ async function executeTool(
 
       return JSON.stringify({
         success: true,
-        message: `E-Mail ${email} wurde gespeichert.`,
+        message: `Email ${email} has been saved.`,
       });
     }
 
@@ -141,7 +141,7 @@ async function executeTool(
       const score = Math.min(10, Math.max(1, Number(toolInput.score) || 5));
       const email = (toolInput.email as string) || null;
 
-      // Score in Lead speichern wenn E-Mail vorhanden
+      // Save score to lead if email is available
       if (email) {
         const existingLead = await prisma.lead.findFirst({
           where: { agentId, email },
@@ -168,7 +168,7 @@ async function executeTool(
     }
 
     default:
-      return JSON.stringify({ success: false, message: "Unbekanntes Tool" });
+      return JSON.stringify({ success: false, message: "Unknown tool" });
   }
 }
 
@@ -183,7 +183,7 @@ export async function OPTIONS() {
   return new Response(null, { status: 204, headers: corsHeaders });
 }
 
-// Live-Chat mit Agent (Streaming + RAG + Tool Use)
+// Live chat with agent (Streaming + RAG + Tool Use)
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -194,12 +194,12 @@ export async function POST(
 
     if (!messages || !Array.isArray(messages)) {
       return Response.json(
-        { error: "Nachrichten sind erforderlich." },
+        { error: "Messages are required." },
         { status: 400 }
       );
     }
 
-    // Agent mit Actions laden
+    // Load agent with actions
     const agent = await prisma.agent.findUnique({
       where: { id: params.id },
       include: {
@@ -209,19 +209,19 @@ export async function POST(
     });
 
     if (!agent) {
-      return Response.json({ error: "Agent nicht gefunden" }, { status: 404 });
+      return Response.json({ error: "Agent not found" }, { status: 404 });
     }
 
-    // Chat-Limit prüfen
+    // Check chat limit
     const chatCheck = await canChat(agent.id);
     if (!chatCheck.allowed) {
       return Response.json(
-        { error: `Monatliches Gesprächslimit erreicht (${chatCheck.current}/${chatCheck.limit}). Der Besitzer muss seinen Plan upgraden.` },
+        { error: `Monthly conversation limit reached (${chatCheck.current}/${chatCheck.limit}). The owner needs to upgrade their plan.` },
         { status: 429, headers: corsHeaders }
       );
     }
 
-    // RAG: Relevante Knowledge Base Chunks suchen
+    // RAG: Search for relevant knowledge base chunks
     let knowledgeContext = "";
     const lastUserMessage = [...messages]
       .reverse()
@@ -237,14 +237,14 @@ export async function POST(
 
         if (relevantChunks.length > 0) {
           knowledgeContext =
-            "\n\n---\nRELEVANTES WISSEN AUS DER KNOWLEDGE BASE:\n" +
+            "\n\n---\nRELEVANT KNOWLEDGE FROM THE KNOWLEDGE BASE:\n" +
             relevantChunks
               .map((c, i) => `[${i + 1}] ${c.content}`)
               .join("\n\n") +
-            "\n---\nNutze das obige Wissen um die Frage zu beantworten. Wenn das Wissen nicht relevant ist, antworte aus deinem allgemeinen Wissen. Erfinde keine Informationen.";
+            "\n---\nUse the above knowledge to answer the question. If the knowledge is not relevant, answer from your general knowledge. Do not make up information.";
         }
       } catch {
-        // RAG-Suche fehlgeschlagen — ohne Kontext weitermachen
+        // RAG search failed — continue without context
       }
     }
 
@@ -252,7 +252,7 @@ export async function POST(
     const tools = buildTools(agent.actions);
     const client = getClaudeClient();
 
-    // Nachrichten für Claude aufbereiten
+    // Prepare messages for Claude
     const claudeMessages: Anthropic.MessageParam[] = messages.map(
       (m: { role: string; content: string }) => ({
         role: m.role as "user" | "assistant",
@@ -265,10 +265,10 @@ export async function POST(
       async start(controller) {
         try {
           let currentMessages = claudeMessages;
-          let maxToolRounds = 5; // Endlosschleifen verhindern
+          let maxToolRounds = 5; // Prevent infinite loops
 
           while (maxToolRounds-- > 0) {
-            // Claude API Call (mit oder ohne Tools)
+            // Claude API call (with or without tools)
             const requestParams: Anthropic.MessageCreateParams = {
               model: agent.llmModel || "claude-sonnet-4-20250514",
               max_tokens: 2048,
@@ -287,13 +287,13 @@ export async function POST(
 
             for (const block of response.content) {
               if (block.type === "text" && block.text) {
-                // Text streamen
+                // Stream text
                 const chunk = `data: ${JSON.stringify({ text: block.text })}\n\n`;
                 controller.enqueue(encoder.encode(chunk));
               } else if (block.type === "tool_use") {
                 hasToolUse = true;
 
-                // Tool ausführen
+                // Execute tool
                 const result = await executeTool(
                   block.name,
                   block.input as Record<string, unknown>,
@@ -310,11 +310,11 @@ export async function POST(
             }
 
             if (!hasToolUse) {
-              // Keine Tool-Calls mehr — fertig
+              // No more tool calls — done
               break;
             }
 
-            // Tool-Ergebnisse an Nachrichten anhängen für nächste Runde
+            // Append tool results to messages for next round
             currentMessages = [
               ...currentMessages,
               { role: "assistant", content: response.content },
@@ -326,7 +326,7 @@ export async function POST(
           controller.close();
         } catch (err) {
           const errorMessage =
-            err instanceof Error ? err.message : "Stream-Fehler";
+            err instanceof Error ? err.message : "Stream error";
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify({ error: errorMessage })}\n\n`
@@ -346,7 +346,7 @@ export async function POST(
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Server-Fehler";
+    const message = err instanceof Error ? err.message : "Server error";
     return Response.json(
       { error: message },
       { status: 500, headers: corsHeaders }

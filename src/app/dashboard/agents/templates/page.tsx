@@ -33,7 +33,7 @@ export default function TemplatesPage() {
         }),
       });
 
-      if (!res.ok) throw new Error("Fehler beim Erstellen");
+      if (!res.ok) throw new Error("Error creating agent");
 
       const agent = await res.json();
       router.push(`/dashboard/agents/${agent.id}`);
@@ -61,8 +61,8 @@ export default function TemplatesPage() {
               Agent Templates
             </h1>
             <p className="text-sm text-muted-foreground">
-              Starte mit einem fertigen Template und passe es an dein Business
-              an.
+              Start with a ready-made template and customize it for your
+              business.
             </p>
           </div>
         </div>
@@ -109,10 +109,10 @@ export default function TemplatesPage() {
             <div className="mb-4 flex flex-wrap gap-1.5">
               {template.suggestedActions.map((action) => {
                 const labels: Record<string, string> = {
-                  booking: "Terminbuchung",
-                  email: "E-Mail sammeln",
+                  booking: "Appointment Booking",
+                  email: "Collect Email",
                   lead_scoring: "Lead-Scoring",
-                  notification: "Benachrichtigung",
+                  notification: "Notification",
                 };
                 return (
                   <span
@@ -135,12 +135,12 @@ export default function TemplatesPage() {
               {cloning === template.id ? (
                 <>
                   <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                  Wird erstellt...
+                  Creating...
                 </>
               ) : (
                 <>
                   <Sparkles className="mr-2 h-3.5 w-3.5" />
-                  Template verwenden
+                  Use Template
                 </>
               )}
             </Button>

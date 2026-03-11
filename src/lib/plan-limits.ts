@@ -32,7 +32,7 @@ export async function canChat(agentId: string): Promise<{ allowed: boolean; curr
   const plan = (agent.user.plan || "FREE") as PlanType;
   const limits = PLAN_LIMITS[plan];
 
-  // Gespräche dieses Monats zählen
+  // Count conversations this month
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);

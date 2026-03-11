@@ -153,7 +153,7 @@ export default function LandingPage() {
               href="/sign-up"
               className="rounded-lg bg-white px-4 py-2 text-[13px] font-medium text-[#0C0A09] transition-opacity hover:opacity-90"
             >
-              Kostenlos starten
+              Get Started Free
             </Link>
           </div>
         </div>
@@ -182,7 +182,7 @@ export default function LandingPage() {
         <div className="relative mx-auto max-w-4xl px-6 text-center">
           <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs text-neutral-400 backdrop-blur-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E] animate-pulse" />
-            Early Access — Jetzt kostenlos starten
+            Early Access — Get Started Free
           </div>
 
           <h1 className="font-serif text-5xl leading-[1.1] tracking-tight sm:text-6xl lg:text-[4.5rem]">
@@ -197,9 +197,9 @@ export default function LandingPage() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-neutral-400">
-            AI Agents, Websites und Workflows — in einer Plattform.
+            AI Agents, Websites & Workflows — One Platform.
             <br className="hidden sm:block" />
-            Beschreibe was du brauchst, KILN baut es.
+            Describe what you need. KILN builds it.
           </p>
 
           {/* Waitlist */}
@@ -207,7 +207,7 @@ export default function LandingPage() {
             {submitted === "hero" ? (
               <div className="flex items-center justify-center gap-2 rounded-xl border border-[#22C55E]/20 bg-[#22C55E]/5 px-6 py-3.5 text-sm text-[#22C55E]">
                 <Check className="h-4 w-4" />
-                Du bist auf der Waitlist!
+                You&apos;re on the waitlist!
               </div>
             ) : (
               <form
@@ -221,7 +221,7 @@ export default function LandingPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="deine@email.de"
+                  placeholder="you@email.com"
                   required
                   className="flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-neutral-500 focus:border-[#F97316]/50 focus:outline-none focus:ring-1 focus:ring-[#F97316]/30 backdrop-blur-sm"
                 />
@@ -231,16 +231,16 @@ export default function LandingPage() {
                   className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-white transition-all hover:brightness-110 disabled:opacity-50"
                   style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}
                 >
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Beitreten <ArrowRight className="h-3.5 w-3.5" /></>}
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Join <ArrowRight className="h-3.5 w-3.5" /></>}
                 </button>
               </form>
             )}
             <p className="mt-4 text-xs text-neutral-500">
-              Oder direkt{" "}
+              Or{" "}
               <Link href="/sign-up" className="text-[#F97316] underline underline-offset-2">
-                kostenlos starten
+                get started free
               </Link>{" "}
-              — Free Plan, keine Kreditkarte.
+              — Free plan, no credit card.
             </p>
           </div>
 
@@ -269,15 +269,15 @@ export default function LandingPage() {
                   <div className="mb-4 flex items-center justify-between">
                     <div>
                       <div className="font-serif text-lg text-white">AI Agent Studio</div>
-                      <div className="text-xs text-neutral-500">3 Agents erstellt</div>
+                      <div className="text-xs text-neutral-500">3 Agents created</div>
                     </div>
-                    <div className="rounded-lg bg-white/[0.06] px-3 py-1.5 text-xs text-neutral-400">+ Neuer Agent</div>
+                    <div className="rounded-lg bg-white/[0.06] px-3 py-1.5 text-xs text-neutral-400">+ New Agent</div>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     {[
-                      { name: "Yoga-Assistent", status: "Live", color: "#22C55E", chats: 142 },
-                      { name: "Makler-Bot", status: "Live", color: "#22C55E", chats: 89 },
-                      { name: "Support Agent", status: "Entwurf", color: "#A8A29E", chats: 0 },
+                      { name: "Yoga Assistant", status: "Live", color: "#22C55E", chats: 142 },
+                      { name: "Realtor Bot", status: "Live", color: "#22C55E", chats: 89 },
+                      { name: "Support Agent", status: "Draft", color: "#A8A29E", chats: 0 },
                     ].map((a) => (
                       <div key={a.name} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
                         <div className="mb-2 flex items-center justify-between">
@@ -290,7 +290,7 @@ export default function LandingPage() {
                           </span>
                         </div>
                         <div className="text-xs font-medium text-white">{a.name}</div>
-                        <div className="mt-1 text-[10px] text-neutral-500">{a.chats} Gespräche</div>
+                        <div className="mt-1 text-[10px] text-neutral-500">{a.chats} Chats</div>
                       </div>
                     ))}
                   </div>
@@ -307,43 +307,43 @@ export default function LandingPage() {
       <Section id="features" className="border-t border-white/[0.06] py-28">
         <div className="mx-auto max-w-6xl px-6">
           <div className="mb-20 text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Plattform</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Drei Module. Eine Vision.</h2>
-            <p className="mt-4 text-neutral-400">Alles was du brauchst — in einem Produkt.</p>
+            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Platform</p>
+            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Three Modules. One Vision.</h2>
+            <p className="mt-4 text-neutral-400">Everything you need — in one product.</p>
           </div>
 
           <div className="space-y-20">
             {[
               {
-                icon: Bot, label: "Modul 1", title: "AI Agent Studio", color: "#F97316",
-                desc: "Erstelle intelligente Chat-Agents die dein Business verstehen. Knowledge Base, Terminbuchung, Lead-Scoring — alles eingebaut.",
+                icon: Bot, label: "Module 1", title: "AI Agent Studio", color: "#F97316",
+                desc: "Create intelligent chat agents that understand your business. Knowledge Base, appointment booking, lead scoring — all built in.",
                 features: [
-                  { icon: MessageSquare, text: "Conversational Builder — beschreibe deinen Agent in natürlicher Sprache" },
-                  { icon: FileText, text: "RAG Knowledge Base — PDF, URL, FAQ. Dein Agent antwortet mit deinem Wissen" },
-                  { icon: Palette, text: "White-Label — eigene Farben, Logo, Domain. Dein Brand, nicht unseres" },
-                  { icon: BarChart3, text: "Analytics & Lead-Scoring — jedes Gespräch wird automatisch bewertet" },
+                  { icon: MessageSquare, text: "Conversational Builder — describe your agent in natural language" },
+                  { icon: FileText, text: "RAG Knowledge Base — PDF, URL, FAQ. Your agent answers with your knowledge" },
+                  { icon: Palette, text: "White-Label — custom colors, logo, domain. Your brand, not ours" },
+                  { icon: BarChart3, text: "Analytics & Lead Scoring — every conversation is automatically scored" },
                 ],
                 status: "Live",
               },
               {
-                icon: Globe, label: "Modul 2", title: "Site Builder", color: "#3B82F6",
-                desc: "Beschreibe deine Website — KILN designt, baut und hosted sie. Mit integriertem AI-Chat und Analytics.",
+                icon: Globe, label: "Module 2", title: "Site Builder", color: "#3B82F6",
+                desc: "Describe your website — KILN designs, builds and hosts it. With integrated AI chat and analytics.",
                 features: [
-                  { icon: Code2, text: "Natural Language Design — beschreibe Layouts, Farben, Inhalte" },
-                  { icon: Shield, text: "Custom Domains + SSL — professionelle URLs ab Tag 1" },
-                  { icon: Bot, text: "Agent Integration — Chat-Widget automatisch eingebettet" },
-                  { icon: BarChart3, text: "SEO & Analytics — automatisch optimiert, messbar" },
+                  { icon: Code2, text: "Natural Language Design — describe layouts, colors, content" },
+                  { icon: Shield, text: "Custom Domains + SSL — professional URLs from day one" },
+                  { icon: Bot, text: "Agent Integration — chat widget automatically embedded" },
+                  { icon: BarChart3, text: "SEO & Analytics — automatically optimized, measurable" },
                 ],
                 status: "Q3 2026",
               },
               {
-                icon: Zap, label: "Modul 3", title: "Flow Engine", color: "#22C55E",
-                desc: "Automatisiere Workflows per Sprache. Verbinde CRM, E-Mail, Kalender und 100+ Tools.",
+                icon: Zap, label: "Module 3", title: "Flow Engine", color: "#22C55E",
+                desc: "Automate workflows with natural language. Connect CRM, email, calendar and 100+ tools.",
                 features: [
-                  { icon: Workflow, text: "Visual Flow Builder — Drag & Drop mit AI-Assist" },
-                  { icon: Plug, text: "100+ Integrationen — HubSpot, Calendly, Slack, Stripe und mehr" },
-                  { icon: Zap, text: "Trigger & Actions — Wenn X passiert, mache Y. Automatisch." },
-                  { icon: Users, text: "Multi-Client — Flows für verschiedene Kunden verwalten" },
+                  { icon: Workflow, text: "Visual Flow Builder — drag & drop with AI assist" },
+                  { icon: Plug, text: "100+ Integrations — HubSpot, Calendly, Slack, Stripe and more" },
+                  { icon: Zap, text: "Triggers & Actions — when X happens, do Y. Automatically." },
+                  { icon: Users, text: "Multi-Client — manage flows for different clients" },
                 ],
                 status: "Q4 2026",
               },
@@ -384,16 +384,16 @@ export default function LandingPage() {
       <Section className="border-t border-white/[0.06] py-28">
         <div className="mx-auto max-w-6xl px-6">
           <div className="mb-20 text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Prozess</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Vier Schritte. Kein Code.</h2>
+            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Process</p>
+            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Four Steps. No Code.</h2>
           </div>
 
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { n: "01", title: "Beschreiben", desc: "Erzähl KILN in deinen Worten was du brauchst. Branche, Tonalität, Zielgruppe." },
-              { n: "02", title: "Generieren", desc: "KILN erstellt System-Prompt, Persönlichkeit, Actions und Knowledge Base automatisch." },
-              { n: "03", title: "Anpassen", desc: "Teste im Live-Chat, passe Antworten an, lade Wissen hoch. Alles visuell." },
-              { n: "04", title: "Live schalten", desc: "Ein Klick. Dein Agent ist online — auf deiner Website, in deinen Farben." },
+              { n: "01", title: "Describe", desc: "Tell KILN what you need in your own words. Industry, tone, target audience." },
+              { n: "02", title: "Generate", desc: "KILN creates system prompt, personality, actions and knowledge base automatically." },
+              { n: "03", title: "Customize", desc: "Test in live chat, adjust responses, upload knowledge. All visual." },
+              { n: "04", title: "Go Live", desc: "One click. Your agent is online — on your website, in your colors." },
             ].map((step) => (
               <div key={step.n}>
                 <div className="mb-4 font-mono text-5xl font-bold bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(180deg, #F97316 0%, #DC262640 100%)" }}>
@@ -411,23 +411,23 @@ export default function LandingPage() {
       <Section className="border-t border-white/[0.06] py-28">
         <div className="mx-auto max-w-6xl px-6">
           <div className="mb-20 text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Beispiele</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Was du mit KILN bauen kannst</h2>
+            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Examples</p>
+            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">What you can build with KILN</h2>
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
             {[
               {
                 badge: "AI Agent", color: "#F97316", gradient: "from-[#F97316]/10 to-[#DC2626]/5",
-                title: "Yoga-Studio Assistent", desc: "Beantwortet Kursfragen, bucht Probestunden, sammelt Leads — 24/7 auf deiner Website.",
+                title: "Yoga Studio Assistant", desc: "Answers class questions, books trial sessions, collects leads — 24/7 on your website.",
               },
               {
                 badge: "Website", color: "#3B82F6", gradient: "from-[#3B82F6]/10 to-[#6366F1]/5",
-                title: "Makler-Landingpage", desc: "Professionelle Immobilien-Seite mit integriertem Beratungs-Chat und Besichtigungsbuchung.",
+                title: "Realtor Landing Page", desc: "Professional real estate page with integrated consultation chat and viewing booking.",
               },
               {
                 badge: "Workflow", color: "#22C55E", gradient: "from-[#22C55E]/10 to-[#10B981]/5",
-                title: "Lead-Nurturing Flow", desc: "Neuer Lead → E-Mail-Sequenz → CRM-Eintrag → Termin-Reminder. Vollautomatisch.",
+                title: "Lead Nurturing Flow", desc: "New lead → email sequence → CRM entry → appointment reminder. Fully automated.",
               },
             ].map((ex) => (
               <div
@@ -452,8 +452,8 @@ export default function LandingPage() {
       <Section className="border-t border-white/[0.06] py-28">
         <div className="mx-auto max-w-4xl px-6">
           <div className="mb-16 text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Vergleich</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">KILN vs. Alternativen</h2>
+            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Comparison</p>
+            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">KILN vs. Alternatives</h2>
           </div>
 
           <div className="overflow-x-auto">
@@ -477,7 +477,7 @@ export default function LandingPage() {
                   { feature: "White-Label", kiln: true, bolt: false, zapier: false, voice: true, webflow: true },
                   { feature: "Natural Language Builder", kiln: true, bolt: true, zapier: false, voice: false, webflow: false },
                   { feature: "Embed-Widget", kiln: true, bolt: false, zapier: false, voice: true, webflow: false },
-                  { feature: "All-in-One Plattform", kiln: true, bolt: false, zapier: false, voice: false, webflow: false },
+                  { feature: "All-in-One Platform", kiln: true, bolt: false, zapier: false, voice: false, webflow: false },
                 ].map((row) => (
                   <tr key={row.feature} className="border-b border-white/[0.04]">
                     <td className="py-3 pr-6 text-[13px] text-neutral-300">{row.feature}</td>
@@ -503,8 +503,8 @@ export default function LandingPage() {
         <div className="mx-auto max-w-5xl px-6">
           <div className="mb-16 text-center">
             <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Pricing</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Einfache, faire Preise</h2>
-            <p className="mt-4 text-neutral-400">Starte kostenlos. Upgrade wenn du wächst.</p>
+            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Simple, fair pricing</h2>
+            <p className="mt-4 text-neutral-400">Start free. Upgrade as you grow.</p>
 
             {/* Toggle */}
             <div className="mt-8 inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.03] p-1">
@@ -512,13 +512,13 @@ export default function LandingPage() {
                 onClick={() => setAnnual(false)}
                 className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${!annual ? "bg-white text-[#0C0A09]" : "text-neutral-400"}`}
               >
-                Monatlich
+                Monthly
               </button>
               <button
                 onClick={() => setAnnual(true)}
                 className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${annual ? "bg-white text-[#0C0A09]" : "text-neutral-400"}`}
               >
-                Jährlich
+                Yearly
                 <span className="ml-1.5 text-[10px] text-[#22C55E]">-20%</span>
               </button>
             </div>
@@ -528,17 +528,17 @@ export default function LandingPage() {
             {[
               {
                 name: "Free", price: 0, features: [
-                  "1 AI Agent", "100 Chats / Monat", "1 Knowledge Base (5 MB)", "Embed-Widget", "KILN Branding", "Community Support",
+                  "1 AI Agent", "100 Chats / Month", "1 Knowledge Base (5 MB)", "Embed Widget", "KILN Branding", "Community Support",
                 ], highlight: false,
               },
               {
                 name: "Pro", price: annual ? 39 : 49, features: [
-                  "10 AI Agents", "Unbegrenzte Chats", "10 Knowledge Bases (50 MB)", "Alle Actions", "White-Label (kein KILN Logo)", "Priority Support", "Analytics Dashboard", "Custom Domain",
+                  "10 AI Agents", "Unlimited Chats", "10 Knowledge Bases (50 MB)", "All Actions", "White-Label (no KILN logo)", "Priority Support", "Analytics Dashboard", "Custom Domain",
                 ], highlight: true,
               },
               {
                 name: "Agency", price: annual ? 119 : 149, features: [
-                  "Unbegrenzte Agents", "Unbegrenzte Chats", "Unbegrenzte Knowledge Bases", "Alle Actions + API Zugriff", "Komplettes White-Label", "Dedicated Support", "Multi-Client Management", "Webhook & Integrationen", "SLA 99.9%",
+                  "Unlimited Agents", "Unlimited Chats", "Unlimited Knowledge Bases", "All Actions + API Access", "Full White-Label", "Dedicated Support", "Multi-Client Management", "Webhooks & Integrations", "SLA 99.9%",
                 ], highlight: false,
               },
             ].map((plan) => (
@@ -552,13 +552,13 @@ export default function LandingPage() {
               >
                 {plan.highlight && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[10px] font-semibold text-white" style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}>
-                    Beliebteste
+                    Most Popular
                   </div>
                 )}
                 <h3 className="text-lg font-semibold">{plan.name}</h3>
                 <div className="mt-3 flex items-baseline gap-1">
                   <span className="font-serif text-4xl">€{plan.price}</span>
-                  <span className="text-sm text-neutral-500">{plan.price === 0 ? "für immer" : "/Monat"}</span>
+                  <span className="text-sm text-neutral-500">{plan.price === 0 ? "forever" : "/month"}</span>
                 </div>
                 <ul className="mt-6 flex-1 space-y-3">
                   {plan.features.map((f) => (
@@ -577,7 +577,7 @@ export default function LandingPage() {
                   }`}
                   style={plan.highlight ? { background: "linear-gradient(135deg, #F97316, #DC2626)" } : undefined}
                 >
-                  {plan.price === 0 ? "Kostenlos starten" : `${plan.name} wählen`}
+                  {plan.price === 0 ? "Get Started Free" : `Choose ${plan.name}`}
                 </Link>
               </div>
             ))}
@@ -590,7 +590,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-3xl px-6">
           <div className="mb-20 text-center">
             <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Roadmap</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Was kommt als nächstes</h2>
+            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">What&apos;s coming next</h2>
           </div>
 
           <div className="relative space-y-0">
@@ -598,9 +598,9 @@ export default function LandingPage() {
             <div className="absolute left-[19px] top-2 bottom-2 w-px bg-gradient-to-b from-[#F97316] via-white/10 to-transparent" />
 
             {[
-              { phase: "Phase 1", title: "AI Agent Studio", badge: "In Arbeit", badgeColor: "#F97316", items: ["Conversational Builder", "RAG Knowledge Base", "Actions & Lead-Scoring", "Embed-Widget & Templates", "White-Label & Analytics"] },
-              { phase: "Phase 2", title: "Site Builder", badge: "Q3 2026", badgeColor: "#3B82F6", items: ["Natural Language Design", "Custom Domains + SSL", "Agent Integration", "SEO-Optimierung"] },
-              { phase: "Phase 3", title: "Flow Engine", badge: "Q4 2026", badgeColor: "#22C55E", items: ["Visual Flow Builder", "100+ Integrationen", "Multi-Step Automations", "Webhook & API Triggers"] },
+              { phase: "Phase 1", title: "AI Agent Studio", badge: "In Progress", badgeColor: "#F97316", items: ["Conversational Builder", "RAG Knowledge Base", "Actions & Lead Scoring", "Embed Widget & Templates", "White-Label & Analytics"] },
+              { phase: "Phase 2", title: "Site Builder", badge: "Q3 2026", badgeColor: "#3B82F6", items: ["Natural Language Design", "Custom Domains + SSL", "Agent Integration", "SEO Optimization"] },
+              { phase: "Phase 3", title: "Flow Engine", badge: "Q4 2026", badgeColor: "#22C55E", items: ["Visual Flow Builder", "100+ Integrations", "Multi-Step Automations", "Webhook & API Triggers"] },
               { phase: "Phase 4", title: "Scale & Enterprise", badge: "2027", badgeColor: "#A78BFA", items: ["Multi-Tenant / Agencies", "Custom LLM Models", "On-Premise Option", "Enterprise SLA"] },
             ].map((p, i) => (
               <div key={p.phase} className="relative flex gap-6 pb-12 last:pb-0">
@@ -638,14 +638,14 @@ export default function LandingPage() {
             Ready to build?
           </h2>
           <p className="mt-4 text-neutral-400">
-            Starte kostenlos. Kein Code. Keine Kreditkarte.
+            Start free. No code. No credit card.
           </p>
 
           <div className="mx-auto mt-10 max-w-md">
             {submitted === "cta" ? (
               <div className="flex items-center justify-center gap-2 rounded-xl border border-[#22C55E]/20 bg-[#22C55E]/5 px-6 py-3.5 text-sm text-[#22C55E]">
                 <Check className="h-4 w-4" />
-                Du bist auf der Waitlist!
+                You&apos;re on the waitlist!
               </div>
             ) : (
               <form
@@ -659,7 +659,7 @@ export default function LandingPage() {
                   type="email"
                   value={ctaEmail}
                   onChange={(e) => setCtaEmail(e.target.value)}
-                  placeholder="deine@email.de"
+                  placeholder="you@email.com"
                   required
                   className="flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-neutral-500 focus:border-[#F97316]/50 focus:outline-none focus:ring-1 focus:ring-[#F97316]/30"
                 />
@@ -669,17 +669,22 @@ export default function LandingPage() {
                   className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-white transition-all hover:brightness-110 disabled:opacity-50"
                   style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}
                 >
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Beitreten <ArrowRight className="h-3.5 w-3.5" /></>}
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Join <ArrowRight className="h-3.5 w-3.5" /></>}
                 </button>
               </form>
             )}
           </div>
 
-          <p className="mt-12 text-xs text-neutral-600">
-            Built with{" "}
-            <span className="text-[#F97316]">&#x1f525;</span>{" "}
-            in Germany.
-          </p>
+          <div className="mt-12 flex flex-col items-center gap-2">
+            <p className="text-xs text-neutral-600">
+              Built with{" "}
+              <span className="text-[#F97316]">&#x1f525;</span>{" "}
+              in Germany.
+            </p>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] text-neutral-400">
+              &#x1f1ea;&#x1f1fa; EU-hosted & GDPR compliant
+            </span>
+          </div>
         </div>
       </Section>
 
@@ -692,7 +697,7 @@ export default function LandingPage() {
             <span className="text-xs text-neutral-600">by Hephaistos Systems</span>
           </div>
           <div className="flex items-center gap-6 text-xs text-neutral-600">
-            <a href="mailto:hello@getkiln.com" className="transition-colors hover:text-neutral-300">Kontakt</a>
+            <a href="mailto:hello@getkiln.com" className="transition-colors hover:text-neutral-300">Contact</a>
             <span>&copy; {new Date().getFullYear()} Hephaistos Systems</span>
           </div>
         </div>

@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
-// Actions eines Agents laden
+// Load actions for an agent
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
@@ -10,14 +10,14 @@ export async function GET(
   try {
     const { userId } = await auth();
     if (!userId) {
-      return Response.json({ error: "Nicht autorisiert" }, { status: 401 });
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const agent = await prisma.agent.findFirst({
       where: { id: params.id, userId },
     });
     if (!agent) {
-      return Response.json({ error: "Agent nicht gefunden" }, { status: 404 });
+      return Response.json({ error: "Agent not found" }, { status: 404 });
     }
 
     const actions = await prisma.agentAction.findMany({
@@ -26,12 +26,12 @@ export async function GET(
 
     return Response.json(actions);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Server-Fehler";
+    const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });
   }
 }
 
-// Action erstellen oder togglen
+// Create or toggle action
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -39,19 +39,19 @@ export async function POST(
   try {
     const { userId } = await auth();
     if (!userId) {
-      return Response.json({ error: "Nicht autorisiert" }, { status: 401 });
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const agent = await prisma.agent.findFirst({
       where: { id: params.id, userId },
     });
     if (!agent) {
-      return Response.json({ error: "Agent nicht gefunden" }, { status: 404 });
+      return Response.json({ error: "Agent not found" }, { status: 404 });
     }
 
     const { type, enabled, config } = await request.json();
 
-    // Upsert: Erstellen falls nicht vorhanden, sonst updaten
+    // Upsert: create if not exists, otherwise update
     const action = await prisma.agentAction.upsert({
       where: {
         agentId_type: { agentId: params.id, type },
@@ -70,7 +70,7 @@ export async function POST(
 
     return Response.json(action);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Server-Fehler";
+    const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });
   }
 }

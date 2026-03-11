@@ -7,14 +7,14 @@ export async function POST(request: NextRequest) {
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return Response.json(
-        { error: "Nachrichten sind erforderlich." },
+        { error: "Messages are required." },
         { status: 400 }
       );
     }
 
     const client = getClaudeClient();
 
-    // Streaming Response
+    // Streaming response
     const stream = await client.messages.stream({
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       })),
     });
 
-    // Stream als ReadableStream zurückgeben
+    // Return stream as ReadableStream
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
       async start(controller) {
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
           controller.close();
         } catch (err) {
           const errorMessage =
-            err instanceof Error ? err.message : "Stream-Fehler";
+            err instanceof Error ? err.message : "Stream error";
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify({ error: errorMessage })}\n\n`
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     const message =
-      err instanceof Error ? err.message : "Interner Server-Fehler";
+      err instanceof Error ? err.message : "Internal server error";
     return Response.json({ error: message }, { status: 500 });
   }
 }

@@ -9,7 +9,7 @@ import {
   fetchUrlContent,
 } from "@/lib/rag";
 
-// Knowledge Base Einträge laden
+// Load knowledge base entries
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
@@ -17,14 +17,14 @@ export async function GET(
   try {
     const { userId } = await auth();
     if (!userId) {
-      return Response.json({ error: "Nicht autorisiert" }, { status: 401 });
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const agent = await prisma.agent.findFirst({
       where: { id: params.id, userId },
     });
     if (!agent) {
-      return Response.json({ error: "Agent nicht gefunden" }, { status: 404 });
+      return Response.json({ error: "Agent not found" }, { status: 404 });
     }
 
     const entries = await prisma.knowledgeBase.findMany({
@@ -34,12 +34,12 @@ export async function GET(
 
     return Response.json(entries);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Server-Fehler";
+    const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });
   }
 }
 
-// Neuen Knowledge Base Eintrag erstellen + verarbeiten
+// Create new knowledge base entry + process
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -47,14 +47,14 @@ export async function POST(
   try {
     const { userId } = await auth();
     if (!userId) {
-      return Response.json({ error: "Nicht autorisiert" }, { status: 401 });
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const agent = await prisma.agent.findFirst({
       where: { id: params.id, userId },
     });
     if (!agent) {
-      return Response.json({ error: "Agent nicht gefunden" }, { status: 404 });
+      return Response.json({ error: "Agent not found" }, { status: 404 });
     }
 
     const contentType = request.headers.get("content-type") || "";
@@ -69,7 +69,7 @@ export async function POST(
 
       if (!file) {
         return Response.json(
-          { error: "Keine Datei hochgeladen" },
+          { error: "No file uploaded" },
           { status: 400 }
         );
       }
@@ -77,7 +77,7 @@ export async function POST(
       type = "PDF";
       sourceName = file.name;
 
-      // In Supabase Storage hochladen
+      // Upload to Supabase Storage
       const supabase = getSupabaseAdmin();
       const filePath = `knowledge/${params.id}/${Date.now()}-${file.name}`;
       const buffer = Buffer.from(await file.arrayBuffer());
@@ -89,16 +89,16 @@ export async function POST(
         });
 
       if (uploadError) {
-        throw new Error(`Upload-Fehler: ${uploadError.message}`);
+        throw new Error(`Upload error: ${uploadError.message}`);
       }
 
       const {
         data: { publicUrl },
       } = supabase.storage.from("knowledge-files").getPublicUrl(filePath);
-      // fileUrl für spätere Referenz verfügbar
+      // fileUrl available for later reference
       void publicUrl;
 
-      // PDF Text extrahieren (pdf-parse v1 — lib/pdf-parse direkt um Test-PDF-Bug zu umgehen)
+      // Extract PDF text (pdf-parse v1 — using lib/pdf-parse directly to avoid test-PDF bug)
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const pdfParse = require("pdf-parse/lib/pdf-parse");
       const pdfData = await pdfParse(buffer);
@@ -114,7 +114,7 @@ export async function POST(
       } else if (body.type === "FAQ") {
         type = "FAQ";
         sourceName = body.title || "FAQ";
-        // FAQ als Q&A-Paare formatiert
+        // FAQ formatted as Q&A pairs
         textContent = (body.pairs || [])
           .map(
             (p: { question: string; answer: string }) =>
@@ -130,29 +130,29 @@ export async function POST(
 
     if (!textContent.trim()) {
       return Response.json(
-        { error: "Kein Textinhalt extrahiert" },
+        { error: "No text content extracted" },
         { status: 400 }
       );
     }
 
-    // KB-Eintrag in Prisma erstellen (Status: PROCESSING)
+    // Create KB entry in Prisma (status: PROCESSING)
     const kb = await prisma.knowledgeBase.create({
       data: {
         agentId: params.id,
         type,
         sourceName,
-        content: textContent.slice(0, 50000), // Max 50k Zeichen Content
+        content: textContent.slice(0, 50000), // Max 50k characters
         embeddingStatus: "PROCESSING",
       },
     });
 
-    // Async: Chunking + Embedding (im Hintergrund, aber wir warten drauf)
+    // Async: Chunking + Embedding (in background, but we await it)
     try {
       const chunks = chunkText(textContent);
       const embeddings = await generateEmbeddings(chunks);
       await storeChunks(kb.id, params.id, chunks, embeddings);
 
-      // Status auf READY setzen
+      // Set status to READY
       await prisma.knowledgeBase.update({
         where: { id: kb.id },
         data: {
@@ -167,7 +167,7 @@ export async function POST(
         embeddingStatus: "READY",
       });
     } catch (embeddingError) {
-      // Embedding fehlgeschlagen → Status ERROR
+      // Embedding failed → status ERROR
       await prisma.knowledgeBase.update({
         where: { id: kb.id },
         data: { embeddingStatus: "ERROR" },
@@ -176,14 +176,14 @@ export async function POST(
       const errMsg =
         embeddingError instanceof Error
           ? embeddingError.message
-          : "Embedding-Fehler";
+          : "Embedding error";
       return Response.json(
         { ...kb, embeddingStatus: "ERROR", error: errMsg },
-        { status: 200 } // 200 weil KB erstellt wurde, nur Embedding fehlgeschlagen
+        { status: 200 } // 200 because KB was created, only embedding failed
       );
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Server-Fehler";
+    const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });
   }
 }

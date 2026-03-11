@@ -20,45 +20,45 @@ interface ActionsTabProps {
 const actionTypes = [
   {
     type: "BOOK_APPOINTMENT",
-    label: "Terminbuchung",
+    label: "Appointment Booking",
     icon: "\u{1F4C5}",
-    description: "Termin buchen via Calendly/Cal.com",
+    description: "Book appointments via Calendly/Cal.com",
     configFields: [
-      { key: "calendlyUrl", label: "Calendly- oder Cal.com-URL", placeholder: "https://calendly.com/dein-link" },
+      { key: "calendlyUrl", label: "Calendly or Cal.com URL", placeholder: "https://calendly.com/your-link" },
     ],
   },
   {
     type: "COLLECT_EMAIL",
-    label: "E-Mail sammeln",
+    label: "Collect Email",
     icon: "\u{2709}\u{FE0F}",
-    description: "Agent fragt nach E-Mail bei Interesse",
+    description: "Agent asks for email when interest is shown",
     configFields: [],
   },
   {
     type: "SEND_EMAIL",
-    label: "E-Mail senden",
+    label: "Send Email",
     icon: "\u{1F4E7}",
-    description: "Bestätigungsmail an Besucher senden",
+    description: "Send confirmation email to visitor",
     configFields: [
-      { key: "emailTemplate", label: "E-Mail-Betreff", placeholder: "Danke für deine Anfrage!" },
+      { key: "emailTemplate", label: "Email subject", placeholder: "Thanks for your inquiry!" },
     ],
   },
   {
     type: "SCORE_LEAD",
     label: "Lead-Scoring",
     icon: "\u{1F4CA}",
-    description: "Agent bewertet Lead-Qualität (1-10)",
+    description: "Agent scores lead quality (1-10)",
     configFields: [
-      { key: "criteria", label: "Scoring-Kriterien (optional)", placeholder: "Budget > 5000, Entscheider, Zeitrahmen < 3 Monate" },
+      { key: "criteria", label: "Scoring criteria (optional)", placeholder: "Budget > 5000, decision maker, timeline < 3 months" },
     ],
   },
   {
     type: "NOTIFY_OWNER",
-    label: "Benachrichtigung",
+    label: "Notification",
     icon: "\u{1F514}",
-    description: "Betreiber per E-Mail/Slack benachrichtigen",
+    description: "Notify owner via email/Slack",
     configFields: [
-      { key: "notifyEmail", label: "E-Mail-Adresse", placeholder: "du@example.com" },
+      { key: "notifyEmail", label: "Email address", placeholder: "you@example.com" },
       { key: "slackWebhook", label: "Slack Webhook URL (optional)", placeholder: "https://hooks.slack.com/..." },
     ],
   },
@@ -66,19 +66,19 @@ const actionTypes = [
     type: "FIRE_WEBHOOK",
     label: "Webhook",
     icon: "\u{1F517}",
-    description: "Custom Webhook für Integrationen triggern",
+    description: "Trigger custom webhook for integrations",
     configFields: [
       { key: "webhookUrl", label: "Webhook URL", placeholder: "https://api.example.com/webhook" },
-      { key: "webhookSecret", label: "Secret Header (optional)", placeholder: "Bearer token..." },
+      { key: "webhookSecret", label: "Secret header (optional)", placeholder: "Bearer token..." },
     ],
   },
   {
     type: "HANDOFF_HUMAN",
-    label: "Menschliche Übergabe",
+    label: "Human Handoff",
     icon: "\u{1F91D}",
-    description: "An Menschen übergeben bei komplexen Anfragen",
+    description: "Hand off to a human for complex inquiries",
     configFields: [
-      { key: "handoffEmail", label: "Eskalations-E-Mail", placeholder: "support@example.com" },
+      { key: "handoffEmail", label: "Escalation email", placeholder: "support@example.com" },
     ],
   },
 ];
@@ -170,8 +170,7 @@ export function ActionsTab({ agentId, initialActions }: ActionsTabProps) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Aktiviere Actions die dein Agent automatisch ausführen kann. Claude
-        entscheidet im Gespräch, wann eine Action sinnvoll ist.
+        Enable actions your agent can perform automatically. Claude decides during the conversation when an action is appropriate.
       </p>
 
       {actionTypes.map((action) => {
@@ -200,7 +199,7 @@ export function ActionsTab({ agentId, initialActions }: ActionsTabProps) {
                       onClick={() => openConfig(action.type)}
                       className="rounded px-1.5 py-0.5 text-[10px] font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
                     >
-                      Konfigurieren
+                      Configure
                     </button>
                   )}
                 </div>
@@ -238,7 +237,7 @@ export function ActionsTab({ agentId, initialActions }: ActionsTabProps) {
           <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-foreground">
-                {modalAction.icon} {modalAction.label} konfigurieren
+                {modalAction.icon} Configure {modalAction.label}
               </h3>
               <button
                 onClick={() => setConfigModal(null)}
@@ -276,7 +275,7 @@ export function ActionsTab({ agentId, initialActions }: ActionsTabProps) {
                 size="sm"
                 onClick={() => setConfigModal(null)}
               >
-                Abbrechen
+                Cancel
               </Button>
               <Button
                 size="sm"
@@ -286,7 +285,7 @@ export function ActionsTab({ agentId, initialActions }: ActionsTabProps) {
                 {saving === configModal ? (
                   <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                 ) : null}
-                Speichern
+                Save
               </Button>
             </div>
           </div>

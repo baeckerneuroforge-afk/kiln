@@ -6,17 +6,17 @@ export async function GET() {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return Response.json({ error: "Nicht autorisiert" }, { status: 401 });
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     const plan = (user?.plan || "FREE") as PlanType;
     const limits = PLAN_LIMITS[plan];
 
-    // Agent-Anzahl
+    // Agent count
     const agentCount = await prisma.agent.count({ where: { userId } });
 
-    // Gespräche dieses Monats
+    // Conversations this month
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
@@ -35,7 +35,7 @@ export async function GET() {
       limits,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Server-Fehler";
+    const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });
   }
 }

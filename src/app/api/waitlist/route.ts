@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
 
     if (!email || !email.includes("@")) {
       return Response.json(
-        { error: "Gültige E-Mail-Adresse erforderlich" },
+        { error: "Valid email address required" },
         { status: 400 }
       );
     }
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     return Response.json({ success: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Server-Fehler";
+    const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });
   }
 }

@@ -98,7 +98,7 @@ export function Sidebar() {
           )}
         >
           <Settings className="h-5 w-5 shrink-0" />
-          <span className="hidden lg:block">Einstellungen</span>
+          <span className="hidden lg:block">Settings</span>
         </Link>
 
         <Separator className="w-10 lg:w-full" />

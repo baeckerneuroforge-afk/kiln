@@ -32,7 +32,7 @@ export function BuilderChat({
       id: "welcome",
       role: "assistant",
       content:
-        'Was soll dein Agent können? Beschreibe ihn so, wie du ihn einem Mitarbeiter erklären würdest.\n\nZum Beispiel: *"Ich bin Yoga-Lehrerin in München. Mein Bot soll Kursempfehlungen geben, Buchungen entgegennehmen und unsere FAQ beantworten."*',
+        'What should your agent do? Describe it as you would explain it to a colleague.\n\nFor example: *"I\'m a yoga instructor in Munich. My bot should give course recommendations, handle bookings, and answer our FAQ."*',
     },
   ]);
   const [input, setInput] = useState("");
@@ -88,11 +88,11 @@ export function BuilderChat({
       });
 
       if (!response.ok) {
-        throw new Error("API-Fehler");
+        throw new Error("API error");
       }
 
       const reader = response.body?.getReader();
-      if (!reader) throw new Error("Kein Stream verfügbar");
+      if (!reader) throw new Error("No stream available");
 
       const decoder = new TextDecoder();
       let fullText = "";
@@ -140,13 +140,13 @@ export function BuilderChat({
       }
     } catch (err) {
       const errorMsg =
-        err instanceof Error ? err.message : "Unbekannter Fehler";
+        err instanceof Error ? err.message : "Unknown error";
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantId
             ? {
                 ...m,
-                content: `Fehler bei der Agent-Generierung: ${errorMsg}. Bitte versuche es erneut.`,
+                content: `Error generating agent: ${errorMsg}. Please try again.`,
               }
             : m
         )
@@ -161,10 +161,10 @@ export function BuilderChat({
       {/* Header */}
       <div className="border-b border-border px-4 py-3">
         <h2 className="text-sm font-semibold text-foreground">
-          Agent beschreiben
+          Describe Agent
         </h2>
         <p className="text-xs text-muted-foreground">
-          Beschreibe deinen Agent — KILN generiert die Konfiguration.
+          Describe your agent — KILN generates the configuration.
         </p>
       </div>
 
@@ -210,7 +210,7 @@ export function BuilderChat({
               {message.agentConfig && (
                 <div className="mt-3 flex items-center gap-2 rounded-lg bg-kiln-orange/10 px-3 py-2 text-xs text-kiln-orange">
                   <Bot className="h-3.5 w-3.5" />
-                  Agent-Config generiert: {message.agentConfig.name}
+                  Agent config generated: {message.agentConfig.name}
                 </div>
               )}
             </div>
@@ -225,7 +225,7 @@ export function BuilderChat({
         {isStreaming && messages[messages.length - 1]?.content === "" && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            KILN denkt nach...
+            KILN is thinking...
           </div>
         )}
         <div ref={messagesEndRef} />
@@ -244,7 +244,7 @@ export function BuilderChat({
                 handleSend();
               }
             }}
-            placeholder="Beschreibe deinen Agent..."
+            placeholder="Describe your agent..."
             rows={1}
             className="flex-1 resize-none rounded-lg border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             disabled={isStreaming}

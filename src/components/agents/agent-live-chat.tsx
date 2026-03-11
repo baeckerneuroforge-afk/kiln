@@ -70,10 +70,10 @@ export function AgentLiveChat({
         body: JSON.stringify({ messages: apiMessages }),
       });
 
-      if (!res.ok) throw new Error("Chat-Fehler");
+      if (!res.ok) throw new Error("Chat error");
 
       const reader = res.body?.getReader();
-      if (!reader) throw new Error("Kein Stream");
+      if (!reader) throw new Error("No stream");
 
       const decoder = new TextDecoder();
       let fullText = "";
@@ -109,7 +109,7 @@ export function AgentLiveChat({
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantId
-            ? { ...m, content: "Fehler bei der Antwort. Bitte versuche es erneut." }
+            ? { ...m, content: "Error generating response. Please try again." }
             : m
         )
       );
@@ -133,7 +133,7 @@ export function AgentLiveChat({
         </div>
         <div>
           <p className="text-sm font-semibold text-foreground">{agentName}</p>
-          <p className="text-xs text-muted-foreground">Test-Chat</p>
+          <p className="text-xs text-muted-foreground">Test Chat</p>
         </div>
         <div className="ml-auto h-2 w-2 rounded-full bg-kiln-green" />
       </div>
@@ -208,7 +208,7 @@ export function AgentLiveChat({
                 sendMessage(input);
               }
             }}
-            placeholder="Nachricht eingeben..."
+            placeholder="Type a message..."
             className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             disabled={isStreaming}
           />

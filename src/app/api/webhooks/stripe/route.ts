@@ -10,20 +10,20 @@ export async function POST(request: Request) {
   const signature = headersList.get("stripe-signature");
 
   if (!signature) {
-    return Response.json({ error: "Signature fehlt" }, { status: 400 });
+    return Response.json({ error: "Signature missing" }, { status: 400 });
   }
 
   const stripe = getStripe();
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
-    return Response.json({ error: "Webhook Secret nicht konfiguriert" }, { status: 500 });
+    return Response.json({ error: "Webhook secret not configured" }, { status: 500 });
   }
 
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch {
-    return Response.json({ error: "Ungültige Signatur" }, { status: 400 });
+    return Response.json({ error: "Invalid signature" }, { status: 400 });
   }
 
   try {
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
         const clerkUserId = session.metadata?.clerkUserId;
         if (!clerkUserId || !session.subscription) break;
 
-        // Subscription holen um Price ID zu prüfen
+        // Get subscription to check Price ID
         const subscription = await stripe.subscriptions.retrieve(
           session.subscription as string
         );
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
 
     return Response.json({ received: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Webhook-Fehler";
+    const message = err instanceof Error ? err.message : "Webhook error";
     console.error("Stripe Webhook Error:", message);
     return Response.json({ error: message }, { status: 500 });
   }

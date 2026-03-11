@@ -12,13 +12,13 @@ export function UpgradeBanner() {
   useEffect(() => {
     fetch("/api/stripe/plan")
       .then((res) => {
-        if (!res.ok) throw new Error("Plan-API Fehler");
+        if (!res.ok) throw new Error("Plan API error");
         return res.json();
       })
       .then((data) => {
         if (!data.limits || !data.limits.agents || !data.limits.chatsPerMonth) return;
 
-        // agents >= 999999 bedeutet "unbegrenzt"
+        // agents >= 999999 means "unlimited"
         const agentLimitReached =
           data.limits.agents < 999999 &&
           data.agentCount >= data.limits.agents;
@@ -28,12 +28,12 @@ export function UpgradeBanner() {
 
         if (agentLimitReached) {
           setMessage(
-            `Du hast dein Agent-Limit erreicht (${data.agentCount}/${data.limits.agents}). Upgrade für mehr Agents.`
+            `You've reached your agent limit (${data.agentCount}/${data.limits.agents}). Upgrade for more agents.`
           );
           setShow(true);
         } else if (chatLimitNear) {
           setMessage(
-            `${data.chatCount.toLocaleString()} von ${data.limits.chatsPerMonth.toLocaleString()} Gesprächen diesen Monat genutzt. Upgrade für mehr.`
+            `${data.chatCount.toLocaleString()} of ${data.limits.chatsPerMonth.toLocaleString()} conversations used this month. Upgrade for more.`
           );
           setShow(true);
         }
@@ -52,7 +52,7 @@ export function UpgradeBanner() {
       <div className="flex items-center gap-2">
         <Link href="/dashboard/settings">
           <Button size="sm" className="h-7 text-xs">
-            Upgraden
+            Upgrade
           </Button>
         </Link>
         <button

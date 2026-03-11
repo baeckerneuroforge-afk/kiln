@@ -6,7 +6,7 @@ export default function FlowsPage() {
       <div className="mb-8">
         <h1 className="font-serif text-3xl text-foreground">Flow Engine</h1>
         <p className="mt-2 text-muted-foreground">
-          Automatisiere Workflows mit AI-gestützten Automations.
+          Automate workflows with AI-powered automations.
         </p>
       </div>
 
@@ -18,8 +18,8 @@ export default function FlowsPage() {
           Coming Soon
         </h2>
         <p className="mb-4 max-w-sm text-center text-sm text-muted-foreground">
-          Die Flow Engine wird in Phase 3 freigeschaltet. Erstelle AI-Workflows
-          per Drag & Drop.
+          Flow Engine will be available in Phase 3. Create AI workflows
+          with drag & drop.
         </p>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Lock className="h-4 w-4" />

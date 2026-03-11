@@ -74,10 +74,10 @@ export function PublicAgentChat({
         body: JSON.stringify({ messages: apiMessages }),
       });
 
-      if (!res.ok) throw new Error("Chat-Fehler");
+      if (!res.ok) throw new Error("Chat error");
 
       const reader = res.body?.getReader();
-      if (!reader) throw new Error("Kein Stream");
+      if (!reader) throw new Error("No stream");
 
       const decoder = new TextDecoder();
       let fullText = "";
@@ -110,7 +110,7 @@ export function PublicAgentChat({
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantId
-            ? { ...m, content: "Entschuldigung, es ist ein Fehler aufgetreten. Bitte versuche es erneut." }
+            ? { ...m, content: "Sorry, an error occurred. Please try again." }
             : m
         )
       );
@@ -255,7 +255,7 @@ export function PublicAgentChat({
                 sendMessage(input);
               }
             }}
-            placeholder="Nachricht eingeben..."
+            placeholder="Type a message..."
             disabled={isStreaming}
             className="flex-1 rounded-xl border px-4 py-2.5 text-sm text-white placeholder:text-[#A8A29E] focus:outline-none focus:ring-1"
             style={{

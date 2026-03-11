@@ -1,6 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// Öffentliche Routen (kein Auth nötig)
+// Public routes (no auth required)
 const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in/(.*)",
@@ -16,11 +16,11 @@ const isPublicRoute = createRouteMatcher([
 
 export default clerkMiddleware(async (auth, request) => {
   if (!isPublicRoute(request)) {
-    // API-Routes: 401 JSON statt HTML-Redirect
+    // API routes: return 401 JSON instead of HTML redirect
     if (request.nextUrl.pathname.startsWith("/api/")) {
       const { userId } = await auth();
       if (!userId) {
-        return Response.json({ error: "Nicht autorisiert" }, { status: 401 });
+        return Response.json({ error: "Unauthorized" }, { status: 401 });
       }
     } else {
       await auth.protect();

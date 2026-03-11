@@ -39,10 +39,10 @@ const statusIcons = {
 };
 
 const statusLabels = {
-  PENDING: "Wartend",
-  PROCESSING: "Verarbeitung...",
-  READY: "Bereit",
-  ERROR: "Fehler",
+  PENDING: "Pending",
+  PROCESSING: "Processing...",
+  READY: "Ready",
+  ERROR: "Error",
 };
 
 export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
@@ -76,12 +76,12 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload fehlgeschlagen");
+      if (!res.ok) throw new Error(data.error || "Upload failed");
 
       setEntries((prev) => [data, ...prev]);
       setUploadMode(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload-Fehler");
+      setError(err instanceof Error ? err.message : "Upload error");
     } finally {
       setIsUploading(false);
     }
@@ -100,13 +100,13 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "URL-Import fehlgeschlagen");
+      if (!res.ok) throw new Error(data.error || "URL import failed");
 
       setEntries((prev) => [data, ...prev]);
       setUrlInput("");
       setUploadMode(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Import-Fehler");
+      setError(err instanceof Error ? err.message : "Import error");
     } finally {
       setIsUploading(false);
     }
@@ -129,14 +129,14 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Text-Import fehlgeschlagen");
+      if (!res.ok) throw new Error(data.error || "Text import failed");
 
       setEntries((prev) => [data, ...prev]);
       setTextTitle("");
       setTextContent("");
       setUploadMode(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Import-Fehler");
+      setError(err instanceof Error ? err.message : "Import error");
     } finally {
       setIsUploading(false);
     }
@@ -162,20 +162,20 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "FAQ-Import fehlgeschlagen");
+      if (!res.ok) throw new Error(data.error || "FAQ import failed");
 
       setEntries((prev) => [data, ...prev]);
       setFaqPairs([{ question: "", answer: "" }]);
       setUploadMode(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Import-Fehler");
+      setError(err instanceof Error ? err.message : "FAQ import failed");
     } finally {
       setIsUploading(false);
     }
   }
 
   async function handleDelete(kbId: string) {
-    if (!confirm("Wissenseintrag wirklich löschen?")) return;
+    if (!confirm("Delete this knowledge entry?")) return;
 
     try {
       await fetch(`/api/agents/${agentId}/knowledge/${kbId}`, {
@@ -191,7 +191,7 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Lade Dokumente hoch, damit dein Agent daraus antworten kann.
+          Upload documents so your agent can answer from them.
         </p>
       </div>
 
@@ -205,10 +205,10 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
       {!uploadMode && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
-            { mode: "pdf" as const, icon: Upload, label: "PDF hochladen" },
-            { mode: "url" as const, icon: Globe, label: "URL importieren" },
-            { mode: "text" as const, icon: FileText, label: "Text eingeben" },
-            { mode: "faq" as const, icon: HelpCircle, label: "FAQ hinzufügen" },
+            { mode: "pdf" as const, icon: Upload, label: "Upload PDF" },
+            { mode: "url" as const, icon: Globe, label: "Import URL" },
+            { mode: "text" as const, icon: FileText, label: "Enter Text" },
+            { mode: "faq" as const, icon: HelpCircle, label: "Add FAQ" },
           ].map((item) => (
             <button
               key={item.mode}
@@ -230,13 +230,13 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium text-foreground">
-              PDF hochladen
+              Upload PDF
             </h3>
             <button
               onClick={() => setUploadMode(null)}
               className="text-xs text-muted-foreground hover:text-foreground"
             >
-              Abbrechen
+              Cancel
             </button>
           </div>
           <input
@@ -257,12 +257,12 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
             {isUploading ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin" />
-                Wird verarbeitet...
+                Processing...
               </>
             ) : (
               <>
                 <Upload className="h-5 w-5" />
-                PDF-Datei auswählen
+                Select PDF file
               </>
             )}
           </button>
@@ -274,13 +274,13 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium text-foreground">
-              URL importieren
+              Import URL
             </h3>
             <button
               onClick={() => setUploadMode(null)}
               className="text-xs text-muted-foreground hover:text-foreground"
             >
-              Abbrechen
+              Cancel
             </button>
           </div>
           <div className="flex gap-2">
@@ -299,7 +299,7 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
               {isUploading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                "Importieren"
+                "Import"
               )}
             </Button>
           </div>
@@ -311,26 +311,26 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
         <div className="rounded-xl border border-border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-foreground">
-              Text eingeben
+              Enter Text
             </h3>
             <button
               onClick={() => setUploadMode(null)}
               className="text-xs text-muted-foreground hover:text-foreground"
             >
-              Abbrechen
+              Cancel
             </button>
           </div>
           <input
             type="text"
             value={textTitle}
             onChange={(e) => setTextTitle(e.target.value)}
-            placeholder="Titel (z.B. Preisliste, AGB)"
+            placeholder="Title (e.g. Price List, Terms)"
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
           />
           <textarea
             value={textContent}
             onChange={(e) => setTextContent(e.target.value)}
-            placeholder="Text eingeben..."
+            placeholder="Enter text..."
             rows={6}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none"
           />
@@ -342,7 +342,7 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
             {isUploading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : null}
-            Hinzufügen
+            Add
           </Button>
         </div>
       )}
@@ -352,13 +352,13 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
         <div className="rounded-xl border border-border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-foreground">
-              FAQ hinzufügen
+              Add FAQ
             </h3>
             <button
               onClick={() => setUploadMode(null)}
               className="text-xs text-muted-foreground hover:text-foreground"
             >
-              Abbrechen
+              Cancel
             </button>
           </div>
           {faqPairs.map((pair, i) => (
@@ -371,7 +371,7 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
                   updated[i].question = e.target.value;
                   setFaqPairs(updated);
                 }}
-                placeholder="Frage"
+                placeholder="Question"
                 className="w-full rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
               />
               <textarea
@@ -381,7 +381,7 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
                   updated[i].answer = e.target.value;
                   setFaqPairs(updated);
                 }}
-                placeholder="Antwort"
+                placeholder="Answer"
                 rows={2}
                 className="w-full rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none"
               />
@@ -395,7 +395,7 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
                 setFaqPairs([...faqPairs, { question: "", answer: "" }])
               }
             >
-              + Weiteres Paar
+              + Add another
             </Button>
             <Button
               onClick={handleFaqSubmit}
@@ -408,7 +408,7 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
               {isUploading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
-              FAQ speichern
+              Save FAQ
             </Button>
           </div>
         </div>
@@ -418,7 +418,7 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
       {entries.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-sm font-medium text-foreground">
-            Wissensquellen ({entries.length})
+            Knowledge Sources ({entries.length})
           </h3>
           {entries.map((entry) => (
             <div
@@ -481,7 +481,7 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-8">
           <BookOpen className="mb-3 h-8 w-8 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            Noch kein Wissen hinzugefügt
+            No knowledge added yet
           </p>
         </div>
       )}

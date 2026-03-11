@@ -27,7 +27,7 @@ const plans = [
     name: "Free",
     price: "€0",
     icon: Zap,
-    features: ["1 Agent", "50 Gespräche/Monat", "Basic Support"],
+    features: ["1 Agent", "50 conversations/month", "Basic Support"],
   },
   {
     id: "PRO" as const,
@@ -36,8 +36,8 @@ const plans = [
     icon: Crown,
     popular: true,
     features: [
-      "Unbegrenzte Agents",
-      "2.000 Gespräche/Monat",
+      "Unlimited Agents",
+      "2,000 conversations/month",
       "Priority Support",
       "White-Label",
       "Custom Actions",
@@ -49,12 +49,12 @@ const plans = [
     price: "€149",
     icon: Building2,
     features: [
-      "Unbegrenzte Agents",
-      "10.000 Gespräche/Monat",
+      "Unlimited Agents",
+      "10,000 conversations/month",
       "Dedicated Support",
       "White-Label",
       "Custom Actions",
-      "API-Zugang",
+      "API Access",
       "Multi-Client Management",
     ],
   },
@@ -133,9 +133,9 @@ function SettingsContent() {
   return (
     <div className="mx-auto max-w-4xl">
       <div className="mb-8">
-        <h1 className="font-serif text-3xl text-foreground">Einstellungen</h1>
+        <h1 className="font-serif text-3xl text-foreground">Settings</h1>
         <p className="mt-2 text-muted-foreground">
-          Verwalte dein Konto und deine Abonnements.
+          Manage your account and subscriptions.
         </p>
       </div>
 
@@ -143,7 +143,7 @@ function SettingsContent() {
         <div className="mb-6 flex items-center gap-3 rounded-xl border border-green-500/30 bg-green-500/10 p-4">
           <CheckCircle2 className="h-5 w-5 text-green-500" />
           <p className="text-sm font-medium text-green-400">
-            Upgrade erfolgreich! Dein Plan wurde aktualisiert.
+            Upgrade successful! Your plan has been updated.
           </p>
         </div>
       )}
@@ -152,21 +152,21 @@ function SettingsContent() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-foreground">
-              Aktueller Plan
+              Current Plan
             </h2>
             <div className="mt-2 flex items-center gap-3">
               <span className="rounded-full bg-kiln-orange/10 px-3 py-1 text-sm font-semibold text-kiln-orange">
                 {currentPlan}
               </span>
               <span className="text-sm text-muted-foreground">
-                {plans.find((p) => p.id === currentPlan)?.price}/Monat
+                {plans.find((p) => p.id === currentPlan)?.price}/month
               </span>
             </div>
           </div>
           {currentPlan !== "FREE" && (
             <Button variant="outline" size="sm" onClick={handleManage}>
               <CreditCard className="mr-2 h-3.5 w-3.5" />
-              Abo verwalten
+              Manage Subscription
               <ExternalLink className="ml-2 h-3 w-3" />
             </Button>
           )}
@@ -199,7 +199,7 @@ function SettingsContent() {
             <div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">
-                  Gespräche (diesen Monat)
+                  Conversations (this month)
                 </span>
                 <span className="text-foreground">
                   {userPlan.chatCount} / {userPlan.limits.chatsPerMonth.toLocaleString()}
@@ -222,7 +222,7 @@ function SettingsContent() {
       </div>
 
       <h2 className="mb-4 text-lg font-semibold text-foreground">
-        Verfügbare Pläne
+        Available Plans
       </h2>
       <div className="grid gap-4 md:grid-cols-3">
         {plans.map((plan) => {
@@ -240,7 +240,7 @@ function SettingsContent() {
             >
               {plan.popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-kiln-orange px-3 py-0.5 text-xs font-semibold text-white">
-                  Beliebt
+                  Popular
                 </div>
               )}
               <Icon className="mb-3 h-6 w-6 text-kiln-orange" />
@@ -250,7 +250,7 @@ function SettingsContent() {
               <p className="mt-1 text-2xl font-bold text-foreground">
                 {plan.price}
                 <span className="text-sm font-normal text-muted-foreground">
-                  /Monat
+                  /month
                 </span>
               </p>
 
@@ -269,11 +269,11 @@ function SettingsContent() {
               <div className="mt-6">
                 {isCurrent ? (
                   <Button disabled className="w-full" variant="outline">
-                    Aktueller Plan
+                    Current Plan
                   </Button>
                 ) : plan.id === "FREE" ? (
                   <Button disabled className="w-full" variant="outline">
-                    Inkludiert
+                    Included
                   </Button>
                 ) : (
                   <Button
@@ -284,7 +284,7 @@ function SettingsContent() {
                     {upgrading === plan.id ? (
                       <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                     ) : null}
-                    Upgrade zu {plan.name}
+                    Upgrade to {plan.name}
                   </Button>
                 )}
               </div>

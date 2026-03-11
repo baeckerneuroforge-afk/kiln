@@ -6,12 +6,12 @@ export async function POST() {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return Response.json({ error: "Nicht autorisiert" }, { status: 401 });
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user?.stripeCustomerId) {
-      return Response.json({ error: "Kein Stripe-Konto vorhanden" }, { status: 400 });
+      return Response.json({ error: "No Stripe account found" }, { status: 400 });
     }
 
     const stripe = getStripe();
@@ -24,7 +24,7 @@ export async function POST() {
 
     return Response.json({ url: session.url });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Server-Fehler";
+    const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });
   }
 }
