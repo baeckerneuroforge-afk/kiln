@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { Loader2, X, Code2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAdvancedMode } from "@/hooks/use-advanced-mode";
+import { CustomCodeEditor } from "@/components/agents/custom-code-editor";
 
 interface AgentAction {
   id: string;
@@ -84,10 +86,12 @@ const actionTypes = [
 ];
 
 export function ActionsTab({ agentId, initialActions }: ActionsTabProps) {
+  const { advancedMode } = useAdvancedMode();
   const [actions, setActions] = useState<AgentAction[]>(initialActions);
   const [configModal, setConfigModal] = useState<string | null>(null);
   const [configValues, setConfigValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
+  const [showCodeEditor, setShowCodeEditor] = useState(false);
 
   async function toggleAction(actionType: string) {
     const existing = actions.find((a) => a.type === actionType);
@@ -165,7 +169,43 @@ export function ActionsTab({ agentId, initialActions }: ActionsTabProps) {
     }
   }
 
+  async function saveCustomCode(code: string, description: string) {
+    setSaving("CUSTOM_CODE");
+    try {
+      const res = await fetch(`/api/agents/${agentId}/actions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "CUSTOM_CODE",
+          enabled: true,
+          config: { code, description },
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setActions((prev) => {
+          const idx = prev.findIndex((a) => a.type === "CUSTOM_CODE");
+          if (idx >= 0) {
+            const copy = [...prev];
+            copy[idx] = updated;
+            return copy;
+          }
+          return [...prev, updated];
+        });
+      }
+    } catch {
+      // Stille Fehlerbehandlung
+    } finally {
+      setSaving(null);
+      setShowCodeEditor(false);
+    }
+  }
+
   const modalAction = actionTypes.find((a) => a.type === configModal);
+
+  const customCodeAction = actions.find((a) => a.type === "CUSTOM_CODE");
+  const customCodeEnabled = customCodeAction?.enabled ?? false;
+  const customCodeConfig = (customCodeAction?.config || {}) as Record<string, string>;
 
   return (
     <div className="space-y-3">
@@ -230,6 +270,81 @@ export function ActionsTab({ agentId, initialActions }: ActionsTabProps) {
           </div>
         );
       })}
+
+      {/* Custom Code Action — nur im Advanced Mode */}
+      {advancedMode && (
+        <div
+          className={cn(
+            "flex items-center justify-between rounded-xl border bg-card p-4 transition-colors",
+            customCodeEnabled ? "border-purple-500/30" : "border-border"
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10">
+              <Code2 className="h-5 w-5 text-purple-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-foreground">Custom Code</p>
+                <span className="rounded bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium text-purple-400">
+                  Advanced
+                </span>
+                {customCodeEnabled && (
+                  <button
+                    onClick={() => setShowCodeEditor(true)}
+                    className="rounded px-1.5 py-0.5 text-[10px] font-medium text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 transition-colors"
+                  >
+                    Configure
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {customCodeConfig.description || "Run custom JavaScript when Claude triggers this action."}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {!customCodeEnabled && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowCodeEditor(true)}
+                className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+              >
+                <Code2 className="mr-1.5 h-3.5 w-3.5" />
+                Setup
+              </Button>
+            )}
+            {customCodeEnabled && (
+              <button
+                onClick={() => toggleAction("CUSTOM_CODE")}
+                disabled={saving === "CUSTOM_CODE"}
+                className={cn(
+                  "relative h-6 w-11 rounded-full transition-colors",
+                  "bg-purple-500"
+                )}
+              >
+                {saving === "CUSTOM_CODE" ? (
+                  <Loader2 className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 animate-spin text-foreground" />
+                ) : (
+                  <span className="absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform translate-x-5" />
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Custom Code Editor Modal */}
+      {showCodeEditor && (
+        <CustomCodeEditor
+          code={customCodeConfig.code || ""}
+          description={customCodeConfig.description || ""}
+          onSave={saveCustomCode}
+          onClose={() => setShowCodeEditor(false)}
+          saving={saving === "CUSTOM_CODE"}
+        />
+      )}
 
       {/* Config Modal */}
       {configModal && modalAction && (

@@ -115,6 +115,7 @@ enum ActionType {
   NOTIFY_OWNER
   FIRE_WEBHOOK
   HANDOFF_HUMAN
+  CUSTOM_CODE
 }
 
 // Knowledge Base Einträge

@@ -149,6 +149,25 @@ function buildTools(
           },
         });
         break;
+
+      case "CUSTOM_CODE":
+        if (config.code && config.description) {
+          tools.push({
+            name: "custom_code",
+            description: config.description,
+            input_schema: {
+              type: "object" as const,
+              properties: {
+                user_message: {
+                  type: "string",
+                  description: "The relevant user message to process",
+                },
+              },
+              required: ["user_message"],
+            },
+          });
+        }
+        break;
     }
   }
 
@@ -227,6 +246,62 @@ async function executeTool(
         score,
         reasoning: toolInput.reasoning,
       });
+    }
+
+    case "custom_code": {
+      const customAction = actions.find((a) => a.type === "CUSTOM_CODE");
+      const config = (customAction?.config || {}) as Record<string, string>;
+      if (!config.code) {
+        return JSON.stringify({ success: false, message: "No custom code configured" });
+      }
+
+      try {
+        // Conversation laden für History
+        const conversations = await prisma.message.findMany({
+          where: {
+            conversation: { agentId },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        });
+
+        const context = {
+          userMessage: (toolInput.user_message as string) || "",
+          conversationHistory: conversations.reverse().map((m) => ({
+            role: m.role.toLowerCase(),
+            content: m.content,
+          })),
+          agentName: (await prisma.agent.findUnique({ where: { id: agentId }, select: { name: true } }))?.name || "",
+          leadScore: null as number | null,
+          collectedEmail: null as string | null,
+        };
+
+        // Sandboxed execution via Function constructor mit Timeout
+        const fn = new Function("context", `"use strict";\n${config.code}`);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Custom code execution timed out (5s)")), 5000)
+        );
+        const result = await Promise.race([
+          Promise.resolve(fn(context)),
+          timeoutPromise,
+        ]);
+
+        if (!result || typeof result.response !== "string") {
+          return JSON.stringify({
+            success: false,
+            message: "Custom code did not return a valid { response: string } object",
+          });
+        }
+
+        return JSON.stringify({
+          success: true,
+          response: result.response,
+          data: result.data || null,
+        });
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Custom code execution failed";
+        return JSON.stringify({ success: false, message: errorMsg });
+      }
     }
 
     default:
@@ -451,6 +526,8 @@ export async function POST(
                   ? "COLLECT_EMAIL"
                   : block.name === "score_lead"
                   ? "SCORE_LEAD"
+                  : block.name === "custom_code"
+                  ? "CUSTOM_CODE"
                   : block.name.toUpperCase();
                 if (!actionsUsed.includes(actionType)) {
                   actionsUsed.push(actionType);
