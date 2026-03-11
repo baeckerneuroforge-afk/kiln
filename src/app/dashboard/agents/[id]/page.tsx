@@ -18,6 +18,10 @@ import {
   Bug,
   ScrollText,
   Brain,
+  Link2,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -45,6 +49,7 @@ interface Agent {
   whiteLabel: Record<string, unknown> | null;
   showPoweredBy: boolean;
   memoryEnabled: boolean;
+  customDomain: string | null;
   createdAt: string;
   actions: { id: string; type: string; enabled: boolean; config: Record<string, string> | null }[];
   knowledgeBases: { id: string; type: string; sourceName: string; embeddingStatus: string; chunkCount: number; createdAt: string }[];
@@ -94,6 +99,11 @@ export default function AgentDetailPage() {
   const [primaryColor, setPrimaryColor] = useState("#F97316");
   const [logoUrl, setLogoUrl] = useState("");
   const [memoryEnabled, setMemoryEnabled] = useState(false);
+  const [customDomain, setCustomDomain] = useState("");
+  const [domainVerified, setDomainVerified] = useState<boolean | null>(null);
+  const [domainMessage, setDomainMessage] = useState("");
+  const [verifyingDomain, setVerifyingDomain] = useState(false);
+  const [userPlan, setUserPlan] = useState<string>("FREE");
 
   useEffect(() => {
     fetch(`/api/agents/${params.id}`)
@@ -108,12 +118,19 @@ export default function AgentDetailPage() {
         setWelcomeMessage(data.welcomeMessage || "");
         setStatus(data.status);
         setMemoryEnabled(data.memoryEnabled || false);
+        setCustomDomain(data.customDomain || "");
         const wl = (data.whiteLabel || {}) as Record<string, string>;
         setPrimaryColor(wl.primaryColor || "#F97316");
         setLogoUrl(wl.logo || "");
       })
       .catch(() => router.push("/dashboard/agents"))
       .finally(() => setLoading(false));
+
+    // Plan laden für Custom Domain Gating
+    fetch("/api/stripe/plan")
+      .then((res) => res.json())
+      .then((data) => setUserPlan(data.plan || "FREE"))
+      .catch(() => {});
   }, [params.id, router]);
 
   async function handleSave() {
@@ -129,6 +146,7 @@ export default function AgentDetailPage() {
           welcomeMessage,
           status,
           memoryEnabled,
+          customDomain: customDomain.trim() || null,
           whiteLabel: {
             primaryColor,
             logo: logoUrl || null,
@@ -144,6 +162,28 @@ export default function AgentDetailPage() {
       // Stille Fehlerbehandlung
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function verifyDomain() {
+    if (!agent || !customDomain.trim()) return;
+    setVerifyingDomain(true);
+    setDomainVerified(null);
+    setDomainMessage("");
+    try {
+      const res = await fetch(`/api/agents/${agent.id}/verify-domain`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: customDomain.trim() }),
+      });
+      const data = await res.json();
+      setDomainVerified(data.verified);
+      setDomainMessage(data.message);
+    } catch {
+      setDomainVerified(false);
+      setDomainMessage("Verification failed. Please try again.");
+    } finally {
+      setVerifyingDomain(false);
     }
   }
 
@@ -436,6 +476,105 @@ export default function AgentDetailPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Custom Domain — nur für Pro/Agency/Admin */}
+              {(userPlan === "PRO" || userPlan === "AGENCY" || userPlan === "ADMIN") && (
+                <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10">
+                      <Link2 className="h-4 w-4 text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Custom Domain
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Serve this agent on your own domain.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-foreground">
+                      Domain
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={customDomain}
+                        onChange={(e) => {
+                          setCustomDomain(e.target.value);
+                          setDomainVerified(null);
+                          setDomainMessage("");
+                        }}
+                        placeholder="bot.your-domain.com"
+                        className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={verifyDomain}
+                        disabled={verifyingDomain || !customDomain.trim()}
+                      >
+                        {verifyingDomain ? (
+                          <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Globe className="mr-1.5 h-3.5 w-3.5" />
+                        )}
+                        Verify
+                      </Button>
+                    </div>
+
+                    {domainMessage && (
+                      <div className={cn(
+                        "mt-2 flex items-center gap-2 rounded-lg px-3 py-2 text-xs",
+                        domainVerified
+                          ? "border border-green-500/30 bg-green-500/10 text-green-400"
+                          : "border border-red-500/30 bg-red-500/10 text-red-400"
+                      )}>
+                        {domainVerified ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                        ) : (
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        )}
+                        {domainMessage}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Setup Instructions */}
+                  <div className="rounded-lg border border-dashed border-border bg-card/30 p-4 space-y-3">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Setup Instructions
+                    </h4>
+                    <ol className="space-y-2 text-xs text-muted-foreground">
+                      <li className="flex gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-foreground">1</span>
+                        <span>Go to your DNS provider and add a <code className="rounded bg-muted px-1 py-0.5 text-foreground">CNAME</code> record:</span>
+                      </li>
+                      <li className="ml-7">
+                        <div className="rounded-lg border border-border bg-card px-3 py-2 font-mono text-[11px]">
+                          <div><span className="text-muted-foreground">Name:</span> <span className="text-foreground">{customDomain.trim() ? customDomain.trim().split(".")[0] : "bot"}</span></div>
+                          <div><span className="text-muted-foreground">Target:</span> <span className="text-kiln-orange">kiln-topaz.vercel.app</span></div>
+                          <div><span className="text-muted-foreground">TTL:</span> <span className="text-foreground">Auto</span></div>
+                        </div>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-foreground">2</span>
+                        <span>Add <code className="rounded bg-muted px-1 py-0.5 text-foreground">{customDomain.trim() || "bot.your-domain.com"}</code> as a custom domain in your <a href="https://vercel.com/docs/projects/domains" target="_blank" rel="noopener noreferrer" className="text-kiln-orange underline">Vercel project settings</a>.</span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-foreground">3</span>
+                        <span>Click &quot;Verify&quot; above to confirm your CNAME is set correctly.</span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-foreground">4</span>
+                        <span>Save this page. Your agent will be live at <code className="rounded bg-muted px-1 py-0.5 text-foreground">https://{customDomain.trim() || "bot.your-domain.com"}</code></span>
+                      </li>
+                    </ol>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
