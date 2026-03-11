@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { PLAN_LIMITS, type PlanType } from "@/lib/stripe";
+import { isAdmin } from "@/lib/admin";
 
 export async function GET() {
   try {
@@ -8,10 +9,6 @@ export async function GET() {
     if (!userId) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    const plan = (user?.plan || "FREE") as PlanType;
-    const limits = PLAN_LIMITS[plan];
 
     // Agent count
     const agentCount = await prisma.agent.count({ where: { userId } });
@@ -27,6 +24,20 @@ export async function GET() {
         createdAt: { gte: startOfMonth },
       },
     });
+
+    // Admins bekommen Agency-Rechte ohne Stripe
+    if (isAdmin(userId)) {
+      return Response.json({
+        plan: "ADMIN",
+        agentCount,
+        chatCount,
+        limits: PLAN_LIMITS.AGENCY,
+      });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const plan = (user?.plan || "FREE") as PlanType;
+    const limits = PLAN_LIMITS[plan];
 
     return Response.json({
       plan,

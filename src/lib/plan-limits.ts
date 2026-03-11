@@ -1,10 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { PLAN_LIMITS, type PlanType } from "@/lib/stripe";
+import { isAdmin } from "@/lib/admin";
 
 /**
  * Prüft ob der User sein Agent-Limit erreicht hat
  */
 export async function canCreateAgent(userId: string): Promise<{ allowed: boolean; current: number; limit: number }> {
+  // Admins haben keine Limits
+  if (isAdmin(userId)) {
+    const agentCount = await prisma.agent.count({ where: { userId } });
+    return { allowed: true, current: agentCount, limit: 999999 };
+  }
+
   const user = await prisma.user.findUnique({ where: { id: userId } });
   const plan = (user?.plan || "FREE") as PlanType;
   const limits = PLAN_LIMITS[plan];
@@ -28,6 +35,11 @@ export async function canChat(agentId: string): Promise<{ allowed: boolean; curr
   });
 
   if (!agent) return { allowed: false, current: 0, limit: 0 };
+
+  // Admins haben keine Limits
+  if (isAdmin(agent.userId)) {
+    return { allowed: true, current: 0, limit: 999999 };
+  }
 
   const plan = (agent.user.plan || "FREE") as PlanType;
   const limits = PLAN_LIMITS[plan];

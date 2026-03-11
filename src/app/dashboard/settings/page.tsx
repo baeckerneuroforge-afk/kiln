@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 interface UserPlan {
-  plan: "FREE" | "PRO" | "AGENCY";
+  plan: "FREE" | "PRO" | "AGENCY" | "ADMIN";
   agentCount: number;
   chatCount: number;
   limits: { agents: number; chatsPerMonth: number };
@@ -129,6 +129,7 @@ function SettingsContent() {
   }
 
   const currentPlan = userPlan?.plan || "FREE";
+  const isAdminUser = currentPlan === "ADMIN";
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -155,15 +156,25 @@ function SettingsContent() {
               Current Plan
             </h2>
             <div className="mt-2 flex items-center gap-3">
-              <span className="rounded-full bg-kiln-orange/10 px-3 py-1 text-sm font-semibold text-kiln-orange">
-                {currentPlan}
+              <span className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                isAdminUser
+                  ? "bg-purple-500/10 text-purple-400"
+                  : "bg-kiln-orange/10 text-kiln-orange"
+              }`}>
+                {isAdminUser ? "Admin" : currentPlan}
               </span>
-              <span className="text-sm text-muted-foreground">
-                {plans.find((p) => p.id === currentPlan)?.price}/month
-              </span>
+              {isAdminUser ? (
+                <span className="text-sm text-muted-foreground">
+                  Unlimited — all features enabled
+                </span>
+              ) : (
+                <span className="text-sm text-muted-foreground">
+                  {plans.find((p) => p.id === currentPlan)?.price}/month
+                </span>
+              )}
             </div>
           </div>
-          {currentPlan !== "FREE" && (
+          {!isAdminUser && currentPlan !== "FREE" && (
             <Button variant="outline" size="sm" onClick={handleManage}>
               <CreditCard className="mr-2 h-3.5 w-3.5" />
               Manage Subscription
@@ -221,6 +232,7 @@ function SettingsContent() {
         )}
       </div>
 
+      {!isAdminUser && (<>
       <h2 className="mb-4 text-lg font-semibold text-foreground">
         Available Plans
       </h2>
@@ -292,6 +304,7 @@ function SettingsContent() {
           );
         })}
       </div>
+      </>)}
     </div>
   );
 }
