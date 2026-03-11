@@ -126,7 +126,23 @@ export async function GET(
       .slice(0, 5)
       .map(([intent, count]) => ({ intent, count }));
 
-    // Conversation Log (letzte 50)
+    // Conversation Log (letzte 50) — mit Messages für Feedback-Loop
+    const conversationIds = conversations.slice(0, 50).map((c) => c.id);
+    const allMessages = conversationIds.length > 0
+      ? await prisma.message.findMany({
+          where: { conversationId: { in: conversationIds } },
+          orderBy: { createdAt: "asc" },
+          select: { id: true, conversationId: true, role: true, content: true, createdAt: true },
+        })
+      : [];
+
+    const messagesByConv = new Map<string, typeof allMessages>();
+    for (const msg of allMessages) {
+      const list = messagesByConv.get(msg.conversationId) || [];
+      list.push(msg);
+      messagesByConv.set(msg.conversationId, list);
+    }
+
     const conversationLog = conversations.slice(0, 50).map((c) => ({
       id: c.id,
       sessionId: c.sessionId,
@@ -138,7 +154,27 @@ export async function GET(
       visitorEmail: c.visitorEmail,
       messageCount: c._count.messages,
       createdAt: c.createdAt,
+      messages: (messagesByConv.get(c.id) || []).map((m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        createdAt: m.createdAt,
+      })),
     }));
+
+    // Corrections this week (FAQ KBs mit "Correction:" prefix)
+    const startOfWeek = new Date();
+    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const correctionsThisWeek = await prisma.knowledgeBase.count({
+      where: {
+        agentId: agent.id,
+        type: "FAQ",
+        sourceName: { startsWith: "Correction:" },
+        createdAt: { gte: startOfWeek },
+      },
+    });
 
     // ROI-Berechnung
     const roi = avgDealValue > 0
@@ -162,6 +198,7 @@ export async function GET(
       conversationLog,
       roi,
       avgDealValue: agent.avgDealValue,
+      correctionsThisWeek,
       dailyStats,
     });
   } catch (err) {
