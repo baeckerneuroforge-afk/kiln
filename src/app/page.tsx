@@ -81,6 +81,7 @@ export default function LandingPage() {
   const [submitted, setSubmitted] = useState<"hero" | "cta" | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [annual, setAnnual] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     if (isLoaded && isSignedIn) router.replace("/dashboard");
@@ -702,6 +703,32 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* ── KILN Sales Assistant Chat Widget ──────────────── */}
+      <div className="fixed bottom-5 right-5 z-[99999] flex flex-col items-end">
+        {chatOpen && (
+          <iframe
+            src="/embed/kiln-sales-assistant"
+            className="mb-3 rounded-2xl border-none shadow-2xl shadow-black/40"
+            style={{ width: 400, height: 600 }}
+            allow="clipboard-write"
+          />
+        )}
+        <button
+          onClick={() => setChatOpen(!chatOpen)}
+          className="flex h-14 w-14 items-center justify-center rounded-full text-white transition-transform hover:scale-110"
+          style={{
+            background: "linear-gradient(135deg, #F97316, #DC2626)",
+            boxShadow: "0 4px 20px rgba(249,115,22,0.4)",
+          }}
+        >
+          {chatOpen ? (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+          ) : (
+            <MessageSquare className="h-6 w-6" />
+          )}
+        </button>
+      </div>
     </div>
   );
 }
