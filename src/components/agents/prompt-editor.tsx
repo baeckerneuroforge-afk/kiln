@@ -18,7 +18,7 @@ import {
   syntaxHighlighting,
   StreamLanguage,
 } from "@codemirror/language";
-import { Tag, tags as defaultTags } from "@lezer/highlight";
+import { tags as defaultTags } from "@lezer/highlight";
 
 // Verfügbare Variablen
 const VARIABLES = [
@@ -30,9 +30,6 @@ const VARIABLES = [
   { name: "{{current.date}}", description: "Current date (DD.MM.YYYY)" },
   { name: "{{agent.name}}", description: "Name of this agent" },
 ];
-
-// Custom tag für Variablen
-const variableTag = Tag.define(defaultTags.special(defaultTags.variableName));
 
 // StreamLanguage für Variable-Highlighting
 const promptLanguage = StreamLanguage.define({
@@ -67,7 +64,7 @@ const promptLanguage = StreamLanguage.define({
 // Highlight-Style: Variablen in Orange
 const variableHighlight = HighlightStyle.define([
   {
-    tag: [variableTag, defaultTags.special(defaultTags.variableName)],
+    tag: defaultTags.special(defaultTags.variableName),
     color: "#F97316",
     fontWeight: "bold",
     backgroundColor: "rgba(249, 115, 22, 0.1)",
