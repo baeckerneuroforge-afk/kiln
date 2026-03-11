@@ -38,6 +38,18 @@ export default clerkMiddleware(async (auth, request) => {
     return NextResponse.rewrite(url);
   }
 
+  // Referral-Code aus URL in Cookie speichern
+  const refCode = request.nextUrl.searchParams.get("ref");
+  let response: NextResponse | undefined;
+  if (refCode && /^KILN-[A-Z0-9]{4}$/i.test(refCode)) {
+    response = NextResponse.next();
+    response.cookies.set("kiln_ref", refCode.toUpperCase(), {
+      maxAge: 60 * 60 * 24 * 30, // 30 Tage
+      path: "/",
+      sameSite: "lax",
+    });
+  }
+
   if (!isPublicRoute(request)) {
     // API routes: return 401 JSON instead of HTML redirect
     if (request.nextUrl.pathname.startsWith("/api/")) {
@@ -49,6 +61,8 @@ export default clerkMiddleware(async (auth, request) => {
       await auth.protect();
     }
   }
+
+  return response;
 });
 
 export const config = {

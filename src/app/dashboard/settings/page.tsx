@@ -11,6 +11,11 @@ import {
   Zap,
   Building2,
   Sparkles,
+  Gift,
+  Copy,
+  Check,
+  Users,
+  Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -66,6 +71,10 @@ function SettingsContent() {
   const [loading, setLoading] = useState(true);
   const [upgrading, setUpgrading] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [referredUsers, setReferredUsers] = useState(0);
+  const [creditsEarned, setCreditsEarned] = useState(0);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (searchParams.get("success") === "true") {
@@ -80,6 +89,16 @@ function SettingsContent() {
       .then((data) => setUserPlan(data))
       .catch(() => setUserPlan({ plan: "FREE", agentCount: 0, chatCount: 0, limits: { agents: 1, chatsPerMonth: 50 } }))
       .finally(() => setLoading(false));
+
+    // Referral-Daten laden
+    fetch("/api/referral")
+      .then((res) => res.json())
+      .then((data) => {
+        setReferralCode(data.referralCode || null);
+        setReferredUsers(data.referredUsers || 0);
+        setCreditsEarned(data.creditsEarned || 0);
+      })
+      .catch(() => {});
   }, []);
 
   async function handleUpgrade(planId: string) {
@@ -231,6 +250,108 @@ function SettingsContent() {
           </div>
         )}
       </div>
+
+      {/* Referral Program */}
+      {referralCode && (
+        <div className="mb-8 rounded-xl border border-border bg-card p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10">
+              <Gift className="h-5 w-5 text-kiln-orange" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">
+                Referral Program
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Invite friends and earn 1 free month when they upgrade.
+              </p>
+            </div>
+          </div>
+
+          {/* Referral Code + Link */}
+          <div className="space-y-3">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                Your Referral Code
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm font-bold text-kiln-orange">
+                  {referralCode}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(referralCode);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                >
+                  {copied ? (
+                    <Check className="mr-1.5 h-3.5 w-3.5 text-green-500" />
+                  ) : (
+                    <Copy className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {copied ? "Copied" : "Copy"}
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                Share Link
+              </label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 truncate rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-xs text-muted-foreground">
+                  {typeof window !== "undefined"
+                    ? `${window.location.origin}/sign-up?ref=${referralCode}`
+                    : `/sign-up?ref=${referralCode}`}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const link = `${window.location.origin}/sign-up?ref=${referralCode}`;
+                    navigator.clipboard.writeText(link);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                >
+                  {copied ? (
+                    <Check className="mr-1.5 h-3.5 w-3.5 text-green-500" />
+                  ) : (
+                    <Copy className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {copied ? "Copied" : "Copy"}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div className="rounded-lg border border-border bg-muted/20 p-4">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Users Referred</span>
+              </div>
+              <p className="mt-1 text-2xl font-bold text-foreground">{referredUsers}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/20 p-4">
+              <div className="flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-kiln-orange" />
+                <span className="text-xs text-muted-foreground">Credits Earned</span>
+              </div>
+              <p className="mt-1 text-2xl font-bold text-foreground">
+                {creditsEarned}
+                <span className="ml-1 text-sm font-normal text-muted-foreground">
+                  month{creditsEarned !== 1 ? "s" : ""} free
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!isAdminUser && (<>
       <h2 className="mb-4 text-lg font-semibold text-foreground">

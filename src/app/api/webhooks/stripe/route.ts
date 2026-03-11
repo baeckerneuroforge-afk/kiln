@@ -46,6 +46,11 @@ export async function POST(request: Request) {
             stripeCustomerId: session.customer as string,
           },
         });
+
+        // Referral-Credit: Wenn dieser User von jemandem referred wurde, Referrer belohnen
+        if (plan !== "FREE") {
+          await rewardReferrer(clerkUserId, plan, stripe);
+        }
         break;
       }
 
@@ -89,4 +94,62 @@ function getPlanFromSubscription(subscription: Stripe.Subscription): Plan {
   if (priceId === agencyPriceId) return "AGENCY";
   if (priceId === proPriceId) return "PRO";
   return "FREE";
+}
+
+// Referrer mit 1 Monat gratis belohnen wenn referred User upgraded
+async function rewardReferrer(referredUserId: string, plan: Plan, stripe: Stripe) {
+  try {
+    const referredUser = await prisma.user.findUnique({ where: { id: referredUserId } });
+    if (!referredUser?.referredBy) return;
+
+    // Prüfen ob für diesen Referred User schon ein Upgrade-Credit existiert
+    const existingCredit = await prisma.referralCredit.findFirst({
+      where: {
+        userId: referredUser.referredBy,
+        referredUserId,
+        type: { startsWith: "UPGRADE_" },
+      },
+    });
+    if (existingCredit) return;
+
+    const referrer = await prisma.user.findUnique({ where: { id: referredUser.referredBy } });
+    if (!referrer?.stripeCustomerId) return;
+
+    // Stripe Coupon erstellen: 100% off für 1 Monat
+    const coupon = await stripe.coupons.create({
+      percent_off: 100,
+      duration: "once",
+      name: `Referral Credit – ${referredUser.email} upgraded to ${plan}`,
+      metadata: { referrerId: referrer.id, referredUserId },
+    });
+
+    // Coupon auf aktives Subscription des Referrers anwenden
+    const subscriptions = await stripe.subscriptions.list({
+      customer: referrer.stripeCustomerId,
+      status: "active",
+      limit: 1,
+    });
+
+    let applied = false;
+    if (subscriptions.data.length > 0) {
+      await stripe.subscriptions.update(subscriptions.data[0].id, {
+        discounts: [{ coupon: coupon.id }],
+      });
+      applied = true;
+    }
+
+    // Credit in DB tracken
+    await prisma.referralCredit.create({
+      data: {
+        userId: referrer.id,
+        referredUserId,
+        referredEmail: referredUser.email,
+        type: `UPGRADE_${plan}`,
+        applied,
+      },
+    });
+  } catch (err) {
+    console.error("Referral reward error:", err);
+    // Nicht den Webhook fehlschlagen lassen
+  }
 }

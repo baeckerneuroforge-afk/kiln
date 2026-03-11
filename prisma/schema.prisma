@@ -17,11 +17,28 @@ model User {
   imageUrl         String?
   plan             Plan     @default(FREE)
   stripeCustomerId String?  @unique
+  referralCode     String?  @unique // KILN-XXXX
+  referredBy       String?  // userId des Referrers
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  agents        Agent[]
-  conversations Conversation[]
+  agents           Agent[]
+  conversations    Conversation[]
+  referralCredits  ReferralCredit[]
+}
+
+// Referral Credits — tracks rewards for referrers
+model ReferralCredit {
+  id             String   @id @default(cuid())
+  userId         String   // Der Referrer, der den Credit bekommt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  referredUserId String   // Wer hat sich angemeldet
+  referredEmail  String?
+  type           String   // "SIGNUP" | "UPGRADE_PRO" | "UPGRADE_AGENCY"
+  applied        Boolean  @default(false) // Stripe Coupon angewendet?
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
 }
 
 enum Plan {
