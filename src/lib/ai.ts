@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-// Singleton Claude client
+// Singleton Claude client (KILN's default key)
 let client: Anthropic | null = null;
 
 export function getClaudeClient(): Anthropic {
@@ -11,6 +11,27 @@ export function getClaudeClient(): Anthropic {
   }
   return client;
 }
+
+// BYOK: Claude Client mit eigenem Key erstellen
+export function getClaudeClientWithKey(apiKey: string): Anthropic {
+  return new Anthropic({ apiKey });
+}
+
+// Model-Mapping: welcher Provider für welches Model
+export const MODEL_PROVIDER_MAP: Record<string, "anthropic" | "openai"> = {
+  "claude-sonnet-4-20250514": "anthropic",
+  "claude-opus-4-20250514": "anthropic",
+  "gpt-4o": "openai",
+  "gpt-4o-mini": "openai",
+};
+
+// Verfügbare Modelle für die UI
+export const AVAILABLE_MODELS = [
+  { id: "claude-sonnet-4-20250514", label: "Claude Sonnet", provider: "anthropic" as const },
+  { id: "claude-opus-4-20250514", label: "Claude Opus", provider: "anthropic" as const },
+  { id: "gpt-4o", label: "GPT-4o", provider: "openai" as const },
+  { id: "gpt-4o-mini", label: "GPT-4o Mini", provider: "openai" as const },
+];
 
 // Meta-prompt for agent generation
 export const AGENT_GENERATION_SYSTEM_PROMPT = `You are KILN's AI Agent Architect. Your task is to generate a complete agent configuration based on a user's description.

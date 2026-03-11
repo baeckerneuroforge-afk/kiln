@@ -251,6 +251,19 @@ model AgentMemory {
   @@index([agentId, sessionHash])
 }
 
+// API Keys — Bring Your Own Key (verschlüsselt gespeichert)
+model ApiKey {
+  id           String   @id @default(cuid())
+  userId       String
+  provider     String   // "anthropic" | "openai"
+  encryptedKey String   @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
 // Agent Analytics (täglich aggregiert)
 model AgentAnalytics {
   id                 String   @id @default(cuid())

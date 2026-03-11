@@ -16,6 +16,10 @@ import {
   Check,
   Users,
   Trophy,
+  Key,
+  Eye,
+  EyeOff,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -76,6 +80,17 @@ function SettingsContent() {
   const [creditsEarned, setCreditsEarned] = useState(0);
   const [copied, setCopied] = useState(false);
 
+  // API Keys (BYOK)
+  const [apiKeys, setApiKeys] = useState<{ id: string; provider: string; keyHint: string }[]>([]);
+  const [anthropicKey, setAnthropicKey] = useState("");
+  const [openaiKey, setOpenaiKey] = useState("");
+  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
+  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
+  const [keyError, setKeyError] = useState<string | null>(null);
+  const [keySuccess, setKeySuccess] = useState<string | null>(null);
+
   useEffect(() => {
     if (searchParams.get("success") === "true") {
       setShowSuccess(true);
@@ -97,6 +112,14 @@ function SettingsContent() {
         setReferralCode(data.referralCode || null);
         setReferredUsers(data.referredUsers || 0);
         setCreditsEarned(data.creditsEarned || 0);
+      })
+      .catch(() => {});
+
+    // API Keys laden
+    fetch("/api/user/api-keys")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setApiKeys(data);
       })
       .catch(() => {});
   }, []);
@@ -136,6 +159,59 @@ function SettingsContent() {
       }
     } catch {
       // Fehler still behandeln
+    }
+  }
+
+  async function saveApiKey(provider: string, apiKey: string) {
+    if (!apiKey.trim()) return;
+    setSavingKey(provider);
+    setKeyError(null);
+    setKeySuccess(null);
+
+    try {
+      const res = await fetch("/api/user/api-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, apiKey: apiKey.trim() }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setKeyError(data.error || "Failed to save key");
+        return;
+      }
+
+      // Refresh keys
+      const keysRes = await fetch("/api/user/api-keys");
+      const keysData = await keysRes.json();
+      if (Array.isArray(keysData)) setApiKeys(keysData);
+
+      if (provider === "anthropic") setAnthropicKey("");
+      if (provider === "openai") setOpenaiKey("");
+      setKeySuccess(`${provider === "anthropic" ? "Anthropic" : "OpenAI"} API key saved successfully.`);
+      setTimeout(() => setKeySuccess(null), 3000);
+    } catch {
+      setKeyError("Failed to save API key");
+    } finally {
+      setSavingKey(null);
+    }
+  }
+
+  async function deleteApiKey(provider: string) {
+    setDeletingKey(provider);
+    setKeyError(null);
+
+    try {
+      await fetch("/api/user/api-keys", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+      setApiKeys((prev) => prev.filter((k) => k.provider !== provider));
+    } catch {
+      setKeyError("Failed to delete key");
+    } finally {
+      setDeletingKey(null);
     }
   }
 
@@ -250,6 +326,164 @@ function SettingsContent() {
           </div>
         )}
       </div>
+
+      {/* API Keys — BYOK (nur Pro/Agency/Admin) */}
+      {(currentPlan === "PRO" || currentPlan === "AGENCY" || isAdminUser) && (
+        <div className="mb-8 rounded-xl border border-border bg-card p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10">
+              <Key className="h-5 w-5 text-purple-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">
+                API Keys
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Bring your own API keys for unlimited conversations.
+              </p>
+            </div>
+          </div>
+
+          {keyError && (
+            <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+              {keyError}
+            </div>
+          )}
+          {keySuccess && (
+            <div className="mb-4 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs text-green-400">
+              {keySuccess}
+            </div>
+          )}
+
+          <div className="space-y-5">
+            {/* Anthropic Key */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                Anthropic API Key
+              </label>
+              {apiKeys.find((k) => k.provider === "anthropic") ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm text-muted-foreground">
+                    {apiKeys.find((k) => k.provider === "anthropic")?.keyHint}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => deleteApiKey("anthropic")}
+                    disabled={deletingKey === "anthropic"}
+                    className="text-red-400 hover:bg-red-500/10 hover:text-red-400"
+                  >
+                    {deletingKey === "anthropic" ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    Remove
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type={showAnthropicKey ? "text" : "password"}
+                      value={anthropicKey}
+                      onChange={(e) => setAnthropicKey(e.target.value)}
+                      placeholder="sk-ant-..."
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 pr-10 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowAnthropicKey(!showAnthropicKey)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showAnthropicKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => saveApiKey("anthropic", anthropicKey)}
+                    disabled={savingKey === "anthropic" || !anthropicKey.trim()}
+                  >
+                    {savingKey === "anthropic" && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                    Save
+                  </Button>
+                </div>
+              )}
+              {apiKeys.find((k) => k.provider === "anthropic") && (
+                <p className="mt-1.5 text-xs text-green-400">
+                  Using your own Anthropic key — unlimited conversations for Claude models.
+                </p>
+              )}
+            </div>
+
+            {/* OpenAI Key */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                OpenAI API Key
+              </label>
+              {apiKeys.find((k) => k.provider === "openai") ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm text-muted-foreground">
+                    {apiKeys.find((k) => k.provider === "openai")?.keyHint}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => deleteApiKey("openai")}
+                    disabled={deletingKey === "openai"}
+                    className="text-red-400 hover:bg-red-500/10 hover:text-red-400"
+                  >
+                    {deletingKey === "openai" ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    Remove
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type={showOpenaiKey ? "text" : "password"}
+                      value={openaiKey}
+                      onChange={(e) => setOpenaiKey(e.target.value)}
+                      placeholder="sk-..."
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 pr-10 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowOpenaiKey(!showOpenaiKey)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showOpenaiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => saveApiKey("openai", openaiKey)}
+                    disabled={savingKey === "openai" || !openaiKey.trim()}
+                  >
+                    {savingKey === "openai" && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                    Save
+                  </Button>
+                </div>
+              )}
+              {apiKeys.find((k) => k.provider === "openai") && (
+                <p className="mt-1.5 text-xs text-green-400">
+                  Using your own OpenAI key — unlimited conversations for GPT models.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-lg border border-dashed border-border bg-card/30 p-3">
+            <p className="text-xs text-muted-foreground">
+              Your keys are encrypted with AES-256-GCM and stored securely. They are only used when your agents process conversations. KILN never stores them in plaintext.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Referral Program */}
       {referralCode && (

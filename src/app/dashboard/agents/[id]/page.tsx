@@ -102,6 +102,7 @@ export default function AgentDetailPage() {
   const [status, setStatus] = useState<string>("DRAFT");
   const [primaryColor, setPrimaryColor] = useState("#F97316");
   const [logoUrl, setLogoUrl] = useState("");
+  const [llmModel, setLlmModel] = useState("claude-sonnet-4-20250514");
   const [memoryEnabled, setMemoryEnabled] = useState(false);
   const [customDomain, setCustomDomain] = useState("");
   const [domainVerified, setDomainVerified] = useState<boolean | null>(null);
@@ -121,6 +122,7 @@ export default function AgentDetailPage() {
         setSystemPrompt(data.systemPrompt);
         setWelcomeMessage(data.welcomeMessage || "");
         setStatus(data.status);
+        setLlmModel(data.llmModel || "claude-sonnet-4-20250514");
         setMemoryEnabled(data.memoryEnabled || false);
         setCustomDomain(data.customDomain || "");
         const wl = (data.whiteLabel || {}) as Record<string, string>;
@@ -149,6 +151,7 @@ export default function AgentDetailPage() {
           systemPrompt,
           welcomeMessage,
           status,
+          llmModel,
           memoryEnabled,
           customDomain: customDomain.trim() || null,
           whiteLabel: {
@@ -315,6 +318,31 @@ export default function AgentDetailPage() {
                   className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
                 />
               </div>
+
+              {/* Model Selection — nur im Advanced Mode */}
+              {advancedMode && (
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                    Model
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      (Advanced)
+                    </span>
+                  </label>
+                  <select
+                    value={llmModel}
+                    onChange={(e) => setLlmModel(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+                  >
+                    <option value="claude-sonnet-4-20250514">Claude Sonnet (default)</option>
+                    <option value="claude-opus-4-20250514">Claude Opus</option>
+                    <option value="gpt-4o">GPT-4o</option>
+                    <option value="gpt-4o-mini">GPT-4o Mini</option>
+                  </select>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    OpenAI models require an OpenAI API key in Settings. Add your own API keys for unlimited conversations.
+                  </p>
+                </div>
+              )}
 
               {/* System Prompt */}
               <div>

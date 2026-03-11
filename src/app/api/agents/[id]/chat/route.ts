@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { getClaudeClient } from "@/lib/ai";
+import OpenAI from "openai";
+import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
 import { canChat } from "@/lib/plan-limits";
+import { decrypt } from "@/lib/encryption";
 import crypto from "crypto";
 
 // Stabiler Hash aus sessionId für Memory-Zuordnung
@@ -468,13 +470,33 @@ export async function POST(
       return Response.json({ error: "Agent not found" }, { status: 404 });
     }
 
-    // Check chat limit
-    const chatCheck = await canChat(agent.id);
-    if (!chatCheck.allowed) {
-      return Response.json(
-        { error: `Monthly conversation limit reached (${chatCheck.current}/${chatCheck.limit}). The owner needs to upgrade their plan.` },
-        { status: 429, headers: corsHeaders }
-      );
+    // BYOK: Prüfen ob der User einen eigenen Key für den gewählten Provider hat
+    const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+    const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "anthropic";
+    let userApiKey: string | null = null;
+    let usingOwnKey = false;
+
+    try {
+      const apiKeyRecord = await prisma.apiKey.findUnique({
+        where: { userId_provider: { userId: agent.userId, provider: modelProvider } },
+      });
+      if (apiKeyRecord) {
+        userApiKey = decrypt(apiKeyRecord.encryptedKey);
+        usingOwnKey = true;
+      }
+    } catch {
+      // Key-Entschlüsselung fehlgeschlagen — KILN Key verwenden
+    }
+
+    // Check chat limit — bei eigenem Key: kein Limit
+    if (!usingOwnKey) {
+      const chatCheck = await canChat(agent.id);
+      if (!chatCheck.allowed) {
+        return Response.json(
+          { error: `Monthly conversation limit reached (${chatCheck.current}/${chatCheck.limit}). The owner needs to upgrade their plan.` },
+          { status: 429, headers: corsHeaders }
+        );
+      }
     }
 
     // Conversation-Persistenz: Session finden oder erstellen
@@ -580,9 +602,13 @@ export async function POST(
     }
 
     const tools = buildTools(agent.actions, agent.customTools);
-    const client = getClaudeClient();
 
-    // Prepare messages for Claude
+    // Client erstellen: BYOK oder KILN's Key
+    const isOpenAI = modelProvider === "openai";
+    const anthropicClient = isOpenAI ? null : (usingOwnKey && userApiKey ? getClaudeClientWithKey(userApiKey) : getClaudeClient());
+    const openaiClient = isOpenAI ? new OpenAI({ apiKey: userApiKey || process.env.OPENAI_API_KEY }) : null;
+
+    // Prepare messages
     const claudeMessages: Anthropic.MessageParam[] = messages.map(
       (m: { role: string; content: string }) => ({
         role: m.role as "user" | "assistant",
@@ -604,12 +630,106 @@ export async function POST(
       async start(controller) {
         let fullAssistantText = "";
         try {
+          // ===== OpenAI-Pfad =====
+          if (isOpenAI && openaiClient) {
+            // OpenAI Tool-Definitionen konvertieren
+            const openaiTools: OpenAI.ChatCompletionTool[] = tools.map((t) => ({
+              type: "function" as const,
+              function: {
+                name: t.name,
+                description: t.description,
+                parameters: t.input_schema as Record<string, unknown>,
+              },
+            }));
+
+            const openaiMessages: OpenAI.ChatCompletionMessageParam[] = [
+              { role: "system", content: systemPrompt },
+              ...messages.map((m: { role: string; content: string }) => ({
+                role: m.role as "user" | "assistant",
+                content: m.content,
+              })),
+            ];
+
+            let maxToolRounds = 5;
+            while (maxToolRounds-- > 0) {
+              const requestParams: OpenAI.ChatCompletionCreateParams = {
+                model: selectedModel,
+                max_tokens: 2048,
+                messages: openaiMessages,
+              };
+
+              if (openaiTools.length > 0) {
+                requestParams.tools = openaiTools;
+              }
+
+              const response = await openaiClient.chat.completions.create(requestParams);
+              const choice = response.choices[0];
+
+              if (response.usage) {
+                debugInputTokens += response.usage.prompt_tokens;
+                debugOutputTokens += response.usage.completion_tokens || 0;
+              }
+
+              if (choice.message.content) {
+                fullAssistantText += choice.message.content;
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: choice.message.content })}\n\n`));
+              }
+
+              const toolCalls = choice.message.tool_calls;
+              if (!toolCalls || toolCalls.length === 0) break;
+
+              // Tool-Calls ausführen
+              openaiMessages.push(choice.message);
+
+              for (const tc of toolCalls) {
+                // Nur function-type Tool-Calls verarbeiten
+                if (tc.type !== "function") continue;
+                const fnCall = tc as { id: string; type: "function"; function: { name: string; arguments: string } };
+                const toolInput = JSON.parse(fnCall.function.arguments || "{}") as Record<string, unknown>;
+
+                const actionType = fnCall.function.name === "book_appointment" ? "BOOK_APPOINTMENT"
+                  : fnCall.function.name === "collect_email" ? "COLLECT_EMAIL"
+                  : fnCall.function.name === "score_lead" ? "SCORE_LEAD"
+                  : fnCall.function.name === "custom_code" ? "CUSTOM_CODE"
+                  : fnCall.function.name.startsWith("custom_tool_") ? `CUSTOM_TOOL:${fnCall.function.name.replace("custom_tool_", "")}`
+                  : fnCall.function.name.toUpperCase();
+                if (!actionsUsed.includes(actionType)) actionsUsed.push(actionType);
+
+                const result = await executeTool(fnCall.function.name, toolInput, params.id, agent.actions, agent.customTools);
+
+                debugToolCalls.push({ name: fnCall.function.name, input: toolInput, result });
+
+                openaiMessages.push({
+                  role: "tool",
+                  tool_call_id: fnCall.id,
+                  content: result,
+                });
+
+                // Lead-Score / Email auf Conversation speichern
+                if (fnCall.function.name === "score_lead") {
+                  const score = Math.min(10, Math.max(1, Number(toolInput.score) || 5));
+                  await prisma.conversation.update({
+                    where: { id: conversationId },
+                    data: { leadScore: score, visitorEmail: (toolInput.email as string) || undefined },
+                  });
+                }
+                if (fnCall.function.name === "collect_email") {
+                  await prisma.conversation.update({
+                    where: { id: conversationId },
+                    data: { visitorEmail: (toolInput.email as string) || undefined, visitorName: (toolInput.name as string) || undefined },
+                  });
+                }
+              }
+            }
+          }
+          // ===== Anthropic-Pfad =====
+          else if (anthropicClient) {
           let currentMessages = claudeMessages;
           let maxToolRounds = 5;
 
           while (maxToolRounds-- > 0) {
             const requestParams: Anthropic.MessageCreateParams = {
-              model: agent.llmModel || "claude-sonnet-4-20250514",
+              model: selectedModel,
               max_tokens: 2048,
               system: systemPrompt,
               messages: currentMessages,
@@ -619,7 +739,7 @@ export async function POST(
               requestParams.tools = tools;
             }
 
-            const response = await client.messages.create(requestParams);
+            const response = await anthropicClient.messages.create(requestParams);
 
             // Token-Tracking
             if (response.usage) {
@@ -709,6 +829,7 @@ export async function POST(
               { role: "user", content: toolResults },
             ];
           }
+          }
 
           // Assistant-Antwort speichern
           if (fullAssistantText) {
@@ -728,9 +849,8 @@ export async function POST(
           });
 
           // Persistent Memory: Nach 3+ Nachrichten Fakten extrahieren
-          if (agent.memoryEnabled && currentMessages.length >= 3) {
-            // Nicht-blockierend im Hintergrund ausführen
-            const allMessages = currentMessages
+          if (agent.memoryEnabled && claudeMessages.length >= 3 && anthropicClient) {
+            const allMessages = claudeMessages
               .filter((m) => typeof m.content === "string")
               .map((m) => ({ role: m.role as string, content: m.content as string }));
 
@@ -738,8 +858,8 @@ export async function POST(
               params.id,
               sessionHash,
               allMessages,
-              client,
-              agent.llmModel
+              anthropicClient,
+              selectedModel.startsWith("claude") ? selectedModel : "claude-sonnet-4-20250514"
             ).catch(() => {});
           }
 
