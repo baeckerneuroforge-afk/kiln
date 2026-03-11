@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   AlertCircle,
   RefreshCw,
+  Wrench,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ import { ActionsTab } from "@/components/agents/actions-tab";
 import { AnalyticsTab } from "@/components/agents/analytics-tab";
 import { LogsTab } from "@/components/agents/logs-tab";
 import { MemoryTab } from "@/components/agents/memory-tab";
+import { CustomToolsTab } from "@/components/agents/custom-tools-tab";
 import { PromptEditor } from "@/components/agents/prompt-editor";
 import { cn } from "@/lib/utils";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
@@ -57,7 +59,7 @@ interface Agent {
   _count: { conversations: number };
 }
 
-type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "debug" | "logs" | "memory";
+type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "tools" | "debug" | "logs" | "memory";
 
 const baseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "config", label: "Configuration", icon: Settings2 },
@@ -68,6 +70,7 @@ const baseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
 ];
 
 const advancedTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
+  { id: "tools", label: "Custom Tools", icon: Wrench },
   { id: "debug", label: "Debug", icon: Bug },
   { id: "logs", label: "Logs", icon: ScrollText },
   { id: "memory", label: "Memory", icon: Brain },
@@ -79,7 +82,7 @@ const statusOptions = [
   { value: "PAUSED", label: "Paused" },
 ];
 
-const fullWidthTabs: Tab[] = ["analytics", "logs", "memory"];
+const fullWidthTabs: Tab[] = ["analytics", "tools", "logs", "memory"];
 
 export default function AgentDetailPage() {
   const params = useParams();
@@ -604,6 +607,10 @@ export default function AgentDetailPage() {
 
           {activeTab === "logs" && (
             <LogsTab agentId={agent.id} />
+          )}
+
+          {activeTab === "tools" && (
+            <CustomToolsTab agentId={agent.id} />
           )}
 
           {activeTab === "memory" && (

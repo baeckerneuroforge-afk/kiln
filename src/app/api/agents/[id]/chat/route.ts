@@ -67,9 +67,22 @@ Return ONLY the JSON array, no other text.`,
   }
 }
 
-// Tool definitions based on enabled actions
+// Custom Tool Definition Typ
+interface CustomToolDef {
+  id: string;
+  name: string;
+  description: string;
+  method: string;
+  url: string;
+  headers: unknown;
+  bodyTemplate: string | null;
+  responseMapping: string | null;
+}
+
+// Tool definitions based on enabled actions + custom tools
 function buildTools(
-  actions: { type: string; enabled: boolean; config: unknown }[]
+  actions: { type: string; enabled: boolean; config: unknown }[],
+  customTools: CustomToolDef[] = []
 ): Anthropic.Tool[] {
   const tools: Anthropic.Tool[] = [];
 
@@ -171,7 +184,50 @@ function buildTools(
     }
   }
 
+  // Custom HTTP Tools — dynamische Parameter aus URL/Body-Template extrahieren
+  for (const ct of customTools) {
+    // Platzhalter aus URL und Body extrahieren: {{variable}}
+    const placeholders = new Set<string>();
+    const regex = /\{\{(\w+)\}\}/g;
+    let match;
+    while ((match = regex.exec(ct.url)) !== null) placeholders.add(match[1]);
+    if (ct.bodyTemplate) {
+      regex.lastIndex = 0;
+      while ((match = regex.exec(ct.bodyTemplate)) !== null) placeholders.add(match[1]);
+    }
+
+    const placeholderArr = Array.from(placeholders);
+    const properties: Record<string, { type: string; description: string }> = {};
+    for (const p of placeholderArr) {
+      properties[p] = {
+        type: "string",
+        description: `Value for the ${p} parameter`,
+      };
+    }
+
+    tools.push({
+      name: `custom_tool_${ct.name}`,
+      description: ct.description,
+      input_schema: {
+        type: "object" as const,
+        properties,
+        required: placeholderArr,
+      },
+    });
+  }
+
   return tools;
+}
+
+// Einfacher JSON-Pfad-Accessor: "data.results[0].name" → Wert
+function resolveJsonPath(obj: unknown, path: string): unknown {
+  const parts = path.replace(/\[(\d+)\]/g, ".$1").split(".");
+  let current: unknown = obj;
+  for (const part of parts) {
+    if (current == null || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
 }
 
 // Execute tool calls
@@ -179,8 +235,70 @@ async function executeTool(
   toolName: string,
   toolInput: Record<string, unknown>,
   agentId: string,
-  actions: { type: string; config: unknown }[]
+  actions: { type: string; config: unknown }[],
+  customTools: CustomToolDef[] = []
 ): Promise<string> {
+  // Custom HTTP Tool?
+  if (toolName.startsWith("custom_tool_")) {
+    const ctName = toolName.replace("custom_tool_", "");
+    const ct = customTools.find((t) => t.name === ctName);
+    if (!ct) return JSON.stringify({ success: false, message: "Custom tool not found" });
+
+    try {
+      // Platzhalter in URL und Body ersetzen
+      let url = ct.url;
+      let body = ct.bodyTemplate || "";
+      for (const [key, value] of Object.entries(toolInput)) {
+        const placeholder = `{{${key}}}`;
+        url = url.replaceAll(placeholder, encodeURIComponent(String(value)));
+        body = body.replaceAll(placeholder, String(value));
+      }
+
+      const fetchOptions: RequestInit = {
+        method: ct.method || "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...((ct.headers as Record<string, string>) || {}),
+        },
+      };
+
+      if (body && ct.method !== "GET") {
+        fetchOptions.body = body;
+      }
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      fetchOptions.signal = controller.signal;
+
+      const response = await fetch(url, fetchOptions);
+      clearTimeout(timeout);
+
+      const contentType = response.headers.get("content-type") || "";
+      let responseData: unknown;
+      if (contentType.includes("application/json")) {
+        responseData = await response.json();
+      } else {
+        responseData = await response.text();
+      }
+
+      // Response Mapping anwenden
+      if (ct.responseMapping && responseData && typeof responseData === "object") {
+        const mapped = resolveJsonPath(responseData, ct.responseMapping);
+        if (mapped !== undefined) {
+          return JSON.stringify({ success: true, result: mapped });
+        }
+      }
+
+      return JSON.stringify({ success: true, status: response.status, data: responseData });
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        return JSON.stringify({ success: false, message: "HTTP request timed out (10s)" });
+      }
+      const errorMsg = err instanceof Error ? err.message : "HTTP request failed";
+      return JSON.stringify({ success: false, message: errorMsg });
+    }
+  }
+
   switch (toolName) {
     case "book_appointment": {
       const config = (actions.find((a) => a.type === "BOOK_APPOINTMENT")
@@ -336,12 +454,13 @@ export async function POST(
       );
     }
 
-    // Load agent with actions
+    // Load agent with actions and custom tools
     const agent = await prisma.agent.findUnique({
       where: { id: params.id },
       include: {
         knowledgeBases: { where: { embeddingStatus: "READY" } },
         actions: true,
+        customTools: { where: { enabled: true } },
       },
     });
 
@@ -460,7 +579,7 @@ export async function POST(
       }
     }
 
-    const tools = buildTools(agent.actions);
+    const tools = buildTools(agent.actions, agent.customTools);
     const client = getClaudeClient();
 
     // Prepare messages for Claude
@@ -528,6 +647,8 @@ export async function POST(
                   ? "SCORE_LEAD"
                   : block.name === "custom_code"
                   ? "CUSTOM_CODE"
+                  : block.name.startsWith("custom_tool_")
+                  ? `CUSTOM_TOOL:${block.name.replace("custom_tool_", "")}`
                   : block.name.toUpperCase();
                 if (!actionsUsed.includes(actionType)) {
                   actionsUsed.push(actionType);
@@ -537,7 +658,8 @@ export async function POST(
                   block.name,
                   block.input as Record<string, unknown>,
                   params.id,
-                  agent.actions
+                  agent.actions,
+                  agent.customTools
                 );
 
                 debugToolCalls.push({

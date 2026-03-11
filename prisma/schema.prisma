@@ -80,6 +80,7 @@ model Agent {
   updatedAt          DateTime    @updatedAt
 
   actions        AgentAction[]
+  customTools    AgentCustomTool[]
   knowledgeBases KnowledgeBase[]
   conversations  Conversation[]
   analytics      AgentAnalytics[]
@@ -116,6 +117,25 @@ enum ActionType {
   FIRE_WEBHOOK
   HANDOFF_HUMAN
   CUSTOM_CODE
+}
+
+// Custom HTTP Tools — benutzerdefinierte API-Integrationen
+model AgentCustomTool {
+  id              String   @id @default(cuid())
+  agentId         String
+  agent           Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  name            String   // Tool-Name für Claude (snake_case)
+  description     String   @db.Text // Wann Claude das Tool nutzen soll
+  method          String   @default("GET") // GET, POST, PUT, DELETE
+  url             String   // Endpoint URL mit {{variable}} Platzhaltern
+  headers         Json?    // { "Authorization": "Bearer xxx", ... }
+  bodyTemplate    String?  @db.Text // JSON body template mit {{variable}} Platzhaltern
+  responseMapping String?  // JSON-Pfad zum Ergebnis (z.B. "data.results[0].name")
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([agentId])
 }
 
 // Knowledge Base Einträge
