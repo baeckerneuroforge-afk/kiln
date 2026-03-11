@@ -54,6 +54,9 @@ model Agent {
   // ROI-Berechnung
   avgDealValue       Float?      // Durchschnittlicher Deal-Wert in EUR
 
+  // Persistent Memory
+  memoryEnabled      Boolean     @default(false)
+
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
@@ -61,6 +64,7 @@ model Agent {
   knowledgeBases KnowledgeBase[]
   conversations  Conversation[]
   analytics      AgentAnalytics[]
+  memories       AgentMemory[]
 
   @@index([userId])
 }
@@ -190,6 +194,21 @@ model Lead {
 
   @@index([agentId])
   @@index([email])
+}
+
+// Agent Memory — persistent user memories across conversations
+model AgentMemory {
+  id          String   @id @default(cuid())
+  agentId     String
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  sessionHash String   // Hash des sessionId — identifiziert wiederkehrende Besucher
+  key         String   // z.B. "name", "preference", "question_asked"
+  value       String   @db.Text
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@unique([agentId, sessionHash, key])
+  @@index([agentId, sessionHash])
 }
 
 // Agent Analytics (täglich aggregiert)

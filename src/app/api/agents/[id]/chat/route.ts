@@ -4,6 +4,68 @@ import { getClaudeClient } from "@/lib/ai";
 import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
 import { canChat } from "@/lib/plan-limits";
+import crypto from "crypto";
+
+// Stabiler Hash aus sessionId für Memory-Zuordnung
+function hashSession(sessionId: string): string {
+  return crypto.createHash("sha256").update(sessionId).digest("hex").slice(0, 32);
+}
+
+// Nach Conversation-Ende: Fakten extrahieren und als Memories speichern
+async function extractAndSaveMemories(
+  agentId: string,
+  sessionHash: string,
+  messages: { role: string; content: string }[],
+  client: Anthropic,
+  model: string
+) {
+  try {
+    const transcript = messages
+      .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+      .join("\n");
+
+    const response = await client.messages.create({
+      model: model || "claude-sonnet-4-20250514",
+      max_tokens: 512,
+      system: `You extract key facts about the user from a conversation. Return a JSON array of {key, value} pairs.
+Keys should be short identifiers like: name, email, company, role, preference, interest, decision, question_topic, location, budget, timeline.
+Only extract facts that are clearly stated or strongly implied. Do not guess.
+If no meaningful facts can be extracted, return an empty array [].
+Return ONLY the JSON array, no other text.`,
+      messages: [
+        {
+          role: "user",
+          content: `Extract key facts about the user from this conversation:\n\n${transcript}`,
+        },
+      ],
+    });
+
+    const text = response.content[0]?.type === "text" ? response.content[0].text : "";
+    // JSON aus der Antwort parsen
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return;
+
+    const facts: { key: string; value: string }[] = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(facts) || facts.length === 0) return;
+
+    // Upsert jede Memory
+    for (const fact of facts) {
+      if (!fact.key || !fact.value) continue;
+      const key = fact.key.toLowerCase().replace(/\s+/g, "_").slice(0, 50);
+      const value = String(fact.value).slice(0, 1000);
+
+      await prisma.agentMemory.upsert({
+        where: {
+          agentId_sessionHash_key: { agentId, sessionHash, key },
+        },
+        update: { value },
+        create: { agentId, sessionHash, key, value },
+      });
+    }
+  } catch {
+    // Memory-Extraktion fehlgeschlagen — kein Abbruch des Hauptflusses
+  }
+}
 
 // Tool definitions based on enabled actions
 function buildTools(
@@ -299,9 +361,29 @@ export async function POST(
     }
 
     // Falls der Prompt kein {{knowledge.context}} hatte, RAG-Kontext trotzdem anhängen
-    const systemPrompt = resolvedPrompt.includes(knowledgeContext)
+    let systemPrompt = resolvedPrompt.includes(knowledgeContext)
       ? resolvedPrompt
       : resolvedPrompt + knowledgeContext;
+
+    // Persistent Memory: Bekannte Fakten über den Besucher laden
+    const sessionHash = hashSession(sessionId);
+    if (agent.memoryEnabled) {
+      try {
+        const memories = await prisma.agentMemory.findMany({
+          where: { agentId: params.id, sessionHash },
+          orderBy: { updatedAt: "desc" },
+        });
+
+        if (memories.length > 0) {
+          const memoryContext = "\n\n---\nWHAT YOU REMEMBER ABOUT THIS USER:\n" +
+            memories.map((m) => `- ${m.key}: ${m.value}`).join("\n") +
+            "\n---\nUse these memories to personalize your responses. Do not explicitly mention that you have a memory system unless asked.";
+          systemPrompt += memoryContext;
+        }
+      } catch {
+        // Memory-Laden fehlgeschlagen — weiter ohne
+      }
+    }
 
     const tools = buildTools(agent.actions);
     const client = getClaudeClient();
@@ -445,6 +527,22 @@ export async function POST(
             where: { id: conversationId },
             data: { actionsUsed },
           });
+
+          // Persistent Memory: Nach 3+ Nachrichten Fakten extrahieren
+          if (agent.memoryEnabled && currentMessages.length >= 3) {
+            // Nicht-blockierend im Hintergrund ausführen
+            const allMessages = currentMessages
+              .filter((m) => typeof m.content === "string")
+              .map((m) => ({ role: m.role as string, content: m.content as string }));
+
+            extractAndSaveMemories(
+              params.id,
+              sessionHash,
+              allMessages,
+              client,
+              agent.llmModel
+            ).catch(() => {});
+          }
 
           // Session-ID an Client senden
           controller.enqueue(

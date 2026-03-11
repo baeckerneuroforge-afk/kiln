@@ -17,6 +17,7 @@ import {
   Check,
   Bug,
   ScrollText,
+  Brain,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import { KnowledgeTab } from "@/components/agents/knowledge-tab";
 import { ActionsTab } from "@/components/agents/actions-tab";
 import { AnalyticsTab } from "@/components/agents/analytics-tab";
 import { LogsTab } from "@/components/agents/logs-tab";
+import { MemoryTab } from "@/components/agents/memory-tab";
 import { PromptEditor } from "@/components/agents/prompt-editor";
 import { cn } from "@/lib/utils";
 
@@ -42,13 +44,14 @@ interface Agent {
   status: "DRAFT" | "LIVE" | "PAUSED";
   whiteLabel: Record<string, unknown> | null;
   showPoweredBy: boolean;
+  memoryEnabled: boolean;
   createdAt: string;
   actions: { id: string; type: string; enabled: boolean; config: Record<string, string> | null }[];
   knowledgeBases: { id: string; type: string; sourceName: string; embeddingStatus: string; chunkCount: number; createdAt: string }[];
   _count: { conversations: number };
 }
 
-type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "debug" | "logs";
+type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "debug" | "logs" | "memory";
 
 const baseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "config", label: "Configuration", icon: Settings2 },
@@ -61,6 +64,7 @@ const baseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
 const advancedTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "debug", label: "Debug", icon: Bug },
   { id: "logs", label: "Logs", icon: ScrollText },
+  { id: "memory", label: "Memory", icon: Brain },
 ];
 
 const statusOptions = [
@@ -69,7 +73,7 @@ const statusOptions = [
   { value: "PAUSED", label: "Paused" },
 ];
 
-const fullWidthTabs: Tab[] = ["analytics", "logs"];
+const fullWidthTabs: Tab[] = ["analytics", "logs", "memory"];
 
 export default function AgentDetailPage() {
   const params = useParams();
@@ -89,6 +93,7 @@ export default function AgentDetailPage() {
   const [status, setStatus] = useState<string>("DRAFT");
   const [primaryColor, setPrimaryColor] = useState("#F97316");
   const [logoUrl, setLogoUrl] = useState("");
+  const [memoryEnabled, setMemoryEnabled] = useState(false);
 
   useEffect(() => {
     fetch(`/api/agents/${params.id}`)
@@ -102,6 +107,7 @@ export default function AgentDetailPage() {
         setSystemPrompt(data.systemPrompt);
         setWelcomeMessage(data.welcomeMessage || "");
         setStatus(data.status);
+        setMemoryEnabled(data.memoryEnabled || false);
         const wl = (data.whiteLabel || {}) as Record<string, string>;
         setPrimaryColor(wl.primaryColor || "#F97316");
         setLogoUrl(wl.logo || "");
@@ -122,6 +128,7 @@ export default function AgentDetailPage() {
           systemPrompt,
           welcomeMessage,
           status,
+          memoryEnabled,
           whiteLabel: {
             primaryColor,
             logo: logoUrl || null,
@@ -396,6 +403,39 @@ export default function AgentDetailPage() {
                   )}
                 </div>
               </div>
+
+              {/* Persistent Memory Toggle */}
+              <div className="rounded-xl border border-border bg-card/50 p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10">
+                      <Brain className="h-4 w-4 text-purple-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Persistent Memory
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Remember facts about returning visitors across conversations.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setMemoryEnabled(!memoryEnabled)}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                      memoryEnabled ? "bg-purple-500" : "bg-muted"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform",
+                        memoryEnabled ? "translate-x-5" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -435,6 +475,10 @@ export default function AgentDetailPage() {
 
           {activeTab === "logs" && (
             <LogsTab agentId={agent.id} />
+          )}
+
+          {activeTab === "memory" && (
+            <MemoryTab agentId={agent.id} />
           )}
 
           {activeTab === "embed" && (
