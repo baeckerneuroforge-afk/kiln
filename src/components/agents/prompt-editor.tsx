@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { X, Variable } from "lucide-react";
+import { X, Variable, GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BranchesTab } from "@/components/agents/branches-tab";
 import { EditorView, keymap, placeholder as placeholderExt } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
@@ -159,16 +160,27 @@ function variableCompletion(context: CompletionContext): CompletionResult | null
   };
 }
 
+interface PromptBranch {
+  name: string;
+  keywords: string[];
+  promptSnippet: string;
+  enabled: boolean;
+}
+
 interface PromptEditorProps {
   value: string;
   onChange: (value: string) => void;
   onClose: () => void;
+  advancedMode?: boolean;
+  branches?: PromptBranch[];
+  onBranchesChange?: (branches: PromptBranch[]) => void;
 }
 
-export function PromptEditor({ value, onChange, onClose }: PromptEditorProps) {
+export function PromptEditor({ value, onChange, onClose, advancedMode, branches, onBranchesChange }: PromptEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [variableCount, setVariableCount] = useState(0);
+  const [activeEditorTab, setActiveEditorTab] = useState<"editor" | "branches">("editor");
 
   // Variable-Count aktualisieren
   const updateVariableCount = useCallback((text: string) => {
@@ -249,6 +261,37 @@ export function PromptEditor({ value, onChange, onClose }: PromptEditorProps) {
             <span className="rounded bg-kiln-orange/10 px-2 py-0.5 text-[10px] font-medium text-kiln-orange">
               {variableCount} variable{variableCount !== 1 ? "s" : ""}
             </span>
+            {advancedMode && (
+              <div className="ml-4 flex rounded-lg border border-border bg-muted/30 p-0.5">
+                <button
+                  onClick={() => setActiveEditorTab("editor")}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                    activeEditorTab === "editor"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Variable className="mr-1.5 inline h-3 w-3" />
+                  Editor
+                </button>
+                <button
+                  onClick={() => setActiveEditorTab("branches")}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                    activeEditorTab === "branches"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <GitBranch className="mr-1.5 inline h-3 w-3" />
+                  Branches
+                  {branches && branches.length > 0 && (
+                    <span className="ml-1.5 rounded-full bg-kiln-orange/10 px-1.5 text-[10px] text-kiln-orange">
+                      {branches.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={onClose}>
@@ -258,7 +301,8 @@ export function PromptEditor({ value, onChange, onClose }: PromptEditorProps) {
           </div>
         </div>
 
-        {/* Body: Editor + Palette */}
+        {/* Body */}
+        {activeEditorTab === "editor" ? (
         <div className="flex flex-1 overflow-hidden">
           {/* Editor */}
           <div className="flex-1 overflow-auto">
@@ -303,6 +347,16 @@ export function PromptEditor({ value, onChange, onClose }: PromptEditorProps) {
             </div>
           </div>
         </div>
+        ) : (
+        <div className="flex-1 overflow-y-auto p-6">
+          {onBranchesChange && (
+            <BranchesTab
+              branches={branches || []}
+              onChange={onBranchesChange}
+            />
+          )}
+        </div>
+        )}
       </div>
     </div>
   );

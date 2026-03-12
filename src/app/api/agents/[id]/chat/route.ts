@@ -621,6 +621,33 @@ export async function POST(
       }
     }
 
+    // Prompt Branching: Bedingte Snippets basierend auf User-Nachricht
+    if (agent.promptBranches && Array.isArray(agent.promptBranches)) {
+      const lastUserMessage = messages.filter((m: { role: string }) => m.role === "user").pop();
+      const userText = lastUserMessage ? extractTextContent(lastUserMessage.content).toLowerCase() : "";
+
+      if (userText) {
+        const branches = agent.promptBranches as { name: string; keywords: string[]; promptSnippet: string; enabled: boolean }[];
+        const matchedSnippets: string[] = [];
+
+        for (const branch of branches) {
+          if (!branch.enabled) continue;
+          const matched = branch.keywords.some((kw) => {
+            const pattern = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+            return pattern.test(userText);
+          });
+          if (matched) {
+            matchedSnippets.push(branch.promptSnippet);
+          }
+        }
+
+        if (matchedSnippets.length > 0) {
+          systemPrompt += "\n\n---\nSpecial instructions for this type of question:\n" +
+            matchedSnippets.join("\n\n");
+        }
+      }
+    }
+
     const tools = buildTools(agent.actions, agent.customTools);
 
     // Client erstellen: BYOK oder KILN's Key

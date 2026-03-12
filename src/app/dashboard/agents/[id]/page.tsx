@@ -64,6 +64,7 @@ interface Agent {
   memoryEnabled: boolean;
   imageAnalysisEnabled: boolean;
   customDomain: string | null;
+  promptBranches: { name: string; keywords: string[]; promptSnippet: string; enabled: boolean }[] | null;
   clonedFromId: string | null;
   clonedFromName: string | null;
   createdAt: string;
@@ -121,6 +122,7 @@ export default function AgentDetailPage() {
   const [llmModel, setLlmModel] = useState("claude-sonnet-4-20250514");
   const [memoryEnabled, setMemoryEnabled] = useState(false);
   const [imageAnalysisEnabled, setImageAnalysisEnabled] = useState(false);
+  const [promptBranches, setPromptBranches] = useState<{ name: string; keywords: string[]; promptSnippet: string; enabled: boolean }[]>([]);
   const [customDomain, setCustomDomain] = useState("");
   const [domainVerified, setDomainVerified] = useState<boolean | null>(null);
   const [domainMessage, setDomainMessage] = useState("");
@@ -154,6 +156,7 @@ export default function AgentDetailPage() {
         setLlmModel(data.llmModel || "claude-sonnet-4-20250514");
         setMemoryEnabled(data.memoryEnabled || false);
         setImageAnalysisEnabled(data.imageAnalysisEnabled || false);
+        setPromptBranches(Array.isArray(data.promptBranches) ? data.promptBranches : []);
         setCustomDomain(data.customDomain || "");
         const wl = (data.whiteLabel || {}) as Record<string, string>;
         setPrimaryColor(wl.primaryColor || "#F97316");
@@ -184,6 +187,7 @@ export default function AgentDetailPage() {
           llmModel,
           memoryEnabled,
           imageAnalysisEnabled,
+          promptBranches: promptBranches.length > 0 ? promptBranches : null,
           customDomain: customDomain.trim() || null,
           whiteLabel: {
             primaryColor,
@@ -891,6 +895,9 @@ export default function AgentDetailPage() {
           value={systemPrompt}
           onChange={setSystemPrompt}
           onClose={() => setShowPromptEditor(false)}
+          advancedMode={advancedMode}
+          branches={promptBranches}
+          onBranchesChange={setPromptBranches}
         />
       )}
 

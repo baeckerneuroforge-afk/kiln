@@ -79,6 +79,9 @@ model Agent {
   // Multimodal — Bildanalyse
   imageAnalysisEnabled Boolean   @default(false)
 
+  // Prompt Branching — conditional prompt snippets
+  promptBranches     Json?       // [{ name, keywords[], promptSnippet, enabled }]
+
   // Clone-Tracking
   clonedFromId         String?   // ID des Original-Agents (falls geklont)
   clonedFromName       String?   // Name des Originals zum Zeitpunkt des Klonens
@@ -368,4 +371,35 @@ model AgentTestRun {
   runAt      DateTime @default(now())
 
   @@index([agentId])
+}
+
+// Webhook Endpoints — Event-Benachrichtigungen per HTTP POST
+model WebhookEndpoint {
+  id         String   @id @default(cuid())
+  userId     String
+  url        String
+  events     Json     // String-Array: ["conversation.started", "lead.scored", ...]
+  secret     String   // HMAC-SHA256 Signing Secret
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  deliveries WebhookDelivery[]
+
+  @@index([userId])
+  @@index([active])
+}
+
+// Webhook Delivery Log — Zustellungsprotokoll
+model WebhookDelivery {
+  id           String          @id @default(cuid())
+  webhookId    String
+  webhook      WebhookEndpoint @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event        String
+  statusCode   Int?
+  responseTime Int?            // ms
+  success      Boolean
+  error        String?
+  createdAt    DateTime        @default(now())
+
+  @@index([webhookId])
 }
