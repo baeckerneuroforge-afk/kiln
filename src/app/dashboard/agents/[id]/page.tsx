@@ -24,6 +24,7 @@ import {
   RefreshCw,
   Wrench,
   ImageIcon,
+  Timer,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ import { AnalyticsTab } from "@/components/agents/analytics-tab";
 import { LogsTab } from "@/components/agents/logs-tab";
 import { MemoryTab } from "@/components/agents/memory-tab";
 import { CustomToolsTab } from "@/components/agents/custom-tools-tab";
+import { AutomationsTab } from "@/components/agents/automations-tab";
 import { PromptEditor } from "@/components/agents/prompt-editor";
 import { cn } from "@/lib/utils";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
@@ -61,7 +63,7 @@ interface Agent {
   _count: { conversations: number };
 }
 
-type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "tools" | "debug" | "logs" | "memory";
+type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "tools" | "debug" | "logs" | "memory" | "automations";
 
 const baseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "config", label: "Configuration", icon: Settings2 },
@@ -73,6 +75,7 @@ const baseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
 
 const advancedTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "tools", label: "Custom Tools", icon: Wrench },
+  { id: "automations", label: "Automations", icon: Timer },
   { id: "debug", label: "Debug", icon: Bug },
   { id: "logs", label: "Logs", icon: ScrollText },
   { id: "memory", label: "Memory", icon: Brain },
@@ -84,7 +87,7 @@ const statusOptions = [
   { value: "PAUSED", label: "Paused" },
 ];
 
-const fullWidthTabs: Tab[] = ["analytics", "tools", "logs", "memory"];
+const fullWidthTabs: Tab[] = ["analytics", "tools", "logs", "memory", "automations"];
 
 export default function AgentDetailPage() {
   const params = useParams();
@@ -683,6 +686,10 @@ export default function AgentDetailPage() {
 
           {activeTab === "memory" && (
             <MemoryTab agentId={agent.id} />
+          )}
+
+          {activeTab === "automations" && (
+            <AutomationsTab agentId={agent.id} />
           )}
 
           {activeTab === "embed" && (

@@ -88,6 +88,7 @@ model Agent {
   conversations  Conversation[]
   analytics      AgentAnalytics[]
   memories       AgentMemory[]
+  automations    AutomationRule[]
 
   @@index([userId])
 }
@@ -296,4 +297,24 @@ model AgentAnalytics {
 
   @@unique([agentId, date])
   @@index([agentId])
+}
+
+// Scheduled Automations — proaktive Agent-Tasks per Cron
+model AutomationRule {
+  id                   String    @id @default(cuid())
+  agentId              String
+  agent                Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  name                 String
+  cronExpression       String    // z.B. "0 * * * *" (stündlich)
+  taskDescription      String    @db.Text
+  notificationMethod   String    @default("NONE") // "NONE" | "EMAIL" | "WEBHOOK"
+  notificationTarget   String?   // E-Mail-Adresse oder Webhook-URL
+  enabled              Boolean   @default(true)
+  lastRunAt            DateTime?
+  lastRunResult        String?   @db.Text
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([agentId])
+  @@index([enabled])
 }
