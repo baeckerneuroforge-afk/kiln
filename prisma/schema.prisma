@@ -93,6 +93,7 @@ model Agent {
   analytics      AgentAnalytics[]
   memories       AgentMemory[]
   automations    AutomationRule[]
+  versions       AgentVersion[]
 
   @@index([userId])
 }
@@ -321,4 +322,18 @@ model AutomationRule {
 
   @@index([agentId])
   @@index([enabled])
+}
+
+// Agent Version History — Config-Snapshots bei jedem Speichern
+model AgentVersion {
+  id              String   @id @default(cuid())
+  agentId         String
+  agent           Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  versionNumber   Int
+  configSnapshot  Json     // { systemPrompt, personality, welcomeMessage, suggestedQuestions, llmModel, actions, whiteLabel, ... }
+  note            String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  @@unique([agentId, versionNumber])
+  @@index([agentId])
 }

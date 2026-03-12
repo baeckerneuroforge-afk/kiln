@@ -44,13 +44,51 @@ export async function PATCH(
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check ownership
+    // Check ownership — mit Actions für Snapshot
     const existing = await prisma.agent.findFirst({
       where: { id: params.id, userId },
+      include: { actions: true },
     });
     if (!existing) {
       return Response.json({ error: "Agent not found" }, { status: 404 });
     }
+
+    // Snapshot VOR dem Update erstellen
+    const configSnapshot = {
+      name: existing.name,
+      systemPrompt: existing.systemPrompt,
+      personality: existing.personality,
+      welcomeMessage: existing.welcomeMessage,
+      suggestedQuestions: existing.suggestedQuestions,
+      llmModel: existing.llmModel,
+      status: existing.status,
+      whiteLabel: existing.whiteLabel,
+      showPoweredBy: existing.showPoweredBy,
+      memoryEnabled: existing.memoryEnabled,
+      imageAnalysisEnabled: existing.imageAnalysisEnabled,
+      actions: existing.actions.map((a) => ({
+        type: a.type,
+        enabled: a.enabled,
+        config: a.config,
+      })),
+    };
+
+    // Nächste Version-Nummer ermitteln
+    const lastVersion = await prisma.agentVersion.findFirst({
+      where: { agentId: params.id },
+      orderBy: { versionNumber: "desc" },
+      select: { versionNumber: true },
+    });
+    const nextVersion = (lastVersion?.versionNumber || 0) + 1;
+
+    // Version speichern (fire-and-forget für Performance)
+    prisma.agentVersion.create({
+      data: {
+        agentId: params.id,
+        versionNumber: nextVersion,
+        configSnapshot,
+      },
+    }).catch(() => {});
 
     const body = await request.json();
     const agent = await prisma.agent.update({

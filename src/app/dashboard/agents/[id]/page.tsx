@@ -28,6 +28,7 @@ import {
   CopyPlus,
   X,
   GitFork,
+  History,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ import { LogsTab } from "@/components/agents/logs-tab";
 import { MemoryTab } from "@/components/agents/memory-tab";
 import { CustomToolsTab } from "@/components/agents/custom-tools-tab";
 import { AutomationsTab } from "@/components/agents/automations-tab";
+import { VersionsTab } from "@/components/agents/versions-tab";
 import { PromptEditor } from "@/components/agents/prompt-editor";
 import { cn } from "@/lib/utils";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
@@ -68,7 +70,7 @@ interface Agent {
   _count: { conversations: number };
 }
 
-type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "tools" | "debug" | "logs" | "memory" | "automations";
+type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "tools" | "debug" | "logs" | "memory" | "automations" | "versions";
 
 const baseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "config", label: "Configuration", icon: Settings2 },
@@ -84,6 +86,7 @@ const advancedTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "debug", label: "Debug", icon: Bug },
   { id: "logs", label: "Logs", icon: ScrollText },
   { id: "memory", label: "Memory", icon: Brain },
+  { id: "versions", label: "Versions", icon: History },
 ];
 
 const statusOptions = [
@@ -92,7 +95,7 @@ const statusOptions = [
   { value: "PAUSED", label: "Paused" },
 ];
 
-const fullWidthTabs: Tab[] = ["analytics", "tools", "logs", "memory", "automations"];
+const fullWidthTabs: Tab[] = ["analytics", "tools", "logs", "memory", "automations", "versions"];
 
 export default function AgentDetailPage() {
   const params = useParams();
@@ -761,6 +764,32 @@ export default function AgentDetailPage() {
 
           {activeTab === "automations" && (
             <AutomationsTab agentId={agent.id} />
+          )}
+
+          {activeTab === "versions" && (
+            <VersionsTab
+              agentId={agent.id}
+              onRestore={() => {
+                // Agent neu laden nach Restore
+                fetch(`/api/agents/${agent.id}`)
+                  .then((res) => res.json())
+                  .then((data: Agent) => {
+                    setAgent(data);
+                    setName(data.name);
+                    setSystemPrompt(data.systemPrompt);
+                    setWelcomeMessage(data.welcomeMessage || "");
+                    setStatus(data.status);
+                    setLlmModel(data.llmModel || "claude-sonnet-4-20250514");
+                    setMemoryEnabled(data.memoryEnabled || false);
+                    setImageAnalysisEnabled(data.imageAnalysisEnabled || false);
+                    setCustomDomain(data.customDomain || "");
+                    const wl = (data.whiteLabel || {}) as Record<string, string>;
+                    setPrimaryColor(wl.primaryColor || "#F97316");
+                    setLogoUrl(wl.logo || "");
+                  })
+                  .catch(() => {});
+              }}
+            />
           )}
 
           {activeTab === "embed" && (
