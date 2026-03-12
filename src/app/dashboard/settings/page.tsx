@@ -20,7 +20,11 @@ import {
   Eye,
   EyeOff,
   Trash2,
+  Terminal,
+  Plus,
+  BookOpen,
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 interface UserPlan {
@@ -91,6 +95,14 @@ function SettingsContent() {
   const [keyError, setKeyError] = useState<string | null>(null);
   const [keySuccess, setKeySuccess] = useState<string | null>(null);
 
+  // API Access Keys
+  const [accessKeys, setAccessKeys] = useState<{ id: string; name: string; keyPrefix: string; lastUsed: string | null; createdAt: string }[]>([]);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [generatedKey, setGeneratedKey] = useState<string | null>(null);
+  const [generatingKey, setGeneratingKey] = useState(false);
+  const [deletingAccessKey, setDeletingAccessKey] = useState<string | null>(null);
+  const [accessKeyCopied, setAccessKeyCopied] = useState(false);
+
   useEffect(() => {
     if (searchParams.get("success") === "true") {
       setShowSuccess(true);
@@ -115,11 +127,19 @@ function SettingsContent() {
       })
       .catch(() => {});
 
-    // API Keys laden
+    // API Keys laden (BYOK)
     fetch("/api/user/api-keys")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) setApiKeys(data);
+      })
+      .catch(() => {});
+
+    // API Access Keys laden
+    fetch("/api/user/api-access-keys")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setAccessKeys(data);
       })
       .catch(() => {});
   }, []);
@@ -159,6 +179,54 @@ function SettingsContent() {
       }
     } catch {
       // Fehler still behandeln
+    }
+  }
+
+  async function generateAccessKey() {
+    if (!newKeyName.trim()) return;
+    setGeneratingKey(true);
+    setGeneratedKey(null);
+
+    try {
+      const res = await fetch("/api/user/api-access-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newKeyName.trim() }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setKeyError(data.error || "Failed to generate key");
+        return;
+      }
+
+      setGeneratedKey(data.key);
+      setNewKeyName("");
+
+      // Refresh keys list
+      const keysRes = await fetch("/api/user/api-access-keys");
+      const keysData = await keysRes.json();
+      if (Array.isArray(keysData)) setAccessKeys(keysData);
+    } catch {
+      setKeyError("Failed to generate API key");
+    } finally {
+      setGeneratingKey(false);
+    }
+  }
+
+  async function deleteAccessKey(keyId: string) {
+    setDeletingAccessKey(keyId);
+    try {
+      await fetch("/api/user/api-access-keys", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyId }),
+      });
+      setAccessKeys((prev) => prev.filter((k) => k.id !== keyId));
+    } catch {
+      setKeyError("Failed to delete key");
+    } finally {
+      setDeletingAccessKey(null);
     }
   }
 
@@ -480,6 +548,137 @@ function SettingsContent() {
           <div className="mt-4 rounded-lg border border-dashed border-border bg-card/30 p-3">
             <p className="text-xs text-muted-foreground">
               Your keys are encrypted with AES-256-GCM and stored securely. They are only used when your agents process conversations. KILN never stores them in plaintext.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* API Access — nur Agency/Admin */}
+      {(currentPlan === "AGENCY" || isAdminUser) && (
+        <div className="mb-8 rounded-xl border border-border bg-card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10">
+                <Terminal className="h-5 w-5 text-kiln-orange" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  API Access
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Generate API keys for programmatic access to your agents.
+                </p>
+              </div>
+            </div>
+            <Link href="/dashboard/api-docs">
+              <Button size="sm" variant="outline">
+                <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+                API Docs
+              </Button>
+            </Link>
+          </div>
+
+          {/* Generated Key Alert — nur einmal sichtbar */}
+          {generatedKey && (
+            <div className="mb-4 rounded-lg border border-kiln-orange/30 bg-kiln-orange/5 p-4">
+              <p className="mb-2 text-xs font-semibold text-kiln-orange">
+                Save this key now — it won&apos;t be shown again!
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 rounded-lg border border-border bg-[#1a1a1a] px-3 py-2 font-mono text-xs text-foreground break-all">
+                  {generatedKey}
+                </code>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedKey);
+                    setAccessKeyCopied(true);
+                    setTimeout(() => setAccessKeyCopied(false), 2000);
+                  }}
+                >
+                  {accessKeyCopied ? (
+                    <Check className="mr-1.5 h-3.5 w-3.5 text-green-500" />
+                  ) : (
+                    <Copy className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {accessKeyCopied ? "Copied" : "Copy"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Generate New Key */}
+          <div className="mb-4 flex items-center gap-2">
+            <input
+              type="text"
+              value={newKeyName}
+              onChange={(e) => setNewKeyName(e.target.value)}
+              placeholder="Key name (e.g. Production, Staging)"
+              className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              onKeyDown={(e) => e.key === "Enter" && generateAccessKey()}
+            />
+            <Button
+              size="sm"
+              onClick={generateAccessKey}
+              disabled={generatingKey || !newKeyName.trim()}
+            >
+              {generatingKey ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Generate Key
+            </Button>
+          </div>
+
+          {/* Keys List */}
+          {accessKeys.length > 0 ? (
+            <div className="space-y-2">
+              {accessKeys.map((key) => (
+                <div
+                  key={key.id}
+                  className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-4 py-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <Key className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{key.name}</p>
+                      <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                        <span className="font-mono">{key.keyPrefix}</span>
+                        <span>Created {new Date(key.createdAt).toLocaleDateString()}</span>
+                        {key.lastUsed && (
+                          <span>Last used {new Date(key.lastUsed).toLocaleDateString()}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => deleteAccessKey(key.id)}
+                    disabled={deletingAccessKey === key.id}
+                    className="text-red-400 hover:bg-red-500/10 hover:text-red-400"
+                  >
+                    {deletingAccessKey === key.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              No API keys yet. Generate one to get started.
+            </p>
+          )}
+
+          <div className="mt-4 rounded-lg border border-dashed border-border bg-card/30 p-3">
+            <p className="text-xs text-muted-foreground">
+              API keys provide full access to your agents. Keep them secure and never expose them in client-side code.
+              Maximum 5 keys per account. Rate limit: 100 requests/minute per key.
             </p>
           </div>
         </div>

@@ -251,6 +251,20 @@ model AgentMemory {
   @@index([agentId, sessionHash])
 }
 
+// API Access Keys — programmatischer Zugang zu KILN API
+model ApiAccessKey {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String    // z.B. "Production Key", "Dev Key"
+  hashedKey  String    @unique // SHA-256 Hash des Keys
+  keyPrefix  String    // "sk-kiln-xxxx" — letzte 4 Zeichen für Anzeige
+  lastUsed   DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([hashedKey])
+}
+
 // API Keys — Bring Your Own Key (verschlüsselt gespeichert)
 model ApiKey {
   id           String   @id @default(cuid())

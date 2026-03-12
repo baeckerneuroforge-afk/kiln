@@ -25,6 +25,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/embed/(.*)",       // Embed Script JS
   "/api/waitlist",          // Waitlist Signup
   "/api/webhooks/stripe",   // Stripe Webhooks
+  "/api/v1/(.*)",           // Public API (eigene Key-Auth)
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
