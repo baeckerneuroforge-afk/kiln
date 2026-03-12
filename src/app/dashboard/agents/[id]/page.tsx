@@ -25,6 +25,9 @@ import {
   Wrench,
   ImageIcon,
   Timer,
+  CopyPlus,
+  X,
+  GitFork,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -57,6 +60,8 @@ interface Agent {
   memoryEnabled: boolean;
   imageAnalysisEnabled: boolean;
   customDomain: string | null;
+  clonedFromId: string | null;
+  clonedFromName: string | null;
   createdAt: string;
   actions: { id: string; type: string; enabled: boolean; config: Record<string, string> | null }[];
   knowledgeBases: { id: string; type: string; sourceName: string; embeddingStatus: string; chunkCount: number; createdAt: string }[];
@@ -115,6 +120,15 @@ export default function AgentDetailPage() {
   const [domainMessage, setDomainMessage] = useState("");
   const [verifyingDomain, setVerifyingDomain] = useState(false);
   const [userPlan, setUserPlan] = useState<string>("FREE");
+
+  // Clone modal state
+  const [showCloneModal, setShowCloneModal] = useState(false);
+  const [cloneName, setCloneName] = useState("");
+  const [cloneIncludeKB, setCloneIncludeKB] = useState(true);
+  const [cloneIncludeActions, setCloneIncludeActions] = useState(true);
+  const [cloneIncludeTools, setCloneIncludeTools] = useState(true);
+  const [cloneBulkCount, setCloneBulkCount] = useState(1);
+  const [cloning, setCloning] = useState(false);
 
   useEffect(() => {
     fetch(`/api/agents/${params.id}`)
@@ -210,6 +224,38 @@ export default function AgentDetailPage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  async function handleClone() {
+    if (!agent || !cloneName.trim()) return;
+    setCloning(true);
+    try {
+      const res = await fetch(`/api/agents/${agent.id}/clone`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: cloneName.trim(),
+          count: cloneBulkCount,
+          includeKB: cloneIncludeKB,
+          includeActions: cloneIncludeActions,
+          includeTools: cloneIncludeTools,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setShowCloneModal(false);
+        // Bei einzelnem Klon: direkt zum neuen Agent navigieren
+        if (data.clonedIds.length === 1) {
+          router.push(`/dashboard/agents/${data.clonedIds[0]}`);
+        } else {
+          router.push("/dashboard/agents");
+        }
+      }
+    } catch {
+      // Fehler
+    } finally {
+      setCloning(false);
+    }
+  }
+
   // Wenn Advanced ausgeschaltet wird und wir auf einem Advanced-Tab sind → zurück zu config
   useEffect(() => {
     if (!advancedMode && advancedTabs.some((t) => t.id === activeTab)) {
@@ -245,7 +291,15 @@ export default function AgentDetailPage() {
           </div>
           <div>
             <h1 className="font-serif text-2xl text-foreground">{agent.name}</h1>
-            <p className="text-sm text-muted-foreground">/{agent.slug}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-muted-foreground">/{agent.slug}</p>
+              {agent.clonedFromName && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-400">
+                  <GitFork className="h-2.5 w-2.5" />
+                  Cloned from {agent.clonedFromName}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -260,6 +314,23 @@ export default function AgentDetailPage() {
               </option>
             ))}
           </select>
+          {(userPlan === "PRO" || userPlan === "AGENCY") && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCloneName(`Copy of ${agent.name}`);
+                setCloneBulkCount(1);
+                setCloneIncludeKB(true);
+                setCloneIncludeActions(true);
+                setCloneIncludeTools(true);
+                setShowCloneModal(true);
+              }}
+            >
+              <CopyPlus className="mr-2 h-3.5 w-3.5" />
+              Clone
+            </Button>
+          )}
           <Button onClick={handleSave} disabled={saving} size="sm">
             {saving ? (
               <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
@@ -772,6 +843,120 @@ export default function AgentDetailPage() {
           onChange={setSystemPrompt}
           onClose={() => setShowPromptEditor(false)}
         />
+      )}
+
+      {/* Clone Agent Modal */}
+      {showCloneModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowCloneModal(false)}
+          />
+          <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-[#1C1917] p-6 shadow-2xl mx-4">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-foreground">Clone Agent</h3>
+              <button
+                onClick={() => setShowCloneModal(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Name */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">
+                  New Agent Name
+                </label>
+                <input
+                  type="text"
+                  value={cloneName}
+                  onChange={(e) => setCloneName(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              {/* Checkboxen */}
+              <div className="space-y-2.5">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={cloneIncludeKB}
+                    onChange={(e) => setCloneIncludeKB(e.target.checked)}
+                    className="h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary"
+                  />
+                  <span className="text-sm text-foreground">Include Knowledge Base</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={cloneIncludeActions}
+                    onChange={(e) => setCloneIncludeActions(e.target.checked)}
+                    className="h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary"
+                  />
+                  <span className="text-sm text-foreground">Include Actions config</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={cloneIncludeTools}
+                    onChange={(e) => setCloneIncludeTools(e.target.checked)}
+                    className="h-4 w-4 rounded border-border bg-card text-primary focus:ring-primary"
+                  />
+                  <span className="text-sm text-foreground">Include Custom Tools</span>
+                </label>
+              </div>
+
+              {/* Bulk Clone — nur Agency */}
+              {userPlan === "AGENCY" && (
+                <div className="rounded-lg border border-border bg-card/50 p-3">
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                    Bulk Clone
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">(Agency)</span>
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={cloneBulkCount}
+                      onChange={(e) => setCloneBulkCount(Math.min(10, Math.max(1, Number(e.target.value) || 1)))}
+                      className="w-20 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      copies (1–10)
+                    </span>
+                  </div>
+                  {cloneBulkCount > 1 && (
+                    <p className="mt-1.5 text-[10px] text-muted-foreground">
+                      Creates: {Array.from({ length: Math.min(3, cloneBulkCount) }, (_, i) => `"${cloneName} (${i + 1})"`).join(", ")}
+                      {cloneBulkCount > 3 && `, ... (${cloneBulkCount} total)`}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" size="sm" onClick={() => setShowCloneModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleClone}
+                disabled={cloning || !cloneName.trim()}
+              >
+                {cloning ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CopyPlus className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {cloneBulkCount > 1 ? `Clone ${cloneBulkCount} Copies` : "Clone Agent"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

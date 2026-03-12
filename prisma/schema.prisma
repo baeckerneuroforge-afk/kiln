@@ -79,6 +79,10 @@ model Agent {
   // Multimodal — Bildanalyse
   imageAnalysisEnabled Boolean   @default(false)
 
+  // Clone-Tracking
+  clonedFromId         String?   // ID des Original-Agents (falls geklont)
+  clonedFromName       String?   // Name des Originals zum Zeitpunkt des Klonens
+
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
