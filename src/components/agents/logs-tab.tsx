@@ -10,6 +10,7 @@ import {
   Bot,
   User,
   Filter,
+  FlaskConical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -36,9 +37,10 @@ interface LogEntry {
 
 interface LogsTabProps {
   agentId: string;
+  onAddTestCase?: (inputMessage: string, expectedResponse: string) => void;
 }
 
-export function LogsTab({ agentId }: LogsTabProps) {
+export function LogsTab({ agentId, onAddTestCase }: LogsTabProps) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -377,7 +379,13 @@ export function LogsTab({ agentId }: LogsTabProps) {
                 {/* Expanded Messages */}
                 {isExpanded && log.messages.length > 0 && (
                   <div className="mx-4 mb-3 space-y-2 rounded-lg border border-border/50 bg-background p-3">
-                    {log.messages.map((msg, i) => (
+                    {log.messages.map((msg, i) => {
+                      // Nächste Assistant-Nachricht für "Add as test case"
+                      const nextAssistant = msg.role === "USER"
+                        ? log.messages.slice(i + 1).find((m) => m.role === "ASSISTANT")
+                        : null;
+
+                      return (
                       <div key={i} className="flex items-start gap-2">
                         <div className={cn(
                           "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
@@ -400,6 +408,18 @@ export function LogsTab({ agentId }: LogsTabProps) {
                                 minute: "2-digit",
                               })}
                             </span>
+                            {msg.role === "USER" && nextAssistant && onAddTestCase && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onAddTestCase(msg.content, nextAssistant.content);
+                                }}
+                                className="flex items-center gap-1 rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-400 hover:bg-purple-500/20 transition-colors"
+                              >
+                                <FlaskConical className="h-2.5 w-2.5" />
+                                Add as test case
+                              </button>
+                            )}
                           </div>
                           <p className="text-xs leading-relaxed text-foreground whitespace-pre-wrap break-words">
                             {msg.content.length > 500
@@ -408,7 +428,8 @@ export function LogsTab({ agentId }: LogsTabProps) {
                           </p>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

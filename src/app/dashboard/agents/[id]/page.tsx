@@ -29,6 +29,7 @@ import {
   X,
   GitFork,
   History,
+  FlaskConical,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import { MemoryTab } from "@/components/agents/memory-tab";
 import { CustomToolsTab } from "@/components/agents/custom-tools-tab";
 import { AutomationsTab } from "@/components/agents/automations-tab";
 import { VersionsTab } from "@/components/agents/versions-tab";
+import { TestingTab } from "@/components/agents/testing-tab";
 import { PromptEditor } from "@/components/agents/prompt-editor";
 import { cn } from "@/lib/utils";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
@@ -70,7 +72,7 @@ interface Agent {
   _count: { conversations: number };
 }
 
-type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "tools" | "debug" | "logs" | "memory" | "automations" | "versions";
+type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "tools" | "debug" | "logs" | "memory" | "automations" | "versions" | "testing";
 
 const baseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "config", label: "Configuration", icon: Settings2 },
@@ -87,6 +89,7 @@ const advancedTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "logs", label: "Logs", icon: ScrollText },
   { id: "memory", label: "Memory", icon: Brain },
   { id: "versions", label: "Versions", icon: History },
+  { id: "testing", label: "Testing", icon: FlaskConical },
 ];
 
 const statusOptions = [
@@ -95,7 +98,7 @@ const statusOptions = [
   { value: "PAUSED", label: "Paused" },
 ];
 
-const fullWidthTabs: Tab[] = ["analytics", "tools", "logs", "memory", "automations", "versions"];
+const fullWidthTabs: Tab[] = ["analytics", "tools", "logs", "memory", "automations", "versions", "testing"];
 
 export default function AgentDetailPage() {
   const params = useParams();
@@ -132,6 +135,9 @@ export default function AgentDetailPage() {
   const [cloneIncludeTools, setCloneIncludeTools] = useState(true);
   const [cloneBulkCount, setCloneBulkCount] = useState(1);
   const [cloning, setCloning] = useState(false);
+
+  // Test case pre-fill from logs
+  const [testCasePrefill, setTestCasePrefill] = useState<{ input: string; response: string } | null>(null);
 
   useEffect(() => {
     fetch(`/api/agents/${params.id}`)
@@ -751,7 +757,13 @@ export default function AgentDetailPage() {
           )}
 
           {activeTab === "logs" && (
-            <LogsTab agentId={agent.id} />
+            <LogsTab
+              agentId={agent.id}
+              onAddTestCase={(inputMessage, expectedResponse) => {
+                setTestCasePrefill({ input: inputMessage, response: expectedResponse });
+                setActiveTab("testing");
+              }}
+            />
           )}
 
           {activeTab === "tools" && (
@@ -789,6 +801,14 @@ export default function AgentDetailPage() {
                   })
                   .catch(() => {});
               }}
+            />
+          )}
+
+          {activeTab === "testing" && (
+            <TestingTab
+              agentId={agent.id}
+              prefill={testCasePrefill}
+              onPrefillConsumed={() => setTestCasePrefill(null)}
             />
           )}
 

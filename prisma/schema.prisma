@@ -94,6 +94,8 @@ model Agent {
   memories       AgentMemory[]
   automations    AutomationRule[]
   versions       AgentVersion[]
+  testCases      AgentTestCase[]
+  testRuns       AgentTestRun[]
 
   @@index([userId])
 }
@@ -335,5 +337,35 @@ model AgentVersion {
   createdAt       DateTime @default(now())
 
   @@unique([agentId, versionNumber])
+  @@index([agentId])
+}
+
+// Agent Test Cases — Eval-Suite für Agent-Antworten
+model AgentTestCase {
+  id               String    @id @default(cuid())
+  agentId          String
+  agent            Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  name             String
+  inputMessage     String    @db.Text
+  expectedKeywords Json      // String-Array: ["keyword1", "keyword2"]
+  lastResult       String?   // "PASS" | "FAIL" | null
+  lastResponse     String?   @db.Text
+  lastRunAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([agentId])
+}
+
+// Agent Test Runs — Aggregierte Ergebnisse pro Testlauf
+model AgentTestRun {
+  id         String   @id @default(cuid())
+  agentId    String
+  agent      Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  totalTests Int
+  passed     Int
+  failed     Int
+  score      Float    // 0.0 bis 1.0
+  runAt      DateTime @default(now())
+
   @@index([agentId])
 }
