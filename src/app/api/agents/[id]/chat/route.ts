@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
 import { canChat } from "@/lib/plan-limits";
 import { decrypt } from "@/lib/encryption";
+import { fireWebhookEvent } from "@/lib/webhooks";
 import crypto from "crypto";
 
 // Textinhalt aus einer Nachricht extrahieren (string oder multimodales content-array)
@@ -525,6 +526,13 @@ export async function POST(
           channel: channel === "EMBED" ? "WEB" : (channel || "WEB"),
         },
       });
+
+      // Webhook: conversation.started
+      fireWebhookEvent(agent.userId, "conversation.started", params.id, {
+        conversationId: conversation.id,
+        sessionId,
+        channel: channel || "WEB",
+      });
     }
 
     // Letzte User-Nachricht speichern
@@ -724,6 +732,11 @@ export async function POST(
                     where: { id: conversationId },
                     data: { leadScore: score, visitorEmail: (toolInput.email as string) || undefined },
                   });
+                  fireWebhookEvent(agent.userId, "lead.scored", params.id, {
+                    conversationId,
+                    score,
+                    email: toolInput.email || null,
+                  });
                 }
                 if (fnCall.function.name === "collect_email") {
                   await prisma.conversation.update({
@@ -731,6 +744,13 @@ export async function POST(
                     data: { visitorEmail: (toolInput.email as string) || undefined, visitorName: (toolInput.name as string) || undefined },
                   });
                 }
+
+                // Webhook: action.executed
+                fireWebhookEvent(agent.userId, "action.executed", params.id, {
+                  conversationId,
+                  action: fnCall.function.name,
+                  input: toolInput,
+                });
               }
             }
           }
@@ -817,6 +837,11 @@ export async function POST(
                       visitorEmail: (input.email as string) || undefined,
                     },
                   });
+                  fireWebhookEvent(agent.userId, "lead.scored", params.id, {
+                    conversationId,
+                    score,
+                    email: input.email || null,
+                  });
                 }
 
                 // E-Mail auf Conversation speichern
@@ -830,6 +855,13 @@ export async function POST(
                     },
                   });
                 }
+
+                // Webhook: action.executed
+                fireWebhookEvent(agent.userId, "action.executed", params.id, {
+                  conversationId,
+                  action: block.name,
+                  input: block.input,
+                });
               }
             }
 
@@ -858,6 +890,14 @@ export async function POST(
           await prisma.conversation.update({
             where: { id: conversationId },
             data: { actionsUsed },
+          });
+
+          // Webhook: conversation.ended
+          fireWebhookEvent(agent.userId, "conversation.ended", params.id, {
+            conversationId,
+            sessionId,
+            actionsUsed,
+            responseLength: fullAssistantText.length,
           });
 
           // Persistent Memory: Nach 3+ Nachrichten Fakten extrahieren

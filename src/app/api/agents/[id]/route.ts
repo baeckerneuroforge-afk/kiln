@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { fireWebhookEvent } from "@/lib/webhooks";
 
 // Load agent details
 export async function GET(
@@ -94,6 +95,13 @@ export async function PATCH(
     const agent = await prisma.agent.update({
       where: { id: params.id },
       data: body,
+    });
+
+    // Webhook: agent.updated
+    fireWebhookEvent(userId, "agent.updated", params.id, {
+      agentName: agent.name,
+      status: agent.status,
+      changedFields: Object.keys(body),
     });
 
     return Response.json(agent);

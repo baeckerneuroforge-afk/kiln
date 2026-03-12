@@ -23,6 +23,15 @@ import {
   Terminal,
   Plus,
   BookOpen,
+  Webhook,
+  Send,
+  Power,
+  PowerOff,
+  ChevronDown,
+  ChevronUp,
+  XCircle,
+  CheckCircle,
+  Clock,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -103,6 +112,35 @@ function SettingsContent() {
   const [deletingAccessKey, setDeletingAccessKey] = useState<string | null>(null);
   const [accessKeyCopied, setAccessKeyCopied] = useState(false);
 
+  // Webhooks
+  interface WebhookDeliveryItem {
+    id: string;
+    event: string;
+    statusCode: number | null;
+    responseTime: number | null;
+    success: boolean;
+    error: string | null;
+    createdAt: string;
+  }
+  interface WebhookItem {
+    id: string;
+    url: string;
+    events: string[];
+    secret: string;
+    active: boolean;
+    createdAt: string;
+    deliveries: WebhookDeliveryItem[];
+  }
+  const [webhooks, setWebhooks] = useState<WebhookItem[]>([]);
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookEvents, setWebhookEvents] = useState<string[]>([]);
+  const [addingWebhook, setAddingWebhook] = useState(false);
+  const [webhookError, setWebhookError] = useState<string | null>(null);
+  const [expandedWebhook, setExpandedWebhook] = useState<string | null>(null);
+  const [testingWebhook, setTestingWebhook] = useState<string | null>(null);
+  const [deletingWebhook, setDeletingWebhook] = useState<string | null>(null);
+  const [secretCopied, setSecretCopied] = useState<string | null>(null);
+
   useEffect(() => {
     if (searchParams.get("success") === "true") {
       setShowSuccess(true);
@@ -140,6 +178,14 @@ function SettingsContent() {
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) setAccessKeys(data);
+      })
+      .catch(() => {});
+
+    // Webhooks laden
+    fetch("/api/user/webhooks")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setWebhooks(data);
       })
       .catch(() => {});
   }, []);
@@ -281,6 +327,104 @@ function SettingsContent() {
     } finally {
       setDeletingKey(null);
     }
+  }
+
+  const WEBHOOK_EVENT_OPTIONS = [
+    { value: "conversation.started", label: "Conversation Started" },
+    { value: "conversation.ended", label: "Conversation Ended" },
+    { value: "lead.scored", label: "Lead Scored" },
+    { value: "action.executed", label: "Action Executed" },
+    { value: "agent.updated", label: "Agent Updated" },
+  ];
+
+  async function addWebhook() {
+    if (!webhookUrl.trim() || webhookEvents.length === 0) return;
+    setAddingWebhook(true);
+    setWebhookError(null);
+
+    try {
+      const res = await fetch("/api/user/webhooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: webhookUrl.trim(), events: webhookEvents }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setWebhookError(data.error || "Failed to create webhook");
+        return;
+      }
+
+      setWebhooks((prev) => [data, ...prev]);
+      setWebhookUrl("");
+      setWebhookEvents([]);
+    } catch {
+      setWebhookError("Failed to create webhook");
+    } finally {
+      setAddingWebhook(false);
+    }
+  }
+
+  async function toggleWebhook(webhookId: string, active: boolean) {
+    try {
+      const res = await fetch("/api/user/webhooks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ webhookId, active }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setWebhooks((prev) => prev.map((w) => (w.id === webhookId ? data : w)));
+      }
+    } catch {}
+  }
+
+  async function deleteWebhook(webhookId: string) {
+    setDeletingWebhook(webhookId);
+    try {
+      await fetch("/api/user/webhooks", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ webhookId }),
+      });
+      setWebhooks((prev) => prev.filter((w) => w.id !== webhookId));
+    } catch {
+      setWebhookError("Failed to delete webhook");
+    } finally {
+      setDeletingWebhook(null);
+    }
+  }
+
+  async function testWebhook(webhookId: string) {
+    setTestingWebhook(webhookId);
+    try {
+      const res = await fetch("/api/user/webhooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "test", webhookId }),
+      });
+      const data = await res.json();
+
+      // Refresh webhooks to get updated deliveries
+      const refreshRes = await fetch("/api/user/webhooks");
+      const refreshData = await refreshRes.json();
+      if (Array.isArray(refreshData)) setWebhooks(refreshData);
+
+      if (!data.success) {
+        setWebhookError(`Test failed: ${data.error || `Status ${data.statusCode}`}`);
+        setTimeout(() => setWebhookError(null), 5000);
+      }
+    } catch {
+      setWebhookError("Failed to send test");
+    } finally {
+      setTestingWebhook(null);
+    }
+  }
+
+  function toggleWebhookEvent(event: string) {
+    setWebhookEvents((prev) =>
+      prev.includes(event) ? prev.filter((e) => e !== event) : [...prev, event]
+    );
   }
 
   if (loading) {
@@ -679,6 +823,259 @@ function SettingsContent() {
             <p className="text-xs text-muted-foreground">
               API keys provide full access to your agents. Keep them secure and never expose them in client-side code.
               Maximum 5 keys per account. Rate limit: 100 requests/minute per key.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Webhooks — Pro/Agency/Admin */}
+      {(currentPlan === "PRO" || currentPlan === "AGENCY" || isAdminUser) && (
+        <div className="mb-8 rounded-xl border border-border bg-card p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
+              <Webhook className="h-5 w-5 text-blue-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">
+                Webhooks
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Receive HTTP notifications when events occur in your agents.
+              </p>
+            </div>
+          </div>
+
+          {webhookError && (
+            <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+              {webhookError}
+            </div>
+          )}
+
+          {/* Add Webhook Form */}
+          <div className="mb-5 space-y-3 rounded-lg border border-dashed border-border bg-card/30 p-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                Endpoint URL
+              </label>
+              <input
+                type="url"
+                value={webhookUrl}
+                onChange={(e) => setWebhookUrl(e.target.value)}
+                placeholder="https://example.com/webhook"
+                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                Events
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {WEBHOOK_EVENT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => toggleWebhookEvent(opt.value)}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                      webhookEvents.includes(opt.value)
+                        ? "border-blue-500/50 bg-blue-500/10 text-blue-400"
+                        : "border-border bg-muted/20 text-muted-foreground hover:border-border hover:text-foreground"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Button
+              size="sm"
+              onClick={addWebhook}
+              disabled={addingWebhook || !webhookUrl.trim() || webhookEvents.length === 0}
+            >
+              {addingWebhook ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Add Webhook
+            </Button>
+          </div>
+
+          {/* Webhooks List */}
+          {webhooks.length > 0 ? (
+            <div className="space-y-3">
+              {webhooks.map((wh) => (
+                <div
+                  key={wh.id}
+                  className="rounded-lg border border-border bg-muted/20"
+                >
+                  {/* Webhook Header */}
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => toggleWebhook(wh.id, !wh.active)}
+                        className="flex-shrink-0"
+                        title={wh.active ? "Disable" : "Enable"}
+                      >
+                        {wh.active ? (
+                          <Power className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <PowerOff className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </button>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground font-mono">
+                          {wh.url}
+                        </p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {(wh.events as string[]).map((ev) => (
+                            <span
+                              key={ev}
+                              className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-400"
+                            >
+                              {ev}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0 ml-3">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => testWebhook(wh.id)}
+                        disabled={testingWebhook === wh.id}
+                        title="Send test event"
+                      >
+                        {testingWebhook === wh.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Send className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          setExpandedWebhook(expandedWebhook === wh.id ? null : wh.id)
+                        }
+                        title="Show details"
+                      >
+                        {expandedWebhook === wh.id ? (
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        ) : (
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => deleteWebhook(wh.id)}
+                        disabled={deletingWebhook === wh.id}
+                        className="text-red-400 hover:bg-red-500/10 hover:text-red-400"
+                      >
+                        {deletingWebhook === wh.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Expanded Details */}
+                  {expandedWebhook === wh.id && (
+                    <div className="border-t border-border px-4 py-3 space-y-3">
+                      {/* Signing Secret */}
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                          Signing Secret
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 rounded-lg border border-border bg-[#1a1a1a] px-3 py-1.5 font-mono text-xs text-foreground break-all">
+                            {wh.secret}
+                          </code>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              navigator.clipboard.writeText(wh.secret);
+                              setSecretCopied(wh.id);
+                              setTimeout(() => setSecretCopied(null), 2000);
+                            }}
+                          >
+                            {secretCopied === wh.id ? (
+                              <Check className="h-3 w-3 text-green-500" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Recent Deliveries */}
+                      <div>
+                        <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                          Recent Deliveries
+                        </label>
+                        {wh.deliveries.length > 0 ? (
+                          <div className="space-y-1 max-h-48 overflow-y-auto">
+                            {wh.deliveries.map((del) => (
+                              <div
+                                key={del.id}
+                                className="flex items-center gap-3 rounded-md bg-muted/30 px-3 py-2 text-xs"
+                              >
+                                {del.success ? (
+                                  <CheckCircle className="h-3.5 w-3.5 flex-shrink-0 text-green-500" />
+                                ) : (
+                                  <XCircle className="h-3.5 w-3.5 flex-shrink-0 text-red-400" />
+                                )}
+                                <span className="font-mono text-muted-foreground">
+                                  {del.event}
+                                </span>
+                                <span className={`font-mono ${del.success ? "text-green-400" : "text-red-400"}`}>
+                                  {del.statusCode || "ERR"}
+                                </span>
+                                {del.responseTime != null && (
+                                  <span className="flex items-center gap-0.5 text-muted-foreground">
+                                    <Clock className="h-3 w-3" />
+                                    {del.responseTime}ms
+                                  </span>
+                                )}
+                                {del.error && (
+                                  <span className="truncate text-red-400" title={del.error}>
+                                    {del.error}
+                                  </span>
+                                )}
+                                <span className="ml-auto text-muted-foreground">
+                                  {new Date(del.createdAt).toLocaleString()}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            No deliveries yet.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              No webhooks configured. Add one to start receiving event notifications.
+            </p>
+          )}
+
+          <div className="mt-4 rounded-lg border border-dashed border-border bg-card/30 p-3">
+            <p className="text-xs text-muted-foreground">
+              Payloads are signed with HMAC-SHA256. Verify the <code className="font-mono text-foreground">X-KILN-Signature</code> header
+              against your signing secret. Maximum 5 webhooks per account. Deliveries retry once on failure with a 5-second timeout.
             </p>
           </div>
         </div>
