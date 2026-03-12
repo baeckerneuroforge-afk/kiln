@@ -12,6 +12,8 @@ import {
   Wrench,
   FileText,
   Cpu,
+  ImageIcon,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,6 +33,7 @@ interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  imageUrl?: string; // Base64 data URL für Thumbnail-Anzeige
   debug?: DebugInfo;
 }
 
@@ -40,7 +43,11 @@ interface AgentLiveChatProps {
   welcomeMessage?: string | null;
   suggestedQuestions?: string[];
   debugMode?: boolean;
+  imageAnalysisEnabled?: boolean;
 }
+
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 
 export function AgentLiveChat({
   agentId,
@@ -48,6 +55,7 @@ export function AgentLiveChat({
   welcomeMessage,
   suggestedQuestions,
   debugMode = false,
+  imageAnalysisEnabled = false,
 }: AgentLiveChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(
     welcomeMessage
@@ -58,7 +66,9 @@ export function AgentLiveChat({
   const [isStreaming, setIsStreaming] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID());
   const [expandedDebug, setExpandedDebug] = useState<Set<string>>(new Set());
+  const [pendingImage, setPendingImage] = useState<{ dataUrl: string; mediaType: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -73,18 +83,45 @@ export function AgentLiveChat({
     });
   }
 
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      alert("Only JPG, PNG, GIF, and WebP images are supported.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      alert("Image must be under 5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setPendingImage({ dataUrl, mediaType: file.type });
+    };
+    reader.readAsDataURL(file);
+
+    // Input zurücksetzen damit dasselbe Bild erneut gewählt werden kann
+    e.target.value = "";
+  }
+
   async function sendMessage(content: string) {
-    if (!content.trim() || isStreaming) return;
+    if ((!content.trim() && !pendingImage) || isStreaming) return;
 
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
-      content: content.trim(),
+      content: content.trim() || (pendingImage ? "Analyze this image." : ""),
+      imageUrl: pendingImage?.dataUrl,
     };
 
+    const currentImage = pendingImage;
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setInput("");
+    setPendingImage(null);
     setIsStreaming(true);
 
     const assistantId = crypto.randomUUID();
@@ -94,9 +131,30 @@ export function AgentLiveChat({
     ]);
 
     try {
+      // API Messages aufbauen — Bilder als Content-Array senden
       const apiMessages = updatedMessages
         .filter((m) => m.id !== "welcome")
-        .map((m) => ({ role: m.role, content: m.content }));
+        .map((m) => {
+          if (m.imageUrl && m === userMsg && currentImage) {
+            // Bild + Text als multipart content
+            const base64Data = currentImage.dataUrl.split(",")[1];
+            return {
+              role: m.role,
+              content: [
+                {
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: currentImage.mediaType,
+                    data: base64Data,
+                  },
+                },
+                { type: "text", text: m.content },
+              ],
+            };
+          }
+          return { role: m.role, content: m.content };
+        });
 
       const res = await fetch(`/api/agents/${agentId}/chat`, {
         method: "POST",
@@ -139,14 +197,12 @@ export function AgentLiveChat({
                 )
               );
             }
-            // Debug-Info empfangen
             if (parsed.debug) {
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantId ? { ...m, debug: parsed.debug } : m
                 )
               );
-              // Auto-expand debug bei Empfang
               if (debugMode) {
                 setExpandedDebug((prev) => new Set(prev).add(assistantId));
               }
@@ -220,6 +276,17 @@ export function AgentLiveChat({
                     : "rounded-bl-md bg-muted/50 text-foreground"
                 )}
               >
+                {/* Image Thumbnail */}
+                {msg.imageUrl && (
+                  <div className="mb-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={msg.imageUrl}
+                      alt="Uploaded"
+                      className="max-h-32 max-w-full rounded-lg object-contain"
+                    />
+                  </div>
+                )}
                 {msg.content ? (
                   <MarkdownMessage content={msg.content} />
                 ) : (
@@ -235,7 +302,7 @@ export function AgentLiveChat({
               )}
             </div>
 
-            {/* Debug Panel — collapsible under assistant messages */}
+            {/* Debug Panel */}
             {debugMode && msg.role === "assistant" && msg.debug && (
               <div className="ml-8 mt-1">
                 <button
@@ -252,7 +319,6 @@ export function AgentLiveChat({
 
                 {expandedDebug.has(msg.id) && (
                   <div className="mt-1.5 space-y-2 rounded-lg border border-purple-500/20 bg-purple-500/5 p-3 text-[11px]">
-                    {/* Model & Tokens */}
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Cpu className="h-3 w-3" />
@@ -263,7 +329,6 @@ export function AgentLiveChat({
                       </div>
                     </div>
 
-                    {/* RAG Chunks */}
                     <div>
                       <div className="flex items-center gap-1 mb-1 font-medium text-foreground">
                         <Database className="h-3 w-3 text-blue-400" />
@@ -291,7 +356,6 @@ export function AgentLiveChat({
                       )}
                     </div>
 
-                    {/* Tools Evaluated */}
                     <div>
                       <div className="flex items-center gap-1 mb-1 font-medium text-foreground">
                         <Wrench className="h-3 w-3 text-kiln-orange" />
@@ -310,7 +374,6 @@ export function AgentLiveChat({
                       )}
                     </div>
 
-                    {/* Tool Calls */}
                     {msg.debug.toolCalls.length > 0 && (
                       <div>
                         <div className="flex items-center gap-1 mb-1 font-medium text-kiln-green">
@@ -328,7 +391,6 @@ export function AgentLiveChat({
                       </div>
                     )}
 
-                    {/* System Prompt Preview */}
                     <div>
                       <div className="flex items-center gap-1 mb-1 font-medium text-foreground">
                         <FileText className="h-3 w-3 text-muted-foreground" />
@@ -363,9 +425,49 @@ export function AgentLiveChat({
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Pending Image Preview */}
+      {pendingImage && (
+        <div className="border-t border-border px-3 pt-2">
+          <div className="relative inline-block">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={pendingImage.dataUrl}
+              alt="Pending upload"
+              className="h-16 rounded-lg object-contain border border-border"
+            />
+            <button
+              onClick={() => setPendingImage(null)}
+              className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-white"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Input */}
       <div className="border-t border-border p-3">
         <div className="flex items-center gap-2">
+          {imageAnalysisEnabled && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
+                onChange={handleImageSelect}
+              />
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isStreaming}
+              >
+                <ImageIcon className="h-4 w-4" />
+              </Button>
+            </>
+          )}
           <input
             type="text"
             value={input}
@@ -376,7 +478,7 @@ export function AgentLiveChat({
                 sendMessage(input);
               }
             }}
-            placeholder="Type a message..."
+            placeholder={pendingImage ? "Describe what to analyze..." : "Type a message..."}
             className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             disabled={isStreaming}
           />
@@ -384,7 +486,7 @@ export function AgentLiveChat({
             size="icon"
             className="h-9 w-9 shrink-0"
             onClick={() => sendMessage(input)}
-            disabled={!input.trim() || isStreaming}
+            disabled={(!input.trim() && !pendingImage) || isStreaming}
           >
             {isStreaming ? (
               <Loader2 className="h-4 w-4 animate-spin" />

@@ -19,6 +19,7 @@ export default async function PublicAgentPage({ params }: Props) {
       whiteLabel: true,
       showPoweredBy: true,
       status: true,
+      imageAnalysisEnabled: true,
     },
   });
 
@@ -62,6 +63,7 @@ export default async function PublicAgentPage({ params }: Props) {
             primaryColor={primaryColor}
             logoUrl={whiteLabel.logo || null}
             showPoweredBy={agent.showPoweredBy}
+            imageAnalysisEnabled={agent.imageAnalysisEnabled}
           />
         </div>
       </div>

@@ -19,6 +19,7 @@ export default async function EmbedPage({ params }: Props) {
       whiteLabel: true,
       showPoweredBy: true,
       status: true,
+      imageAnalysisEnabled: true,
     },
   });
 
@@ -38,6 +39,7 @@ export default async function EmbedPage({ params }: Props) {
       primaryColor={primaryColor}
       logoUrl={whiteLabel.logo || null}
       showPoweredBy={agent.showPoweredBy}
+      imageAnalysisEnabled={agent.imageAnalysisEnabled}
     />
   );
 }

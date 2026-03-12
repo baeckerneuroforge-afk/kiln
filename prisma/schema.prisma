@@ -76,6 +76,9 @@ model Agent {
   // Persistent Memory
   memoryEnabled      Boolean     @default(false)
 
+  // Multimodal — Bildanalyse
+  imageAnalysisEnabled Boolean   @default(false)
+
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 

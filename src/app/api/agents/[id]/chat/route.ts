@@ -8,6 +8,18 @@ import { canChat } from "@/lib/plan-limits";
 import { decrypt } from "@/lib/encryption";
 import crypto from "crypto";
 
+// Textinhalt aus einer Nachricht extrahieren (string oder multimodales content-array)
+function extractTextContent(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((block: { type: string }) => block.type === "text")
+      .map((block: { text: string }) => block.text)
+      .join(" ");
+  }
+  return "";
+}
+
 // Stabiler Hash aus sessionId für Memory-Zuordnung
 function hashSession(sessionId: string): string {
   return crypto.createHash("sha256").update(sessionId).digest("hex").slice(0, 32);
@@ -522,7 +534,7 @@ export async function POST(
         data: {
           conversationId: conversation.id,
           role: "USER",
-          content: lastUserMsg.content,
+          content: extractTextContent(lastUserMsg.content),
         },
       });
     }
@@ -538,7 +550,7 @@ export async function POST(
       try {
         ragChunks = await searchRelevantChunks(
           params.id,
-          lastUserMessage.content,
+          extractTextContent(lastUserMessage.content),
           5
         );
 
@@ -608,9 +620,9 @@ export async function POST(
     const anthropicClient = isOpenAI ? null : (usingOwnKey && userApiKey ? getClaudeClientWithKey(userApiKey) : getClaudeClient());
     const openaiClient = isOpenAI ? new OpenAI({ apiKey: userApiKey || process.env.OPENAI_API_KEY }) : null;
 
-    // Prepare messages
+    // Prepare messages — content kann string oder array (multimodal) sein
     const claudeMessages: Anthropic.MessageParam[] = messages.map(
-      (m: { role: string; content: string }) => ({
+      (m: { role: string; content: string | Anthropic.ContentBlockParam[] }) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
       })
@@ -644,9 +656,9 @@ export async function POST(
 
             const openaiMessages: OpenAI.ChatCompletionMessageParam[] = [
               { role: "system", content: systemPrompt },
-              ...messages.map((m: { role: string; content: string }) => ({
+              ...messages.map((m: { role: string; content: unknown }) => ({
                 role: m.role as "user" | "assistant",
-                content: m.content,
+                content: extractTextContent(m.content),
               })),
             ];
 

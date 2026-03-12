@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Bot, User } from "lucide-react";
+import { Send, Loader2, Bot, User, ImageIcon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MarkdownMessage } from "./markdown-message";
 
@@ -9,6 +9,7 @@ interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  imageUrl?: string;
 }
 
 interface PublicAgentChatProps {
@@ -19,7 +20,11 @@ interface PublicAgentChatProps {
   primaryColor: string;
   logoUrl?: string | null;
   showPoweredBy: boolean;
+  imageAnalysisEnabled?: boolean;
 }
+
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 
 export function PublicAgentChat({
   agentId,
@@ -29,6 +34,7 @@ export function PublicAgentChat({
   primaryColor,
   logoUrl,
   showPoweredBy,
+  imageAnalysisEnabled = false,
 }: PublicAgentChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(
     welcomeMessage
@@ -38,24 +44,50 @@ export function PublicAgentChat({
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID());
+  const [pendingImage, setPendingImage] = useState<{ dataUrl: string; mediaType: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      alert("Only JPG, PNG, GIF, and WebP images are supported.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      alert("Image must be under 5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPendingImage({ dataUrl: reader.result as string, mediaType: file.type });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
+
   async function sendMessage(content: string) {
-    if (!content.trim() || isStreaming) return;
+    if ((!content.trim() && !pendingImage) || isStreaming) return;
 
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
-      content: content.trim(),
+      content: content.trim() || (pendingImage ? "Analyze this image." : ""),
+      imageUrl: pendingImage?.dataUrl,
     };
 
+    const currentImage = pendingImage;
     const updated = [...messages, userMsg];
     setMessages(updated);
     setInput("");
+    setPendingImage(null);
     setIsStreaming(true);
 
     const assistantId = crypto.randomUUID();
@@ -67,7 +99,26 @@ export function PublicAgentChat({
     try {
       const apiMessages = updated
         .filter((m) => m.id !== "welcome")
-        .map((m) => ({ role: m.role, content: m.content }));
+        .map((m) => {
+          if (m.imageUrl && m === userMsg && currentImage) {
+            const base64Data = currentImage.dataUrl.split(",")[1];
+            return {
+              role: m.role,
+              content: [
+                {
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: currentImage.mediaType,
+                    data: base64Data,
+                  },
+                },
+                { type: "text", text: m.content },
+              ],
+            };
+          }
+          return { role: m.role, content: m.content };
+        });
 
       const res = await fetch(`/api/agents/${agentId}/chat`, {
         method: "POST",
@@ -197,6 +248,17 @@ export function PublicAgentChat({
                   msg.role === "user" ? primaryColor : "#292524",
               }}
             >
+              {/* Image Thumbnail */}
+              {msg.imageUrl && (
+                <div className="mb-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={msg.imageUrl}
+                    alt="Uploaded"
+                    className="max-h-32 max-w-full rounded-lg object-contain"
+                  />
+                </div>
+              )}
               {msg.content ? (
                 <MarkdownMessage content={msg.content} />
               ) : (
@@ -243,9 +305,49 @@ export function PublicAgentChat({
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Pending Image Preview */}
+      {pendingImage && (
+        <div className="border-t px-4 pt-2" style={{ borderColor: "#292524" }}>
+          <div className="relative inline-block">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={pendingImage.dataUrl}
+              alt="Pending upload"
+              className="h-16 rounded-lg object-contain"
+              style={{ border: "1px solid #3C3836" }}
+            />
+            <button
+              onClick={() => setPendingImage(null)}
+              className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Input */}
       <div className="border-t p-4" style={{ borderColor: "#292524" }}>
         <div className="flex items-center gap-2">
+          {imageAnalysisEnabled && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
+                onChange={handleImageSelect}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isStreaming}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors disabled:opacity-40"
+                style={{ backgroundColor: "#292524", color: "#A8A29E" }}
+              >
+                <ImageIcon className="h-4 w-4" />
+              </button>
+            </>
+          )}
           <input
             type="text"
             value={input}
@@ -256,7 +358,7 @@ export function PublicAgentChat({
                 sendMessage(input);
               }
             }}
-            placeholder="Type a message..."
+            placeholder={pendingImage ? "Describe what to analyze..." : "Type a message..."}
             disabled={isStreaming}
             className="flex-1 rounded-xl border px-4 py-2.5 text-sm text-white placeholder:text-[#A8A29E] focus:outline-none focus:ring-1"
             style={{
@@ -268,7 +370,7 @@ export function PublicAgentChat({
           />
           <button
             onClick={() => sendMessage(input)}
-            disabled={!input.trim() || isStreaming}
+            disabled={(!input.trim() && !pendingImage) || isStreaming}
             className="flex h-10 w-10 items-center justify-center rounded-xl text-white transition-opacity disabled:opacity-40"
             style={{ backgroundColor: primaryColor }}
           >

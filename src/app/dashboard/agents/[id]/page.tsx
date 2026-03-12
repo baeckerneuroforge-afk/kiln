@@ -23,6 +23,7 @@ import {
   AlertCircle,
   RefreshCw,
   Wrench,
+  ImageIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ interface Agent {
   whiteLabel: Record<string, unknown> | null;
   showPoweredBy: boolean;
   memoryEnabled: boolean;
+  imageAnalysisEnabled: boolean;
   customDomain: string | null;
   createdAt: string;
   actions: { id: string; type: string; enabled: boolean; config: Record<string, string> | null }[];
@@ -104,6 +106,7 @@ export default function AgentDetailPage() {
   const [logoUrl, setLogoUrl] = useState("");
   const [llmModel, setLlmModel] = useState("claude-sonnet-4-20250514");
   const [memoryEnabled, setMemoryEnabled] = useState(false);
+  const [imageAnalysisEnabled, setImageAnalysisEnabled] = useState(false);
   const [customDomain, setCustomDomain] = useState("");
   const [domainVerified, setDomainVerified] = useState<boolean | null>(null);
   const [domainMessage, setDomainMessage] = useState("");
@@ -124,6 +127,7 @@ export default function AgentDetailPage() {
         setStatus(data.status);
         setLlmModel(data.llmModel || "claude-sonnet-4-20250514");
         setMemoryEnabled(data.memoryEnabled || false);
+        setImageAnalysisEnabled(data.imageAnalysisEnabled || false);
         setCustomDomain(data.customDomain || "");
         const wl = (data.whiteLabel || {}) as Record<string, string>;
         setPrimaryColor(wl.primaryColor || "#F97316");
@@ -153,6 +157,7 @@ export default function AgentDetailPage() {
           status,
           llmModel,
           memoryEnabled,
+          imageAnalysisEnabled,
           customDomain: customDomain.trim() || null,
           whiteLabel: {
             primaryColor,
@@ -498,6 +503,41 @@ export default function AgentDetailPage() {
               </div>
               )}
 
+              {/* Image Analysis Toggle — nur im Advanced Mode */}
+              {advancedMode && (
+              <div className="rounded-xl border border-border bg-card/50 p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10">
+                      <ImageIcon className="h-4 w-4 text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Image Analysis
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Allow users to upload images for the agent to analyze.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setImageAnalysisEnabled(!imageAnalysisEnabled)}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                      imageAnalysisEnabled ? "bg-blue-500" : "bg-muted"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform",
+                        imageAnalysisEnabled ? "translate-x-5" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </div>
+              </div>
+              )}
+
               {/* Custom Domain — nur für Pro/Agency/Admin im Advanced Mode */}
               {advancedMode && (userPlan === "PRO" || userPlan === "AGENCY" || userPlan === "ADMIN") && (
                 <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
@@ -711,6 +751,7 @@ export default function AgentDetailPage() {
               welcomeMessage={agent.welcomeMessage}
               suggestedQuestions={agent.suggestedQuestions}
               debugMode={isDebugTab}
+              imageAnalysisEnabled={imageAnalysisEnabled}
             />
           </div>
         </div>
