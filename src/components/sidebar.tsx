@@ -14,6 +14,7 @@ import {
   Sparkles,
   LogOut,
   ChevronUp,
+  Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -35,6 +36,13 @@ const modules = [
     color: "text-muted-foreground",
     activeColor: "text-kiln-orange",
     badge: null,
+  },
+  {
+    name: "Orchestration",
+    href: "/dashboard/orchestration",
+    icon: Network,
+    color: "text-muted-foreground",
+    activeColor: "text-kiln-orange",
   },
   {
     name: "Site Builder",
