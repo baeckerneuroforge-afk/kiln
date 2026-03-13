@@ -20,6 +20,7 @@ import {
   Eye,
   EyeOff,
   Trash2,
+  AlertTriangle,
   Terminal,
   Plus,
   BookOpen,
@@ -111,6 +112,11 @@ function SettingsContent() {
   const [generatingKey, setGeneratingKey] = useState(false);
   const [deletingAccessKey, setDeletingAccessKey] = useState<string | null>(null);
   const [accessKeyCopied, setAccessKeyCopied] = useState(false);
+
+  // Delete Account
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   // Webhooks
   interface WebhookDeliveryItem {
@@ -1178,6 +1184,84 @@ function SettingsContent() {
                   month{creditsEarned !== 1 ? "s" : ""} free
                 </span>
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Account ────────────────────────────── */}
+      <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">Danger Zone</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Permanently delete your account and all associated data.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+            onClick={() => setShowDeleteModal(true)}
+          >
+            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+            Delete Account
+          </Button>
+        </div>
+      </div>
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10">
+                <AlertTriangle className="h-5 w-5 text-red-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground">Delete Account</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              This will permanently delete all your data including agents, conversations,
+              knowledge bases, and cancel your subscription. Type{" "}
+              <span className="font-mono font-bold text-red-400">DELETE</span> to confirm.
+            </p>
+            <input
+              type="text"
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              placeholder="Type DELETE to confirm"
+              className="mt-4 w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setShowDeleteModal(false); setDeleteConfirm(""); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                disabled={deleteConfirm !== "DELETE" || deleting}
+                className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                onClick={async () => {
+                  setDeleting(true);
+                  try {
+                    const res = await fetch("/api/account/delete", { method: "DELETE" });
+                    if (res.ok) {
+                      window.location.href = "/";
+                    }
+                  } catch {
+                    setDeleting(false);
+                  }
+                }}
+              >
+                {deleting ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                Delete Forever
+              </Button>
             </div>
           </div>
         </div>

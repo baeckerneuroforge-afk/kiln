@@ -79,6 +79,9 @@ model Agent {
   // Multimodal — Bildanalyse
   imageAnalysisEnabled Boolean   @default(false)
 
+  // AI Transparency — EU AI Act compliance
+  showAiDisclaimer   Boolean     @default(true)
+
   // Prompt Branching — conditional prompt snippets
   promptBranches     Json?       // [{ name, keywords[], promptSnippet, enabled }]
 

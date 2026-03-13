@@ -67,6 +67,7 @@ export async function PATCH(
       showPoweredBy: existing.showPoweredBy,
       memoryEnabled: existing.memoryEnabled,
       imageAnalysisEnabled: existing.imageAnalysisEnabled,
+      showAiDisclaimer: existing.showAiDisclaimer,
       promptBranches: existing.promptBranches,
       actions: existing.actions.map((a) => ({
         type: a.type,

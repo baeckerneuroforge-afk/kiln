@@ -30,6 +30,8 @@ import {
   GitFork,
   History,
   FlaskConical,
+  AlertTriangle,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -64,6 +66,7 @@ interface Agent {
   showPoweredBy: boolean;
   memoryEnabled: boolean;
   imageAnalysisEnabled: boolean;
+  showAiDisclaimer: boolean;
   customDomain: string | null;
   promptBranches: { name: string; keywords: string[]; promptSnippet: string; enabled: boolean }[] | null;
   clonedFromId: string | null;
@@ -124,6 +127,7 @@ export default function AgentDetailPage() {
   const [llmModel, setLlmModel] = useState("claude-sonnet-4-20250514");
   const [memoryEnabled, setMemoryEnabled] = useState(false);
   const [imageAnalysisEnabled, setImageAnalysisEnabled] = useState(false);
+  const [showAiDisclaimer, setShowAiDisclaimer] = useState(true);
   const [promptBranches, setPromptBranches] = useState<{ name: string; keywords: string[]; promptSnippet: string; enabled: boolean }[]>([]);
   const [customDomain, setCustomDomain] = useState("");
   const [domainVerified, setDomainVerified] = useState<boolean | null>(null);
@@ -158,6 +162,7 @@ export default function AgentDetailPage() {
         setLlmModel(data.llmModel || "claude-sonnet-4-20250514");
         setMemoryEnabled(data.memoryEnabled || false);
         setImageAnalysisEnabled(data.imageAnalysisEnabled || false);
+        setShowAiDisclaimer(data.showAiDisclaimer !== false);
         setPromptBranches(Array.isArray(data.promptBranches) ? data.promptBranches : []);
         setCustomDomain(data.customDomain || "");
         const wl = (data.whiteLabel || {}) as Record<string, string>;
@@ -189,6 +194,7 @@ export default function AgentDetailPage() {
           llmModel,
           memoryEnabled,
           imageAnalysisEnabled,
+          showAiDisclaimer,
           promptBranches: promptBranches.length > 0 ? promptBranches : null,
           customDomain: customDomain.trim() || null,
           whiteLabel: {
@@ -627,6 +633,47 @@ export default function AgentDetailPage() {
               </div>
               )}
 
+              {/* AI Transparency Disclaimer */}
+              <div className="rounded-xl border border-border bg-card/50 p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10">
+                      <Shield className="h-4 w-4 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Show AI Disclaimer
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Prepend &quot;I am an AI assistant.&quot; to the welcome message.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowAiDisclaimer(!showAiDisclaimer)}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                      showAiDisclaimer ? "bg-emerald-500" : "bg-muted"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform",
+                        showAiDisclaimer ? "translate-x-5" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </div>
+                {!showAiDisclaimer && (
+                  <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-500/10 p-3">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
+                    <p className="text-xs text-amber-400">
+                      The EU AI Act requires transparency about AI-powered interactions.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Custom Domain — nur für Pro/Agency/Admin im Advanced Mode */}
               {advancedMode && (userPlan === "PRO" || userPlan === "AGENCY" || userPlan === "ADMIN") && (
                 <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
@@ -885,7 +932,9 @@ export default function AgentDetailPage() {
             <AgentLiveChat
               agentId={agent.id}
               agentName={agent.name}
-              welcomeMessage={agent.welcomeMessage}
+              welcomeMessage={showAiDisclaimer
+                ? `I am an AI assistant.${agent.welcomeMessage ? ` ${agent.welcomeMessage}` : ""}`
+                : agent.welcomeMessage}
               suggestedQuestions={agent.suggestedQuestions}
               debugMode={isDebugTab}
               imageAnalysisEnabled={imageAnalysisEnabled}

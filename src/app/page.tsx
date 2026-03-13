@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
+import { CookieBanner } from "@/components/cookie-banner";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -731,6 +732,7 @@ export default function LandingPage() {
           )}
         </button>
       </div>
+      <CookieBanner />
     </div>
   );
 }

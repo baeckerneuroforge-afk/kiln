@@ -3,6 +3,7 @@ import { UpgradeBanner } from "@/components/upgrade-banner";
 import { ReferralApply } from "@/components/referral-apply";
 import { AdvancedModeProvider } from "@/hooks/use-advanced-mode";
 import { LegalFooter } from "@/components/legal-footer";
+import { CookieBanner } from "@/components/cookie-banner";
 
 export default function DashboardLayout({
   children,
@@ -20,6 +21,7 @@ export default function DashboardLayout({
           <LegalFooter />
         </div>
       </div>
+      <CookieBanner />
     </AdvancedModeProvider>
   );
 }

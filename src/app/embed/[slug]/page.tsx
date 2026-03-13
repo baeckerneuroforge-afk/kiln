@@ -18,6 +18,7 @@ export default async function EmbedPage({ params }: Props) {
       suggestedQuestions: true,
       whiteLabel: true,
       showPoweredBy: true,
+      showAiDisclaimer: true,
       status: true,
       imageAnalysisEnabled: true,
     },
@@ -30,11 +31,15 @@ export default async function EmbedPage({ params }: Props) {
   const whiteLabel = (agent.whiteLabel as Record<string, string>) || {};
   const primaryColor = whiteLabel.primaryColor || "#F97316";
 
+  const effectiveWelcome = agent.showAiDisclaimer
+    ? `I am an AI assistant.${agent.welcomeMessage ? ` ${agent.welcomeMessage}` : ""}`
+    : agent.welcomeMessage;
+
   return (
     <PublicAgentChat
       agentId={agent.id}
       agentName={agent.name}
-      welcomeMessage={agent.welcomeMessage}
+      welcomeMessage={effectiveWelcome}
       suggestedQuestions={agent.suggestedQuestions}
       primaryColor={primaryColor}
       logoUrl={whiteLabel.logo || null}

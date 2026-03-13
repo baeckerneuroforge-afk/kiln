@@ -18,6 +18,7 @@ export default async function PublicAgentPage({ params }: Props) {
       suggestedQuestions: true,
       whiteLabel: true,
       showPoweredBy: true,
+      showAiDisclaimer: true,
       status: true,
       imageAnalysisEnabled: true,
     },
@@ -29,6 +30,11 @@ export default async function PublicAgentPage({ params }: Props) {
 
   const whiteLabel = (agent.whiteLabel as Record<string, string>) || {};
   const primaryColor = whiteLabel.primaryColor || "#F97316";
+
+  // AI Transparency: Prepend disclaimer to welcome message
+  const effectiveWelcome = agent.showAiDisclaimer
+    ? `I am an AI assistant.${agent.welcomeMessage ? ` ${agent.welcomeMessage}` : ""}`
+    : agent.welcomeMessage;
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-background">
@@ -58,7 +64,7 @@ export default async function PublicAgentPage({ params }: Props) {
           <PublicAgentChat
             agentId={agent.id}
             agentName={agent.name}
-            welcomeMessage={agent.welcomeMessage}
+            welcomeMessage={effectiveWelcome}
             suggestedQuestions={agent.suggestedQuestions}
             primaryColor={primaryColor}
             logoUrl={whiteLabel.logo || null}
