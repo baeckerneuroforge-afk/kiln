@@ -64,6 +64,7 @@ model Agent {
   suggestedQuestions String[]    // Array von Vorschlägen
   llmModel           String      @default("claude-sonnet-4-20250514")
   status             AgentStatus @default(DRAFT)
+  agentType          AgentType   @default(PUBLIC)
 
   // White-Label
   whiteLabel         Json?       // { logo, primaryColor, position, customCss }
@@ -107,8 +108,14 @@ model Agent {
   webhooks           AgentWebhook[]
   integrations       AgentIntegration[]
   channels           AgentChannel[]
+  teamMembers        TeamMember[]
 
   @@index([userId])
+}
+
+enum AgentType {
+  PUBLIC
+  INTERNAL
 }
 
 enum AgentStatus {
@@ -499,6 +506,26 @@ enum ChannelType {
   EMAIL
   WHATSAPP
   SLACK
+}
+
+// Team Members — access control for internal agents
+model TeamMember {
+  id         String          @id @default(cuid())
+  agentId    String
+  agent      Agent           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  email      String
+  role       TeamMemberRole  @default(VIEWER)
+  invitedAt  DateTime        @default(now())
+  acceptedAt DateTime?
+
+  @@unique([agentId, email])
+  @@index([agentId])
+  @@index([email])
+}
+
+enum TeamMemberRole {
+  VIEWER
+  EDITOR
 }
 
 // Agent Inbound Webhooks — external services trigger agent processing

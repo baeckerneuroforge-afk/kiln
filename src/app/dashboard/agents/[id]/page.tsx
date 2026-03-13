@@ -35,6 +35,8 @@ import {
   Bolt,
   Plug,
   Radio,
+  Lock,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -52,6 +54,7 @@ import { TestingTab } from "@/components/agents/testing-tab";
 import { WebhooksTab } from "@/components/agents/webhooks-tab";
 import { IntegrationsTab } from "@/components/agents/integrations-tab";
 import { ChannelsTab } from "@/components/agents/channels-tab";
+import { TeamAccess } from "@/components/agents/team-access";
 import { PromptEditor } from "@/components/agents/prompt-editor";
 import { cn } from "@/lib/utils";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
@@ -75,6 +78,7 @@ interface Agent {
   showAiDisclaimer: boolean;
   customDomain: string | null;
   promptBranches: { name: string; keywords: string[]; promptSnippet: string; enabled: boolean }[] | null;
+  agentType: "PUBLIC" | "INTERNAL";
   clonedFromId: string | null;
   clonedFromName: string | null;
   createdAt: string;
@@ -137,6 +141,7 @@ export default function AgentDetailPage() {
   const [memoryEnabled, setMemoryEnabled] = useState(false);
   const [imageAnalysisEnabled, setImageAnalysisEnabled] = useState(false);
   const [showAiDisclaimer, setShowAiDisclaimer] = useState(true);
+  const [agentType, setAgentType] = useState<"PUBLIC" | "INTERNAL">("PUBLIC");
   const [promptBranches, setPromptBranches] = useState<{ name: string; keywords: string[]; promptSnippet: string; enabled: boolean }[]>([]);
   const [customDomain, setCustomDomain] = useState("");
   const [domainVerified, setDomainVerified] = useState<boolean | null>(null);
@@ -172,6 +177,7 @@ export default function AgentDetailPage() {
         setMemoryEnabled(data.memoryEnabled || false);
         setImageAnalysisEnabled(data.imageAnalysisEnabled || false);
         setShowAiDisclaimer(data.showAiDisclaimer !== false);
+        setAgentType(data.agentType || "PUBLIC");
         setPromptBranches(Array.isArray(data.promptBranches) ? data.promptBranches : []);
         setCustomDomain(data.customDomain || "");
         const wl = (data.whiteLabel || {}) as Record<string, string>;
@@ -204,6 +210,7 @@ export default function AgentDetailPage() {
           memoryEnabled,
           imageAnalysisEnabled,
           showAiDisclaimer,
+          agentType,
           promptBranches: promptBranches.length > 0 ? promptBranches : null,
           customDomain: customDomain.trim() || null,
           whiteLabel: {
@@ -752,6 +759,61 @@ export default function AgentDetailPage() {
                     <p className="text-xs text-amber-400">
                       The EU AI Act requires transparency about AI-powered interactions.
                     </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Internal Agent Toggle */}
+              <div className="rounded-xl border border-border bg-card/50 p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10">
+                      <Lock className="h-4 w-4 text-purple-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Internal Agent
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Only accessible by your team members. Requires login to chat.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setAgentType(agentType === "INTERNAL" ? "PUBLIC" : "INTERNAL")}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                      agentType === "INTERNAL" ? "bg-purple-500" : "bg-muted"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform",
+                        agentType === "INTERNAL" ? "translate-x-5" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </div>
+                {agentType === "INTERNAL" && (
+                  <div className="mt-4">
+                    <div className="mb-3 flex items-start gap-2 rounded-lg bg-purple-500/10 p-3">
+                      <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-purple-400" />
+                      <div className="text-xs text-purple-300">
+                        <p className="font-medium text-purple-400 mb-1">Use cases</p>
+                        <ul className="space-y-0.5 text-muted-foreground">
+                          <li>• Employee onboarding bot</li>
+                          <li>• Internal wiki assistant</li>
+                          <li>• IT helpdesk agent</li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div className="border-t border-border pt-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Users className="h-4 w-4 text-purple-400" />
+                        <h4 className="text-xs font-semibold text-foreground">Team Access</h4>
+                      </div>
+                      <TeamAccess agentId={agent.id} />
+                    </div>
                   </div>
                 )}
               </div>

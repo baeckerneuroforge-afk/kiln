@@ -22,6 +22,7 @@ interface AgentWithCount {
   slug: string;
   description: string | null;
   status: "DRAFT" | "LIVE" | "PAUSED";
+  agentType?: "PUBLIC" | "INTERNAL";
   welcomeMessage: string | null;
   createdAt: string;
   updatedAt: string;
@@ -219,10 +220,19 @@ export default function AgentsPage() {
                       <Bot className="h-5 w-5 text-kiln-orange" />
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className={cn("h-2 w-2 rounded-full", status.dot)} />
-                      <span className="text-[11px] font-medium text-muted-foreground">
-                        {status.label}
-                      </span>
+                      {agent.agentType === "INTERNAL" ? (
+                        <>
+                          <div className="h-2 w-2 rounded-full bg-purple-400" />
+                          <span className="text-[11px] font-medium text-purple-400">Internal</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className={cn("h-2 w-2 rounded-full", status.dot)} />
+                          <span className="text-[11px] font-medium text-muted-foreground">
+                            {status.label}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <button
