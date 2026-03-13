@@ -698,7 +698,9 @@ export default function LandingPage() {
             <span className="text-xs text-neutral-600">by Hephaistos Systems</span>
           </div>
           <div className="flex items-center gap-6 text-xs text-neutral-600">
-            <a href="mailto:hello@getkiln.com" className="transition-colors hover:text-neutral-300">Contact</a>
+            <a href="/impressum" className="transition-colors hover:text-neutral-300">Impressum</a>
+            <a href="/privacy" className="transition-colors hover:text-neutral-300">Privacy</a>
+            <a href="/terms" className="transition-colors hover:text-neutral-300">Terms</a>
             <span>&copy; {new Date().getFullYear()} Hephaistos Systems</span>
           </div>
         </div>

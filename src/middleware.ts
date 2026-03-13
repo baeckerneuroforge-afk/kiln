@@ -16,6 +16,9 @@ function isAppDomain(hostname: string): boolean {
 // Public routes (no auth required)
 const isPublicRoute = createRouteMatcher([
   "/",
+  "/impressum",
+  "/privacy",
+  "/terms",
   "/sign-in/(.*)",
   "/sign-up/(.*)",
   "/api/webhook/(.*)",
