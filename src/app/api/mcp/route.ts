@@ -940,6 +940,108 @@ function createMcpServer(userId: string) {
     }
   );
 
+  // ── kiln_create_webhook ──
+  server.tool(
+    "kiln_create_webhook",
+    "Create an inbound webhook endpoint for an agent. External services can POST to this URL to trigger agent processing.",
+    {
+      agentId: z.string().describe("Agent ID"),
+      authType: z.enum(["NONE", "HEADER_AUTH", "HMAC"]).optional().describe("Authentication type (default: NONE)"),
+      authValue: z.string().optional().describe("Bearer token or HMAC secret (required if authType is not NONE)"),
+      responseMode: z.enum(["IMMEDIATE", "AFTER_PROCESSING"]).optional().describe("IMMEDIATE returns 202 instantly, AFTER_PROCESSING waits for agent response (default: IMMEDIATE)"),
+    },
+    async ({ agentId, authType, authValue, responseMode }) => {
+      const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      const count = await prisma.agentWebhook.count({ where: { agentId } });
+      if (count >= 5) return err("Maximum 5 webhooks per agent.");
+
+      const path = `${agent.slug}-${crypto.randomBytes(4).toString("hex")}`;
+      const secret = crypto.randomBytes(16).toString("hex");
+
+      const webhook = await prisma.agentWebhook.create({
+        data: {
+          agentId,
+          path,
+          secret,
+          httpMethods: ["POST"],
+          authType: authType || "NONE",
+          authValue: authValue || null,
+          responseMode: responseMode || "IMMEDIATE",
+          isActive: true,
+        },
+      });
+
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln-topaz.vercel.app";
+      return ok({
+        id: webhook.id,
+        url: `${baseUrl}/api/webhooks/agent/${webhook.path}`,
+        path: webhook.path,
+        secret: webhook.secret,
+        authType: webhook.authType,
+        responseMode: webhook.responseMode,
+        message: `Webhook created. POST to ${baseUrl}/api/webhooks/agent/${webhook.path}`,
+      });
+    }
+  );
+
+  // ── kiln_list_webhooks ──
+  server.tool(
+    "kiln_list_webhooks",
+    "List all inbound webhooks for an agent with their URLs, auth config, and recent execution stats.",
+    {
+      agentId: z.string().describe("Agent ID"),
+    },
+    async ({ agentId }) => {
+      const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      const webhooks = await prisma.agentWebhook.findMany({
+        where: { agentId },
+        include: { _count: { select: { executions: true } } },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln-topaz.vercel.app";
+      return ok({
+        agentId,
+        agentName: agent.name,
+        webhooks: webhooks.map((wh) => ({
+          id: wh.id,
+          url: `${baseUrl}/api/webhooks/agent/${wh.path}`,
+          path: wh.path,
+          authType: wh.authType,
+          responseMode: wh.responseMode,
+          isActive: wh.isActive,
+          executionCount: wh._count.executions,
+          createdAt: wh.createdAt.toISOString(),
+        })),
+      });
+    }
+  );
+
+  // ── kiln_delete_webhook ──
+  server.tool(
+    "kiln_delete_webhook",
+    "Delete an inbound webhook endpoint. This permanently removes the webhook and all its execution logs.",
+    {
+      agentId: z.string().describe("Agent ID (for ownership verification)"),
+      webhookId: z.string().describe("Webhook ID to delete"),
+    },
+    async ({ agentId, webhookId }) => {
+      const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      const webhook = await prisma.agentWebhook.findFirst({ where: { id: webhookId, agentId } });
+      if (!webhook) return err("Webhook not found.");
+
+      await prisma.agentWebhook.delete({ where: { id: webhookId } });
+
+      return ok({ deleted: true, webhookId, message: `Webhook ${webhook.path} deleted.` });
+    }
+  );
+
   return server;
 }
 

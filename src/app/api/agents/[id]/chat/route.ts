@@ -196,6 +196,36 @@ function buildTools(
           });
         }
         break;
+
+      case "HTTP_REQUEST": {
+        if (config.url && config.description) {
+          // Platzhalter aus URL und Body extrahieren
+          const placeholders = new Set<string>();
+          const re = /\{\{(\w+)\}\}/g;
+          let m;
+          while ((m = re.exec(config.url)) !== null) placeholders.add(m[1]);
+          if (config.bodyTemplate) {
+            re.lastIndex = 0;
+            while ((m = re.exec(config.bodyTemplate)) !== null) placeholders.add(m[1]);
+          }
+          const phArr = Array.from(placeholders);
+          const props: Record<string, { type: string; description: string }> = {};
+          for (const p of phArr) {
+            props[p] = { type: "string", description: `Value for ${p}` };
+          }
+
+          tools.push({
+            name: "http_request",
+            description: config.description,
+            input_schema: {
+              type: "object" as const,
+              properties: props,
+              required: phArr,
+            },
+          });
+        }
+        break;
+      }
     }
   }
 
@@ -433,6 +463,66 @@ async function executeTool(
         });
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : "Custom code execution failed";
+        return JSON.stringify({ success: false, message: errorMsg });
+      }
+    }
+
+    case "http_request": {
+      const httpAction = actions.find((a) => a.type === "HTTP_REQUEST");
+      const config = (httpAction?.config || {}) as Record<string, string>;
+      if (!config.url) {
+        return JSON.stringify({ success: false, message: "No HTTP request URL configured" });
+      }
+
+      try {
+        let url = config.url;
+        let body = config.bodyTemplate || "";
+        for (const [key, value] of Object.entries(toolInput)) {
+          const ph = `{{${key}}}`;
+          url = url.replaceAll(ph, encodeURIComponent(String(value)));
+          body = body.replaceAll(ph, String(value));
+        }
+
+        const method = (config.method || "GET").toUpperCase();
+        const fetchOpts: RequestInit = {
+          method,
+          headers: {
+            "Content-Type": "application/json",
+            ...(config.headers ? JSON.parse(config.headers) : {}),
+          },
+        };
+        if (body && method !== "GET") {
+          fetchOpts.body = body;
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        fetchOpts.signal = controller.signal;
+
+        const response = await fetch(url, fetchOpts);
+        clearTimeout(timeout);
+
+        const contentType = response.headers.get("content-type") || "";
+        let responseData: unknown;
+        if (contentType.includes("application/json")) {
+          responseData = await response.json();
+        } else {
+          responseData = await response.text();
+        }
+
+        if (config.responseMapping && responseData && typeof responseData === "object") {
+          const mapped = resolveJsonPath(responseData, config.responseMapping);
+          if (mapped !== undefined) {
+            return JSON.stringify({ success: true, result: mapped });
+          }
+        }
+
+        return JSON.stringify({ success: true, status: response.status, data: responseData });
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          return JSON.stringify({ success: false, message: "HTTP request timed out (10s)" });
+        }
+        const errorMsg = err instanceof Error ? err.message : "HTTP request failed";
         return JSON.stringify({ success: false, message: errorMsg });
       }
     }
@@ -738,6 +828,7 @@ export async function POST(
                   : fnCall.function.name === "collect_email" ? "COLLECT_EMAIL"
                   : fnCall.function.name === "score_lead" ? "SCORE_LEAD"
                   : fnCall.function.name === "custom_code" ? "CUSTOM_CODE"
+                  : fnCall.function.name === "http_request" ? "HTTP_REQUEST"
                   : fnCall.function.name.startsWith("custom_tool_") ? `CUSTOM_TOOL:${fnCall.function.name.replace("custom_tool_", "")}`
                   : fnCall.function.name.toUpperCase();
                 if (!actionsUsed.includes(actionType)) actionsUsed.push(actionType);
@@ -826,6 +917,8 @@ export async function POST(
                   ? "SCORE_LEAD"
                   : block.name === "custom_code"
                   ? "CUSTOM_CODE"
+                  : block.name === "http_request"
+                  ? "HTTP_REQUEST"
                   : block.name.startsWith("custom_tool_")
                   ? `CUSTOM_TOOL:${block.name.replace("custom_tool_", "")}`
                   : block.name.toUpperCase();

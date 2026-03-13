@@ -83,6 +83,20 @@ const actionTypes = [
       { key: "handoffEmail", label: "Escalation email", placeholder: "support@example.com" },
     ],
   },
+  {
+    type: "HTTP_REQUEST",
+    label: "HTTP Request",
+    icon: "\u{1F310}",
+    description: "Agent makes HTTP API calls during conversations",
+    configFields: [
+      { key: "description", label: "When to use (description for Claude)", placeholder: "Call this API when the user asks about order status" },
+      { key: "url", label: "URL (supports {{variables}})", placeholder: "https://api.example.com/orders/{{order_id}}" },
+      { key: "method", label: "Method (GET/POST/PUT/DELETE)", placeholder: "GET" },
+      { key: "headers", label: "Headers (JSON)", placeholder: '{"Authorization": "Bearer xxx"}' },
+      { key: "bodyTemplate", label: "Body template (JSON with {{variables}})", placeholder: '{"query": "{{user_question}}"}' },
+      { key: "responseMapping", label: "Response mapping (JSON path)", placeholder: "data.results[0].status" },
+    ],
+  },
 ];
 
 export function ActionsTab({ agentId, initialActions }: ActionsTabProps) {

@@ -101,6 +101,7 @@ model Agent {
   testRuns       AgentTestRun[]
   orchestrationsFrom AgentOrchestration[] @relation("OrchestrationSource")
   orchestrationsTo   AgentOrchestration[] @relation("OrchestrationTarget")
+  webhooks           AgentWebhook[]
 
   @@index([userId])
 }
@@ -133,6 +134,7 @@ enum ActionType {
   FIRE_WEBHOOK
   HANDOFF_HUMAN
   CUSTOM_CODE
+  HTTP_REQUEST
 }
 
 // Custom HTTP Tools — benutzerdefinierte API-Integrationen
@@ -419,4 +421,50 @@ model AgentOrchestration {
 
   @@index([sourceAgentId])
   @@index([targetAgentId])
+}
+
+// Agent Inbound Webhooks — external services trigger agent processing
+model AgentWebhook {
+  id           String         @id @default(cuid())
+  agentId      String
+  agent        Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  path         String         @unique // Unique URL path segment
+  secret       String         // For HMAC validation
+  httpMethods  Json           @default("[\"POST\"]") // Allowed methods
+  authType     WebhookAuth    @default(NONE)
+  authValue    String?        // Header token or HMAC secret
+  responseMode ResponseMode   @default(IMMEDIATE)
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+
+  executions   WebhookExecution[]
+
+  @@index([agentId])
+  @@index([path])
+}
+
+enum WebhookAuth {
+  NONE
+  HEADER_AUTH
+  HMAC
+}
+
+enum ResponseMode {
+  IMMEDIATE
+  AFTER_PROCESSING
+}
+
+// Webhook Execution Log — pipeline execution records
+model WebhookExecution {
+  id              String       @id @default(cuid())
+  webhookId       String
+  webhook         AgentWebhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  incomingPayload Json
+  agentResponse   String?      @db.Text
+  actionsExecuted Json?        // String array of executed action types
+  duration        Int?         // ms
+  statusCode      Int          @default(200)
+  createdAt       DateTime     @default(now())
+
+  @@index([webhookId])
 }

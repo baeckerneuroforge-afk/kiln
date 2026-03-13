@@ -44,6 +44,7 @@ import { CustomToolsTab } from "@/components/agents/custom-tools-tab";
 import { AutomationsTab } from "@/components/agents/automations-tab";
 import { VersionsTab } from "@/components/agents/versions-tab";
 import { TestingTab } from "@/components/agents/testing-tab";
+import { WebhooksTab } from "@/components/agents/webhooks-tab";
 import { PromptEditor } from "@/components/agents/prompt-editor";
 import { cn } from "@/lib/utils";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
@@ -73,7 +74,7 @@ interface Agent {
   _count: { conversations: number };
 }
 
-type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "tools" | "debug" | "logs" | "memory" | "automations" | "versions" | "testing";
+type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "tools" | "debug" | "logs" | "memory" | "automations" | "versions" | "testing" | "webhooks";
 
 const baseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "config", label: "Configuration", icon: Settings2 },
@@ -91,6 +92,7 @@ const advancedTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "memory", label: "Memory", icon: Brain },
   { id: "versions", label: "Versions", icon: History },
   { id: "testing", label: "Testing", icon: FlaskConical },
+  { id: "webhooks", label: "Webhooks", icon: Link2 },
 ];
 
 const statusOptions = [
@@ -814,6 +816,10 @@ export default function AgentDetailPage() {
               prefill={testCasePrefill}
               onPrefillConsumed={() => setTestCasePrefill(null)}
             />
+          )}
+
+          {activeTab === "webhooks" && (
+            <WebhooksTab agentId={agent.id} />
           )}
 
           {activeTab === "embed" && (
