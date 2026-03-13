@@ -53,6 +53,11 @@ export default clerkMiddleware(async (auth, request) => {
     });
   }
 
+  // MCP Server: eigene API-Key-Auth, Clerk überspringen
+  if (request.nextUrl.pathname === "/api/mcp" || request.nextUrl.pathname.startsWith("/api/mcp/")) {
+    return response;
+  }
+
   if (!isPublicRoute(request)) {
     // API routes: return 401 JSON instead of HTML redirect
     if (request.nextUrl.pathname.startsWith("/api/")) {

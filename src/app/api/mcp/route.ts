@@ -493,34 +493,39 @@ function createMcpServer(userId: string) {
 
 // Handler for all HTTP methods
 async function handleMcpRequest(req: Request): Promise<Response> {
-  // Authenticate
-  const authResult = await authenticateApiKey(req.headers.get("authorization"));
-  if (!authResult) {
-    return Response.json(
-      { error: "Invalid or missing API key. Use Authorization: Bearer sk-kiln-..." },
-      { status: 401 }
-    );
+  try {
+    // Authenticate
+    const authResult = await authenticateApiKey(req.headers.get("authorization"));
+    if (!authResult) {
+      return Response.json(
+        { error: "Invalid or missing API key. Use Authorization: Bearer sk-kiln-..." },
+        { status: 401 }
+      );
+    }
+
+    // Rate limit
+    const rateCheck = checkRateLimit(authResult.keyId);
+    if (!rateCheck.allowed) {
+      return Response.json(
+        { error: "Rate limit exceeded. 100 requests per minute." },
+        { status: 429 }
+      );
+    }
+
+    // Create stateless transport + server per request
+    const transport = new WebStandardStreamableHTTPServerTransport({
+      sessionIdGenerator: undefined, // stateless
+      enableJsonResponse: true,
+    });
+
+    const server = createMcpServer(authResult.userId);
+    await server.connect(transport);
+
+    return transport.handleRequest(req);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Server error";
+    return Response.json({ error: message }, { status: 500 });
   }
-
-  // Rate limit
-  const rateCheck = checkRateLimit(authResult.keyId);
-  if (!rateCheck.allowed) {
-    return Response.json(
-      { error: "Rate limit exceeded. 100 requests per minute." },
-      { status: 429 }
-    );
-  }
-
-  // Create stateless transport + server per request
-  const transport = new WebStandardStreamableHTTPServerTransport({
-    sessionIdGenerator: undefined, // stateless
-    enableJsonResponse: true,
-  });
-
-  const server = createMcpServer(authResult.userId);
-  await server.connect(transport);
-
-  return transport.handleRequest(req);
 }
 
 export async function GET(req: Request) {
