@@ -99,6 +99,8 @@ model Agent {
   versions       AgentVersion[]
   testCases      AgentTestCase[]
   testRuns       AgentTestRun[]
+  orchestrationsFrom AgentOrchestration[] @relation("OrchestrationSource")
+  orchestrationsTo   AgentOrchestration[] @relation("OrchestrationTarget")
 
   @@index([userId])
 }
@@ -402,4 +404,19 @@ model WebhookDelivery {
   createdAt    DateTime        @default(now())
 
   @@index([webhookId])
+}
+
+// Agent Orchestration — agent-to-agent handoff rules
+model AgentOrchestration {
+  id              String   @id @default(cuid())
+  sourceAgentId   String
+  sourceAgent     Agent    @relation("OrchestrationSource", fields: [sourceAgentId], references: [id], onDelete: Cascade)
+  targetAgentId   String
+  targetAgent     Agent    @relation("OrchestrationTarget", fields: [targetAgentId], references: [id], onDelete: Cascade)
+  condition       String   @db.Text // Keyword oder Bedingung für Handoff
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  @@index([sourceAgentId])
+  @@index([targetAgentId])
 }

@@ -488,6 +488,440 @@ function createMcpServer(userId: string) {
     }
   );
 
+  // ── kiln_add_branch ──
+  server.tool(
+    "kiln_add_branch",
+    "Add a prompt branch to an agent. When user messages match keywords, the prompt snippet is injected into the system prompt.",
+    {
+      agentId: z.string().describe("Agent ID"),
+      name: z.string().describe("Branch name (e.g. 'Pricing Questions')"),
+      keywords: z.array(z.string()).describe("Keywords that trigger this branch (case-insensitive)"),
+      promptSnippet: z.string().describe("Prompt text injected when keywords match"),
+    },
+    async ({ agentId, name: branchName, keywords, promptSnippet }) => {
+      const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      const existing = (agent.promptBranches as { name: string; keywords: string[]; promptSnippet: string; enabled: boolean }[] | null) || [];
+      const newBranch = { name: branchName, keywords, promptSnippet, enabled: true };
+      const updated = [...existing, newBranch];
+
+      await prisma.agent.update({ where: { id: agentId }, data: { promptBranches: updated } });
+
+      return ok({
+        agentId, branchName, keywords, totalBranches: updated.length,
+        message: `Branch "${branchName}" added with ${keywords.length} keywords.`,
+      });
+    }
+  );
+
+  // ── kiln_set_white_label ──
+  server.tool(
+    "kiln_set_white_label",
+    "Configure white-label branding for an agent: primary color, logo URL, and badge visibility.",
+    {
+      agentId: z.string().describe("Agent ID"),
+      primaryColor: z.string().optional().describe("Hex color (e.g. '#F97316')"),
+      logoUrl: z.string().optional().describe("URL to logo image"),
+      hideBadge: z.boolean().optional().describe("Hide 'Powered by KILN' badge (Pro/Agency only)"),
+    },
+    async ({ agentId, primaryColor, logoUrl, hideBadge }) => {
+      const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      const currentWl = (agent.whiteLabel as Record<string, unknown>) || {};
+      const data: Record<string, unknown> = {};
+
+      if (primaryColor || logoUrl) {
+        data.whiteLabel = {
+          ...currentWl,
+          ...(primaryColor ? { primaryColor } : {}),
+          ...(logoUrl ? { logo: logoUrl } : {}),
+        };
+      }
+      if (hideBadge !== undefined) {
+        data.showPoweredBy = !hideBadge;
+      }
+
+      const updated = await prisma.agent.update({ where: { id: agentId }, data });
+
+      return ok({
+        agentId, whiteLabel: updated.whiteLabel, showPoweredBy: updated.showPoweredBy,
+        message: "White-label settings updated.",
+      });
+    }
+  );
+
+  // ── kiln_add_action ──
+  server.tool(
+    "kiln_add_action",
+    "Enable and configure a pre-built action on an agent (appointment booking, email collection, lead scoring, custom code, etc.).",
+    {
+      agentId: z.string().describe("Agent ID"),
+      type: z.enum(["BOOK_APPOINTMENT", "COLLECT_EMAIL", "SCORE_LEAD", "CUSTOM_CODE", "SEND_EMAIL", "NOTIFY_OWNER", "FIRE_WEBHOOK", "HANDOFF_HUMAN"]).describe("Action type"),
+      config: z.record(z.unknown()).optional().describe("Action config (e.g. { calendlyUrl, emailTemplate, webhookUrl, code })"),
+    },
+    async ({ agentId, type, config }) => {
+      const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      const action = await prisma.agentAction.upsert({
+        where: { agentId_type: { agentId, type } },
+        create: { agentId, type, enabled: true, config: config ? JSON.parse(JSON.stringify(config)) : undefined },
+        update: { enabled: true, config: config ? JSON.parse(JSON.stringify(config)) : undefined },
+      });
+
+      return ok({
+        id: action.id, agentId, type: action.type, enabled: action.enabled,
+        message: `Action "${type}" enabled on agent.`,
+      });
+    }
+  );
+
+  // ── kiln_create_test ──
+  server.tool(
+    "kiln_create_test",
+    "Create a test case for an agent. Tests check if the agent's response contains expected keywords.",
+    {
+      agentId: z.string().describe("Agent ID"),
+      name: z.string().describe("Test case name"),
+      inputMessage: z.string().describe("Message to send to the agent"),
+      expectedKeywords: z.array(z.string()).describe("Keywords the response must contain to pass"),
+    },
+    async ({ agentId, name: testName, inputMessage, expectedKeywords }) => {
+      const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      const count = await prisma.agentTestCase.count({ where: { agentId } });
+      if (count >= 50) return err("Maximum 50 test cases per agent.");
+
+      const testCase = await prisma.agentTestCase.create({
+        data: { agentId, name: testName, inputMessage, expectedKeywords },
+      });
+
+      return ok({
+        id: testCase.id, name: testCase.name, inputMessage, expectedKeywords,
+        message: `Test case "${testName}" created. Run with kiln_run_tests.`,
+      });
+    }
+  );
+
+  // ── kiln_run_tests ──
+  server.tool(
+    "kiln_run_tests",
+    "Execute all test cases for an agent. Sends each input to the LLM and checks for expected keywords. Returns pass/fail score.",
+    {
+      agentId: z.string().describe("Agent ID"),
+    },
+    async ({ agentId }) => {
+      const agent = await prisma.agent.findFirst({
+        where: { id: agentId, userId },
+        include: { knowledgeBases: { where: { embeddingStatus: "READY" } } },
+      });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      const testCases = await prisma.agentTestCase.findMany({ where: { agentId } });
+      if (testCases.length === 0) return err("No test cases found. Create tests with kiln_create_test first.");
+
+      // BYOK
+      const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+      const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "anthropic";
+      let userApiKey: string | null = null;
+      try {
+        const apiKeyRecord = await prisma.apiKey.findUnique({
+          where: { userId_provider: { userId, provider: modelProvider } },
+        });
+        if (apiKeyRecord) userApiKey = decrypt(apiKeyRecord.encryptedKey);
+      } catch { /* fallback */ }
+
+      const results: { name: string; result: string; matchedKeywords: string[]; missedKeywords: string[] }[] = [];
+      let passed = 0;
+
+      for (const tc of testCases) {
+        // RAG context
+        let systemPrompt = agent.systemPrompt;
+        if (agent.knowledgeBases.length > 0) {
+          try {
+            const chunks = await searchRelevantChunks(agentId, tc.inputMessage, 5);
+            if (chunks.length > 0) {
+              systemPrompt += "\n\n---\nRELEVANT KNOWLEDGE:\n" +
+                chunks.map((c, i) => `[${i + 1}] ${c.content}`).join("\n\n");
+            }
+          } catch { /* skip RAG */ }
+        }
+
+        let responseText = "";
+        try {
+          if (modelProvider === "openai") {
+            const openai = new OpenAI({ apiKey: userApiKey || process.env.OPENAI_API_KEY });
+            const resp = await openai.chat.completions.create({
+              model: selectedModel, max_tokens: 1024,
+              messages: [{ role: "system", content: systemPrompt }, { role: "user", content: tc.inputMessage }],
+            });
+            responseText = resp.choices[0]?.message?.content || "";
+          } else {
+            const client = userApiKey ? getClaudeClientWithKey(userApiKey) : getClaudeClient();
+            const resp = await client.messages.create({
+              model: selectedModel, max_tokens: 1024,
+              system: systemPrompt,
+              messages: [{ role: "user", content: tc.inputMessage }],
+            });
+            for (const block of resp.content) {
+              if (block.type === "text") responseText += block.text;
+            }
+          }
+        } catch (e) {
+          responseText = `[ERROR] ${e instanceof Error ? e.message : "LLM call failed"}`;
+        }
+
+        const keywords = tc.expectedKeywords as string[];
+        const lower = responseText.toLowerCase();
+        const matched = keywords.filter((kw) => lower.includes(kw.toLowerCase()));
+        const missed = keywords.filter((kw) => !lower.includes(kw.toLowerCase()));
+        const pass = missed.length === 0;
+        if (pass) passed++;
+
+        results.push({ name: tc.name, result: pass ? "PASS" : "FAIL", matchedKeywords: matched, missedKeywords: missed });
+
+        // Update test case with result
+        prisma.agentTestCase.update({
+          where: { id: tc.id },
+          data: { lastResult: pass ? "PASS" : "FAIL", lastResponse: responseText.slice(0, 2000), lastRunAt: new Date() },
+        }).catch(() => {});
+      }
+
+      const score = testCases.length > 0 ? passed / testCases.length : 0;
+
+      // Save test run
+      prisma.agentTestRun.create({
+        data: { agentId, totalTests: testCases.length, passed, failed: testCases.length - passed, score },
+      }).catch(() => {});
+
+      return ok({
+        agentId, totalTests: testCases.length, passed, failed: testCases.length - passed,
+        score: Math.round(score * 100) + "%",
+        results,
+      });
+    }
+  );
+
+  // ── kiln_get_embed_code ──
+  server.tool(
+    "kiln_get_embed_code",
+    "Get the embed code (script tag) and public URL for an agent's chat widget.",
+    {
+      agentId: z.string().describe("Agent ID"),
+    },
+    async ({ agentId }) => {
+      const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln-topaz.vercel.app";
+      const publicUrl = `${baseUrl}/embed/${agent.slug}`;
+      const scriptTag = `<script src="${baseUrl}/api/embed/${agent.slug}" async></script>`;
+      const iframeTag = `<iframe src="${publicUrl}" width="400" height="600" frameborder="0"></iframe>`;
+
+      return ok({
+        agentId, slug: agent.slug, status: agent.status,
+        publicUrl, scriptTag, iframeTag,
+        message: agent.status !== "LIVE"
+          ? `Warning: Agent is ${agent.status}. Deploy with kiln_deploy_agent to make it accessible.`
+          : "Agent is live. Use the script tag or iframe to embed.",
+      });
+    }
+  );
+
+  // ── kiln_set_memory ──
+  server.tool(
+    "kiln_set_memory",
+    "Toggle persistent memory for an agent. When enabled, the agent remembers user details across conversations.",
+    {
+      agentId: z.string().describe("Agent ID"),
+      enabled: z.boolean().describe("Enable or disable persistent memory"),
+    },
+    async ({ agentId, enabled }) => {
+      const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      await prisma.agent.update({ where: { id: agentId }, data: { memoryEnabled: enabled } });
+
+      return ok({
+        agentId, memoryEnabled: enabled,
+        message: enabled
+          ? "Persistent memory enabled. The agent will remember user details across conversations."
+          : "Persistent memory disabled. The agent will no longer persist user details.",
+      });
+    }
+  );
+
+  // ── kiln_add_custom_tool ──
+  server.tool(
+    "kiln_add_custom_tool",
+    "Add a custom HTTP API tool to an agent. The agent can call this tool during conversations to fetch external data.",
+    {
+      agentId: z.string().describe("Agent ID"),
+      name: z.string().describe("Tool name (will be converted to snake_case)"),
+      description: z.string().describe("When the agent should use this tool"),
+      method: z.enum(["GET", "POST", "PUT", "DELETE"]).describe("HTTP method"),
+      url: z.string().describe("Endpoint URL (supports {{variable}} placeholders)"),
+      headers: z.record(z.string()).optional().describe("HTTP headers"),
+      bodyTemplate: z.string().optional().describe("JSON body template with {{variable}} placeholders"),
+    },
+    async ({ agentId, name: toolName, description: toolDesc, method, url, headers, bodyTemplate }) => {
+      const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      const sanitizedName = toolName.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+
+      const tool = await prisma.agentCustomTool.create({
+        data: {
+          agentId, name: sanitizedName, description: toolDesc,
+          method, url, headers: headers || undefined,
+          bodyTemplate: bodyTemplate || null, enabled: true,
+        },
+      });
+
+      return ok({
+        id: tool.id, name: tool.name, method, url,
+        message: `Custom tool "${sanitizedName}" added. The agent will use it when: ${toolDesc}`,
+      });
+    }
+  );
+
+  // ── kiln_add_custom_code ──
+  server.tool(
+    "kiln_add_custom_code",
+    "Add a CUSTOM_CODE action to an agent. The code runs in a sandboxed environment when triggered during conversation.",
+    {
+      agentId: z.string().describe("Agent ID"),
+      description: z.string().describe("What the custom code does"),
+      code: z.string().describe("JavaScript code to execute (sandboxed, 5s timeout)"),
+    },
+    async ({ agentId, description: codeDesc, code }) => {
+      const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      const action = await prisma.agentAction.upsert({
+        where: { agentId_type: { agentId, type: "CUSTOM_CODE" } },
+        create: { agentId, type: "CUSTOM_CODE", enabled: true, config: { description: codeDesc, code } },
+        update: { enabled: true, config: { description: codeDesc, code } },
+      });
+
+      return ok({
+        id: action.id, type: "CUSTOM_CODE", enabled: true,
+        message: `Custom code action configured: ${codeDesc}`,
+      });
+    }
+  );
+
+  // ── kiln_get_conversations ──
+  server.tool(
+    "kiln_get_conversations",
+    "Retrieve conversation logs for an agent with messages, lead scores, and visitor info.",
+    {
+      agentId: z.string().describe("Agent ID"),
+      limit: z.number().optional().describe("Max conversations to return (default 20, max 100)"),
+      minScore: z.number().optional().describe("Filter by minimum lead score (1-10)"),
+    },
+    async ({ agentId, limit, minScore }) => {
+      const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      const take = Math.min(limit || 20, 100);
+      const where: Record<string, unknown> = { agentId };
+      if (minScore) where.leadScore = { gte: minScore };
+
+      const conversations = await prisma.conversation.findMany({
+        where,
+        include: {
+          messages: { orderBy: { createdAt: "asc" }, take: 20 },
+        },
+        orderBy: { createdAt: "desc" },
+        take,
+      });
+
+      return ok({
+        agentId, total: conversations.length,
+        conversations: conversations.map((c) => ({
+          id: c.id, sessionId: c.sessionId,
+          leadScore: c.leadScore, sentiment: c.sentiment,
+          visitorName: c.visitorName, visitorEmail: c.visitorEmail,
+          channel: c.channel, actionsUsed: c.actionsUsed,
+          messageCount: c.messages.length,
+          messages: c.messages.map((m) => ({
+            role: m.role, content: m.content.slice(0, 500),
+            createdAt: m.createdAt.toISOString(),
+          })),
+          createdAt: c.createdAt.toISOString(),
+        })),
+      });
+    }
+  );
+
+  // ── kiln_get_leads ──
+  server.tool(
+    "kiln_get_leads",
+    "Get collected leads for an agent with email, name, score, and conversation context.",
+    {
+      agentId: z.string().describe("Agent ID"),
+      minScore: z.number().optional().describe("Filter by minimum lead score (1-10)"),
+    },
+    async ({ agentId, minScore }) => {
+      const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      const where: Record<string, unknown> = { agentId };
+      if (minScore) where.score = { gte: minScore };
+
+      const leads = await prisma.lead.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      });
+
+      return ok({
+        agentId, agentName: agent.name, totalLeads: leads.length,
+        leads: leads.map((l) => ({
+          id: l.id, email: l.email, name: l.name,
+          score: l.score, context: l.context,
+          createdAt: l.createdAt.toISOString(),
+        })),
+      });
+    }
+  );
+
+  // ── kiln_orchestrate ──
+  server.tool(
+    "kiln_orchestrate",
+    "Define an agent-to-agent handoff rule. When the condition matches in the source agent's conversation, it triggers a handoff to the target agent.",
+    {
+      sourceAgentId: z.string().describe("Source agent ID (the agent that detects the condition)"),
+      targetAgentId: z.string().describe("Target agent ID (the agent that takes over)"),
+      condition: z.string().describe("Condition description or keywords that trigger the handoff"),
+    },
+    async ({ sourceAgentId, targetAgentId, condition }) => {
+      const [source, target] = await Promise.all([
+        prisma.agent.findFirst({ where: { id: sourceAgentId, userId } }),
+        prisma.agent.findFirst({ where: { id: targetAgentId, userId } }),
+      ]);
+      if (!source) return err("Source agent not found or unauthorized.");
+      if (!target) return err("Target agent not found or unauthorized.");
+      if (sourceAgentId === targetAgentId) return err("Source and target agent cannot be the same.");
+
+      const rule = await prisma.agentOrchestration.create({
+        data: { sourceAgentId, targetAgentId, condition, enabled: true },
+      });
+
+      return ok({
+        id: rule.id,
+        sourceAgent: { id: source.id, name: source.name },
+        targetAgent: { id: target.id, name: target.name },
+        condition, enabled: true,
+        message: `Handoff rule created: "${source.name}" → "${target.name}" when: ${condition}`,
+      });
+    }
+  );
+
   return server;
 }
 
