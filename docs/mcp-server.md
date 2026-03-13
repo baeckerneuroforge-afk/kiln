@@ -9,16 +9,22 @@ KILN exposes a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) 
 
 ## Setup
 
-### Claude Code
+### Claude Code (CLI)
 
-Add to your `~/.claude/claude_desktop_config.json`:
+Add via command line:
+
+```bash
+claude mcp add --transport http kiln https://kiln-topaz.vercel.app/api/mcp --header "Authorization: Bearer sk-kiln-YOUR_API_KEY"
+```
+
+Or add to your `~/.claude.json` or project `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "kiln": {
       "type": "streamableHttp",
-      "url": "https://your-kiln-domain.com/api/mcp",
+      "url": "https://kiln-topaz.vercel.app/api/mcp",
       "headers": {
         "Authorization": "Bearer sk-kiln-YOUR_API_KEY"
       }
@@ -36,7 +42,7 @@ Add to your Cursor MCP settings (`.cursor/mcp.json` in your project or global co
   "mcpServers": {
     "kiln": {
       "type": "streamableHttp",
-      "url": "https://your-kiln-domain.com/api/mcp",
+      "url": "https://kiln-topaz.vercel.app/api/mcp",
       "headers": {
         "Authorization": "Bearer sk-kiln-YOUR_API_KEY"
       }
@@ -47,7 +53,11 @@ Add to your Cursor MCP settings (`.cursor/mcp.json` in your project or global co
 
 ### Local Development
 
-For local development, use `http://localhost:3000/api/mcp` as the URL.
+For local development:
+
+```bash
+claude mcp add --transport http kiln-local http://localhost:3000/api/mcp --header "Authorization: Bearer sk-kiln-YOUR_API_KEY"
+```
 
 ## Available Tools
 

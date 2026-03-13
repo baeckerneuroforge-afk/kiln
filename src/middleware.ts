@@ -26,7 +26,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/waitlist",          // Waitlist Signup
   "/api/webhooks/stripe",   // Stripe Webhooks
   "/api/v1/(.*)",           // Public API (eigene Key-Auth)
-  "/api/mcp",               // MCP Server (eigene Key-Auth)
+  "/api/mcp(.*)",            // MCP Server (eigene Key-Auth)
   "/api/automations/run",   // Cron-Endpoint (eigene Secret-Auth)
 ]);
 

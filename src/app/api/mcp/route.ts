@@ -1,3 +1,7 @@
+// Next.js route segment config — allow streaming for SSE
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
