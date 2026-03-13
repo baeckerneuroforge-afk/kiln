@@ -423,9 +423,26 @@ model AgentOrchestration {
   condition       String   @db.Text // Keyword oder Bedingung für Handoff
   enabled         Boolean  @default(true)
   createdAt       DateTime @default(now())
+  handoffs        OrchestrationHandoff[]
 
   @@index([sourceAgentId])
   @@index([targetAgentId])
+}
+
+// Orchestration Handoff Log — records each agent-to-agent handoff
+model OrchestrationHandoff {
+  id                    String   @id @default(cuid())
+  orchestrationRuleId   String
+  orchestrationRule     AgentOrchestration @relation(fields: [orchestrationRuleId], references: [id], onDelete: Cascade)
+  sourceAgentId         String
+  targetAgentId         String
+  conversationId        String
+  reason                String   @db.Text // Why the handoff was triggered
+  createdAt             DateTime @default(now())
+
+  @@index([orchestrationRuleId])
+  @@index([sourceAgentId])
+  @@index([conversationId])
 }
 
 // Integration Connections — third-party service connections

@@ -12,6 +12,7 @@ export async function GET() {
       include: {
         sourceAgent: { select: { id: true, name: true, status: true, slug: true } },
         targetAgent: { select: { id: true, name: true, status: true, slug: true } },
+        _count: { select: { handoffs: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -30,7 +31,13 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return Response.json({ connections, agents });
+    // Add handoff counts to connections
+    const connectionsWithCounts = connections.map((c) => ({
+      ...c,
+      handoffCount: c._count.handoffs,
+    }));
+
+    return Response.json({ connections: connectionsWithCounts, agents });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });

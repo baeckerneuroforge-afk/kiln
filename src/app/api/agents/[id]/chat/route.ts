@@ -532,6 +532,201 @@ async function executeTool(
   }
 }
 
+// Evaluate orchestration rules and execute handoff if matched
+async function evaluateOrchestrationHandoff(
+  agentId: string,
+  conversationId: string,
+  lastUserMessage: string,
+  assistantResponse: string,
+  leadScore: number | null,
+  client: Anthropic,
+  model: string,
+): Promise<{ handedOff: boolean; targetResponse?: string }> {
+  try {
+    // Load active orchestration rules for this agent
+    const rules = await prisma.agentOrchestration.findMany({
+      where: { sourceAgentId: agentId, enabled: true },
+      include: {
+        targetAgent: {
+          include: {
+            knowledgeBases: { where: { embeddingStatus: "READY" } },
+            actions: true,
+            customTools: { where: { enabled: true } },
+          },
+        },
+      },
+    });
+
+    if (rules.length === 0) return { handedOff: false };
+
+    // Ask Claude to evaluate which rule (if any) matches
+    const rulesDescription = rules.map((r, i) => `Rule ${i + 1}: "${r.condition}" → Agent "${r.targetAgent.name}"`).join("\n");
+
+    const evalResponse = await client.messages.create({
+      model: model || "claude-sonnet-4-20250514",
+      max_tokens: 256,
+      system: `You evaluate orchestration handoff rules. Given a conversation context, determine if any rule should trigger.
+Return ONLY a JSON object: {"ruleIndex": <number or null>, "reason": "<brief reason>"}
+ruleIndex is 1-based. Return null if no rule matches. Be conservative — only trigger when the condition is clearly met.`,
+      messages: [{
+        role: "user",
+        content: `Conversation context:
+- Last user message: "${lastUserMessage}"
+- Assistant response: "${assistantResponse.slice(0, 500)}"
+- Lead score: ${leadScore ?? "unknown"}
+
+Available rules:
+${rulesDescription}
+
+Which rule (if any) should trigger?`,
+      }],
+    });
+
+    const evalText = evalResponse.content[0]?.type === "text" ? evalResponse.content[0].text : "";
+    const jsonMatch = evalText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return { handedOff: false };
+
+    const evalResult = JSON.parse(jsonMatch[0]) as { ruleIndex: number | null; reason: string };
+    if (!evalResult.ruleIndex || evalResult.ruleIndex < 1 || evalResult.ruleIndex > rules.length) {
+      return { handedOff: false };
+    }
+
+    const matchedRule = rules[evalResult.ruleIndex - 1];
+    const targetAgent = matchedRule.targetAgent;
+
+    // Log the handoff
+    await prisma.orchestrationHandoff.create({
+      data: {
+        orchestrationRuleId: matchedRule.id,
+        sourceAgentId: agentId,
+        targetAgentId: targetAgent.id,
+        conversationId,
+        reason: evalResult.reason || matchedRule.condition,
+      },
+    });
+
+    // Transfer conversation to target agent: load history, build target prompt, call Claude
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+    });
+
+    if (!conversation) return { handedOff: false };
+
+    // Update conversation to point to new agent
+    await prisma.conversation.update({
+      where: { id: conversationId },
+      data: { agentId: targetAgent.id },
+    });
+
+    // Build target agent's system prompt
+    const now = new Date();
+    let targetPrompt = targetAgent.systemPrompt
+      .replace(/\{\{agent\.name\}\}/g, targetAgent.name)
+      .replace(/\{\{current\.time\}\}/g, now.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }))
+      .replace(/\{\{current\.date\}\}/g, now.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }))
+      .replace(/\{\{user\.name\}\}/g, conversation.visitorName || "Unknown")
+      .replace(/\{\{user\.email\}\}/g, conversation.visitorEmail || "Unknown")
+      .replace(/\{\{knowledge\.context\}\}/g, "");
+
+    // RAG for target agent
+    if (targetAgent.knowledgeBases.length > 0) {
+      try {
+        const ragChunks = await searchRelevantChunks(targetAgent.id, lastUserMessage, 5);
+        if (ragChunks.length > 0) {
+          const ragContext = "\n\n---\nRELEVANT KNOWLEDGE FROM THE KNOWLEDGE BASE:\n" +
+            ragChunks.map((c, i) => `[${i + 1}] ${c.content}`).join("\n\n") +
+            "\n---\nUse the above knowledge to answer the question.";
+          targetPrompt += ragContext;
+        }
+      } catch { /* continue without RAG */ }
+    }
+
+    // Add handoff context
+    targetPrompt += `\n\nIMPORTANT: This conversation was seamlessly handed off to you from another agent. The user does not know about the handoff. Continue the conversation naturally without mentioning any transfer or handoff. Reason for handoff: ${evalResult.reason}`;
+
+    // Load memory for target agent
+    const sessionHash = hashSession(conversation.sessionId);
+    if (targetAgent.memoryEnabled) {
+      try {
+        const memories = await prisma.agentMemory.findMany({
+          where: { agentId: targetAgent.id, sessionHash },
+          orderBy: { updatedAt: "desc" },
+        });
+        if (memories.length > 0) {
+          targetPrompt += "\n\n---\nWHAT YOU REMEMBER ABOUT THIS USER:\n" +
+            memories.map((m) => `- ${m.key}: ${m.value}`).join("\n") +
+            "\n---\nUse these memories to personalize your responses.";
+        }
+      } catch { /* continue */ }
+    }
+
+    // Load recent messages
+    const recentMessages = await prisma.message.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: "asc" },
+      take: 20,
+    });
+
+    const targetMessages: Anthropic.MessageParam[] = recentMessages.map((m) => ({
+      role: m.role === "USER" ? "user" as const : "assistant" as const,
+      content: m.content,
+    }));
+
+    // Get Claude client for target agent (BYOK)
+    const targetModel = targetAgent.llmModel || "claude-sonnet-4-20250514";
+    const targetProvider = MODEL_PROVIDER_MAP[targetModel] || "anthropic";
+    let targetClient: Anthropic;
+
+    if (targetProvider === "anthropic") {
+      try {
+        const apiKeyRecord = await prisma.apiKey.findUnique({
+          where: { userId_provider: { userId: targetAgent.userId, provider: "anthropic" } },
+        });
+        if (apiKeyRecord) {
+          targetClient = getClaudeClientWithKey(decrypt(apiKeyRecord.encryptedKey));
+        } else {
+          targetClient = getClaudeClient();
+        }
+      } catch {
+        targetClient = getClaudeClient();
+      }
+    } else {
+      targetClient = getClaudeClient();
+    }
+
+    // Call target agent's Claude
+    const targetResponse = await targetClient.messages.create({
+      model: targetProvider === "anthropic" ? targetModel : "claude-sonnet-4-20250514",
+      max_tokens: 2048,
+      system: targetPrompt,
+      messages: targetMessages,
+    });
+
+    const targetText = targetResponse.content
+      .filter((block): block is Anthropic.TextBlock => block.type === "text")
+      .map((block) => block.text)
+      .join("\n\n");
+
+    if (targetText) {
+      // Save the target agent's response
+      await prisma.message.create({
+        data: {
+          conversationId,
+          role: "ASSISTANT",
+          content: targetText,
+        },
+      });
+
+      return { handedOff: true, targetResponse: targetText };
+    }
+
+    return { handedOff: false };
+  } catch (err) {
+    console.error("Orchestration handoff error:", err);
+    return { handedOff: false };
+  }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -1019,6 +1214,35 @@ export async function POST(
             actionsUsed,
             responseLength: fullAssistantText.length,
           });
+
+          // Orchestration: Check handoff rules after response
+          if (fullAssistantText && anthropicClient) {
+            const lastMsg = messages.filter((m: { role: string }) => m.role === "user").pop();
+            const lastUserText = lastMsg ? extractTextContent(lastMsg.content) : "";
+
+            // Get current lead score from conversation
+            const convData = await prisma.conversation.findUnique({
+              where: { id: conversationId },
+              select: { leadScore: true },
+            });
+
+            const handoff = await evaluateOrchestrationHandoff(
+              params.id,
+              conversationId,
+              lastUserText,
+              fullAssistantText,
+              convData?.leadScore ?? null,
+              anthropicClient,
+              selectedModel.startsWith("claude") ? selectedModel : "claude-sonnet-4-20250514",
+            );
+
+            if (handoff.handedOff && handoff.targetResponse) {
+              // Stream the target agent's response seamlessly
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ text: "\n\n" + handoff.targetResponse })}\n\n`)
+              );
+            }
+          }
 
           // Persistent Memory: Nach 3+ Nachrichten Fakten extrahieren
           if (agent.memoryEnabled && claudeMessages.length >= 3 && anthropicClient) {

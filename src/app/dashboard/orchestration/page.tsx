@@ -38,6 +38,7 @@ import {
   Split,
   X,
   MessageSquare,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/toast";
@@ -59,6 +60,7 @@ interface OrchConnection {
   targetAgentId: string;
   condition: string;
   enabled: boolean;
+  handoffCount?: number;
   sourceAgent: { id: string; name: string; status: string; slug: string };
   targetAgent: { id: string; name: string; status: string; slug: string };
 }
@@ -295,6 +297,15 @@ export default function OrchestrationPage() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [creatingTemplate, setCreatingTemplate] = useState<string | null>(null);
 
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<{
+    totalHandoffs: number;
+    handoffsLast30Days: number;
+    routes: { ruleId: string; sourceName: string; targetName: string; condition: string; count: number }[];
+    avgHandoffsPerConversation: number;
+  } | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([] as Node[]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([] as Edge[]);
 
@@ -310,6 +321,20 @@ export default function OrchestrationPage() {
       toast("Failed to load orchestration data", "error");
     } finally {
       setLoading(false);
+    }
+  }, [toast]);
+
+  const loadAnalytics = useCallback(async () => {
+    setAnalyticsLoading(true);
+    try {
+      const res = await fetch("/api/orchestration/analytics");
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setAnalyticsData(data);
+    } catch {
+      toast("Failed to load analytics", "error");
+    } finally {
+      setAnalyticsLoading(false);
     }
   }, [toast]);
 
@@ -331,20 +356,24 @@ export default function OrchestrationPage() {
       },
     }));
 
-    const connectionEdges: Edge[] = connections.map((conn) => ({
-      id: conn.id,
-      source: conn.sourceAgentId,
-      target: conn.targetAgentId,
-      label: conn.condition || undefined,
-      type: "smoothstep",
-      animated: conn.enabled,
-      style: makeEdgeStyle(conn.enabled),
-      labelStyle: { fill: "hsl(0, 0%, 64%)", fontSize: 10, fontWeight: 500 },
-      labelBgStyle: { fill: "hsl(12, 6%, 7%)", fillOpacity: 0.92 },
-      labelBgPadding: [8, 4] as [number, number],
-      labelBgBorderRadius: 6,
-      markerEnd: makeEdgeMarker(conn.enabled),
-    }));
+    const connectionEdges: Edge[] = connections.map((conn) => {
+      const countLabel = conn.handoffCount ? ` (${conn.handoffCount})` : "";
+      const label = (conn.condition || "") + countLabel || undefined;
+      return {
+        id: conn.id,
+        source: conn.sourceAgentId,
+        target: conn.targetAgentId,
+        label,
+        type: "smoothstep",
+        animated: conn.enabled,
+        style: makeEdgeStyle(conn.enabled),
+        labelStyle: { fill: "hsl(0, 0%, 64%)", fontSize: 10, fontWeight: 500 },
+        labelBgStyle: { fill: "hsl(12, 6%, 7%)", fillOpacity: 0.92 },
+        labelBgPadding: [8, 4] as [number, number],
+        labelBgBorderRadius: 6,
+        markerEnd: makeEdgeMarker(conn.enabled),
+      };
+    });
 
     setNodes(agentNodes);
     setEdges(connectionEdges);
@@ -628,6 +657,18 @@ export default function OrchestrationPage() {
             )}
           </div>
 
+          {/* Analytics toggle */}
+          <button
+            onClick={() => { setShowAnalytics(!showAnalytics); if (!showAnalytics && !analyticsData) loadAnalytics(); }}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted",
+              showAnalytics ? "bg-muted text-foreground" : "text-muted-foreground"
+            )}
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Analytics</span>
+          </button>
+
           {/* Advanced mode badge */}
           {advancedMode && (
             <span className="flex items-center gap-1 rounded-full bg-purple-500/10 px-2.5 py-1 text-[10px] font-semibold text-purple-400">
@@ -637,6 +678,73 @@ export default function OrchestrationPage() {
           )}
         </div>
       </div>
+
+      {/* Analytics Panel */}
+      {showAnalytics && (
+        <div className="border-b border-border bg-card/50 px-4 py-4 lg:px-6">
+          {analyticsLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : analyticsData ? (
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-kiln-orange" />
+                <h3 className="text-sm font-semibold text-foreground">Orchestration Analytics</h3>
+              </div>
+
+              {/* KPI cards */}
+              <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-lg border border-border bg-background p-3">
+                  <p className="text-[10px] font-medium text-muted-foreground">Total Handoffs</p>
+                  <p className="mt-1 text-xl font-bold text-foreground">{analyticsData.totalHandoffs}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-background p-3">
+                  <p className="text-[10px] font-medium text-muted-foreground">Last 30 Days</p>
+                  <p className="mt-1 text-xl font-bold text-foreground">{analyticsData.handoffsLast30Days}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-background p-3">
+                  <p className="text-[10px] font-medium text-muted-foreground">Active Routes</p>
+                  <p className="mt-1 text-xl font-bold text-foreground">{connections.filter((c) => c.enabled).length}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-background p-3">
+                  <p className="text-[10px] font-medium text-muted-foreground">Avg per Conversation</p>
+                  <p className="mt-1 text-xl font-bold text-foreground">{analyticsData.avgHandoffsPerConversation}</p>
+                </div>
+              </div>
+
+              {/* Most active routes */}
+              {analyticsData.routes.length > 0 && (
+                <div>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Most Active Routes</p>
+                  <div className="space-y-1.5">
+                    {analyticsData.routes.slice(0, 5).map((route) => (
+                      <div key={route.ruleId} className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <Bot className="h-3.5 w-3.5 text-kiln-orange" />
+                          <span className="font-medium text-foreground">{route.sourceName}</span>
+                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                          <Bot className="h-3.5 w-3.5 text-kiln-orange" />
+                          <span className="font-medium text-foreground">{route.targetName}</span>
+                        </div>
+                        <span className="ml-auto rounded-full bg-kiln-orange/10 px-2 py-0.5 text-[10px] font-semibold text-kiln-orange">
+                          {route.count} handoff{route.count !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {analyticsData.totalHandoffs === 0 && (
+                <p className="text-center text-xs text-muted-foreground py-2">
+                  No handoffs yet. Handoffs happen automatically when orchestration conditions are met during conversations.
+                </p>
+              )}
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {/* Canvas */}
       <div className="relative flex-1">
@@ -774,12 +882,20 @@ export default function OrchestrationPage() {
                   </div>
                 </div>
 
-                {/* Status */}
+                {/* Status + Handoff count */}
                 <div className="mb-5">
                   <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</label>
-                  <div className="flex items-center gap-2">
-                    <div className={cn("h-2 w-2 rounded-full", selectedConn.enabled ? "bg-kiln-green" : "bg-muted-foreground")} />
-                    <span className="text-xs text-foreground">{selectedConn.enabled ? "Active" : "Disabled"}</span>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <div className={cn("h-2 w-2 rounded-full", selectedConn.enabled ? "bg-kiln-green" : "bg-muted-foreground")} />
+                      <span className="text-xs text-foreground">{selectedConn.enabled ? "Active" : "Disabled"}</span>
+                    </div>
+                    {(selectedConn.handoffCount ?? 0) > 0 && (
+                      <div className="flex items-center gap-1.5 rounded-full bg-kiln-orange/10 px-2.5 py-0.5">
+                        <ArrowRight className="h-3 w-3 text-kiln-orange" />
+                        <span className="text-[10px] font-semibold text-kiln-orange">{selectedConn.handoffCount} handoff{selectedConn.handoffCount !== 1 ? "s" : ""}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
