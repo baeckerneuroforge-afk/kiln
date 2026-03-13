@@ -1088,7 +1088,11 @@ export default function AgentDetailPage() {
                       ? `${window.location.origin}/a/${agent.slug}`
                       : `/a/${agent.slug}`}
                   </div>
-                  <Button size="sm" variant="outline">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.open(`/a/${agent.slug}`, "_blank")}
+                  >
                     <Globe className="mr-2 h-3.5 w-3.5" />
                     Open
                   </Button>

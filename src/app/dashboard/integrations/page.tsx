@@ -27,6 +27,8 @@ import {
   Shield,
   ExternalLink,
   ArrowRight,
+  Clock,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/toast";
@@ -280,6 +282,8 @@ export default function IntegrationsPage() {
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [waitlistEmail, setWaitlistEmail] = useState<Record<string, string>>({});
+  const [waitlistSubmitted, setWaitlistSubmitted] = useState<Set<string>>(new Set());
 
   const loadData = useCallback(async () => {
     try {
@@ -510,10 +514,11 @@ export default function IntegrationsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filteredCatalog.map((item) => {
           const isConnected = connectedProviders.has(item.provider);
+          const isSubmitted = waitlistSubmitted.has(item.provider);
           return (
-            <div key={item.provider} className={cn("card-hover-lift relative overflow-hidden rounded-xl border border-t-2 p-4 transition-all", item.accent, isConnected ? "bg-card" : "bg-card")}>
+            <div key={item.provider} className={cn("relative overflow-hidden rounded-xl border border-t-2 p-4 transition-all", item.accent, isConnected ? "card-hover-lift bg-card" : "bg-card/60")}>
               <div className="mb-3 flex items-center justify-between">
-                <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-md", item.color)}>
+                <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-md", item.color, !isConnected && "opacity-70")}>
                   <item.icon className="h-5 w-5" />
                 </div>
                 {isConnected ? (
@@ -522,9 +527,9 @@ export default function IntegrationsPage() {
                     Connected
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
-                    <Circle className="h-2.5 w-2.5" />
-                    Not connected
+                  <span className="flex items-center gap-1 rounded-full bg-kiln-blue/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-blue">
+                    <Clock className="h-2.5 w-2.5" />
+                    Coming Soon
                   </span>
                 )}
               </div>
@@ -532,11 +537,43 @@ export default function IntegrationsPage() {
               <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.description}</p>
               <span className="mt-2 inline-block rounded-full bg-muted px-2 py-0.5 text-[9px] font-medium text-muted-foreground">{item.category}</span>
               {!isConnected && (
-                <button onClick={() => setConnectingProvider(item)}
-                  className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-all hover:border-kiln-orange/40 hover:bg-kiln-orange/5 hover:text-kiln-orange hover:shadow-[0_0_0_1px_hsl(24_95%_53%/0.15)]">
-                  <Plug className="h-3.5 w-3.5" />
-                  Connect
-                </button>
+                isSubmitted ? (
+                  <div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-kiln-green/30 bg-kiln-green/5 px-3 py-2 text-xs font-medium text-kiln-green">
+                    <Bell className="h-3.5 w-3.5" />
+                    We&apos;ll notify you!
+                  </div>
+                ) : (
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const email = waitlistEmail[item.provider]?.trim();
+                      if (!email) return;
+                      try {
+                        await fetch("/api/waitlist", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ email, source: `integration-${item.provider}` }),
+                        });
+                      } catch { /* silent */ }
+                      setWaitlistSubmitted((prev) => new Set(prev).add(item.provider));
+                    }}
+                    className="mt-3 flex gap-1.5"
+                  >
+                    <input
+                      type="email"
+                      placeholder={`Get notified when ${item.name} is available`}
+                      value={waitlistEmail[item.provider] || ""}
+                      onChange={(e) => setWaitlistEmail((prev) => ({ ...prev, [item.provider]: e.target.value }))}
+                      className="flex-1 min-w-0 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:border-kiln-orange focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      className="shrink-0 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      Notify me
+                    </button>
+                  </form>
+                )
               )}
             </div>
           );

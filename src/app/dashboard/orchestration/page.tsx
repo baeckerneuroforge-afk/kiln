@@ -167,6 +167,7 @@ function AdvancedNodeShell({
           className={cn("!-right-[7px] !h-3.5 !w-3.5 !rounded-full !border-2 !bg-background transition-all", handleColor)}
         />
       )}
+      <span className="absolute -top-2 right-2 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[7px] font-bold text-amber-400">BETA</span>
       {children}
     </div>
   );
@@ -789,11 +790,17 @@ export default function OrchestrationPage() {
             zoomable
           />
 
-          {/* Advanced Mode: Node palette */}
+          {/* Advanced Mode: Node palette with Beta badge */}
           {advancedMode && (
             <Panel position="top-left" className="!m-3">
               <div className="rounded-xl border border-border bg-card/90 p-2 shadow-xl backdrop-blur-sm">
-                <p className="mb-2 px-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Add Nodes</p>
+                <div className="mb-2 flex items-center justify-between px-2">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Add Nodes</p>
+                  <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[8px] font-bold text-amber-400">BETA</span>
+                </div>
+                <p className="mb-2 px-2 text-[9px] text-muted-foreground/70">
+                  Advanced nodes are in beta. Agent-to-agent handoffs are fully functional.
+                </p>
                 <div className="flex flex-col gap-1">
                   {advancedNodePalette.map((item) => (
                     <button
