@@ -196,8 +196,20 @@ export function AnalyticsTab({ agentId }: AnalyticsTabProps) {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between">
+                <div className="skeleton h-4 w-20 rounded" />
+                <div className="skeleton h-8 w-8 rounded-lg" />
+              </div>
+              <div className="skeleton mt-3 h-8 w-16 rounded" />
+            </div>
+          ))}
+        </div>
+        <div className="skeleton h-[340px] w-full rounded-xl" />
+        <div className="skeleton h-64 w-full rounded-xl" />
       </div>
     );
   }
@@ -265,17 +277,21 @@ export function AnalyticsTab({ agentId }: AnalyticsTabProps) {
         ].map((stat) => (
           <div
             key={stat.label}
-            className="rounded-xl border border-border bg-card p-4"
+            className="relative overflow-hidden rounded-xl border border-border bg-card p-4 card-elevated"
           >
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
-              <div className={cn("rounded-lg p-2", stat.bg)}>
-                <stat.icon className={cn("h-4 w-4", stat.color)} />
+            {/* Subtle gradient background */}
+            <div className={cn("absolute inset-0 opacity-[0.03]", stat.bg.replace("/10", ""))} />
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{stat.label}</p>
+                <div className={cn("rounded-lg p-2", stat.bg)}>
+                  <stat.icon className={cn("h-4 w-4", stat.color)} />
+                </div>
               </div>
+              <p className="mt-2 text-2xl font-bold text-foreground">
+                {stat.value}
+              </p>
             </div>
-            <p className="mt-2 text-2xl font-semibold text-foreground">
-              {stat.value}
-            </p>
           </div>
         ))}
       </div>
@@ -486,14 +502,17 @@ export function AnalyticsTab({ agentId }: AnalyticsTabProps) {
               <div>Channel</div>
             </div>
 
-            {filteredLog.map((conv) => {
+            {filteredLog.map((conv, idx) => {
               const isExpanded = expandedConvs.has(conv.id);
               return (
                 <div key={conv.id} className="border-b border-border/50 last:border-0">
                   {/* Row */}
                   <button
                     onClick={() => toggleConversation(conv.id)}
-                    className="grid w-full grid-cols-[24px_1fr_80px_60px_60px_1fr_60px] gap-2 py-2.5 text-left transition-colors hover:bg-muted/30"
+                    className={cn(
+                      "grid w-full grid-cols-[24px_1fr_80px_60px_60px_1fr_60px] gap-2 py-2.5 text-left transition-colors hover:bg-muted/30",
+                      idx % 2 === 0 && "bg-muted/10"
+                    )}
                   >
                     <div className="flex items-center">
                       {isExpanded ? (

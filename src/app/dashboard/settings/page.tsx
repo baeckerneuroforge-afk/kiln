@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/toast";
 
 interface UserPlan {
   plan: "FREE" | "PRO" | "AGENCY" | "ADMIN";
@@ -98,6 +99,7 @@ const plans = [
 ];
 
 function SettingsContent() {
+  const { toast } = useToast();
   const searchParams = useSearchParams();
   const [userPlan, setUserPlan] = useState<UserPlan | null>(null);
   const [loading, setLoading] = useState(true);
@@ -355,6 +357,7 @@ function SettingsContent() {
 
       if (provider === "anthropic") setAnthropicKey("");
       if (provider === "openai") setOpenaiKey("");
+      toast(`${provider === "anthropic" ? "Anthropic" : "OpenAI"} API key saved`);
       setKeySuccess(`${provider === "anthropic" ? "Anthropic" : "OpenAI"} API key saved successfully.`);
       setTimeout(() => setKeySuccess(null), 3000);
     } catch {
@@ -482,8 +485,29 @@ function SettingsContent() {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-8">
+          <div className="skeleton h-9 w-32 rounded-lg" />
+          <div className="skeleton mt-3 h-4 w-64 rounded" />
+        </div>
+        <div className="mb-8 rounded-xl border border-border bg-card p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="skeleton h-6 w-28 rounded" />
+              <div className="skeleton mt-3 h-8 w-20 rounded-full" />
+            </div>
+            <div className="skeleton h-9 w-44 rounded-lg" />
+          </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <div className="skeleton h-14 w-full rounded-lg" />
+            <div className="skeleton h-14 w-full rounded-lg" />
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="skeleton h-64 w-full rounded-xl" />
+          ))}
+        </div>
       </div>
     );
   }

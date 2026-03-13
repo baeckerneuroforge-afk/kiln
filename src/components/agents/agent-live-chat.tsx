@@ -254,7 +254,7 @@ export function AgentLiveChat({
       </div>
 
       {/* Nachrichten */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.map((msg) => (
           <div key={msg.id}>
             <div
@@ -270,10 +270,10 @@ export function AgentLiveChat({
               )}
               <div
                 className={cn(
-                  "max-w-[80%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
+                  "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
                   msg.role === "user"
-                    ? "rounded-br-md bg-primary text-primary-foreground"
-                    : "rounded-bl-md bg-muted/50 text-foreground"
+                    ? "rounded-br-md bg-primary text-primary-foreground shadow-sm"
+                    : "rounded-bl-md bg-secondary/80 text-foreground border border-border/50"
                 )}
               >
                 {/* Image Thumbnail */}
@@ -290,8 +290,10 @@ export function AgentLiveChat({
                 {msg.content ? (
                   <MarkdownMessage content={msg.content} />
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-muted-foreground">
-                    <Loader2 className="h-3 w-3 animate-spin" />
+                  <span className="inline-flex items-center gap-1.5 py-1">
+                    <span className="typing-dot" />
+                    <span className="typing-dot" />
+                    <span className="typing-dot" />
                   </span>
                 )}
               </div>

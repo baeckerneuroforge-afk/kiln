@@ -32,6 +32,7 @@ import {
   FlaskConical,
   AlertTriangle,
   Shield,
+  Bolt,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ import { WebhooksTab } from "@/components/agents/webhooks-tab";
 import { PromptEditor } from "@/components/agents/prompt-editor";
 import { cn } from "@/lib/utils";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
+import { useToast } from "@/components/toast";
 
 interface Agent {
   id: string;
@@ -110,6 +112,7 @@ export default function AgentDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { advancedMode } = useAdvancedMode();
+  const { toast } = useToast();
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("config");
@@ -207,9 +210,12 @@ export default function AgentDetailPage() {
       if (res.ok) {
         const updated = await res.json();
         setAgent({ ...agent, ...updated });
+        toast("Agent saved");
+      } else {
+        toast("Failed to save agent", "error");
       }
     } catch {
-      // Stille Fehlerbehandlung
+      toast("Failed to save agent", "error");
     } finally {
       setSaving(false);
     }
@@ -286,13 +292,43 @@ export default function AgentDetailPage() {
 
   if (loading || !agent) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="mx-auto max-w-6xl">
+        {/* Header skeleton */}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="skeleton h-8 w-8 rounded-lg" />
+            <div className="skeleton h-10 w-10 rounded-lg" />
+            <div>
+              <div className="skeleton h-7 w-48 rounded" />
+              <div className="skeleton mt-1.5 h-4 w-24 rounded" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="skeleton h-9 w-24 rounded-lg" />
+            <div className="skeleton h-9 w-20 rounded-lg" />
+          </div>
+        </div>
+        {/* Tab bar skeleton */}
+        <div className="mb-6 flex gap-1 border-b border-border pb-0.5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="skeleton h-10 w-28 rounded-lg" />
+          ))}
+        </div>
+        {/* Content skeleton */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+          <div className="lg:col-span-3 space-y-5">
+            <div className="skeleton h-10 w-full rounded-lg" />
+            <div className="skeleton h-24 w-full rounded-lg" />
+            <div className="skeleton h-48 w-full rounded-lg" />
+          </div>
+          <div className="lg:col-span-2">
+            <div className="skeleton h-[500px] w-full rounded-xl" />
+          </div>
+        </div>
       </div>
     );
   }
 
-  const visibleTabs = advancedMode ? [...baseTabs, ...advancedTabs] : baseTabs;
   const isFullWidth = fullWidthTabs.includes(activeTab);
   const isDebugTab = activeTab === "debug";
 
@@ -364,25 +400,65 @@ export default function AgentDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 flex items-center gap-1 border-b border-border">
-        {visibleTabs.map((tab) => (
+      <div className="mb-6 flex items-center gap-0.5 overflow-x-auto border-b border-border scrollbar-none">
+        {baseTabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
+              "relative flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium transition-all duration-150",
               activeTab === tab.id
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-              advancedTabs.some((at) => at.id === tab.id) && "text-purple-400 hover:text-purple-300",
-              activeTab === tab.id && advancedTabs.some((at) => at.id === tab.id) && "border-purple-500 text-purple-400"
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <tab.icon className="h-4 w-4" />
-            {tab.label}
+            <tab.icon className={cn("h-4 w-4", activeTab === tab.id && "text-kiln-orange")} />
+            <span className="hidden sm:inline">{tab.label}</span>
+            {activeTab === tab.id && (
+              <div className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-kiln-orange" />
+            )}
           </button>
         ))}
+
+        {advancedMode && (
+          <>
+            <div className="mx-1.5 h-5 w-px bg-border shrink-0" />
+            {advancedTabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "relative flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium transition-all duration-150",
+                  activeTab === tab.id
+                    ? "text-purple-400"
+                    : "text-muted-foreground hover:text-purple-300"
+                )}
+              >
+                <tab.icon className={cn("h-4 w-4", activeTab === tab.id && "text-purple-400")} />
+                <span className="hidden sm:inline">{tab.label}</span>
+                {activeTab === tab.id && (
+                  <div className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-purple-500" />
+                )}
+              </button>
+            ))}
+          </>
+        )}
       </div>
+
+      {/* Unlock Advanced — shown when Advanced Mode is off */}
+      {!advancedMode && activeTab !== "embed" && (
+        <div className="mb-6 flex items-center gap-3 rounded-xl border border-dashed border-purple-500/20 bg-purple-500/5 p-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10 shrink-0">
+            <Bolt className="h-4 w-4 text-purple-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-foreground">Unlock Advanced Features</p>
+            <p className="text-xs text-muted-foreground">
+              Debug, Logs, Memory, Versions, Testing, Webhooks, and Custom Tools — toggle Advanced Mode in the sidebar.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Tab Content */}
       <div className={cn(
