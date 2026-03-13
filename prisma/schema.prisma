@@ -24,9 +24,10 @@ model User {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  agents           Agent[]
-  conversations    Conversation[]
-  referralCredits  ReferralCredit[]
+  agents              Agent[]
+  conversations       Conversation[]
+  referralCredits     ReferralCredit[]
+  marketplaceTemplates MarketplaceTemplate[]
 }
 
 // Referral Credits — tracks rewards for referrers
@@ -526,6 +527,61 @@ model TeamMember {
 enum TeamMemberRole {
   VIEWER
   EDITOR
+}
+
+// Marketplace Templates — published agent templates
+model MarketplaceTemplate {
+  id                  String   @id @default(cuid())
+  authorId            String
+  author              User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorName          String
+  name                String
+  description         String   @db.Text
+  category            String   // Business, Marketing, Support, Sales, etc.
+  price               Float    @default(0) // 0 = Free, otherwise EUR amount
+  agentConfigSnapshot Json     // Sanitized agent config
+  rating              Float    @default(0)
+  ratingCount         Int      @default(0)
+  downloads           Int      @default(0)
+  screenshotUrl       String?
+  isApproved          Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  purchases MarketplacePurchase[]
+  ratings   MarketplaceRating[]
+
+  @@index([authorId])
+  @@index([category])
+  @@index([downloads])
+}
+
+// Marketplace Purchases — one-time template purchases
+model MarketplacePurchase {
+  id                String   @id @default(cuid())
+  userId            String
+  templateId        String
+  template          MarketplaceTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  stripePaymentId   String?
+  amount            Float
+  createdAt         DateTime @default(now())
+
+  @@unique([userId, templateId])
+  @@index([userId])
+  @@index([templateId])
+}
+
+// Marketplace Ratings — user ratings for templates
+model MarketplaceRating {
+  id         String   @id @default(cuid())
+  userId     String
+  templateId String
+  template   MarketplaceTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  rating     Int      // 1-5 stars
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, templateId])
+  @@index([templateId])
 }
 
 // Agent Inbound Webhooks — external services trigger agent processing

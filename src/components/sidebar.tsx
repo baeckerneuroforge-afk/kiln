@@ -16,6 +16,7 @@ import {
   ChevronUp,
   Network,
   Plug,
+  Store,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -186,6 +187,24 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
 
         {/* Bottom Section */}
         <div className="flex flex-col gap-1 px-3 pb-2">
+          {/* Marketplace */}
+          <Link
+            href="/marketplace"
+            onClick={onClose}
+            className={cn(
+              "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
+              pathname === "/marketplace"
+                ? "bg-sidebar-accent text-foreground"
+                : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+            )}
+          >
+            {pathname === "/marketplace" && (
+              <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-kiln-orange" />
+            )}
+            <Store className="h-[18px] w-[18px] shrink-0" />
+            <span>Marketplace</span>
+          </Link>
+
           {/* Settings */}
           <Link
             href="/dashboard/settings"

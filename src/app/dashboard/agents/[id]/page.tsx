@@ -37,6 +37,7 @@ import {
   Radio,
   Lock,
   Users,
+  Store,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -157,6 +158,14 @@ export default function AgentDetailPage() {
   const [cloneIncludeTools, setCloneIncludeTools] = useState(true);
   const [cloneBulkCount, setCloneBulkCount] = useState(1);
   const [cloning, setCloning] = useState(false);
+
+  // Publish to Marketplace modal
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [publishName, setPublishName] = useState("");
+  const [publishDescription, setPublishDescription] = useState("");
+  const [publishCategory, setPublishCategory] = useState("Business");
+  const [publishPrice, setPublishPrice] = useState("");
+  const [publishing, setPublishing] = useState(false);
 
   // Test case pre-fill from logs
   const [testCasePrefill, setTestCasePrefill] = useState<{ input: string; response: string } | null>(null);
@@ -296,6 +305,35 @@ export default function AgentDetailPage() {
     }
   }
 
+  async function handlePublish() {
+    if (!agent || !publishName.trim() || !publishDescription.trim()) return;
+    setPublishing(true);
+    try {
+      const res = await fetch("/api/marketplace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agentId: agent.id,
+          name: publishName.trim(),
+          description: publishDescription.trim(),
+          category: publishCategory,
+          price: publishPrice ? parseFloat(publishPrice) : 0,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setShowPublishModal(false);
+        toast("Published to Marketplace!", "success");
+      } else {
+        toast(data.error || "Failed to publish", "error");
+      }
+    } catch {
+      toast("Failed to publish", "error");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
   // Wenn Advanced ausgeschaltet wird und wir auf einem Advanced-Tab sind → zurück zu config
   useEffect(() => {
     if (!advancedMode && advancedTabs.some((t) => t.id === activeTab)) {
@@ -399,6 +437,22 @@ export default function AgentDetailPage() {
             >
               <CopyPlus className="mr-2 h-3.5 w-3.5" />
               Clone
+            </Button>
+          )}
+          {(userPlan === "PRO" || userPlan === "AGENCY" || userPlan === "ADMIN") && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setPublishName(agent.name);
+                setPublishDescription(agent.description || "");
+                setPublishCategory("Business");
+                setPublishPrice("");
+                setShowPublishModal(true);
+              }}
+            >
+              <Store className="mr-2 h-3.5 w-3.5" />
+              Publish
             </Button>
           )}
           <Button onClick={handleSave} disabled={saving} size="sm">
@@ -1216,6 +1270,100 @@ export default function AgentDetailPage() {
                   <CopyPlus className="mr-1.5 h-3.5 w-3.5" />
                 )}
                 {cloneBulkCount > 1 ? `Clone ${cloneBulkCount} Copies` : "Clone Agent"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Publish to Marketplace Modal */}
+      {showPublishModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowPublishModal(false)}
+          />
+          <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-[#1C1917] p-6 shadow-2xl mx-4">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-foreground">Publish to Marketplace</h3>
+              <button
+                onClick={() => setShowPublishModal(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="mb-4 text-xs text-muted-foreground">
+              Share your agent as a template. Personal data, knowledge base content, and API keys are automatically stripped.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Template Name</label>
+                <input
+                  type="text"
+                  value={publishName}
+                  onChange={(e) => setPublishName(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Description</label>
+                <textarea
+                  value={publishDescription}
+                  onChange={(e) => setPublishDescription(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Category</label>
+                <select
+                  value={publishCategory}
+                  onChange={(e) => setPublishCategory(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+                >
+                  {["Business", "Marketing", "Support", "Sales", "Health", "Education", "Real Estate", "Trades", "Restaurant", "Other"].map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">
+                  Price (EUR)
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">Leave empty for free</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={publishPrice}
+                  onChange={(e) => setPublishPrice(e.target.value)}
+                  placeholder="0 (Free)"
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" size="sm" onClick={() => setShowPublishModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handlePublish}
+                disabled={publishing || !publishName.trim() || !publishDescription.trim()}
+              >
+                {publishing ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Store className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                Publish
               </Button>
             </div>
           </div>

@@ -34,6 +34,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/v1/(.*)",           // Public API (eigene Key-Auth)
   "/api/mcp(.*)",            // MCP Server (eigene Key-Auth)
   "/api/automations/run",   // Cron-Endpoint (eigene Secret-Auth)
+  "/marketplace",            // Public Marketplace
 ]);
 
 export default clerkMiddleware(async (auth, request) => {

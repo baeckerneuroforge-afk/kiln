@@ -38,6 +38,9 @@ import {
   RotateCcw,
   Receipt,
   User,
+  Store,
+  Star,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -101,7 +104,7 @@ const plans = [
   },
 ];
 
-type SettingsTab = "profile" | "billing" | "api-keys" | "webhooks" | "referral" | "danger";
+type SettingsTab = "profile" | "billing" | "api-keys" | "webhooks" | "referral" | "templates" | "danger";
 
 const settingsTabs: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
   { id: "profile", label: "Profile", icon: User },
@@ -109,6 +112,7 @@ const settingsTabs: { id: SettingsTab; label: string; icon: React.ElementType }[
   { id: "api-keys", label: "API Keys", icon: Key },
   { id: "webhooks", label: "Webhooks", icon: Webhook },
   { id: "referral", label: "Referral", icon: Gift },
+  { id: "templates", label: "My Templates", icon: Store },
   { id: "danger", label: "Danger Zone", icon: AlertTriangle },
 ];
 
@@ -184,6 +188,21 @@ function SettingsContent() {
   const [deletingWebhook, setDeletingWebhook] = useState<string | null>(null);
   const [secretCopied, setSecretCopied] = useState<string | null>(null);
 
+  // My Templates
+  interface MyTemplate {
+    id: string;
+    name: string;
+    category: string;
+    price: number;
+    rating: number;
+    ratingCount: number;
+    downloads: number;
+    createdAt: string;
+  }
+  const [myTemplates, setMyTemplates] = useState<MyTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [deletingTemplate, setDeletingTemplate] = useState<string | null>(null);
+
   useEffect(() => {
     if (searchParams.get("success") === "true") {
       setShowSuccess(true);
@@ -232,6 +251,14 @@ function SettingsContent() {
       .then((res) => res.json())
       .then((data) => { if (Array.isArray(data)) setWebhooks(data); })
       .catch(() => {});
+
+    // Load user's marketplace templates
+    setLoadingTemplates(true);
+    fetch("/api/marketplace?authorId=me")
+      .then((res) => res.json())
+      .then((data) => { if (data.templates) setMyTemplates(data.templates); })
+      .catch(() => {})
+      .finally(() => setLoadingTemplates(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1083,6 +1110,97 @@ function SettingsContent() {
               <Gift className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
               <p className="text-sm font-medium text-foreground">Referral program loading...</p>
               <p className="mt-1 text-xs text-muted-foreground">Your referral code will appear here once your account is set up.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════ MY TEMPLATES TAB ═══════════════ */}
+      {activeTab === "templates" && (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">My Templates</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Templates you&apos;ve published to the marketplace.
+            </p>
+          </div>
+
+          {loadingTemplates ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : myTemplates.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
+              <Store className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+              <p className="text-sm font-medium text-foreground">No templates published yet</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Publish an agent from the agent detail page to share it on the marketplace.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {myTemplates.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-center justify-between rounded-xl border border-border bg-card p-4"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-foreground truncate">{t.name}</h3>
+                      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        {t.category}
+                      </span>
+                      {t.price > 0 && (
+                        <span className="shrink-0 rounded-full bg-kiln-orange/10 px-2 py-0.5 text-[10px] font-medium text-kiln-orange">
+                          €{t.price}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-4 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Download className="h-3 w-3" />
+                        {t.downloads} downloads
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Star className="h-3 w-3" />
+                        {t.rating > 0 ? `${t.rating} (${t.ratingCount})` : "No ratings"}
+                      </span>
+                      <span>
+                        {new Date(t.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 ml-4 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                    disabled={deletingTemplate === t.id}
+                    onClick={async () => {
+                      if (!confirm("Remove this template from the marketplace?")) return;
+                      setDeletingTemplate(t.id);
+                      try {
+                        await fetch("/api/marketplace", {
+                          method: "DELETE",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ templateId: t.id }),
+                        });
+                        setMyTemplates((prev) => prev.filter((x) => x.id !== t.id));
+                        toast("Template removed", "info");
+                      } catch {
+                        toast("Failed to remove template", "error");
+                      } finally {
+                        setDeletingTemplate(null);
+                      }
+                    }}
+                  >
+                    {deletingTemplate === t.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </div>
+              ))}
             </div>
           )}
         </div>

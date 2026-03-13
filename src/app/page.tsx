@@ -150,6 +150,7 @@ export default function LandingPage() {
           <div className="hidden items-center gap-8 text-[13px] text-neutral-400 sm:flex">
             <a href="#features" className="transition-colors hover:text-white">Features</a>
             <a href="#pricing" className="transition-colors hover:text-white">Pricing</a>
+            <Link href="/marketplace" className="transition-colors hover:text-white">Marketplace</Link>
             <a href="#developers" className="transition-colors hover:text-white">Developers</a>
           </div>
           <div className="flex items-center gap-3">
