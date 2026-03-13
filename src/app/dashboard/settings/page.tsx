@@ -33,6 +33,9 @@ import {
   XCircle,
   CheckCircle,
   Clock,
+  FileDown,
+  RotateCcw,
+  Receipt,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -42,6 +45,17 @@ interface UserPlan {
   agentCount: number;
   chatCount: number;
   limits: { agents: number; chatsPerMonth: number };
+  cancelAtPeriodEnd?: boolean;
+  cancelAt?: string | null;
+}
+
+interface Invoice {
+  id: string;
+  date: string | null;
+  amount: number;
+  currency: string;
+  status: string | null;
+  pdfUrl: string | null;
 }
 
 const plans = [
@@ -113,6 +127,11 @@ function SettingsContent() {
   const [deletingAccessKey, setDeletingAccessKey] = useState<string | null>(null);
   const [accessKeyCopied, setAccessKeyCopied] = useState(false);
 
+  // Subscription management
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
+
   // Delete Account
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
@@ -157,7 +176,18 @@ function SettingsContent() {
   useEffect(() => {
     fetch("/api/stripe/plan")
       .then((res) => res.json())
-      .then((data) => setUserPlan(data))
+      .then((data) => {
+        setUserPlan(data);
+        // Load invoices for paid users
+        if (data.plan !== "FREE" && data.plan !== "ADMIN") {
+          setLoadingInvoices(true);
+          fetch("/api/stripe/invoices")
+            .then((r) => r.json())
+            .then((inv) => { if (Array.isArray(inv)) setInvoices(inv); })
+            .catch(() => {})
+            .finally(() => setLoadingInvoices(false));
+        }
+      })
       .catch(() => setUserPlan({ plan: "FREE", agentCount: 0, chatCount: 0, limits: { agents: 1, chatsPerMonth: 50 } }))
       .finally(() => setLoading(false));
 
@@ -231,6 +261,23 @@ function SettingsContent() {
       }
     } catch {
       // Fehler still behandeln
+    }
+  }
+
+  async function handleReactivate() {
+    setReactivating(true);
+    try {
+      const res = await fetch("/api/stripe/reactivate", { method: "POST" });
+      if (res.ok) {
+        // Refresh plan data
+        const planRes = await fetch("/api/stripe/plan");
+        const data = await planRes.json();
+        setUserPlan(data);
+      }
+    } catch {
+      // Silent error
+    } finally {
+      setReactivating(false);
     }
   }
 
@@ -543,7 +590,122 @@ function SettingsContent() {
             </div>
           </div>
         )}
+
+        {/* Cancellation Banner */}
+        {userPlan?.cancelAtPeriodEnd && userPlan.cancelAt && (
+          <div className="mt-4 flex items-center justify-between rounded-lg border border-amber-500/20 bg-amber-500/10 p-4">
+            <div className="flex items-center gap-3">
+              <Clock className="h-4 w-4 text-amber-400" />
+              <div>
+                <p className="text-sm font-medium text-amber-300">
+                  Your plan will be cancelled on{" "}
+                  {new Date(userPlan.cancelAt).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </p>
+                <p className="text-xs text-amber-400/70">
+                  You can reactivate anytime before this date.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={handleReactivate}
+              disabled={reactivating}
+              className="bg-amber-500 text-white hover:bg-amber-600"
+            >
+              {reactivating ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Reactivate
+            </Button>
+          </div>
+        )}
+
+        {/* Downgrade Warning — if user exceeds Pro limits */}
+        {userPlan && currentPlan === "PRO" && (userPlan.agentCount > 999999 || userPlan.chatCount > 2000) && (
+          <div className="mt-4 flex items-center gap-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-4">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+            <p className="text-xs text-amber-400">
+              Your usage exceeds Pro plan limits. Some features may be restricted. Consider upgrading to Agency.
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* Invoice History (paid users only) */}
+      {!isAdminUser && currentPlan !== "FREE" && (
+        <div className="mb-8 rounded-xl border border-border bg-card p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10">
+              <Receipt className="h-5 w-5 text-kiln-orange" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Invoice History</h2>
+              <p className="text-xs text-muted-foreground">Your recent invoices and receipts.</p>
+            </div>
+          </div>
+
+          {loadingInvoices ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : invoices.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">No invoices yet.</p>
+          ) : (
+            <div className="divide-y divide-border">
+              {invoices.map((inv) => (
+                <div key={inv.id} className="flex items-center justify-between py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex flex-col">
+                      <span className="text-sm text-foreground">
+                        {inv.date
+                          ? new Date(inv.date).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : "—"}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {inv.currency} {inv.amount.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        inv.status === "paid"
+                          ? "bg-green-500/10 text-green-400"
+                          : inv.status === "open"
+                          ? "bg-amber-500/10 text-amber-400"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {inv.status || "unknown"}
+                    </span>
+                    {inv.pdfUrl && (
+                      <a
+                        href={inv.pdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        title="Download PDF"
+                      >
+                        <FileDown className="h-4 w-4" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* API Keys — BYOK (nur Pro/Agency/Admin) */}
       {(currentPlan === "PRO" || currentPlan === "AGENCY" || isAdminUser) && (

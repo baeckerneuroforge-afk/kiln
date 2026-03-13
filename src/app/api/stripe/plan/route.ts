@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-import { PLAN_LIMITS, type PlanType } from "@/lib/stripe";
+import { getStripe, PLAN_LIMITS, type PlanType } from "@/lib/stripe";
 import { isAdmin } from "@/lib/admin";
 
 export async function GET() {
@@ -39,11 +39,37 @@ export async function GET() {
     const plan = (user?.plan || "FREE") as PlanType;
     const limits = PLAN_LIMITS[plan];
 
+    // Subscription status from Stripe
+    let cancelAtPeriodEnd = false;
+    let cancelAt: string | null = null;
+
+    if (user?.stripeCustomerId && plan !== "FREE") {
+      try {
+        const stripe = getStripe();
+        const subscriptions = await stripe.subscriptions.list({
+          customer: user.stripeCustomerId,
+          status: "active",
+          limit: 1,
+        });
+        const sub = subscriptions.data[0];
+        if (sub) {
+          cancelAtPeriodEnd = sub.cancel_at_period_end;
+          if (sub.cancel_at_period_end && sub.cancel_at) {
+            cancelAt = new Date(sub.cancel_at * 1000).toISOString();
+          }
+        }
+      } catch {
+        // Stripe fetch failed — continue without subscription info
+      }
+    }
+
     return Response.json({
       plan,
       agentCount,
       chatCount,
       limits,
+      cancelAtPeriodEnd,
+      cancelAt,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";

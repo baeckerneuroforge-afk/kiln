@@ -59,10 +59,15 @@ export async function POST(request: Request) {
         const customerId = subscription.customer as string;
         const plan = getPlanFromSubscription(subscription);
 
-        await prisma.user.updateMany({
-          where: { stripeCustomerId: customerId },
-          data: { plan },
-        });
+        // Update plan on price changes (upgrade/downgrade via portal)
+        // When cancel_at_period_end=true, user still has access — keep their current plan
+        // Plan downgrade to FREE only happens on subscription.deleted
+        if (subscription.status === "active") {
+          await prisma.user.updateMany({
+            where: { stripeCustomerId: customerId },
+            data: { plan },
+          });
+        }
         break;
       }
 
