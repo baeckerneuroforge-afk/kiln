@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useClerk } from "@clerk/nextjs";
 import {
   Bot,
   Globe,
@@ -12,11 +12,13 @@ import {
   Bolt,
   X,
   Sparkles,
+  LogOut,
+  ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const modules = [
   {
@@ -63,7 +65,10 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
   const pathname = usePathname();
   const { advancedMode, setAdvancedMode } = useAdvancedMode();
   const { user } = useUser();
+  const { signOut } = useClerk();
   const [plan, setPlan] = useState<string>("FREE");
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch("/api/stripe/plan")
@@ -72,8 +77,22 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
       .catch(() => {});
   }, []);
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    }
+    if (showUserMenu) {
+      document.addEventListener("mousedown", handleClick);
+      return () => document.removeEventListener("mousedown", handleClick);
+    }
+  }, [showUserMenu]);
+
   const displayName =
     user?.firstName || user?.username || user?.emailAddresses?.[0]?.emailAddress?.split("@")[0] || "User";
+  const displayEmail = user?.emailAddresses?.[0]?.emailAddress || "";
 
   return (
     <>
@@ -198,36 +217,93 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
 
           <Separator className="my-2" />
 
-          {/* User Profile */}
-          <div className="flex items-center gap-3 rounded-lg px-3 py-3">
-            <div className="relative">
-              {user?.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={user.imageUrl}
-                  alt={displayName}
-                  className="h-8 w-8 rounded-full object-cover ring-1 ring-border"
-                />
-              ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-semibold text-foreground ring-1 ring-border">
-                  {displayName.charAt(0).toUpperCase()}
-                </div>
-              )}
-              {/* Online dot */}
-              <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-sidebar bg-kiln-green" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
-                  planBadgeStyles[plan] || planBadgeStyles.FREE
+          {/* User Profile with Dropdown */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-sidebar-accent/60"
+            >
+              <div className="relative">
+                {user?.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={user.imageUrl}
+                    alt={displayName}
+                    className="h-8 w-8 rounded-full object-cover ring-1 ring-border"
+                  />
+                ) : (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-semibold text-foreground ring-1 ring-border">
+                    {displayName.charAt(0).toUpperCase()}
+                  </div>
                 )}
-              >
-                {plan === "ADMIN" && <Sparkles className="h-2.5 w-2.5" />}
-                {plan}
-              </span>
-            </div>
+                <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-sidebar bg-kiln-green" />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                    planBadgeStyles[plan] || planBadgeStyles.FREE
+                  )}
+                >
+                  {plan === "ADMIN" && <Sparkles className="h-2.5 w-2.5" />}
+                  {plan}
+                </span>
+              </div>
+              <ChevronUp
+                className={cn(
+                  "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
+                  showUserMenu ? "rotate-0" : "rotate-180"
+                )}
+              />
+            </button>
+
+            {/* Dropdown Menu */}
+            {showUserMenu && (
+              <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border bg-card shadow-xl overflow-hidden animate-in slide-in-from-bottom-2 fade-in duration-150">
+                {/* User Info */}
+                <div className="border-b border-border px-4 py-3">
+                  <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
+                  {displayEmail && (
+                    <p className="text-xs text-muted-foreground truncate">{displayEmail}</p>
+                  )}
+                  <span
+                    className={cn(
+                      "mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                      planBadgeStyles[plan] || planBadgeStyles.FREE
+                    )}
+                  >
+                    {plan === "ADMIN" && <Sparkles className="h-2.5 w-2.5" />}
+                    {plan} Plan
+                  </span>
+                </div>
+
+                {/* Menu Items */}
+                <div className="py-1">
+                  <Link
+                    href="/dashboard/settings"
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      onClose?.();
+                    }}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      signOut({ redirectUrl: "/" });
+                    }}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-400 transition-colors hover:bg-red-500/10"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Log out
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </aside>
