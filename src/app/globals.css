@@ -121,4 +121,71 @@
   .card-elevated {
     box-shadow: 0 1px 3px hsl(0 0% 0% / 0.2), 0 1px 2px hsl(0 0% 0% / 0.12);
   }
+
+  /* Card hover lift */
+  .card-hover-lift {
+    @apply transition-all duration-200;
+  }
+
+  .card-hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px hsl(0 0% 0% / 0.25), 0 0 0 1px hsl(0 0% 100% / 0.04);
+  }
+
+  /* Status pulse — green dot with ripple */
+  .status-pulse {
+    @apply relative;
+  }
+
+  .status-pulse::after {
+    content: "";
+    @apply absolute inset-0 rounded-full;
+    animation: status-ripple 2s ease-out infinite;
+    background: inherit;
+  }
+
+  @keyframes status-ripple {
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(2.5); opacity: 0; }
+  }
+
+  /* Node active sparkle */
+  .node-active-ring {
+    box-shadow: 0 0 0 1px hsl(142 71% 45% / 0.3), 0 0 20px hsl(142 71% 45% / 0.08);
+  }
+
+  /* Glassmorphic node */
+  .glass-node {
+    background: hsl(12 6% 7% / 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* React Flow overrides for KILN dark theme */
+  .react-flow__edge-path {
+    stroke-dasharray: 6 3;
+  }
+
+  .react-flow__edge:hover .react-flow__edge-path {
+    filter: drop-shadow(0 0 4px hsl(24 95% 53% / 0.5));
+  }
+
+  .react-flow__handle {
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+  }
+
+  .react-flow__handle:hover {
+    box-shadow: 0 0 0 3px hsl(24 95% 53% / 0.3);
+    transform: scale(1.2);
+  }
+
+  /* Slide-in panel */
+  .slide-panel-enter {
+    animation: slide-panel-in 0.2s ease-out;
+  }
+
+  @keyframes slide-panel-in {
+    0% { transform: translateX(100%); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+  }
 }

@@ -34,8 +34,10 @@ import {
   Sparkles,
   LayoutTemplate,
   Save,
-  Activity,
   ChevronDown,
+  Split,
+  X,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/toast";
@@ -61,118 +63,183 @@ interface OrchConnection {
   targetAgent: { id: string; name: string; status: string; slug: string };
 }
 
-/* ---------- Status helpers ---------- */
-const statusDot: Record<string, string> = {
-  LIVE: "bg-kiln-green",
-  DRAFT: "bg-muted-foreground",
-  PAUSED: "bg-kiln-orange",
+/* ---------- Status config ---------- */
+const statusConfig: Record<string, { dot: string; border: string; label: string }> = {
+  LIVE: { dot: "bg-kiln-green", border: "border-l-kiln-green", label: "Live" },
+  DRAFT: { dot: "bg-muted-foreground", border: "border-l-muted-foreground", label: "Draft" },
+  PAUSED: { dot: "bg-kiln-orange", border: "border-l-amber-500", label: "Paused" },
 };
 
 /* ---------- Custom Node: Agent ---------- */
-function AgentNode({ data }: NodeProps) {
+function AgentNode({ data, selected }: NodeProps) {
   const d = data as { label: string; status: string; description: string; conversations: number };
+  const sc = statusConfig[d.status] || statusConfig.DRAFT;
+  const isLive = d.status === "LIVE";
+
   return (
-    <div className="group relative min-w-[200px] rounded-xl border border-border bg-card p-4 shadow-lg transition-shadow hover:shadow-xl">
-      <Handle type="target" position={Position.Left} className="!h-3 !w-3 !border-2 !border-kiln-orange !bg-background" />
-      <Handle type="source" position={Position.Right} className="!h-3 !w-3 !border-2 !border-kiln-orange !bg-background" />
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-kiln-orange/15">
-          <Bot className="h-4 w-4 text-kiln-orange" />
+    <div
+      className={cn(
+        "glass-node group relative min-w-[220px] rounded-xl border border-border/60 p-4 shadow-lg transition-all duration-200",
+        "border-l-[3px]",
+        sc.border,
+        selected && "ring-1 ring-kiln-orange/40",
+        isLive && "node-active-ring"
+      )}
+    >
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!-left-[7px] !h-3.5 !w-3.5 !rounded-full !border-2 !border-kiln-orange/60 !bg-background transition-all hover:!border-kiln-orange hover:!shadow-[0_0_0_3px_hsl(24_95%_53%/0.25)]"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="!-right-[7px] !h-3.5 !w-3.5 !rounded-full !border-2 !border-kiln-orange/60 !bg-background transition-all hover:!border-kiln-orange hover:!shadow-[0_0_0_3px_hsl(24_95%_53%/0.25)]"
+      />
+
+      <div className="flex items-center gap-3">
+        <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-kiln-orange/10">
+          <Bot className="h-4.5 w-4.5 text-kiln-orange" />
+          {isLive && (
+            <div className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-kiln-green status-pulse" />
+          )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-foreground">{d.label}</p>
-          <div className="flex items-center gap-1.5">
-            <div className={cn("h-1.5 w-1.5 rounded-full", statusDot[d.status] || "bg-muted-foreground")} />
-            <span className="text-[10px] text-muted-foreground">{d.status}</span>
+          <p className="truncate text-sm font-semibold text-foreground leading-tight">{d.label}</p>
+          <div className="mt-0.5 flex items-center gap-1.5">
+            <div className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />
+            <span className="text-[10px] font-medium text-muted-foreground">{sc.label}</span>
           </div>
         </div>
       </div>
+
       {d.description && (
-        <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{d.description}</p>
+        <p className="mt-2.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground/80">{d.description}</p>
       )}
-      {d.conversations > 0 && (
-        <div className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
-          <Activity className="h-3 w-3" />
-          {d.conversations} conversations
+
+      <div className="mt-2.5 flex items-center gap-3 border-t border-border/40 pt-2">
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <MessageSquare className="h-3 w-3" />
+          <span>{d.conversations}</span>
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
-/* ---------- Custom Node: Condition ---------- */
-function ConditionNode({ data }: NodeProps) {
+/* ---------- Shared advanced node wrapper ---------- */
+function AdvancedNodeShell({
+  children,
+  borderColor,
+  selected,
+  hasTarget = true,
+  hasSource = true,
+  handleColor,
+}: {
+  children: React.ReactNode;
+  borderColor: string;
+  selected?: boolean;
+  hasTarget?: boolean;
+  hasSource?: boolean;
+  handleColor: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "glass-node group relative min-w-[170px] rounded-xl border p-3.5 shadow-md transition-all duration-200",
+        borderColor,
+        selected && "ring-1 ring-white/10"
+      )}
+    >
+      {hasTarget && (
+        <Handle
+          type="target"
+          position={Position.Left}
+          className={cn("!-left-[7px] !h-3.5 !w-3.5 !rounded-full !border-2 !bg-background transition-all", handleColor)}
+        />
+      )}
+      {hasSource && (
+        <Handle
+          type="source"
+          position={Position.Right}
+          className={cn("!-right-[7px] !h-3.5 !w-3.5 !rounded-full !border-2 !bg-background transition-all", handleColor)}
+        />
+      )}
+      {children}
+    </div>
+  );
+}
+
+function ConditionNode({ data, selected }: NodeProps) {
   const d = data as { label: string; condition: string };
   return (
-    <div className="min-w-[160px] rounded-lg border border-kiln-blue/30 bg-kiln-blue/5 p-3 shadow-md">
-      <Handle type="target" position={Position.Left} className="!h-3 !w-3 !border-2 !border-kiln-blue !bg-background" />
-      <Handle type="source" position={Position.Right} className="!h-3 !w-3 !border-2 !border-kiln-blue !bg-background" />
-      <div className="flex items-center gap-2">
-        <GitBranch className="h-4 w-4 text-kiln-blue" />
-        <span className="text-xs font-medium text-kiln-blue">{d.label}</span>
+    <AdvancedNodeShell borderColor="border-kiln-blue/30" selected={selected} handleColor="!border-kiln-blue/60 hover:!border-kiln-blue">
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-kiln-blue/10">
+          <GitBranch className="h-3.5 w-3.5 text-kiln-blue" />
+        </div>
+        <span className="text-xs font-semibold text-kiln-blue">{d.label}</span>
       </div>
       {d.condition && (
-        <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">{d.condition}</p>
+        <p className="mt-2 text-[10px] leading-snug text-muted-foreground/80">{d.condition}</p>
       )}
-    </div>
+    </AdvancedNodeShell>
   );
 }
 
-/* ---------- Custom Node: Trigger ---------- */
-function TriggerNode({ data }: NodeProps) {
+function TriggerNode({ data, selected }: NodeProps) {
   const d = data as { label: string };
   return (
-    <div className="min-w-[140px] rounded-lg border border-kiln-green/30 bg-kiln-green/5 p-3 shadow-md">
-      <Handle type="source" position={Position.Right} className="!h-3 !w-3 !border-2 !border-kiln-green !bg-background" />
-      <div className="flex items-center gap-2">
-        <Zap className="h-4 w-4 text-kiln-green" />
-        <span className="text-xs font-medium text-kiln-green">{d.label}</span>
+    <AdvancedNodeShell borderColor="border-kiln-green/30" selected={selected} hasTarget={false} handleColor="!border-kiln-green/60 hover:!border-kiln-green">
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-kiln-green/10">
+          <Zap className="h-3.5 w-3.5 text-kiln-green" />
+        </div>
+        <span className="text-xs font-semibold text-kiln-green">{d.label}</span>
       </div>
-    </div>
+    </AdvancedNodeShell>
   );
 }
 
-/* ---------- Custom Node: Code ---------- */
-function CodeNode({ data }: NodeProps) {
+function CodeNode({ data, selected }: NodeProps) {
   const d = data as { label: string };
   return (
-    <div className="min-w-[140px] rounded-lg border border-purple-500/30 bg-purple-500/5 p-3 shadow-md">
-      <Handle type="target" position={Position.Left} className="!h-3 !w-3 !border-2 !border-purple-500 !bg-background" />
-      <Handle type="source" position={Position.Right} className="!h-3 !w-3 !border-2 !border-purple-500 !bg-background" />
-      <div className="flex items-center gap-2">
-        <Code className="h-4 w-4 text-purple-400" />
-        <span className="text-xs font-medium text-purple-400">{d.label}</span>
+    <AdvancedNodeShell borderColor="border-purple-500/30" selected={selected} handleColor="!border-purple-500/60 hover:!border-purple-500">
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-purple-500/10">
+          <Code className="h-3.5 w-3.5 text-purple-400" />
+        </div>
+        <span className="text-xs font-semibold text-purple-400">{d.label}</span>
       </div>
-    </div>
+    </AdvancedNodeShell>
   );
 }
 
-/* ---------- Custom Node: Human Handoff ---------- */
-function HumanHandoffNode({ data }: NodeProps) {
+function HumanHandoffNode({ data, selected }: NodeProps) {
   const d = data as { label: string };
   return (
-    <div className="min-w-[140px] rounded-lg border border-kiln-ember/30 bg-kiln-ember/5 p-3 shadow-md">
-      <Handle type="target" position={Position.Left} className="!h-3 !w-3 !border-2 !border-kiln-ember !bg-background" />
-      <div className="flex items-center gap-2">
-        <User className="h-4 w-4 text-kiln-ember" />
-        <span className="text-xs font-medium text-kiln-ember">{d.label}</span>
+    <AdvancedNodeShell borderColor="border-kiln-ember/30" selected={selected} hasSource={false} handleColor="!border-kiln-ember/60 hover:!border-kiln-ember">
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-kiln-ember/10">
+          <User className="h-3.5 w-3.5 text-kiln-ember" />
+        </div>
+        <span className="text-xs font-semibold text-kiln-ember">{d.label}</span>
       </div>
-    </div>
+    </AdvancedNodeShell>
   );
 }
 
-/* ---------- Custom Node: Router ---------- */
-function RouterNode({ data }: NodeProps) {
+function RouterNode({ data, selected }: NodeProps) {
   const d = data as { label: string };
   return (
-    <div className="min-w-[140px] rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 shadow-md">
-      <Handle type="target" position={Position.Left} className="!h-3 !w-3 !border-2 !border-amber-500 !bg-background" />
-      <Handle type="source" position={Position.Right} className="!h-3 !w-3 !border-2 !border-amber-500 !bg-background" />
-      <div className="flex items-center gap-2">
-        <Network className="h-4 w-4 text-amber-400" />
-        <span className="text-xs font-medium text-amber-400">{d.label}</span>
+    <AdvancedNodeShell borderColor="border-amber-500/30" selected={selected} handleColor="!border-amber-500/60 hover:!border-amber-500">
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10">
+          <Split className="h-3.5 w-3.5 text-amber-400" />
+        </div>
+        <span className="text-xs font-semibold text-amber-400">{d.label}</span>
       </div>
-    </div>
+    </AdvancedNodeShell>
   );
 }
 
@@ -187,37 +254,32 @@ const nodeTypes = {
 
 /* ---------- Templates ---------- */
 const templates = [
-  {
-    id: "sales-funnel",
-    name: "Sales Funnel",
-    description: "Lead Qualifier → Sales Closer → Onboarding",
-    icon: Sparkles,
-    color: "text-kiln-orange",
-  },
-  {
-    id: "support-escalation",
-    name: "Support Escalation",
-    description: "L1 Support → L2 Technical → Human Handoff",
-    icon: ArrowRight,
-    color: "text-kiln-blue",
-  },
-  {
-    id: "lead-nurture",
-    name: "Lead Nurture",
-    description: "Lead Capture → Lead Scorer → Follow-Up",
-    icon: Zap,
-    color: "text-kiln-green",
-  },
+  { id: "sales-funnel", name: "Sales Funnel", description: "Lead Qualifier → Sales Closer → Onboarding", icon: Sparkles, color: "text-kiln-orange", bg: "bg-kiln-orange/10" },
+  { id: "support-escalation", name: "Support Escalation", description: "L1 Support → L2 Technical → Human Handoff", icon: ArrowRight, color: "text-kiln-blue", bg: "bg-kiln-blue/10" },
+  { id: "lead-nurture", name: "Lead Nurture", description: "Lead Capture → Lead Scorer → Follow-Up", icon: Zap, color: "text-kiln-green", bg: "bg-kiln-green/10" },
 ];
 
 /* ---------- Advanced node palette ---------- */
 const advancedNodePalette = [
-  { type: "condition", label: "Condition", icon: GitBranch, color: "text-kiln-blue border-kiln-blue/30" },
-  { type: "trigger", label: "Trigger", icon: Zap, color: "text-kiln-green border-kiln-green/30" },
-  { type: "code", label: "Code", icon: Code, color: "text-purple-400 border-purple-500/30" },
-  { type: "humanHandoff", label: "Human Handoff", icon: User, color: "text-kiln-ember border-kiln-ember/30" },
-  { type: "router", label: "Router", icon: Network, color: "text-amber-400 border-amber-500/30" },
+  { type: "condition", label: "Condition", icon: GitBranch, color: "text-kiln-blue", bg: "bg-kiln-blue/10", border: "border-kiln-blue/20 hover:border-kiln-blue/40" },
+  { type: "trigger", label: "Trigger", icon: Zap, color: "text-kiln-green", bg: "bg-kiln-green/10", border: "border-kiln-green/20 hover:border-kiln-green/40" },
+  { type: "code", label: "Code", icon: Code, color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20 hover:border-purple-500/40" },
+  { type: "humanHandoff", label: "Human Handoff", icon: User, color: "text-kiln-ember", bg: "bg-kiln-ember/10", border: "border-kiln-ember/20 hover:border-kiln-ember/40" },
+  { type: "router", label: "Router", icon: Split, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/20 hover:border-amber-500/40" },
 ];
+
+/* ---------- Edge styles ---------- */
+function makeEdgeStyle(enabled: boolean) {
+  return {
+    stroke: enabled ? "hsl(24, 95%, 53%)" : "hsl(0, 0%, 25%)",
+    strokeWidth: enabled ? 2 : 1.5,
+    strokeDasharray: enabled ? "6 3" : "4 4",
+  };
+}
+
+function makeEdgeMarker(enabled: boolean) {
+  return { type: MarkerType.ArrowClosed, color: enabled ? "hsl(24, 95%, 53%)" : "hsl(0, 0%, 25%)", width: 16, height: 16 };
+}
 
 /* ---------- Main Page ---------- */
 export default function OrchestrationPage() {
@@ -251,19 +313,16 @@ export default function OrchestrationPage() {
     }
   }, [toast]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   /* ---------- Build nodes & edges from data ---------- */
   useEffect(() => {
     if (loading) return;
 
-    // Position agents in a grid
     const agentNodes: Node[] = agents.map((agent, i) => ({
       id: agent.id,
       type: "agent",
-      position: { x: 100 + (i % 3) * 320, y: 100 + Math.floor(i / 3) * 200 },
+      position: { x: 120 + (i % 3) * 340, y: 120 + Math.floor(i / 3) * 220 },
       data: {
         label: agent.name,
         status: agent.status,
@@ -279,35 +338,27 @@ export default function OrchestrationPage() {
       label: conn.condition || undefined,
       type: "smoothstep",
       animated: conn.enabled,
-      style: { stroke: conn.enabled ? "hsl(24, 95%, 53%)" : "hsl(0, 0%, 30%)", strokeWidth: 2 },
-      labelStyle: { fill: "hsl(0, 0%, 64%)", fontSize: 11 },
-      labelBgStyle: { fill: "hsl(12, 6%, 7%)", fillOpacity: 0.9 },
-      labelBgPadding: [6, 4] as [number, number],
-      labelBgBorderRadius: 4,
-      markerEnd: { type: MarkerType.ArrowClosed, color: conn.enabled ? "hsl(24, 95%, 53%)" : "hsl(0, 0%, 30%)" },
+      style: makeEdgeStyle(conn.enabled),
+      labelStyle: { fill: "hsl(0, 0%, 64%)", fontSize: 10, fontWeight: 500 },
+      labelBgStyle: { fill: "hsl(12, 6%, 7%)", fillOpacity: 0.92 },
+      labelBgPadding: [8, 4] as [number, number],
+      labelBgBorderRadius: 6,
+      markerEnd: makeEdgeMarker(conn.enabled),
     }));
 
     setNodes(agentNodes);
     setEdges(connectionEdges);
   }, [agents, connections, loading, setNodes, setEdges]);
 
-  /* ---------- Create connection on edge connect ---------- */
+  /* ---------- Create connection ---------- */
   const onConnect = useCallback(
     async (params: Connection) => {
       if (!params.source || !params.target || params.source === params.target) return;
 
-      // Optimistically add edge
       const tempId = `temp-${Date.now()}`;
       setEdges((eds) =>
         addEdge(
-          {
-            ...params,
-            id: tempId,
-            type: "smoothstep",
-            animated: true,
-            style: { stroke: "hsl(24, 95%, 53%)", strokeWidth: 2 },
-            markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(24, 95%, 53%)" },
-          },
+          { ...params, id: tempId, type: "smoothstep", animated: true, style: makeEdgeStyle(true), markerEnd: makeEdgeMarker(true) },
           eds
         )
       );
@@ -320,19 +371,7 @@ export default function OrchestrationPage() {
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
-
-        // Replace temp edge with real one
-        setEdges((eds) =>
-          eds.map((e) =>
-            e.id === tempId
-              ? {
-                  ...e,
-                  id: data.id,
-                  label: data.condition || undefined,
-                }
-              : e
-          )
-        );
+        setEdges((eds) => eds.map((e) => (e.id === tempId ? { ...e, id: data.id, label: data.condition || undefined } : e)));
         setConnections((prev) => [...prev, data]);
         toast("Connection created");
       } catch {
@@ -346,24 +385,18 @@ export default function OrchestrationPage() {
   /* ---------- Delete connection ---------- */
   const deleteConnection = useCallback(
     async (edgeId: string) => {
-      // Skip temp edges
       if (edgeId.startsWith("temp-")) return;
-
       setEdges((eds) => eds.filter((e) => e.id !== edgeId));
       setSelectedEdge(null);
 
       try {
-        const res = await fetch("/api/orchestration", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: edgeId }),
-        });
+        const res = await fetch("/api/orchestration", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: edgeId }) });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         setConnections((prev) => prev.filter((c) => c.id !== edgeId));
         toast("Connection deleted");
       } catch {
-        loadData(); // Reload on failure
+        loadData();
         toast("Failed to delete connection", "error");
       }
     },
@@ -375,23 +408,13 @@ export default function OrchestrationPage() {
     async (edgeId: string, condition: string) => {
       if (edgeId.startsWith("temp-")) return;
       setSaving(true);
-
       try {
-        const res = await fetch("/api/orchestration", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: edgeId, condition }),
-        });
+        const res = await fetch("/api/orchestration", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: edgeId, condition }) });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
-
-        setEdges((eds) =>
-          eds.map((e) => (e.id === edgeId ? { ...e, label: condition || undefined } : e))
-        );
-        setConnections((prev) =>
-          prev.map((c) => (c.id === edgeId ? { ...c, condition } : c))
-        );
-        toast("Condition updated");
+        setEdges((eds) => eds.map((e) => (e.id === edgeId ? { ...e, label: condition || undefined } : e)));
+        setConnections((prev) => prev.map((c) => (c.id === edgeId ? { ...c, condition } : c)));
+        toast("Condition saved");
       } catch {
         toast("Failed to update condition", "error");
       } finally {
@@ -401,7 +424,7 @@ export default function OrchestrationPage() {
     [setEdges, toast]
   );
 
-  /* ---------- Toggle connection enabled ---------- */
+  /* ---------- Toggle connection ---------- */
   const toggleConnection = useCallback(
     async (edgeId: string) => {
       const conn = connections.find((c) => c.id === edgeId);
@@ -410,32 +433,13 @@ export default function OrchestrationPage() {
 
       setEdges((eds) =>
         eds.map((e) =>
-          e.id === edgeId
-            ? {
-                ...e,
-                animated: newEnabled,
-                style: {
-                  stroke: newEnabled ? "hsl(24, 95%, 53%)" : "hsl(0, 0%, 30%)",
-                  strokeWidth: 2,
-                },
-                markerEnd: {
-                  type: MarkerType.ArrowClosed,
-                  color: newEnabled ? "hsl(24, 95%, 53%)" : "hsl(0, 0%, 30%)",
-                },
-              }
-            : e
+          e.id === edgeId ? { ...e, animated: newEnabled, style: makeEdgeStyle(newEnabled), markerEnd: makeEdgeMarker(newEnabled) } : e
         )
       );
 
       try {
-        await fetch("/api/orchestration", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: edgeId, enabled: newEnabled }),
-        });
-        setConnections((prev) =>
-          prev.map((c) => (c.id === edgeId ? { ...c, enabled: newEnabled } : c))
-        );
+        await fetch("/api/orchestration", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: edgeId, enabled: newEnabled }) });
+        setConnections((prev) => prev.map((c) => (c.id === edgeId ? { ...c, enabled: newEnabled } : c)));
       } catch {
         loadData();
         toast("Failed to update connection", "error");
@@ -449,11 +453,7 @@ export default function OrchestrationPage() {
     async (templateId: string) => {
       setCreatingTemplate(templateId);
       try {
-        const res = await fetch("/api/orchestration", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ template: templateId }),
-        });
+        const res = await fetch("/api/orchestration", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ template: templateId }) });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
         toast("Template applied — agents and connections created");
@@ -468,7 +468,6 @@ export default function OrchestrationPage() {
     [toast, loadData]
   );
 
-  /* ---------- Edge click handler ---------- */
   const onEdgeClick = useCallback(
     (_: React.MouseEvent, edge: Edge) => {
       setSelectedEdge(edge.id);
@@ -478,39 +477,32 @@ export default function OrchestrationPage() {
     [connections]
   );
 
-  /* ---------- Add advanced node ---------- */
   const addAdvancedNode = useCallback(
     (type: string, label: string) => {
       const id = `${type}-${Date.now()}`;
-      const newNode: Node = {
-        id,
-        type,
-        position: { x: 300 + Math.random() * 200, y: 200 + Math.random() * 200 },
-        data: { label, condition: "" },
-      };
-      setNodes((nds) => [...nds, newNode]);
+      setNodes((nds) => [...nds, { id, type, position: { x: 300 + Math.random() * 200, y: 200 + Math.random() * 200 }, data: { label, condition: "" } }]);
     },
     [setNodes]
   );
 
-  /* ---------- Memoize node types to avoid re-renders ---------- */
   const memoizedNodeTypes = useMemo(() => nodeTypes, []);
-
-  // Selected connection info
   const selectedConn = selectedEdge ? connections.find((c) => c.id === selectedEdge) : null;
 
-  /* ---------- Loading state ---------- */
+  /* ---------- Loading ---------- */
   if (loading) {
     return (
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="skeleton h-8 w-8 rounded-lg" />
-            <div className="skeleton h-5 w-40 rounded" />
+            <div className="skeleton h-9 w-9 rounded-xl" />
+            <div className="space-y-1.5">
+              <div className="skeleton h-4 w-32 rounded" />
+              <div className="skeleton h-3 w-48 rounded" />
+            </div>
           </div>
           <div className="flex gap-2">
             <div className="skeleton h-9 w-28 rounded-lg" />
-            <div className="skeleton h-9 w-28 rounded-lg" />
+            <div className="skeleton h-9 w-9 rounded-lg" />
           </div>
         </div>
         <div className="flex-1 p-6">
@@ -524,22 +516,57 @@ export default function OrchestrationPage() {
   if (agents.length === 0) {
     return (
       <div className="flex h-full items-center justify-center p-6">
-        <div className="max-w-md text-center">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-kiln-orange/10">
-            <Network className="h-10 w-10 text-kiln-orange" />
+        <div className="max-w-lg text-center">
+          {/* Decorative connected nodes illustration */}
+          <div className="mx-auto mb-8 flex items-center justify-center gap-3">
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-kiln-orange/20 bg-kiln-orange/5">
+              <Bot className="h-6 w-6 text-kiln-orange/60" />
+            </div>
+            <div className="flex flex-col items-center gap-0.5">
+              <div className="h-px w-10 bg-gradient-to-r from-kiln-orange/40 to-kiln-blue/40" />
+              <div className="h-px w-10 bg-gradient-to-r from-kiln-orange/20 to-kiln-blue/20" />
+            </div>
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-kiln-blue/20 bg-kiln-blue/5">
+              <GitBranch className="h-6 w-6 text-kiln-blue/60" />
+            </div>
+            <div className="flex flex-col items-center gap-0.5">
+              <div className="h-px w-10 bg-gradient-to-r from-kiln-blue/40 to-kiln-green/40" />
+              <div className="h-px w-10 bg-gradient-to-r from-kiln-blue/20 to-kiln-green/20" />
+            </div>
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-kiln-green/20 bg-kiln-green/5">
+              <Bot className="h-6 w-6 text-kiln-green/60" />
+            </div>
           </div>
-          <h2 className="text-xl font-semibold text-foreground">No agents yet</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Create your first agents in the AI Agent Studio, then connect them here to build
-            powerful multi-agent workflows.
+
+          <h2 className="text-xl font-semibold text-foreground">Build your first agent team</h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+            Create agents in the AI Agent Studio, then connect them here to build powerful multi-agent workflows with handoff rules.
           </p>
-          <a
-            href="/dashboard/agents"
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-kiln-orange px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-kiln-orange/90"
-          >
-            <Bot className="h-4 w-4" />
-            Go to Agent Studio
-          </a>
+
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <a
+              href="/dashboard/agents"
+              className="inline-flex items-center gap-2 rounded-lg bg-kiln-orange px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-kiln-orange/90"
+            >
+              <Bot className="h-4 w-4" />
+              Go to Agent Studio
+            </a>
+            <span className="text-xs text-muted-foreground">or start from a template</span>
+            <div className="flex gap-2">
+              {templates.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => applyTemplate(t.id)}
+                  disabled={creatingTemplate !== null}
+                  className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                >
+                  <t.icon className={cn("h-3.5 w-3.5", t.color)} />
+                  {t.name}
+                  {creatingTemplate === t.id && <Loader2 className="h-3 w-3 animate-spin" />}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -548,35 +575,38 @@ export default function OrchestrationPage() {
   /* ---------- Render ---------- */
   return (
     <div className="flex h-full flex-col">
-      {/* Header / Status Bar */}
-      <div className="flex items-center justify-between border-b border-border px-6 py-3">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between border-b border-border bg-card/50 px-4 py-2.5 backdrop-blur-sm lg:px-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-kiln-orange/15">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-kiln-orange/10">
             <Network className="h-4 w-4 text-kiln-orange" />
           </div>
-          <div>
-            <h1 className="text-base font-semibold text-foreground">Orchestration</h1>
-            <p className="text-xs text-muted-foreground">
-              {agents.length} agent{agents.length !== 1 ? "s" : ""} · {connections.length} connection{connections.length !== 1 ? "s" : ""} ·{" "}
-              {connections.filter((c) => c.enabled).length} active
+          <div className="hidden sm:block">
+            <h1 className="text-sm font-semibold text-foreground leading-tight">Orchestration</h1>
+            <p className="text-[10px] text-muted-foreground">
+              {agents.length} agent{agents.length !== 1 ? "s" : ""} · {connections.length} connection{connections.length !== 1 ? "s" : ""} · {connections.filter((c) => c.enabled).length} active
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {/* Templates dropdown */}
           <div className="relative">
             <button
               onClick={() => setShowTemplates(!showTemplates)}
-              className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted",
+                showTemplates ? "bg-muted text-foreground" : "text-muted-foreground"
+              )}
             >
-              <LayoutTemplate className="h-4 w-4" />
-              Templates
+              <LayoutTemplate className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Templates</span>
               <ChevronDown className={cn("h-3 w-3 transition-transform", showTemplates && "rotate-180")} />
             </button>
 
             {showTemplates && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-border bg-card p-2 shadow-xl animate-in slide-in-from-top-2 fade-in duration-150">
+              <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-border bg-card p-1.5 shadow-2xl animate-in slide-in-from-top-2 fade-in duration-150">
+                <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quick Start Templates</p>
                 {templates.map((t) => (
                   <button
                     key={t.id}
@@ -584,23 +614,23 @@ export default function OrchestrationPage() {
                     disabled={creatingTemplate !== null}
                     className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted disabled:opacity-50"
                   >
-                    <t.icon className={cn("mt-0.5 h-4 w-4 shrink-0", t.color)} />
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{t.name}</p>
-                      <p className="text-xs text-muted-foreground">{t.description}</p>
+                    <div className={cn("mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", t.bg)}>
+                      <t.icon className={cn("h-3.5 w-3.5", t.color)} />
                     </div>
-                    {creatingTemplate === t.id && (
-                      <Loader2 className="ml-auto h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
-                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-foreground">{t.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{t.description}</p>
+                    </div>
+                    {creatingTemplate === t.id && <Loader2 className="ml-auto h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />}
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Advanced mode indicator */}
+          {/* Advanced mode badge */}
           {advancedMode && (
-            <span className="flex items-center gap-1.5 rounded-full bg-purple-500/10 px-3 py-1.5 text-xs font-medium text-purple-400">
+            <span className="flex items-center gap-1 rounded-full bg-purple-500/10 px-2.5 py-1 text-[10px] font-semibold text-purple-400">
               <Sparkles className="h-3 w-3" />
               Advanced
             </span>
@@ -617,47 +647,59 @@ export default function OrchestrationPage() {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onEdgeClick={onEdgeClick}
+          onPaneClick={() => setSelectedEdge(null)}
           nodeTypes={memoizedNodeTypes}
           fitView
           fitViewOptions={{ padding: 0.3 }}
           defaultEdgeOptions={{
             type: "smoothstep",
             animated: true,
-            style: { stroke: "hsl(24, 95%, 53%)", strokeWidth: 2 },
-            markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(24, 95%, 53%)" },
+            style: makeEdgeStyle(true),
+            markerEnd: makeEdgeMarker(true),
           }}
           proOptions={{ hideAttribution: true }}
           className="!bg-background"
         >
-          <Background color="hsl(0 0% 20%)" gap={24} size={1} />
+          <Background color="hsl(0 0% 16%)" gap={20} size={1.2} />
           <Controls
-            className="!rounded-lg !border-border !bg-card !shadow-lg [&>button]:!border-border [&>button]:!bg-card [&>button]:!text-muted-foreground [&>button:hover]:!bg-muted [&>button:hover]:!text-foreground"
+            showInteractive={false}
+            className="!rounded-xl !border-border !bg-card/90 !shadow-xl !backdrop-blur-sm [&>button]:!border-border/50 [&>button]:!bg-transparent [&>button]:!text-muted-foreground [&>button:hover]:!bg-muted [&>button:hover]:!text-foreground"
           />
           <MiniMap
-            nodeColor={() => "hsl(24, 95%, 53%)"}
-            maskColor="hsl(12 6% 4% / 0.8)"
-            className="!rounded-lg !border-border !bg-card/80"
+            nodeColor={(n) => {
+              if (n.type === "agent") {
+                const status = (n.data as { status?: string }).status;
+                if (status === "LIVE") return "hsl(142, 71%, 45%)";
+                if (status === "PAUSED") return "hsl(24, 95%, 53%)";
+                return "hsl(0, 0%, 40%)";
+              }
+              return "hsl(217, 91%, 60%)";
+            }}
+            maskColor="hsl(12 6% 4% / 0.85)"
+            className="!rounded-xl !border-border !bg-card/80 !shadow-lg"
+            pannable
+            zoomable
           />
 
           {/* Advanced Mode: Node palette */}
           {advancedMode && (
             <Panel position="top-left" className="!m-3">
-              <div className="rounded-xl border border-border bg-card p-2 shadow-lg">
-                <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Add Nodes
-                </p>
+              <div className="rounded-xl border border-border bg-card/90 p-2 shadow-xl backdrop-blur-sm">
+                <p className="mb-2 px-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Add Nodes</p>
                 <div className="flex flex-col gap-1">
                   {advancedNodePalette.map((item) => (
                     <button
                       key={item.type}
                       onClick={() => addAdvancedNode(item.type, item.label)}
                       className={cn(
-                        "flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors hover:bg-muted",
-                        item.color
+                        "flex items-center gap-2.5 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
+                        item.border
                       )}
                     >
-                      <item.icon className="h-3.5 w-3.5" />
-                      {item.label}
+                      <div className={cn("flex h-6 w-6 items-center justify-center rounded-md", item.bg)}>
+                        <item.icon className={cn("h-3 w-3", item.color)} />
+                      </div>
+                      <span className={item.color}>{item.label}</span>
                     </button>
                   ))}
                 </div>
@@ -665,86 +707,108 @@ export default function OrchestrationPage() {
             </Panel>
           )}
 
-          {/* Instructions hint */}
+          {/* Hint for empty canvas */}
           {connections.length === 0 && agents.length > 0 && (
             <Panel position="bottom-center" className="!mb-6">
-              <div className="flex items-center gap-2 rounded-lg border border-border bg-card/90 px-4 py-2.5 shadow-lg backdrop-blur-sm">
-                <ArrowRight className="h-4 w-4 text-kiln-orange" />
+              <div className="flex items-center gap-2.5 rounded-xl border border-border bg-card/90 px-5 py-3 shadow-xl backdrop-blur-sm">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-kiln-orange/10">
+                  <ArrowRight className="h-3 w-3 text-kiln-orange" />
+                </div>
                 <span className="text-xs text-muted-foreground">
-                  Drag from one agent&apos;s handle to another to create a connection
+                  Drag from one agent&apos;s <span className="font-medium text-foreground">handle</span> to another to create a connection
                 </span>
               </div>
             </Panel>
           )}
         </ReactFlow>
 
-        {/* Edge detail panel */}
+        {/* Slide-in config panel */}
         {selectedEdge && selectedConn && (
-          <div className="absolute bottom-4 right-4 z-10 w-80 rounded-xl border border-border bg-card p-4 shadow-xl animate-in slide-in-from-right-4 fade-in duration-200">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground">Connection</h3>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => toggleConnection(selectedEdge)}
-                  className={cn(
-                    "rounded-md p-1.5 transition-colors",
-                    selectedConn.enabled
-                      ? "text-kiln-green hover:bg-kiln-green/10"
-                      : "text-muted-foreground hover:bg-muted"
-                  )}
-                  title={selectedConn.enabled ? "Pause connection" : "Enable connection"}
-                >
-                  {selectedConn.enabled ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
-                </button>
-                <button
-                  onClick={() => deleteConnection(selectedEdge)}
-                  className="rounded-md p-1.5 text-red-400 transition-colors hover:bg-red-500/10"
-                  title="Delete connection"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+          <div className="slide-panel-enter absolute bottom-0 right-0 top-0 z-10 w-80 border-l border-border bg-card/95 backdrop-blur-md lg:w-96">
+            <div className="flex h-full flex-col">
+              {/* Panel header */}
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                <h3 className="text-sm font-semibold text-foreground">Connection Settings</h3>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => toggleConnection(selectedEdge)}
+                    className={cn(
+                      "rounded-lg p-1.5 transition-colors",
+                      selectedConn.enabled ? "text-kiln-green hover:bg-kiln-green/10" : "text-muted-foreground hover:bg-muted"
+                    )}
+                    title={selectedConn.enabled ? "Disable" : "Enable"}
+                  >
+                    {selectedConn.enabled ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                  </button>
+                  <button
+                    onClick={() => deleteConnection(selectedEdge)}
+                    className="rounded-lg p-1.5 text-red-400 transition-colors hover:bg-red-500/10"
+                    title="Delete"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setSelectedEdge(null)}
+                    className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Panel body */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {/* Source → Target */}
+                <div className="mb-5">
+                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Flow</label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
+                      <Bot className="h-3.5 w-3.5 text-kiln-orange" />
+                      <span className="text-xs font-medium text-foreground">{selectedConn.sourceAgent.name}</span>
+                    </div>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-kiln-orange" />
+                    <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
+                      <Bot className="h-3.5 w-3.5 text-kiln-orange" />
+                      <span className="text-xs font-medium text-foreground">{selectedConn.targetAgent.name}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div className="mb-5">
+                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</label>
+                  <div className="flex items-center gap-2">
+                    <div className={cn("h-2 w-2 rounded-full", selectedConn.enabled ? "bg-kiln-green" : "bg-muted-foreground")} />
+                    <span className="text-xs text-foreground">{selectedConn.enabled ? "Active" : "Disabled"}</span>
+                  </div>
+                </div>
+
+                {/* Condition */}
+                <div>
+                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Handoff Condition
+                  </label>
+                  <p className="mb-2 text-[10px] text-muted-foreground">
+                    Describe in natural language when this handoff should trigger.
+                  </p>
+                  <textarea
+                    value={conditionInput}
+                    onChange={(e) => setConditionInput(e.target.value)}
+                    placeholder="e.g. When lead score is above 7, hand off to sales..."
+                    rows={4}
+                    className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/20"
+                  />
+                  <button
+                    onClick={() => updateCondition(selectedEdge, conditionInput)}
+                    disabled={saving}
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-kiln-orange px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-kiln-orange/90 disabled:opacity-50"
+                  >
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Save Condition
+                  </button>
+                </div>
               </div>
             </div>
-
-            <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="rounded bg-muted px-2 py-1 font-medium text-foreground">
-                {selectedConn.sourceAgent.name}
-              </span>
-              <ArrowRight className="h-3 w-3 shrink-0 text-kiln-orange" />
-              <span className="rounded bg-muted px-2 py-1 font-medium text-foreground">
-                {selectedConn.targetAgent.name}
-              </span>
-            </div>
-
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-              Handoff Condition (natural language)
-            </label>
-            <textarea
-              value={conditionInput}
-              onChange={(e) => setConditionInput(e.target.value)}
-              placeholder="e.g. When lead score is above 7, hand off to sales..."
-              rows={3}
-              className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/30"
-            />
-            <button
-              onClick={() => updateCondition(selectedEdge, conditionInput)}
-              disabled={saving}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-kiln-orange px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-kiln-orange/90 disabled:opacity-50"
-            >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              Save Condition
-            </button>
-
-            <button
-              onClick={() => setSelectedEdge(null)}
-              className="mt-2 w-full text-center text-xs text-muted-foreground hover:text-foreground"
-            >
-              Close
-            </button>
           </div>
         )}
       </div>
