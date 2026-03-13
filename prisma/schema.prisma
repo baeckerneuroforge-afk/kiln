@@ -105,6 +105,7 @@ model Agent {
   orchestrationsFrom AgentOrchestration[] @relation("OrchestrationSource")
   orchestrationsTo   AgentOrchestration[] @relation("OrchestrationTarget")
   webhooks           AgentWebhook[]
+  integrations       AgentIntegration[]
 
   @@index([userId])
 }
@@ -424,6 +425,40 @@ model AgentOrchestration {
 
   @@index([sourceAgentId])
   @@index([targetAgentId])
+}
+
+// Integration Connections — third-party service connections
+model IntegrationConnection {
+  id        String   @id @default(cuid())
+  userId    String
+  provider  String   // "google-calendar", "slack", "hubspot", etc.
+  name      String   // Display name (auto or custom)
+  config    String   @db.Text // Encrypted JSON: { apiKey, webhookUrl, etc. }
+  isActive  Boolean  @default(true)
+  isCustom  Boolean  @default(false) // Custom integrations via Advanced Mode
+  lastSyncAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agentIntegrations AgentIntegration[]
+
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+// Per-Agent Integration assignment
+model AgentIntegration {
+  id              String   @id @default(cuid())
+  agentId         String
+  agent           Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  integrationId   String
+  integration     IntegrationConnection @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  @@unique([agentId, integrationId])
+  @@index([agentId])
+  @@index([integrationId])
 }
 
 // Agent Inbound Webhooks — external services trigger agent processing

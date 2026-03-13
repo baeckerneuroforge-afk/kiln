@@ -15,6 +15,7 @@ import {
   LogOut,
   ChevronUp,
   Network,
+  Plug,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -43,6 +44,13 @@ const modules = [
     icon: Network,
     color: "text-muted-foreground",
     activeColor: "text-kiln-orange",
+  },
+  {
+    name: "Integrations",
+    href: "/dashboard/integrations",
+    icon: Plug,
+    color: "text-muted-foreground",
+    activeColor: "text-kiln-blue",
   },
   {
     name: "Site Builder",
