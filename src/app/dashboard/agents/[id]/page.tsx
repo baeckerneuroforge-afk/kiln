@@ -38,6 +38,7 @@ import {
   Lock,
   Users,
   Store,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -334,6 +335,41 @@ export default function AgentDetailPage() {
     }
   }
 
+  function handleExportConfig() {
+    if (!agent) return;
+    const exportData = {
+      kiln_version: "1.0",
+      name: agent.name,
+      slug: agent.slug,
+      description: agent.description,
+      systemPrompt: agent.systemPrompt,
+      personality: agent.personality,
+      welcomeMessage: agent.welcomeMessage,
+      suggestedQuestions: agent.suggestedQuestions,
+      llmModel: agent.llmModel,
+      memoryEnabled: agent.memoryEnabled,
+      imageAnalysisEnabled: agent.imageAnalysisEnabled,
+      showAiDisclaimer: agent.showAiDisclaimer,
+      agentType: agent.agentType,
+      whiteLabel: agent.whiteLabel,
+      showPoweredBy: agent.showPoweredBy,
+      promptBranches: agent.promptBranches,
+      actions: agent.actions.map((a) => ({
+        type: a.type,
+        enabled: a.enabled,
+        config: a.config,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${agent.slug}-config.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast("Config exported", "success");
+  }
+
   // Wenn Advanced ausgeschaltet wird und wir auf einem Advanced-Tab sind → zurück zu config
   useEffect(() => {
     if (!advancedMode && advancedTabs.some((t) => t.id === activeTab)) {
@@ -453,6 +489,12 @@ export default function AgentDetailPage() {
             >
               <Store className="mr-2 h-3.5 w-3.5" />
               Publish
+            </Button>
+          )}
+          {advancedMode && (
+            <Button variant="outline" size="sm" onClick={handleExportConfig}>
+              <Download className="mr-2 h-3.5 w-3.5" />
+              Export
             </Button>
           )}
           <Button onClick={handleSave} disabled={saving} size="sm">

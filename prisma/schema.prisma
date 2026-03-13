@@ -251,6 +251,7 @@ enum Channel {
   VOICE
   SLACK
   EMAIL
+  GITHUB
 }
 
 // Gesammelte Leads
@@ -507,6 +508,7 @@ enum ChannelType {
   EMAIL
   WHATSAPP
   SLACK
+  GITHUB
 }
 
 // Team Members — access control for internal agents

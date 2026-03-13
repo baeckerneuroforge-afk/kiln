@@ -284,6 +284,13 @@ export default function IntegrationsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [waitlistEmail, setWaitlistEmail] = useState<Record<string, string>>({});
   const [waitlistSubmitted, setWaitlistSubmitted] = useState<Set<string>>(new Set());
+  const [showGitHubModal, setShowGitHubModal] = useState(false);
+  const [ghToken, setGhToken] = useState("");
+  const [ghRepo, setGhRepo] = useState("");
+  const [ghEvents, setGhEvents] = useState<string[]>(["issues", "pull_request"]);
+  const [ghAgentId, setGhAgentId] = useState("");
+  const [ghAgents, setGhAgents] = useState<{ id: string; name: string }[]>([]);
+  const [ghSaving, setGhSaving] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -338,6 +345,42 @@ export default function IntegrationsPage() {
     } catch {
       setConnections((prev) => prev.map((c) => (c.id === conn.id ? { ...c, isActive: conn.isActive } : c)));
       toast("Failed to update", "error");
+    }
+  };
+
+  const openGitHubModal = async () => {
+    setShowGitHubModal(true);
+    setGhToken("");
+    setGhRepo("");
+    setGhEvents(["issues", "pull_request"]);
+    setGhAgentId("");
+    // Load agents for the dropdown
+    try {
+      const res = await fetch("/api/agents");
+      const data = await res.json();
+      if (Array.isArray(data)) setGhAgents(data.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name })));
+    } catch { /* silent */ }
+  };
+
+  const connectGitHub = async () => {
+    if (!ghToken || !ghRepo || !ghAgentId) return;
+    setGhSaving(true);
+    try {
+      const res = await fetch(`/api/agents/${ghAgentId}/channels/github`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ githubToken: ghToken, repoFullName: ghRepo, events: ghEvents }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to connect");
+      toast(`GitHub connected to ${ghRepo}`);
+      setShowGitHubModal(false);
+      // Also save as an integration connection for the UI
+      await saveConnection("github", "GitHub", { repo: ghRepo, agentId: ghAgentId }, false);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Failed to connect", "error");
+    } finally {
+      setGhSaving(false);
     }
   };
 
@@ -526,6 +569,14 @@ export default function IntegrationsPage() {
                     <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-kiln-green opacity-75" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-kiln-green" /></span>
                     Connected
                   </span>
+                ) : item.provider === "github" ? (
+                  <button
+                    onClick={() => openGitHubModal()}
+                    className="flex items-center gap-1 rounded-full bg-kiln-orange/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-orange transition-colors hover:bg-kiln-orange/20"
+                  >
+                    <Plug className="h-2.5 w-2.5" />
+                    Connect
+                  </button>
                 ) : (
                   <span className="flex items-center gap-1 rounded-full bg-kiln-blue/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-blue">
                     <Clock className="h-2.5 w-2.5" />
@@ -536,7 +587,16 @@ export default function IntegrationsPage() {
               <p className="text-sm font-semibold text-foreground">{item.name}</p>
               <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.description}</p>
               <span className="mt-2 inline-block rounded-full bg-muted px-2 py-0.5 text-[9px] font-medium text-muted-foreground">{item.category}</span>
-              {!isConnected && (
+              {!isConnected && item.provider === "github" && (
+                <button
+                  onClick={() => openGitHubModal()}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-kiln-orange px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-kiln-orange/90"
+                >
+                  <GitBranch className="h-3.5 w-3.5" />
+                  Connect Repository
+                </button>
+              )}
+              {!isConnected && item.provider !== "github" && (
                 isSubmitted ? (
                   <div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-kiln-green/30 bg-kiln-green/5 px-3 py-2 text-xs font-medium text-kiln-green">
                     <Bell className="h-3.5 w-3.5" />
@@ -599,6 +659,116 @@ export default function IntegrationsPage() {
 
       {connectingProvider && <ConnectModal integration={connectingProvider} onClose={() => setConnectingProvider(null)} onSave={saveConnection} saving={saving} />}
       {showCustomModal && <CustomIntegrationModal onClose={() => setShowCustomModal(false)} onSave={saveConnection} saving={saving} />}
+
+      {/* GitHub Connect Modal */}
+      {showGitHubModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowGitHubModal(false)}>
+          <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-2xl animate-in zoom-in-95 fade-in duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="h-1 bg-neutral-600" />
+            <button onClick={() => setShowGitHubModal(false)} className="absolute right-4 top-5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="p-6">
+              <div className="mb-6 flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-600 text-white shadow-lg">
+                  <GitBranch className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">Connect GitHub</h2>
+                  <p className="text-xs text-muted-foreground">Your agent will respond to GitHub events</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <Shield className="h-3 w-3" />
+                    Personal Access Token
+                  </label>
+                  <input
+                    type="password"
+                    value={ghToken}
+                    onChange={(e) => setGhToken(e.target.value)}
+                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/20"
+                  />
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    Needs <span className="font-mono text-foreground/70">repo</span> and <span className="font-mono text-foreground/70">admin:repo_hook</span> scopes
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Repository</label>
+                  <input
+                    type="text"
+                    value={ghRepo}
+                    onChange={(e) => setGhRepo(e.target.value)}
+                    placeholder="owner/repository"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Agent</label>
+                  <select
+                    value={ghAgentId}
+                    onChange={(e) => setGhAgentId(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/20"
+                  >
+                    <option value="">Select an agent...</option>
+                    {ghAgents.map((a) => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Events</label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { key: "issues", label: "Issues" },
+                      { key: "pull_request", label: "Pull Requests" },
+                      { key: "push", label: "Push" },
+                      { key: "release", label: "Releases" },
+                    ].map((ev) => (
+                      <button
+                        key={ev.key}
+                        type="button"
+                        onClick={() => setGhEvents((prev) => prev.includes(ev.key) ? prev.filter((e) => e !== ev.key) : [...prev, ev.key])}
+                        className={cn(
+                          "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
+                          ghEvents.includes(ev.key)
+                            ? "border-kiln-orange/50 bg-kiln-orange/10 text-kiln-orange"
+                            : "border-border text-muted-foreground hover:bg-muted"
+                        )}
+                      >
+                        {ev.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border bg-muted/30 p-3">
+                  <p className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+                    <Shield className="h-3 w-3 text-kiln-green" />
+                    Your token is encrypted before storage. A webhook will be created on the repo.
+                  </p>
+                </div>
+
+                <button
+                  onClick={connectGitHub}
+                  disabled={ghSaving || !ghToken || !ghRepo || !ghAgentId || ghEvents.length === 0}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-kiln-orange px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-kiln-orange/90 disabled:opacity-50"
+                >
+                  {ghSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <GitBranch className="h-4 w-4" />}
+                  Connect Repository
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
