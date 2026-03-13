@@ -650,6 +650,24 @@ function createMcpServer(userId: string) {
           } catch { /* skip RAG */ }
         }
 
+        // Prompt branching — inject matching snippets
+        if (agent.promptBranches && Array.isArray(agent.promptBranches)) {
+          const userText = tc.inputMessage.toLowerCase();
+          const branches = agent.promptBranches as { name: string; keywords: string[]; promptSnippet: string; enabled: boolean }[];
+          const snippets: string[] = [];
+          for (const branch of branches) {
+            if (!branch.enabled) continue;
+            const matched = branch.keywords.some((kw) => {
+              const pattern = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+              return pattern.test(userText);
+            });
+            if (matched) snippets.push(branch.promptSnippet);
+          }
+          if (snippets.length > 0) {
+            systemPrompt += "\n\n---\nSpecial instructions for this type of question:\n" + snippets.join("\n\n");
+          }
+        }
+
         let responseText = "";
         try {
           if (modelProvider === "openai") {
