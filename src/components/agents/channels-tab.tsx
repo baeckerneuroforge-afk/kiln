@@ -12,6 +12,8 @@ import {
   Trash2,
   Globe,
   AlertCircle,
+  Copy,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/toast";
@@ -20,6 +22,16 @@ interface TelegramStatus {
   connected: boolean;
   isActive?: boolean;
   botUsername?: string | null;
+  createdAt?: string;
+}
+
+interface EmailStatus {
+  connected: boolean;
+  isActive?: boolean;
+  agentEmail?: string;
+  forwardingEmail?: string | null;
+  lastEmailAt?: string | null;
+  emailsToday?: number;
   createdAt?: string;
 }
 
@@ -51,7 +63,6 @@ const channels = [
     color: "text-red-400",
     bg: "bg-red-500/10",
     border: "border-red-500/20",
-    comingSoon: true,
   },
   {
     id: "whatsapp",
@@ -75,8 +86,21 @@ const channels = [
   },
 ];
 
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 export function ChannelsTab({ agentId }: { agentId: string }) {
   const { toast } = useToast();
+
+  // Telegram state
   const [telegramStatus, setTelegramStatus] = useState<TelegramStatus>({ connected: false });
   const [telegramLoading, setTelegramLoading] = useState(true);
   const [botToken, setBotToken] = useState("");
@@ -84,6 +108,16 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
   const [disconnecting, setDisconnecting] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [error, setError] = useState("");
+
+  // Email state
+  const [emailStatus, setEmailStatus] = useState<EmailStatus>({ connected: false });
+  const [emailLoading, setEmailLoading] = useState(true);
+  const [forwardingEmail, setForwardingEmail] = useState("");
+  const [emailConnecting, setEmailConnecting] = useState(false);
+  const [emailDisconnecting, setEmailDisconnecting] = useState(false);
+  const [showEmailSetup, setShowEmailSetup] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const loadTelegramStatus = useCallback(async () => {
     try {
@@ -98,8 +132,22 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
     }
   }, [agentId]);
 
-  useEffect(() => { loadTelegramStatus(); }, [loadTelegramStatus]);
+  const loadEmailStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/email`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setEmailStatus(data);
+    } catch {
+      // Not connected
+    } finally {
+      setEmailLoading(false);
+    }
+  }, [agentId]);
 
+  useEffect(() => { loadTelegramStatus(); loadEmailStatus(); }, [loadTelegramStatus, loadEmailStatus]);
+
+  // Telegram handlers
   const connectTelegram = async () => {
     if (!botToken.trim()) return;
     setConnecting(true);
@@ -143,6 +191,68 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
     }
   };
 
+  // Email handlers
+  const connectEmail = async () => {
+    setEmailConnecting(true);
+    setEmailError("");
+
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ forwardingEmail: forwardingEmail.trim() || null }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setEmailError(data.error);
+        return;
+      }
+      toast("Email channel enabled!");
+      setEmailStatus({
+        connected: true,
+        isActive: true,
+        agentEmail: data.agentEmail,
+        forwardingEmail: forwardingEmail.trim() || null,
+        emailsToday: 0,
+      });
+      setForwardingEmail("");
+      setShowEmailSetup(false);
+    } catch {
+      setEmailError("Failed to enable. Please try again.");
+    } finally {
+      setEmailConnecting(false);
+    }
+  };
+
+  const disconnectEmail = async () => {
+    setEmailDisconnecting(true);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/email`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast("Email channel disconnected");
+      setEmailStatus({ connected: false, agentEmail: emailStatus.agentEmail });
+      setShowEmailSetup(false);
+    } catch {
+      toast("Failed to disconnect", "error");
+    } finally {
+      setEmailDisconnecting(false);
+    }
+  };
+
+  const copyEmail = async () => {
+    const email = emailStatus.agentEmail;
+    if (!email) return;
+    try {
+      await navigator.clipboard.writeText(email);
+      setCopied(true);
+      toast("Email address copied!");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast("Failed to copy", "error");
+    }
+  };
+
   return (
     <div>
       <p className="mb-5 text-xs text-muted-foreground">
@@ -152,6 +262,7 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
       <div className="space-y-3">
         {channels.map((ch) => {
           const isTelegram = ch.id === "telegram";
+          const isEmail = ch.id === "email";
           return (
             <div key={ch.id} className="rounded-xl border border-border bg-card">
               {/* Channel card header */}
@@ -184,6 +295,7 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                     </span>
                   )}
 
+                  {/* Telegram status */}
                   {isTelegram && !telegramLoading && telegramStatus.connected && (
                     <span className="flex items-center gap-1.5 rounded-full bg-kiln-green/10 px-3 py-1 text-[10px] font-semibold text-kiln-green">
                       <CheckCircle2 className="h-3 w-3" />
@@ -201,6 +313,27 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                   )}
 
                   {isTelegram && telegramLoading && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+
+                  {/* Email status */}
+                  {isEmail && !emailLoading && emailStatus.connected && (
+                    <span className="flex items-center gap-1.5 rounded-full bg-kiln-green/10 px-3 py-1 text-[10px] font-semibold text-kiln-green">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Connected
+                    </span>
+                  )}
+
+                  {isEmail && !emailLoading && !emailStatus.connected && (
+                    <button
+                      onClick={() => setShowEmailSetup(!showEmailSetup)}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                    >
+                      Set Up
+                    </button>
+                  )}
+
+                  {isEmail && emailLoading && (
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   )}
 
@@ -282,6 +415,116 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                     >
                       {connecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                       Connect
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Email: Connected details */}
+              {isEmail && emailStatus.connected && (
+                <div className="border-t border-border px-4 py-3">
+                  <div className="space-y-3">
+                    {/* Agent email address — copyable */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-medium text-muted-foreground">Agent Email</span>
+                        <button
+                          onClick={copyEmail}
+                          className="flex items-center gap-1.5 rounded-md bg-muted/50 px-2.5 py-1 font-mono text-xs text-foreground transition-colors hover:bg-muted"
+                        >
+                          {emailStatus.agentEmail}
+                          {copied ? (
+                            <CheckCircle2 className="h-3 w-3 text-kiln-green" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-muted-foreground" />
+                          )}
+                        </button>
+                      </div>
+                      <button
+                        onClick={disconnectEmail}
+                        disabled={emailDisconnecting}
+                        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                      >
+                        {emailDisconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        Disconnect
+                      </button>
+                    </div>
+
+                    {/* Stats row */}
+                    <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+                      {emailStatus.forwardingEmail && (
+                        <span>
+                          Forwarding to <span className="font-medium text-foreground">{emailStatus.forwardingEmail}</span>
+                        </span>
+                      )}
+                      {emailStatus.lastEmailAt && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Last email {timeAgo(emailStatus.lastEmailAt)}
+                        </span>
+                      )}
+                      {typeof emailStatus.emailsToday === "number" && (
+                        <span>{emailStatus.emailsToday}/50 emails today</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Email: Setup form */}
+              {isEmail && showEmailSetup && !emailStatus.connected && (
+                <div className="border-t border-border p-4">
+                  <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+                    <p className="text-xs font-medium text-red-400 mb-2">How Email Channel Works</p>
+                    <ol className="space-y-1.5 text-[11px] text-muted-foreground list-decimal list-inside">
+                      <li>Your agent gets a unique email address: <span className="font-medium text-foreground">{emailStatus.agentEmail || "your-agent@getkiln.com"}</span></li>
+                      <li>Anyone who emails that address gets an AI-powered reply</li>
+                      <li>Conversations are saved and visible in your dashboard</li>
+                      <li>Optionally forward copies to your own email for monitoring</li>
+                    </ol>
+                  </div>
+
+                  {/* Agent email preview */}
+                  <div className="mb-3 rounded-lg bg-muted/30 px-3 py-2">
+                    <span className="text-[10px] text-muted-foreground">Your agent&apos;s email address</span>
+                    <p className="font-mono text-sm text-foreground">{emailStatus.agentEmail || "your-agent@getkiln.com"}</p>
+                  </div>
+
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    Forwarding Email <span className="text-muted-foreground/50">(optional)</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={forwardingEmail}
+                    onChange={(e) => { setForwardingEmail(e.target.value); setEmailError(""); }}
+                    placeholder="you@company.com"
+                    className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500/20"
+                  />
+                  <p className="mb-3 text-[10px] text-muted-foreground">
+                    Receive a copy of every inbound email for monitoring. Rate limit: 50 emails/day per agent.
+                  </p>
+
+                  {emailError && (
+                    <div className="mb-2 flex items-center gap-1.5 text-xs text-red-400">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      {emailError}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setShowEmailSetup(false); setEmailError(""); setForwardingEmail(""); }}
+                      className="flex-1 rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={connectEmail}
+                      disabled={emailConnecting}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-red-500/90 disabled:opacity-50"
+                    >
+                      {emailConnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+                      Enable Email
                     </button>
                   </div>
                 </div>
