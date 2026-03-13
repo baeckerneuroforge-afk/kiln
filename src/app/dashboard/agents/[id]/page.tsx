@@ -34,6 +34,7 @@ import {
   Shield,
   Bolt,
   Plug,
+  Radio,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ import { VersionsTab } from "@/components/agents/versions-tab";
 import { TestingTab } from "@/components/agents/testing-tab";
 import { WebhooksTab } from "@/components/agents/webhooks-tab";
 import { IntegrationsTab } from "@/components/agents/integrations-tab";
+import { ChannelsTab } from "@/components/agents/channels-tab";
 import { PromptEditor } from "@/components/agents/prompt-editor";
 import { cn } from "@/lib/utils";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
@@ -81,7 +83,7 @@ interface Agent {
   _count: { conversations: number };
 }
 
-type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "integrations" | "tools" | "debug" | "logs" | "memory" | "automations" | "versions" | "testing" | "webhooks";
+type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "channels" | "integrations" | "tools" | "debug" | "logs" | "memory" | "automations" | "versions" | "testing" | "webhooks";
 
 const baseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "config", label: "Configuration", icon: Settings2 },
@@ -89,6 +91,7 @@ const baseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "actions", label: "Actions", icon: Zap },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "embed", label: "Embed Code", icon: Code2 },
+  { id: "channels", label: "Channels", icon: Radio },
   { id: "integrations", label: "Integrations", icon: Plug },
 ];
 
@@ -946,6 +949,10 @@ export default function AgentDetailPage() {
 
           {activeTab === "webhooks" && (
             <WebhooksTab agentId={agent.id} />
+          )}
+
+          {activeTab === "channels" && (
+            <ChannelsTab agentId={agent.id} />
           )}
 
           {activeTab === "integrations" && (

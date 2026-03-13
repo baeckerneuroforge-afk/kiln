@@ -106,6 +106,7 @@ model Agent {
   orchestrationsTo   AgentOrchestration[] @relation("OrchestrationTarget")
   webhooks           AgentWebhook[]
   integrations       AgentIntegration[]
+  channels           AgentChannel[]
 
   @@index([userId])
 }
@@ -459,6 +460,28 @@ model AgentIntegration {
   @@unique([agentId, integrationId])
   @@index([agentId])
   @@index([integrationId])
+}
+
+// Agent Channels — Telegram, Email, WhatsApp, Slack connections
+model AgentChannel {
+  id        String      @id @default(cuid())
+  agentId   String
+  agent     Agent       @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  type      ChannelType
+  config    String      @db.Text // Encrypted JSON: { botToken, chatId, etc. }
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([agentId, type])
+  @@index([agentId])
+}
+
+enum ChannelType {
+  TELEGRAM
+  EMAIL
+  WHATSAPP
+  SLACK
 }
 
 // Agent Inbound Webhooks — external services trigger agent processing

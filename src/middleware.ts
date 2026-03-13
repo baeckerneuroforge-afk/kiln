@@ -29,6 +29,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/embed/(.*)",       // Embed Script JS
   "/api/waitlist",          // Waitlist Signup
   "/api/webhooks/stripe",   // Stripe Webhooks
+  "/api/webhooks/telegram/(.*)", // Telegram Bot Webhooks
   "/api/v1/(.*)",           // Public API (eigene Key-Auth)
   "/api/mcp(.*)",            // MCP Server (eigene Key-Auth)
   "/api/automations/run",   // Cron-Endpoint (eigene Secret-Auth)
