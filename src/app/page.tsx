@@ -9,7 +9,6 @@ import {
   ArrowRight,
   Check,
   Loader2,
-  Minus,
   Bot,
   Globe,
   Zap,
@@ -17,11 +16,17 @@ import {
   FileText,
   Palette,
   BarChart3,
-  Plug,
   Code2,
   Shield,
-  Users,
-  Workflow,
+  Copy as CopyIcon,
+  Terminal,
+  Webhook,
+  Brain,
+  Timer,
+  GitFork,
+  Key,
+  Wrench,
+  FlaskConical,
 } from "lucide-react";
 
 // ─── Scroll-triggered Fade-Up ──────────────────────────────────────
@@ -39,7 +44,7 @@ function useFadeUp() {
           obs.disconnect();
         }
       },
-      { threshold: 0.15 }
+      { threshold: 0.1 }
     );
     obs.observe(el);
     return () => obs.disconnect();
@@ -48,9 +53,7 @@ function useFadeUp() {
   return {
     ref,
     className: `transition-all duration-700 ${
-      visible
-        ? "opacity-100 translate-y-0"
-        : "opacity-0 translate-y-8"
+      visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
     }`,
   };
 }
@@ -81,8 +84,10 @@ export default function LandingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState<"hero" | "cta" | null>(null);
   const [scrolled, setScrolled] = useState(false);
-  const [annual, setAnnual] = useState(true);
+  const [annual, setAnnual] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [audienceTab, setAudienceTab] = useState<"business" | "agency" | "developer">("business");
+  const [mcpCopied, setMcpCopied] = useState(false);
 
   useEffect(() => {
     if (isLoaded && isSignedIn) router.replace("/dashboard");
@@ -145,7 +150,7 @@ export default function LandingPage() {
           <div className="hidden items-center gap-8 text-[13px] text-neutral-400 sm:flex">
             <a href="#features" className="transition-colors hover:text-white">Features</a>
             <a href="#pricing" className="transition-colors hover:text-white">Pricing</a>
-            <a href="#roadmap" className="transition-colors hover:text-white">Roadmap</a>
+            <a href="#developers" className="transition-colors hover:text-white">Developers</a>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/sign-in" className="text-[13px] text-neutral-400 transition-colors hover:text-white">
@@ -171,90 +176,93 @@ export default function LandingPage() {
             backgroundSize: "64px 64px",
           }}
         />
-        {/* Radial glow */}
-        <div
-          className="pointer-events-none absolute left-1/2 top-16 -translate-x-1/2"
-          style={{
-            width: "900px",
-            height: "500px",
-            background: "radial-gradient(ellipse, rgba(249,115,22,0.10) 0%, rgba(220,38,38,0.04) 40%, transparent 70%)",
-          }}
-        />
+        {/* Animated gradient glow */}
+        <div className="pointer-events-none absolute left-1/2 top-16 -translate-x-1/2 animate-pulse" style={{ width: "1000px", height: "600px", background: "radial-gradient(ellipse, rgba(249,115,22,0.12) 0%, rgba(220,38,38,0.06) 30%, transparent 65%)", animationDuration: "4s" }} />
 
         <div className="relative mx-auto max-w-4xl px-6 text-center">
           <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs text-neutral-400 backdrop-blur-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E] animate-pulse" />
-            Early Access — Get Started Free
+            Now Live — Start Building for Free
           </div>
 
           <h1 className="font-serif text-5xl leading-[1.1] tracking-tight sm:text-6xl lg:text-[4.5rem]">
-            Build anything
+            Build AI agents
             <br />
             <span
               className="bg-clip-text text-transparent"
               style={{ backgroundImage: "linear-gradient(135deg, #F97316 0%, #DC2626 100%)" }}
             >
-              with AI.
+              without code.
             </span>
           </h1>
 
           <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-neutral-400">
-            AI Agents, Websites & Workflows — One Platform.
+            Create intelligent chat agents that book appointments, score leads,
             <br className="hidden sm:block" />
-            Describe what you need. KILN builds it.
+            and answer from your knowledge base. Deploy in minutes.
           </p>
 
-          {/* Waitlist */}
-          <div className="mx-auto mt-10 max-w-md">
+          {/* Social proof line */}
+          <p className="mt-4 text-xs text-neutral-500">
+            Trusted by 50+ businesses. EU-hosted. GDPR compliant.
+          </p>
+
+          {/* CTA buttons + waitlist */}
+          <div className="mx-auto mt-10 flex max-w-lg flex-col items-center gap-4">
+            <Link
+              href="/sign-up"
+              className="flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-medium text-white transition-all hover:brightness-110"
+              style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}
+            >
+              Get Started Free <ArrowRight className="h-4 w-4" />
+            </Link>
+
             {submitted === "hero" ? (
-              <div className="flex items-center justify-center gap-2 rounded-xl border border-[#22C55E]/20 bg-[#22C55E]/5 px-6 py-3.5 text-sm text-[#22C55E]">
+              <div className="flex items-center gap-2 text-sm text-[#22C55E]">
                 <Check className="h-4 w-4" />
-                You&apos;re on the waitlist!
+                You&apos;re on the list!
               </div>
             ) : (
               <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleWaitlist("hero", email);
-                }}
-                className="flex gap-2"
+                onSubmit={(e) => { e.preventDefault(); handleWaitlist("hero", email); }}
+                className="flex w-full max-w-sm gap-2"
               >
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@email.com"
+                  placeholder="or join the waitlist"
                   required
-                  className="flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-neutral-500 focus:border-[#F97316]/50 focus:outline-none focus:ring-1 focus:ring-[#F97316]/30 backdrop-blur-sm"
+                  className="flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-[#F97316]/50 focus:outline-none focus:ring-1 focus:ring-[#F97316]/30 backdrop-blur-sm"
                 />
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-white transition-all hover:brightness-110 disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}
+                  className="rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm text-neutral-300 transition-colors hover:bg-white/[0.08] disabled:opacity-50"
                 >
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Join <ArrowRight className="h-3.5 w-3.5" /></>}
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Join"}
                 </button>
               </form>
             )}
-            <p className="mt-4 text-xs text-neutral-500">
-              Or{" "}
-              <Link href="/sign-up" className="text-[#F97316] underline underline-offset-2">
-                get started free
-              </Link>{" "}
-              — Free plan, no credit card.
-            </p>
           </div>
 
-          {/* Dashboard Mockup */}
-          <div className="mx-auto mt-16 max-w-3xl">
-            <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#141211] shadow-2xl shadow-black/50">
+          {/* Dashboard Mockup — perspective tilt + glow border */}
+          <div className="mx-auto mt-16 max-w-3xl" style={{ perspective: "1200px" }}>
+            <div
+              className="overflow-hidden rounded-xl border border-[#F97316]/20 bg-[#141211] shadow-2xl"
+              style={{
+                transform: "rotateX(4deg)",
+                boxShadow: "0 0 60px rgba(249,115,22,0.08), 0 20px 60px rgba(0,0,0,0.5)",
+              }}
+            >
               {/* Window chrome */}
               <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3">
-                <div className="h-3 w-3 rounded-full bg-white/10" />
-                <div className="h-3 w-3 rounded-full bg-white/10" />
-                <div className="h-3 w-3 rounded-full bg-white/10" />
-                <div className="ml-4 h-5 flex-1 rounded-md bg-white/[0.04]" />
+                <div className="h-3 w-3 rounded-full bg-[#DC2626]/40" />
+                <div className="h-3 w-3 rounded-full bg-[#F97316]/40" />
+                <div className="h-3 w-3 rounded-full bg-[#22C55E]/40" />
+                <div className="ml-4 h-5 flex-1 rounded-md bg-white/[0.04]">
+                  <span className="flex items-center justify-center h-full text-[10px] text-neutral-600">kiln-topaz.vercel.app/dashboard</span>
+                </div>
               </div>
               <div className="flex">
                 {/* Sidebar */}
@@ -264,6 +272,7 @@ export default function LandingPage() {
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F97316]/10"><Bot className="h-4 w-4 text-[#F97316]" /></div>
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.04]"><Globe className="h-4 w-4 text-neutral-500" /></div>
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.04]"><Zap className="h-4 w-4 text-neutral-500" /></div>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.04]"><BarChart3 className="h-4 w-4 text-neutral-500" /></div>
                   </div>
                 </div>
                 {/* Content */}
@@ -271,15 +280,33 @@ export default function LandingPage() {
                   <div className="mb-4 flex items-center justify-between">
                     <div>
                       <div className="font-serif text-lg text-white">AI Agent Studio</div>
-                      <div className="text-xs text-neutral-500">3 Agents created</div>
+                      <div className="text-xs text-neutral-500">3 Agents &middot; 231 Conversations this month</div>
                     </div>
-                    <div className="rounded-lg bg-white/[0.06] px-3 py-1.5 text-xs text-neutral-400">+ New Agent</div>
+                    <div className="rounded-lg px-3 py-1.5 text-xs font-medium text-white" style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}>+ New Agent</div>
                   </div>
+
+                  {/* Stats bar */}
+                  <div className="mb-4 grid grid-cols-3 gap-3">
+                    {[
+                      { label: "Total Chats", value: "1,284", change: "+18%" },
+                      { label: "Leads Captured", value: "89", change: "+12%" },
+                      { label: "Est. Revenue", value: "€4,250", change: "+24%" },
+                    ].map((s) => (
+                      <div key={s.label} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+                        <div className="text-[10px] text-neutral-500">{s.label}</div>
+                        <div className="mt-1 flex items-baseline gap-1.5">
+                          <span className="text-sm font-semibold text-white">{s.value}</span>
+                          <span className="text-[10px] text-[#22C55E]">{s.change}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     {[
-                      { name: "Yoga Assistant", status: "Live", color: "#22C55E", chats: 142 },
-                      { name: "Realtor Bot", status: "Live", color: "#22C55E", chats: 89 },
-                      { name: "Support Agent", status: "Draft", color: "#A8A29E", chats: 0 },
+                      { name: "Coaching Assistant", status: "Live", color: "#22C55E", chats: 142, leads: 34 },
+                      { name: "Dental Practice Bot", status: "Live", color: "#22C55E", chats: 89, leads: 21 },
+                      { name: "Support Agent", status: "Draft", color: "#A8A29E", chats: 0, leads: 0 },
                     ].map((a) => (
                       <div key={a.name} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
                         <div className="mb-2 flex items-center justify-between">
@@ -292,210 +319,334 @@ export default function LandingPage() {
                           </span>
                         </div>
                         <div className="text-xs font-medium text-white">{a.name}</div>
-                        <div className="mt-1 text-[10px] text-neutral-500">{a.chats} Chats</div>
+                        <div className="mt-1 flex items-center gap-3 text-[10px] text-neutral-500">
+                          <span>{a.chats} chats</span>
+                          <span>{a.leads} leads</span>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
             </div>
-            {/* Subtle reflection */}
-            <div className="mx-auto h-32 w-[90%] rounded-b-xl bg-gradient-to-b from-white/[0.02] to-transparent blur-sm" />
+            {/* Reflection */}
+            <div className="mx-auto h-24 w-[90%] rounded-b-xl bg-gradient-to-b from-white/[0.015] to-transparent blur-sm" />
           </div>
         </div>
       </section>
 
-      {/* ── Features (3 Module) ─────────────────────────────── */}
-      <Section id="features" className="border-t border-white/[0.06] py-28">
+      {/* ── Platform (replaces roadmap) ──────────────────────── */}
+      <Section className="border-t border-white/[0.06] py-28">
         <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-20 text-center">
+          <div className="mb-16 text-center">
             <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Platform</p>
             <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Three Modules. One Vision.</h2>
-            <p className="mt-4 text-neutral-400">Everything you need — in one product.</p>
-          </div>
-
-          <div className="space-y-20">
-            {[
-              {
-                icon: Bot, label: "Module 1", title: "AI Agent Studio", color: "#F97316",
-                desc: "Create intelligent chat agents that understand your business. Knowledge Base, appointment booking, lead scoring — all built in.",
-                features: [
-                  { icon: MessageSquare, text: "Conversational Builder — describe your agent in natural language" },
-                  { icon: FileText, text: "RAG Knowledge Base — PDF, URL, FAQ. Your agent answers with your knowledge" },
-                  { icon: Palette, text: "White-Label — custom colors, logo, domain. Your brand, not ours" },
-                  { icon: BarChart3, text: "Analytics & Lead Scoring — every conversation is automatically scored" },
-                ],
-                status: "Live",
-              },
-              {
-                icon: Globe, label: "Module 2", title: "Site Builder", color: "#3B82F6",
-                desc: "Describe your website — KILN designs, builds and hosts it. With integrated AI chat and analytics.",
-                features: [
-                  { icon: Code2, text: "Natural Language Design — describe layouts, colors, content" },
-                  { icon: Shield, text: "Custom Domains + SSL — professional URLs from day one" },
-                  { icon: Bot, text: "Agent Integration — chat widget automatically embedded" },
-                  { icon: BarChart3, text: "SEO & Analytics — automatically optimized, measurable" },
-                ],
-                status: "Q3 2026",
-              },
-              {
-                icon: Zap, label: "Module 3", title: "Flow Engine", color: "#22C55E",
-                desc: "Automate workflows with natural language. Connect CRM, email, calendar and 100+ tools.",
-                features: [
-                  { icon: Workflow, text: "Visual Flow Builder — drag & drop with AI assist" },
-                  { icon: Plug, text: "100+ Integrations — HubSpot, Calendly, Slack, Stripe and more" },
-                  { icon: Zap, text: "Triggers & Actions — when X happens, do Y. Automatically." },
-                  { icon: Users, text: "Multi-Client — manage flows for different clients" },
-                ],
-                status: "Q4 2026",
-              },
-            ].map((mod, idx) => (
-              <Section key={mod.title} className={`flex flex-col gap-12 lg:flex-row lg:items-center ${idx % 2 === 1 ? "lg:flex-row-reverse" : ""}`}>
-                {/* Text */}
-                <div className="flex-1">
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: `${mod.color}15` }}>
-                      <mod.icon className="h-5 w-5" style={{ color: mod.color }} />
-                    </div>
-                    <span className="text-xs font-medium uppercase tracking-widest text-neutral-500">{mod.label}</span>
-                    <span className="rounded-full px-2.5 py-0.5 text-[10px] font-medium" style={{ backgroundColor: `${mod.color}15`, color: mod.color }}>
-                      {mod.status}
-                    </span>
-                  </div>
-                  <h3 className="font-serif text-2xl tracking-tight sm:text-3xl">{mod.title}</h3>
-                  <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-neutral-400">{mod.desc}</p>
-                </div>
-                {/* Feature List */}
-                <div className="flex-1 space-y-4">
-                  {mod.features.map((f) => (
-                    <div key={f.text} className="flex gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${mod.color}10` }}>
-                        <f.icon className="h-4 w-4" style={{ color: mod.color }} />
-                      </div>
-                      <p className="text-sm leading-relaxed text-neutral-300">{f.text}</p>
-                    </div>
-                  ))}
-                </div>
-              </Section>
-            ))}
-          </div>
-        </div>
-      </Section>
-
-      {/* ── How it Works ────────────────────────────────────── */}
-      <Section className="border-t border-white/[0.06] py-28">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-20 text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Process</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Four Steps. No Code.</h2>
-          </div>
-
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { n: "01", title: "Describe", desc: "Tell KILN what you need in your own words. Industry, tone, target audience." },
-              { n: "02", title: "Generate", desc: "KILN creates system prompt, personality, actions and knowledge base automatically." },
-              { n: "03", title: "Customize", desc: "Test in live chat, adjust responses, upload knowledge. All visual." },
-              { n: "04", title: "Go Live", desc: "One click. Your agent is online — on your website, in your colors." },
-            ].map((step) => (
-              <div key={step.n}>
-                <div className="mb-4 font-mono text-5xl font-bold bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(180deg, #F97316 0%, #DC262640 100%)" }}>
-                  {step.n}
-                </div>
-                <h3 className="mb-2 text-[15px] font-semibold">{step.title}</h3>
-                <p className="text-sm leading-relaxed text-neutral-500">{step.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Section>
-
-      {/* ── Showcase ────────────────────────────────────────── */}
-      <Section className="border-t border-white/[0.06] py-28">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-20 text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Examples</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">What you can build with KILN</h2>
+            <p className="mt-4 text-neutral-400">A complete AI creation platform.</p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
             {[
               {
-                badge: "AI Agent", color: "#F97316", gradient: "from-[#F97316]/10 to-[#DC2626]/5",
-                title: "Yoga Studio Assistant", desc: "Answers class questions, books trial sessions, collects leads — 24/7 on your website.",
+                icon: Bot, title: "AI Agent Studio", color: "#F97316", badge: "Live", badgeGlow: true,
+                desc: "Create intelligent chat agents with RAG knowledge bases, smart actions, white-label, and analytics.",
               },
               {
-                badge: "Website", color: "#3B82F6", gradient: "from-[#3B82F6]/10 to-[#6366F1]/5",
-                title: "Realtor Landing Page", desc: "Professional real estate page with integrated consultation chat and viewing booking.",
+                icon: Globe, title: "Site Builder", color: "#3B82F6", badge: "Q3 2026", badgeGlow: false,
+                desc: "Describe your website in natural language. KILN designs, builds, and hosts it with integrated AI chat.",
               },
               {
-                badge: "Workflow", color: "#22C55E", gradient: "from-[#22C55E]/10 to-[#10B981]/5",
-                title: "Lead Nurturing Flow", desc: "New lead → email sequence → CRM entry → appointment reminder. Fully automated.",
+                icon: Zap, title: "Flow Engine", color: "#22C55E", badge: "Q4 2026", badgeGlow: false,
+                desc: "Automate workflows with natural language. Connect CRM, email, calendar, and 100+ tools.",
               },
-            ].map((ex) => (
-              <div
-                key={ex.title}
-                className={`rounded-2xl border border-white/[0.06] bg-gradient-to-br ${ex.gradient} p-6`}
-              >
-                <span
-                  className="mb-4 inline-block rounded-full px-3 py-1 text-[10px] font-semibold"
-                  style={{ backgroundColor: `${ex.color}15`, color: ex.color }}
-                >
-                  {ex.badge}
-                </span>
-                <h3 className="mb-2 text-lg font-semibold">{ex.title}</h3>
-                <p className="text-sm leading-relaxed text-neutral-400">{ex.desc}</p>
+            ].map((mod) => (
+              <div key={mod.title} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-colors hover:border-white/[0.1]">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: `${mod.color}15` }}>
+                    <mod.icon className="h-5 w-5" style={{ color: mod.color }} />
+                  </div>
+                  <span
+                    className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
+                    style={{
+                      backgroundColor: `${mod.color}15`,
+                      color: mod.color,
+                      boxShadow: mod.badgeGlow ? `0 0 12px ${mod.color}30` : undefined,
+                    }}
+                  >
+                    {mod.badge}
+                  </span>
+                </div>
+                <h3 className="text-lg font-semibold">{mod.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-neutral-400">{mod.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </Section>
 
-      {/* ── Comparison ──────────────────────────────────────── */}
-      <Section className="border-t border-white/[0.06] py-28">
-        <div className="mx-auto max-w-4xl px-6">
+      {/* ── Features Grid (12 cards) ─────────────────────────── */}
+      <Section id="features" className="border-t border-white/[0.06] py-28">
+        <div className="mx-auto max-w-6xl px-6">
           <div className="mb-16 text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Comparison</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">KILN vs. Alternatives</h2>
+            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Features</p>
+            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Everything you need to ship AI agents</h2>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/[0.06]">
-                  <th className="pb-4 pr-6 text-left text-xs font-medium text-neutral-500">Feature</th>
-                  {["KILN", "Bolt.new", "Zapier", "Voiceflow", "Webflow"].map((name) => (
-                    <th key={name} className={`pb-4 text-center text-xs font-medium ${name === "KILN" ? "text-[#F97316]" : "text-neutral-500"}`}>
-                      {name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="text-neutral-400">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { icon: MessageSquare, title: "Conversational Builder", desc: "Describe your agent in plain English. KILN generates the config." },
+              { icon: FileText, title: "RAG Knowledge Base", desc: "Upload PDFs, URLs, or FAQs. Your agent answers with your knowledge." },
+              { icon: Zap, title: "Smart Actions", desc: "Book appointments, collect emails, score leads — all built in." },
+              { icon: BarChart3, title: "ROI Analytics", desc: "Track conversations, leads, estimated revenue, and agent performance." },
+              { icon: Brain, title: "Feedback Loop", desc: "Rate bad answers, add corrections. Your agent improves over time." },
+              { icon: Palette, title: "White-Label", desc: "Your brand, colors, logo, domain. Remove all KILN branding." },
+              { icon: Timer, title: "Scheduled Agents", desc: "Run automated tasks on a schedule. Daily reports, data sync, alerts." },
+              { icon: Code2, title: "Custom Code", desc: "Write JavaScript actions that run when your agent triggers them." },
+              { icon: Key, title: "Bring Your Own Key", desc: "Use your Anthropic or OpenAI API key for unlimited conversations." },
+              { icon: Terminal, title: "MCP Server", desc: "25 tools. Manage agents from Claude Code, Cursor, or any MCP client." },
+              { icon: GitFork, title: "Agent Cloning", desc: "Duplicate agents with one click. Clone configs, knowledge, and actions." },
+              { icon: Webhook, title: "Webhook Triggers", desc: "Receive HTTP requests from external services. Full agent pipeline." },
+            ].map((f) => (
+              <div
+                key={f.title}
+                className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 transition-colors hover:border-white/[0.1]"
+              >
+                <f.icon className="mb-3 h-5 w-5 text-[#F97316]" />
+                <h3 className="text-sm font-semibold">{f.title}</h3>
+                <p className="mt-1.5 text-xs leading-relaxed text-neutral-500">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Built for Everyone (3 audience tabs) ──────────────── */}
+      <Section className="border-t border-white/[0.06] py-28">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="mb-12 text-center">
+            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Audience</p>
+            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Built for everyone</h2>
+          </div>
+
+          {/* Tabs */}
+          <div className="mb-10 flex justify-center">
+            <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.03] p-1">
+              {([
+                { id: "business" as const, label: "For Business" },
+                { id: "agency" as const, label: "For Agencies" },
+                { id: "developer" as const, label: "For Developers" },
+              ]).map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setAudienceTab(t.id)}
+                  className={`rounded-lg px-5 py-2 text-sm font-medium transition-all ${
+                    audienceTab === t.id
+                      ? "bg-white text-[#0C0A09]"
+                      : "text-neutral-400 hover:text-white"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          <div className="mx-auto max-w-4xl">
+            {audienceTab === "business" && (
+              <div className="grid gap-4 sm:grid-cols-2">
                 {[
-                  { feature: "AI Agents", kiln: true, bolt: false, zapier: false, voice: true, webflow: false },
-                  { feature: "Website Builder", kiln: true, bolt: true, zapier: false, voice: false, webflow: true },
-                  { feature: "Workflow Automation", kiln: true, bolt: false, zapier: true, voice: false, webflow: false },
-                  { feature: "Knowledge Base (RAG)", kiln: true, bolt: false, zapier: false, voice: true, webflow: false },
-                  { feature: "White-Label", kiln: true, bolt: false, zapier: false, voice: true, webflow: true },
-                  { feature: "Natural Language Builder", kiln: true, bolt: true, zapier: false, voice: false, webflow: false },
-                  { feature: "Embed-Widget", kiln: true, bolt: false, zapier: false, voice: true, webflow: false },
-                  { feature: "All-in-One Platform", kiln: true, bolt: false, zapier: false, voice: false, webflow: false },
-                ].map((row) => (
-                  <tr key={row.feature} className="border-b border-white/[0.04]">
-                    <td className="py-3 pr-6 text-[13px] text-neutral-300">{row.feature}</td>
-                    {[row.kiln, row.bolt, row.zapier, row.voice, row.webflow].map((v, i) => (
-                      <td key={i} className="py-3 text-center">
-                        {v ? (
-                          <Check className={`mx-auto h-4 w-4 ${i === 0 ? "text-[#F97316]" : "text-neutral-500"}`} />
-                        ) : (
-                          <Minus className="mx-auto h-4 w-4 text-neutral-700" />
-                        )}
-                      </td>
-                    ))}
-                  </tr>
+                  { icon: MessageSquare, title: "No-Code Agent Builder", desc: "Describe what you need in plain language. No technical knowledge required." },
+                  { icon: FileText, title: "Industry Templates", desc: "10 pre-built templates for dental, coaching, real estate, e-commerce, and more." },
+                  { icon: Code2, title: "Embed Widget", desc: "Add your AI agent to any website with a single line of code." },
+                  { icon: BarChart3, title: "Analytics with ROI", desc: "See conversations, leads captured, and estimated revenue generated." },
+                ].map((f) => (
+                  <div key={f.title} className="flex gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F97316]/10">
+                      <f.icon className="h-5 w-5 text-[#F97316]" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold">{f.title}</h4>
+                      <p className="mt-1 text-xs leading-relaxed text-neutral-500">{f.desc}</p>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            )}
+
+            {audienceTab === "agency" && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {[
+                  { icon: Palette, title: "White-Label", desc: "Remove all KILN branding. Your logo, colors, custom domain." },
+                  { icon: GitFork, title: "Agent Cloning", desc: "Duplicate proven agents across clients. Bulk clone support." },
+                  { icon: Shield, title: "Multi-Client Management", desc: "Manage agents for multiple clients from one dashboard." },
+                  { icon: Globe, title: "Custom Domains", desc: "Serve agents on your clients' domains with automatic SSL." },
+                  { icon: Key, title: "API Access", desc: "Full REST API and MCP server for programmatic agent management." },
+                  { icon: Webhook, title: "Webhooks", desc: "Real-time events for conversations, leads, and actions." },
+                ].map((f) => (
+                  <div key={f.title} className="flex gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F97316]/10">
+                      <f.icon className="h-5 w-5 text-[#F97316]" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold">{f.title}</h4>
+                      <p className="mt-1 text-xs leading-relaxed text-neutral-500">{f.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {audienceTab === "developer" && (
+              <div className="space-y-6">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {[
+                    { icon: Terminal, title: "MCP Server (25 tools)", desc: "Full agent lifecycle from Claude Code, Cursor, or any MCP client." },
+                    { icon: Key, title: "REST API + SDK", desc: "Programmatic access to all agent features with API key auth." },
+                    { icon: Wrench, title: "BYOK + Custom Code", desc: "Bring your own API keys. Write custom JavaScript actions." },
+                    { icon: Webhook, title: "Webhooks + HTTP Triggers", desc: "Inbound webhooks trigger agent processing. Outbound HTTP actions." },
+                    { icon: FlaskConical, title: "Prompt Branching", desc: "Keyword-triggered conditional prompt injection for dynamic behavior." },
+                    { icon: Code2, title: "Custom Tools", desc: "Define HTTP tools with template variables. Claude calls them automatically." },
+                  ].map((f) => (
+                    <div key={f.title} className="flex gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F97316]/10">
+                        <f.icon className="h-5 w-5 text-[#F97316]" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold">{f.title}</h4>
+                        <p className="mt-1 text-xs leading-relaxed text-neutral-500">{f.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* MCP code snippet */}
+                <div className="rounded-xl border border-white/[0.06] bg-[#141211] p-5">
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-xs font-medium text-neutral-500">Connect in seconds</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText("claude mcp add kiln-mcp --transport http https://kiln-topaz.vercel.app/api/mcp -H \"Authorization: Bearer sk-kiln-YOUR_KEY\"");
+                        setMcpCopied(true);
+                        setTimeout(() => setMcpCopied(false), 2000);
+                      }}
+                      className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-white"
+                    >
+                      {mcpCopied ? <Check className="h-3 w-3 text-[#22C55E]" /> : <CopyIcon className="h-3 w-3" />}
+                      {mcpCopied ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                  <pre className="overflow-x-auto text-xs leading-relaxed">
+                    <code>
+                      <span className="text-neutral-500">$</span>{" "}
+                      <span className="text-[#F97316]">claude mcp add</span>{" "}
+                      <span className="text-white">kiln-mcp</span>{" "}
+                      <span className="text-neutral-500">\</span>{"\n"}
+                      {"  "}<span className="text-neutral-400">--transport http</span>{" "}
+                      <span className="text-neutral-500">\</span>{"\n"}
+                      {"  "}<span className="text-[#22C55E]">https://kiln-topaz.vercel.app/api/mcp</span>{" "}
+                      <span className="text-neutral-500">\</span>{"\n"}
+                      {"  "}<span className="text-neutral-400">-H</span>{" "}
+                      <span className="text-[#3B82F6]">&quot;Authorization: Bearer sk-kiln-YOUR_KEY&quot;</span>
+                    </code>
+                  </pre>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Social Proof ─────────────────────────────────────── */}
+      <Section className="border-t border-white/[0.06] py-28">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="mb-16 text-center">
+            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Use Cases</p>
+            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">What people are building</h2>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {[
+              {
+                quote: "A coaching agency deployed 15 AI agents for their clients in one afternoon.",
+                tag: "Agency", color: "#F97316",
+              },
+              {
+                quote: "A dental practice handles 80% of appointment requests automatically.",
+                tag: "Business", color: "#3B82F6",
+              },
+              {
+                quote: "A developer manages 10 agents from Claude Code via MCP.",
+                tag: "Developer", color: "#22C55E",
+              },
+            ].map((story) => (
+              <div
+                key={story.tag}
+                className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6"
+              >
+                <span
+                  className="mb-4 inline-block rounded-full px-3 py-1 text-[10px] font-semibold"
+                  style={{ backgroundColor: `${story.color}15`, color: story.color }}
+                >
+                  {story.tag}
+                </span>
+                <p className="text-[15px] leading-relaxed text-neutral-300">
+                  &ldquo;{story.quote}&rdquo;
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Developer Section ────────────────────────────────── */}
+      <Section id="developers" className="border-t border-white/[0.06] bg-[#0A0908] py-28">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+            <div>
+              <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#22C55E]">For Developers</p>
+              <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">
+                Infrastructure for the
+                <br />
+                <span className="text-[#22C55E]">Agentic Coding</span> era.
+              </h2>
+              <p className="mt-4 max-w-lg text-[15px] leading-relaxed text-neutral-400">
+                KILN is an MCP server. Build agents from Claude Code, Cursor, or any MCP client. 25 tools. Full lifecycle management.
+              </p>
+              <div className="mt-6 flex items-center gap-4">
+                <Link
+                  href="/sign-up"
+                  className="rounded-xl bg-[#22C55E] px-5 py-2.5 text-sm font-medium text-[#0C0A09] transition-opacity hover:opacity-90"
+                >
+                  Get API Key
+                </Link>
+                <a
+                  href="/docs/mcp-server.md"
+                  className="text-sm text-neutral-400 underline underline-offset-4 hover:text-white"
+                >
+                  Read the docs
+                </a>
+              </div>
+            </div>
+
+            {/* Terminal mockup */}
+            <div className="rounded-xl border border-white/[0.06] bg-[#0F0E0D] shadow-2xl shadow-black/50">
+              <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3">
+                <div className="h-3 w-3 rounded-full bg-[#DC2626]/40" />
+                <div className="h-3 w-3 rounded-full bg-[#F97316]/40" />
+                <div className="h-3 w-3 rounded-full bg-[#22C55E]/40" />
+                <span className="ml-3 text-[11px] text-neutral-600">~ terminal</span>
+              </div>
+              <div className="p-5 font-mono text-xs leading-loose">
+                <div><span className="text-neutral-500">$</span> <span className="text-[#22C55E]">kiln_create_agent</span> <span className="text-neutral-400">--name</span> <span className="text-[#F97316]">&quot;Dental Assistant&quot;</span></div>
+                <div className="text-neutral-500">  Agent created: cm9x7k...</div>
+                <div className="mt-2"><span className="text-neutral-500">$</span> <span className="text-[#22C55E]">kiln_add_knowledge</span> <span className="text-neutral-400">--type</span> <span className="text-[#3B82F6]">FAQ</span></div>
+                <div className="text-neutral-500">  5 chunks embedded</div>
+                <div className="mt-2"><span className="text-neutral-500">$</span> <span className="text-[#22C55E]">kiln_run_tests</span> <span className="text-neutral-400">--agent</span> cm9x7k</div>
+                <div className="text-neutral-500">  5/5 passed (100%)</div>
+                <div className="mt-2"><span className="text-neutral-500">$</span> <span className="text-[#22C55E]">kiln_update_agent</span> <span className="text-neutral-400">--status</span> <span className="text-[#22C55E]">LIVE</span></div>
+                <div className="text-neutral-500">  Agent is live at /a/dental-assistant</div>
+                <div className="mt-2 inline-block h-3.5 w-2 animate-pulse bg-[#22C55E]" />
+              </div>
+            </div>
           </div>
         </div>
       </Section>
@@ -529,18 +680,18 @@ export default function LandingPage() {
           <div className="grid gap-6 md:grid-cols-3">
             {[
               {
-                name: "Free", price: 0, features: [
-                  "1 AI Agent", "100 Chats / Month", "1 Knowledge Base (5 MB)", "Embed Widget", "KILN Branding", "Community Support",
+                name: "Free", price: 0, yearlyPrice: 0, features: [
+                  "1 AI Agent", "50 Chats / Month", "1 Knowledge Base", "Embed Widget", "KILN Branding", "Community Support",
                 ], highlight: false,
               },
               {
-                name: "Pro", price: annual ? 39 : 49, features: [
-                  "10 AI Agents", "Unlimited Chats", "10 Knowledge Bases (50 MB)", "All Actions", "White-Label (no KILN logo)", "Priority Support", "Analytics Dashboard", "Custom Domain",
+                name: "Pro", price: 49, yearlyPrice: 39, features: [
+                  "Unlimited Agents", "2,000 Chats / Month", "Unlimited Knowledge Bases", "All Actions", "White-Label", "Priority Support", "Analytics Dashboard", "Custom Domain", "BYOK (unlimited chats)",
                 ], highlight: true,
               },
               {
-                name: "Agency", price: annual ? 119 : 149, features: [
-                  "Unlimited Agents", "Unlimited Chats", "Unlimited Knowledge Bases", "All Actions + API Access", "Full White-Label", "Dedicated Support", "Multi-Client Management", "Webhooks & Integrations", "SLA 99.9%",
+                name: "Agency", price: 149, yearlyPrice: 119, features: [
+                  "Everything in Pro", "10,000 Chats / Month", "Agent Cloning", "Full API Access", "MCP Server (25 tools)", "Webhooks & Integrations", "Multi-Client Management", "Dedicated Support", "SLA 99.9%",
                 ], highlight: false,
               },
             ].map((plan) => (
@@ -559,9 +710,15 @@ export default function LandingPage() {
                 )}
                 <h3 className="text-lg font-semibold">{plan.name}</h3>
                 <div className="mt-3 flex items-baseline gap-1">
-                  <span className="font-serif text-4xl">€{plan.price}</span>
+                  <span className="font-serif text-4xl">&euro;{annual ? plan.yearlyPrice : plan.price}</span>
                   <span className="text-sm text-neutral-500">{plan.price === 0 ? "forever" : "/month"}</span>
                 </div>
+                {annual && plan.price > 0 && (
+                  <p className="mt-1 text-xs text-neutral-500">
+                    <span className="line-through">&euro;{plan.price}</span>{" "}
+                    <span className="text-[#22C55E]">Save &euro;{(plan.price - plan.yearlyPrice) * 12}/year</span>
+                  </p>
+                )}
                 <ul className="mt-6 flex-1 space-y-3">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-start gap-2.5 text-sm text-neutral-400">
@@ -587,52 +744,6 @@ export default function LandingPage() {
         </div>
       </Section>
 
-      {/* ── Roadmap ─────────────────────────────────────────── */}
-      <Section id="roadmap" className="border-t border-white/[0.06] py-28">
-        <div className="mx-auto max-w-3xl px-6">
-          <div className="mb-20 text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Roadmap</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">What&apos;s coming next</h2>
-          </div>
-
-          <div className="relative space-y-0">
-            {/* Vertical line */}
-            <div className="absolute left-[19px] top-2 bottom-2 w-px bg-gradient-to-b from-[#F97316] via-white/10 to-transparent" />
-
-            {[
-              { phase: "Phase 1", title: "AI Agent Studio", badge: "In Progress", badgeColor: "#F97316", items: ["Conversational Builder", "RAG Knowledge Base", "Actions & Lead Scoring", "Embed Widget & Templates", "White-Label & Analytics"] },
-              { phase: "Phase 2", title: "Site Builder", badge: "Q3 2026", badgeColor: "#3B82F6", items: ["Natural Language Design", "Custom Domains + SSL", "Agent Integration", "SEO Optimization"] },
-              { phase: "Phase 3", title: "Flow Engine", badge: "Q4 2026", badgeColor: "#22C55E", items: ["Visual Flow Builder", "100+ Integrations", "Multi-Step Automations", "Webhook & API Triggers"] },
-              { phase: "Phase 4", title: "Scale & Enterprise", badge: "2027", badgeColor: "#A78BFA", items: ["Multi-Tenant / Agencies", "Custom LLM Models", "On-Premise Option", "Enterprise SLA"] },
-            ].map((p, i) => (
-              <div key={p.phase} className="relative flex gap-6 pb-12 last:pb-0">
-                {/* Dot */}
-                <div className={`relative z-10 mt-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 ${i === 0 ? "border-[#F97316] bg-[#F97316]/10" : "border-white/10 bg-[#141211]"}`}>
-                  <span className={`text-xs font-bold ${i === 0 ? "text-[#F97316]" : "text-neutral-500"}`}>{i + 1}</span>
-                </div>
-                {/* Content */}
-                <div className="pt-0.5">
-                  <div className="mb-2 flex items-center gap-3">
-                    <h3 className="font-semibold">{p.phase}: {p.title}</h3>
-                    <span className="rounded-full px-2.5 py-0.5 text-[10px] font-medium" style={{ backgroundColor: `${p.badgeColor}15`, color: p.badgeColor }}>
-                      {p.badge}
-                    </span>
-                  </div>
-                  <ul className="space-y-1.5">
-                    {p.items.map((item) => (
-                      <li key={item} className="flex items-center gap-2 text-sm text-neutral-500">
-                        <span className="h-1 w-1 rounded-full" style={{ backgroundColor: p.badgeColor }} />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Section>
-
       {/* ── Final CTA ───────────────────────────────────────── */}
       <Section className="border-t border-white/[0.06] py-28">
         <div className="mx-auto max-w-2xl px-6 text-center">
@@ -643,48 +754,47 @@ export default function LandingPage() {
             Start free. No code. No credit card.
           </p>
 
-          <div className="mx-auto mt-10 max-w-md">
+          <div className="mx-auto mt-10 flex flex-col items-center gap-4">
+            <Link
+              href="/sign-up"
+              className="flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-medium text-white transition-all hover:brightness-110"
+              style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}
+            >
+              Get Started Free <ArrowRight className="h-4 w-4" />
+            </Link>
+
             {submitted === "cta" ? (
-              <div className="flex items-center justify-center gap-2 rounded-xl border border-[#22C55E]/20 bg-[#22C55E]/5 px-6 py-3.5 text-sm text-[#22C55E]">
+              <div className="flex items-center gap-2 text-sm text-[#22C55E]">
                 <Check className="h-4 w-4" />
-                You&apos;re on the waitlist!
+                You&apos;re on the list!
               </div>
             ) : (
               <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleWaitlist("cta", ctaEmail);
-                }}
-                className="flex gap-2"
+                onSubmit={(e) => { e.preventDefault(); handleWaitlist("cta", ctaEmail); }}
+                className="flex w-full max-w-sm gap-2"
               >
                 <input
                   type="email"
                   value={ctaEmail}
                   onChange={(e) => setCtaEmail(e.target.value)}
-                  placeholder="you@email.com"
+                  placeholder="or join the waitlist"
                   required
-                  className="flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-neutral-500 focus:border-[#F97316]/50 focus:outline-none focus:ring-1 focus:ring-[#F97316]/30"
+                  className="flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-[#F97316]/50 focus:outline-none focus:ring-1 focus:ring-[#F97316]/30"
                 />
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-white transition-all hover:brightness-110 disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}
+                  className="rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm text-neutral-300 transition-colors hover:bg-white/[0.08] disabled:opacity-50"
                 >
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Join <ArrowRight className="h-3.5 w-3.5" /></>}
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Join"}
                 </button>
               </form>
             )}
           </div>
 
           <div className="mt-12 flex flex-col items-center gap-2">
-            <p className="text-xs text-neutral-600">
-              Built with{" "}
-              <span className="text-[#F97316]">&#x1f525;</span>{" "}
-              in Germany.
-            </p>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] text-neutral-400">
-              &#x1f1ea;&#x1f1fa; EU-hosted & GDPR compliant
+              &#x1f1ea;&#x1f1fa; EU-hosted &middot; GDPR compliant &middot; Built in Germany
             </span>
           </div>
         </div>
