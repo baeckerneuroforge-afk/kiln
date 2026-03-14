@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { searchRelevantChunks } from "@/lib/rag";
 import { decrypt } from "@/lib/encryption";
+import { deductCredits } from "@/lib/credits";
 import crypto from "crypto";
 
 const RESEND_API = "https://api.resend.com";
@@ -307,6 +308,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         content: assistantText,
       },
     });
+
+    // Deduct credits (fire-and-forget)
+    const usedModel = modelProvider === "ANTHROPIC" ? selectedModel : "claude-sonnet-4-20250514";
+    deductCredits(agent.userId, usedModel, "WEBHOOK", agent.id, conversation.id).catch(() => {});
 
     // Send reply email via Resend
     await sendReplyEmail(senderNormalized, subject, assistantText, agent.name, agent.slug);

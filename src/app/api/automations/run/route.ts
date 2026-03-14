@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { searchRelevantChunks } from "@/lib/rag";
 import { decrypt } from "@/lib/encryption";
+import { deductCredits } from "@/lib/credits";
 
 // Cron-Expression Parser: Prüft ob eine Automation jetzt fällig ist
 // Unterstützt: "0 * * * *" (stündlich), "0 9 * * *" (täglich 9h),
@@ -122,6 +123,10 @@ export async function GET(request: NextRequest) {
         .filter((b): b is Anthropic.TextBlock => b.type === "text")
         .map((b) => b.text)
         .join("\n");
+
+      // Deduct credits (fire-and-forget)
+      const usedModel = selectedModel.startsWith("gpt") ? "claude-sonnet-4-20250514" : selectedModel;
+      deductCredits(agent.userId, usedModel, "SCHEDULED", agent.id).catch(() => {});
 
       // Ergebnis speichern
       await prisma.automationRule.update({

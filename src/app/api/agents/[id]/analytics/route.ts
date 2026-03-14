@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getAgentCreditUsage } from "@/lib/credits";
 
 // Analytics-Daten für einen Agent laden
 export async function GET(
@@ -186,6 +187,9 @@ export async function GET(
         }
       : null;
 
+    // Credit usage for this agent
+    const creditUsage = await getAgentCreditUsage(params.id);
+
     return Response.json({
       kpi: {
         totalConversations,
@@ -200,6 +204,8 @@ export async function GET(
       avgDealValue: agent.avgDealValue,
       correctionsThisWeek,
       dailyStats,
+      creditsConsumed: creditUsage.creditsUsed,
+      creditMessages: creditUsage.messageCount,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";

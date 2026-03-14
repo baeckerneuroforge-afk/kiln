@@ -29,6 +29,7 @@ import {
   Sparkles,
   Bot,
   User,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -72,6 +73,8 @@ interface AnalyticsData {
   } | null;
   avgDealValue: number | null;
   correctionsThisWeek: number;
+  creditsConsumed: number;
+  creditMessages: number;
 }
 
 interface AnalyticsTabProps {
@@ -237,7 +240,7 @@ export function AnalyticsTab({ agentId }: AnalyticsTabProps) {
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-6">
         {[
           {
             label: "Conversations",
@@ -266,6 +269,13 @@ export function AnalyticsTab({ agentId }: AnalyticsTabProps) {
             icon: Euro,
             color: "text-yellow-500",
             bg: "bg-yellow-500/10",
+          },
+          {
+            label: "Credits Used",
+            value: (data.creditsConsumed || 0).toLocaleString(),
+            icon: Zap,
+            color: "text-kiln-orange",
+            bg: "bg-kiln-orange/10",
           },
           {
             label: "Corrections (Week)",

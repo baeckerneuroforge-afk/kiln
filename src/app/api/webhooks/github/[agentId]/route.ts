@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { searchRelevantChunks } from "@/lib/rag";
 import { decrypt } from "@/lib/encryption";
+import { deductCredits } from "@/lib/credits";
 import crypto from "crypto";
 
 function hashSession(sessionId: string): string {
@@ -219,6 +220,9 @@ Format your response in GitHub Markdown. Be concise and actionable.${ragContext}
     await prisma.message.create({
       data: { conversationId: conversation.id, role: "ASSISTANT", content: assistantText },
     });
+
+    // Deduct credits (fire-and-forget)
+    deductCredits(agent.userId, model, "WEBHOOK", agent.id, conversation.id).catch(() => {});
 
     // Post comment back to GitHub if we have a reply URL and a token
     if (parsed.replyUrl && githubToken && assistantText) {

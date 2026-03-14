@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getClaudeClient } from "@/lib/ai";
+import { deductCredits } from "@/lib/credits";
 
 // Execute a team goal — decompose into subtasks via Claude
 export async function POST(
@@ -75,6 +76,9 @@ Respond with a JSON array of tasks. Each task has:
 Respond ONLY with a valid JSON array, no other text.`,
       messages: [{ role: "user", content: goal }],
     });
+
+    // Deduct credits for team task decomposition
+    deductCredits(userId, "claude-sonnet-4-20250514", "TEAM_TASK").catch(() => {});
 
     // Parse Claude's response
     const textBlock = response.content.find((block) => block.type === "text");

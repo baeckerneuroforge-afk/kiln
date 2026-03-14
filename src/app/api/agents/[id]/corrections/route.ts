@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { chunkText, generateEmbeddings, storeChunks } from "@/lib/rag";
+import { deductEmbeddingCredits } from "@/lib/credits";
 
 // Korrektur speichern: FAQ-Paar → KB → Embedding → pgvector
 export async function POST(
@@ -58,6 +59,11 @@ export async function POST(
           embeddingStatus: "READY",
         },
       });
+
+      // Deduct embedding credits (fire-and-forget)
+      if (userId) {
+        deductEmbeddingCredits(userId, chunks.length, params.id).catch(() => {});
+      }
 
       return Response.json({
         success: true,

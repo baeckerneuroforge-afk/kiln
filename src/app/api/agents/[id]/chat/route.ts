@@ -1278,7 +1278,7 @@ export async function POST(
 
           // Deduct AI credits (skip if BYOK)
           if (!creditCheck.byokActive && creditCheck.cost > 0) {
-            deductCredits(agent.userId, selectedModel, params.id, conversationId).catch(() => {});
+            deductCredits(agent.userId, selectedModel, "CHAT", params.id, conversationId).catch(() => {});
           }
 
           // Conversation-Metadaten aktualisieren

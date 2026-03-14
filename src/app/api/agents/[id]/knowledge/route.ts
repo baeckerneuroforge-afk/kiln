@@ -8,6 +8,7 @@ import {
   storeChunks,
   fetchUrlContent,
 } from "@/lib/rag";
+import { deductEmbeddingCredits } from "@/lib/credits";
 
 // Load knowledge base entries
 export async function GET(
@@ -160,6 +161,11 @@ export async function POST(
           embeddingStatus: "READY",
         },
       });
+
+      // Deduct embedding credits (1 per 10 chunks, fire-and-forget)
+      if (userId) {
+        deductEmbeddingCredits(userId, chunks.length, params.id).catch(() => {});
+      }
 
       return Response.json({
         ...kb,

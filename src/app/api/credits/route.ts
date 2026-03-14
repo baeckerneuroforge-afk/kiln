@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-import { ensureCreditsReset, PLAN_CREDITS, getCreditUsageStats } from "@/lib/credits";
+import { ensureCreditsReset, getPlanCredits, getCreditUsageStats, PLAN_CREDIT_TIERS } from "@/lib/credits";
 import { isAdmin } from "@/lib/admin";
 import type { PlanType } from "@/lib/stripe";
 
@@ -13,20 +13,23 @@ export async function GET() {
     if (!user) return Response.json({ error: "User not found" }, { status: 404 });
 
     const plan = (user.plan || "FREE") as PlanType;
-    const totalCredits = PLAN_CREDITS[plan] ?? PLAN_CREDITS.FREE;
+    const creditTier = user.creditTier || 0;
+    const totalCredits = user.aiCreditsMonthly || getPlanCredits(plan, creditTier);
+    const tiers = PLAN_CREDIT_TIERS[plan] || PLAN_CREDIT_TIERS.FREE;
 
-    // Check if user has any BYOK keys
     const byokKeyCount = await prisma.apiKey.count({ where: { userId } });
-
     const stats = await getCreditUsageStats(userId);
 
     return Response.json({
       balance: user.aiCreditsBalance,
       totalCredits,
+      monthlyCredits: totalCredits,
       resetDate: user.aiCreditsResetDate,
       byokActive: byokKeyCount > 0,
       byokKeyCount,
       plan,
+      creditTier,
+      tiers,
       isAdmin: isAdmin(userId),
       usage: stats,
     });

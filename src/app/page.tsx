@@ -85,6 +85,7 @@ export default function LandingPage() {
   const [submitted, setSubmitted] = useState<"hero" | "cta" | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [annual, setAnnual] = useState(false);
+  const [creditTiers, setCreditTiers] = useState<Record<string, number>>({ Starter: 0, Pro: 0, Business: 0 });
   const [chatOpen, setChatOpen] = useState(false);
   const [audienceTab, setAudienceTab] = useState<"business" | "agency" | "developer">("business");
   const [mcpCopied, setMcpCopied] = useState(false);
@@ -681,28 +682,44 @@ export default function LandingPage() {
           <div className="grid gap-4 lg:grid-cols-5 md:grid-cols-3 sm:grid-cols-2">
             {[
               {
-                name: "Free", price: 0, yearlyMo: 0, yearlyTotal: 0, isCustom: false, features: [
-                  "1 AI Agent", "50 Chats / Month", "1 Knowledge Base (5MB)", "Embed Widget", "KILN Branding", "Community Support",
+                name: "Free", price: 0, yearlyMo: 0, yearlyTotal: 0, isCustom: false, creditTiers: [
+                  { credits: 50, monthly: 0, yearlyMo: 0 },
+                ], features: [
+                  "1 AI Agent", "50 AI Credits / Month", "1 Knowledge Base (5MB)", "Embed Widget", "KILN Branding", "Community Support",
                 ], highlight: false,
               },
               {
-                name: "Starter", price: 39, yearlyMo: 27, yearlyTotal: 327, isCustom: false, features: [
-                  "3 Agents", "500 Chats / Month", "3 Knowledge Bases (20MB)", "Basic Analytics", "Email Support", "All Actions",
+                name: "Starter", price: 39, yearlyMo: 27, yearlyTotal: 327, isCustom: false, creditTiers: [
+                  { credits: 500, monthly: 39, yearlyMo: 27 },
+                  { credits: 1000, monthly: 49, yearlyMo: 34 },
+                  { credits: 2000, monthly: 59, yearlyMo: 41 },
+                ], features: [
+                  "3 Agents", "Basic Analytics", "3 Knowledge Bases (20MB)", "Email Support", "All Actions",
                 ], highlight: false,
               },
               {
-                name: "Pro", price: 99, yearlyMo: 69, yearlyTotal: 832, isCustom: false, features: [
-                  "10 Agents", "Unlimited Chats", "10 Knowledge Bases (50MB)", "Full Analytics + ROI", "White-Label (no KILN logo)", "Feedback Loop", "Priority Support", "Prompt Editor",
+                name: "Pro", price: 99, yearlyMo: 69, yearlyTotal: 832, isCustom: false, creditTiers: [
+                  { credits: 2000, monthly: 99, yearlyMo: 69 },
+                  { credits: 5000, monthly: 129, yearlyMo: 90 },
+                  { credits: 10000, monthly: 169, yearlyMo: 118 },
+                ], features: [
+                  "10 Agents", "Full Analytics + ROI", "10 Knowledge Bases (50MB)", "White-Label", "Feedback Loop", "Priority Support", "Prompt Editor",
                 ], highlight: true,
               },
               {
-                name: "Business", price: 249, yearlyMo: 174, yearlyTotal: 2091, isCustom: false, features: [
-                  "Unlimited Agents & Chats", "Unlimited Knowledge Bases", "API Access + MCP Server", "Agent Cloning", "Custom Domain", "Multi-Client Management", "Dedicated Support",
+                name: "Business", price: 249, yearlyMo: 174, yearlyTotal: 2091, isCustom: false, creditTiers: [
+                  { credits: 5000, monthly: 249, yearlyMo: 174 },
+                  { credits: 15000, monthly: 329, yearlyMo: 230 },
+                  { credits: 30000, monthly: 449, yearlyMo: 314 },
+                ], features: [
+                  "Unlimited Agents", "Unlimited Knowledge Bases", "API Access + MCP Server", "Agent Cloning", "Custom Domain", "Multi-Client Management", "Dedicated Support",
                 ], highlight: false,
               },
               {
-                name: "Enterprise", price: 0, yearlyMo: 0, yearlyTotal: 0, isCustom: true, features: [
-                  "Everything in Business", "SLA 99.9%", "Custom Onboarding", "50K Conversations", "Scheduled Agents", "Webhooks", "Priority Queue",
+                name: "Enterprise", price: 0, yearlyMo: 0, yearlyTotal: 0, isCustom: true, creditTiers: [
+                  { credits: 50000, monthly: 0, yearlyMo: 0 },
+                ], features: [
+                  "Everything in Business", "SLA 99.9%", "Custom Onboarding", "50,000+ AI Credits", "Scheduled Agents", "Webhooks", "Priority Queue",
                 ], highlight: false,
               },
             ].map((plan) => (
@@ -720,22 +737,56 @@ export default function LandingPage() {
                   </div>
                 )}
                 <h3 className="text-base font-semibold">{plan.name}</h3>
-                <div className="mt-2 flex items-baseline gap-1">
-                  {plan.isCustom ? (
-                    <span className="font-serif text-3xl">Custom</span>
-                  ) : (
+                {(() => {
+                  const tierIdx = creditTiers[plan.name] || 0;
+                  const tier = plan.creditTiers[tierIdx] || plan.creditTiers[0];
+                  const displayPrice = annual ? tier.yearlyMo : tier.monthly;
+                  return (
                     <>
-                      <span className="font-serif text-3xl">&euro;{annual ? plan.yearlyMo : plan.price}</span>
-                      <span className="text-xs text-neutral-500">{plan.price === 0 ? "forever" : "/mo"}</span>
+                      <div className="mt-2 flex items-baseline gap-1">
+                        {plan.isCustom ? (
+                          <span className="font-serif text-3xl">Custom</span>
+                        ) : (
+                          <>
+                            <span className="font-serif text-3xl">&euro;{displayPrice}</span>
+                            <span className="text-xs text-neutral-500">{tier.monthly === 0 ? "forever" : "/mo"}</span>
+                          </>
+                        )}
+                      </div>
+                      {!plan.isCustom && annual && tier.monthly > 0 && (
+                        <p className="mt-1 text-[11px] text-neutral-500">
+                          <span className="line-through">&euro;{tier.monthly}/mo</span>{" "}
+                          <span className="text-[#22C55E]">&euro;{Math.round(tier.yearlyMo * 12)}/yr</span>
+                        </p>
+                      )}
+                      {/* Credit Slider */}
+                      {!plan.isCustom && plan.creditTiers.length > 1 && (
+                        <div className="mt-3 mb-1">
+                          <div className="flex items-center justify-between text-[11px] mb-1.5">
+                            <span className="text-[#F97316] font-medium">{tier.credits.toLocaleString()} AI Credits</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={plan.creditTiers.length - 1}
+                            value={tierIdx}
+                            onChange={(e) => setCreditTiers((prev) => ({ ...prev, [plan.name]: Number(e.target.value) }))}
+                            className="w-full h-1 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#F97316] [&::-webkit-slider-thumb]:shadow-sm"
+                            style={{ background: `linear-gradient(to right, #F97316 ${tierIdx / (plan.creditTiers.length - 1) * 100}%, rgba(255,255,255,0.1) ${tierIdx / (plan.creditTiers.length - 1) * 100}%)` }}
+                          />
+                          <div className="flex justify-between text-[9px] text-neutral-600 mt-0.5">
+                            {plan.creditTiers.map((t: { credits: number; monthly: number; yearlyMo: number }, i: number) => (
+                              <span key={i}>{t.credits >= 1000 ? `${t.credits / 1000}k` : t.credits}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {!plan.isCustom && plan.creditTiers.length === 1 && plan.creditTiers[0].credits > 0 && (
+                        <p className="mt-2 text-[11px] text-neutral-500">{plan.creditTiers[0].credits} AI Credits / month</p>
+                      )}
                     </>
-                  )}
-                </div>
-                {!plan.isCustom && annual && plan.price > 0 && (
-                  <p className="mt-1 text-[11px] text-neutral-500">
-                    <span className="line-through">&euro;{plan.price}/mo</span>{" "}
-                    <span className="text-[#22C55E]">&euro;{plan.yearlyTotal}/yr</span>
-                  </p>
-                )}
+                  );
+                })()}
                 <ul className="mt-5 flex-1 space-y-2.5">
                   {plan.features.map((f) => (
                     <li key={f} className="flex items-start gap-2 text-[13px] text-neutral-400">
@@ -744,6 +795,11 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
+                {!plan.isCustom && plan.creditTiers[0].credits > 0 && (
+                  <p className="mt-3 text-[9px] text-neutral-600 leading-relaxed">
+                    1 credit = 1 response (Haiku/Groq) · 0.5 responses (Sonnet) · 0.2 responses (Opus)
+                  </p>
+                )}
                 {plan.isCustom ? (
                   <a
                     href="mailto:andre@hephaistos-systems.de"

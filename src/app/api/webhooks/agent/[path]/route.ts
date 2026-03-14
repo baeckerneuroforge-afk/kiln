@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { decrypt } from "@/lib/encryption";
+import { deductCredits } from "@/lib/credits";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import crypto from "crypto";
@@ -245,6 +246,9 @@ async function processWebhookPayload(webhook: any, payload: unknown, startTime: 
       ];
     }
   }
+
+  // Deduct credits (fire-and-forget)
+  deductCredits(agent.userId, selectedModel, "WEBHOOK", agent.id).catch(() => {});
 
   const duration = Date.now() - startTime;
 

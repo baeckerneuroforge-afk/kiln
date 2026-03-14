@@ -24,8 +24,10 @@ model User {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   aiCreditsBalance   Int       @default(50)
+  aiCreditsMonthly   Int       @default(50)  // allocated per plan+tier
   aiCreditsResetDate DateTime?
   byokEnabled        Boolean   @default(false)
+  creditTier         Int       @default(0)   // 0=base, 1=mid, 2=high within each plan
 
   agents              Agent[]
   conversations       Conversation[]
@@ -63,6 +65,15 @@ enum ModelProvider {
   PERPLEXITY
   GOOGLE
   GROQ
+}
+
+enum CreditUsageType {
+  CHAT
+  TEAM_TASK
+  ORCHESTRATION
+  SCHEDULED
+  WEBHOOK
+  EMBEDDING
 }
 
 // AI Agent Konfiguration
@@ -716,18 +727,20 @@ model WebhookExecution {
   @@index([webhookId])
 }
 
-// AI Credit Usage — tracks per-message credit consumption
+// AI Credit Usage — tracks per-operation credit consumption
 model AiCreditUsage {
-  id             String   @id @default(cuid())
+  id             String          @id @default(cuid())
   userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   agentId        String?
   conversationId String?
   creditsUsed    Int
   model          String
-  createdAt      DateTime @default(now())
+  type           CreditUsageType @default(CHAT)
+  createdAt      DateTime        @default(now())
 
   @@index([userId])
   @@index([agentId])
   @@index([userId, createdAt])
+  @@index([type])
 }

@@ -46,6 +46,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/toast";
 import { cn } from "@/lib/utils";
+import { CreditUsageChart } from "@/components/credit-usage-chart";
 
 interface UserPlan {
   plan: "FREE" | "STARTER" | "PRO" | "AGENCY" | "ENTERPRISE" | "ADMIN";
@@ -235,15 +236,19 @@ function SettingsContent() {
   interface CreditInfo {
     balance: number;
     totalCredits: number;
+    monthlyCredits: number;
     resetDate: string | null;
     byokActive: boolean;
     byokKeyCount: number;
     plan: string;
+    creditTier: number;
+    tiers: { credits: number; monthlyPrice: number; yearlyPrice: number }[];
     isAdmin: boolean;
     usage: {
       dailyUsage: { date: string; credits: number }[];
       topAgents: { agentId: string; agentName: string; credits: number }[];
       totalUsed: number;
+      byType: { type: string; credits: number }[];
     };
   }
   const [creditInfo, setCreditInfo] = useState<CreditInfo | null>(null);
@@ -770,25 +775,35 @@ function SettingsContent() {
                 </div>
                 <div className="flex-1">
                   <h2 className="text-lg font-semibold text-foreground">AI Credits</h2>
-                  <p className="text-xs text-muted-foreground">Credits are consumed per AI response. BYOK keys bypass credit usage.</p>
+                  <p className="text-xs text-muted-foreground">Credits consumed per AI response. BYOK keys bypass credit usage.</p>
                 </div>
                 {creditInfo.byokActive && (
                   <span className="rounded-full bg-green-500/10 border border-green-500/20 px-3 py-1 text-xs font-semibold text-green-400">BYOK: Unlimited</span>
                 )}
               </div>
 
-              {/* Balance + Reset */}
+              {/* Balance Bar */}
               <div className="grid gap-4 md:grid-cols-2 mb-4">
                 <div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Credits remaining</span>
-                    <span className={cn("font-semibold", creditInfo.balance / creditInfo.totalCredits <= 0.2 ? "text-kiln-orange" : "text-foreground")}>
+                    <span className={cn("font-semibold",
+                      creditInfo.isAdmin ? "text-foreground" :
+                      creditInfo.balance / creditInfo.totalCredits <= 0.05 ? "text-red-400" :
+                      creditInfo.balance / creditInfo.totalCredits <= 0.2 ? "text-amber-400" :
+                      creditInfo.balance / creditInfo.totalCredits <= 0.5 ? "text-yellow-400" : "text-foreground"
+                    )}>
                       {creditInfo.isAdmin ? "∞" : `${creditInfo.balance.toLocaleString()} / ${creditInfo.totalCredits.toLocaleString()}`}
                     </span>
                   </div>
                   <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-muted">
                     <div
-                      className={cn("h-full rounded-full transition-all", creditInfo.balance / creditInfo.totalCredits <= 0.2 ? "bg-kiln-orange" : "bg-kiln-green")}
+                      className={cn("h-full rounded-full transition-all",
+                        creditInfo.isAdmin ? "bg-kiln-green" :
+                        creditInfo.balance / creditInfo.totalCredits <= 0.05 ? "bg-red-500" :
+                        creditInfo.balance / creditInfo.totalCredits <= 0.2 ? "bg-amber-500" :
+                        creditInfo.balance / creditInfo.totalCredits <= 0.5 ? "bg-yellow-500" : "bg-kiln-green"
+                      )}
                       style={{ width: `${creditInfo.isAdmin ? 100 : Math.min((creditInfo.balance / creditInfo.totalCredits) * 100, 100)}%` }}
                     />
                   </div>
@@ -797,64 +812,118 @@ function SettingsContent() {
                   {creditInfo.resetDate && (
                     <p className="text-sm text-muted-foreground">
                       <Clock className="inline h-3.5 w-3.5 mr-1 -mt-0.5" />
-                      Credits reset: {new Date(creditInfo.resetDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      Resets: {new Date(creditInfo.resetDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground mt-1">Used this month: {creditInfo.usage.totalUsed.toLocaleString()} credits</p>
                 </div>
               </div>
 
-              {/* Low credit warning */}
-              {!creditInfo.isAdmin && creditInfo.balance <= 0 && (
-                <div className="mb-4 flex items-center gap-3 rounded-lg border border-kiln-orange/20 bg-kiln-orange/10 p-3">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-kiln-orange" />
-                  <p className="flex-1 text-xs text-kiln-orange">You&apos;ve used all your AI credits. Upgrade your plan, buy more credits, or add your own API key for unlimited usage.</p>
-                  <div className="flex gap-2">
-                    <Button size="sm" className="h-7 text-[11px]" onClick={() => purchaseCredits("credits_500")}>Buy Credits</Button>
-                  </div>
-                </div>
-              )}
-              {!creditInfo.isAdmin && creditInfo.balance > 0 && creditInfo.balance / creditInfo.totalCredits <= 0.2 && (
-                <div className="mb-4 flex items-center gap-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-                  <p className="flex-1 text-xs text-amber-400">You have {creditInfo.balance} credits remaining this month.</p>
-                </div>
-              )}
-
-              {/* Usage Chart (simple bar chart) */}
-              {creditInfo.usage.dailyUsage.length > 0 && (
-                <div className="mb-4">
-                  <h3 className="text-sm font-medium text-foreground mb-2">Daily Usage (Last 30 Days)</h3>
-                  <div className="flex items-end gap-0.5 h-20 rounded-lg bg-muted/30 p-2">
-                    {(() => {
-                      const maxCredits = Math.max(...creditInfo.usage.dailyUsage.map((d) => d.credits), 1);
-                      return creditInfo.usage.dailyUsage.map((day) => (
-                        <div key={day.date} className="flex-1 flex flex-col items-center justify-end h-full" title={`${day.date}: ${day.credits} credits`}>
-                          <div
-                            className="w-full rounded-sm bg-kiln-orange/60 hover:bg-kiln-orange transition-colors min-h-[2px]"
-                            style={{ height: `${(day.credits / maxCredits) * 100}%` }}
-                          />
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                </div>
-              )}
-
-              {/* Top Agents */}
-              {creditInfo.usage.topAgents.length > 0 && (
-                <div className="mb-4">
-                  <h3 className="text-sm font-medium text-foreground mb-2">Top Credit Consumers</h3>
-                  <div className="space-y-1.5">
-                    {creditInfo.usage.topAgents.map((a) => (
-                      <div key={a.agentId} className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground truncate">{a.agentName}</span>
-                        <span className="font-medium text-foreground">{a.credits.toLocaleString()} credits</span>
-                      </div>
+              {/* Credit Tier Selector */}
+              {!creditInfo.isAdmin && creditInfo.tiers && creditInfo.tiers.length > 1 && (
+                <div className="mb-4 rounded-lg border border-border bg-card/50 p-4">
+                  <h3 className="text-sm font-medium text-foreground mb-2">Credit Tier</h3>
+                  <p className="text-xs text-muted-foreground mb-3">Adjust your monthly credit allocation within your {creditInfo.plan} plan.</p>
+                  <div className="grid gap-2 md:grid-cols-3">
+                    {creditInfo.tiers.map((tier, idx) => (
+                      <button
+                        key={idx}
+                        className={cn(
+                          "flex flex-col items-center rounded-lg border p-3 text-center transition-all",
+                          idx === creditInfo.creditTier
+                            ? "border-kiln-orange bg-kiln-orange/10"
+                            : "border-border hover:border-kiln-orange/30 hover:bg-kiln-orange/5"
+                        )}
+                        disabled={idx === creditInfo.creditTier}
+                      >
+                        <span className="text-lg font-bold text-foreground">{tier.credits.toLocaleString()}</span>
+                        <span className="text-xs text-muted-foreground">credits/month</span>
+                        <span className="mt-1 text-sm font-semibold text-kiln-orange">
+                          {tier.monthlyPrice > 0 ? `€${tier.monthlyPrice}/mo` : "Free"}
+                        </span>
+                        {idx === creditInfo.creditTier && (
+                          <span className="mt-1 rounded-full bg-kiln-orange/20 px-2 py-0.5 text-[10px] font-semibold text-kiln-orange">Current</span>
+                        )}
+                      </button>
                     ))}
                   </div>
                 </div>
               )}
+
+              {/* Low credit warnings */}
+              {!creditInfo.isAdmin && creditInfo.balance <= 0 && (
+                <div className="mb-4 flex items-center gap-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-red-400" />
+                  <p className="flex-1 text-xs text-red-400">Your AI credits are exhausted. Agents cannot respond.</p>
+                  <div className="flex gap-2">
+                    <Button size="sm" className="h-7 text-[11px]" onClick={() => purchaseCredits("credits_500")}>Buy Credits</Button>
+                    <Link href="/dashboard/settings?tab=api-keys"><Button size="sm" variant="outline" className="h-7 text-[11px]">Add API Key</Button></Link>
+                  </div>
+                </div>
+              )}
+              {!creditInfo.isAdmin && creditInfo.balance > 0 && creditInfo.balance / creditInfo.totalCredits <= 0.05 && (
+                <div className="mb-4 flex items-center gap-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-red-400" />
+                  <p className="flex-1 text-xs text-red-400">Critical: Only {creditInfo.balance} credits remaining.</p>
+                  <Button size="sm" className="h-7 text-[11px]" onClick={() => purchaseCredits("credits_500")}>Buy Credits</Button>
+                </div>
+              )}
+              {!creditInfo.isAdmin && creditInfo.balance > 0 && creditInfo.balance / creditInfo.totalCredits > 0.05 && creditInfo.balance / creditInfo.totalCredits <= 0.2 && (
+                <div className="mb-4 flex items-center gap-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+                  <p className="flex-1 text-xs text-amber-400">{creditInfo.balance} credits remaining this month.</p>
+                </div>
+              )}
+
+              {/* Recharts Daily Usage */}
+              {creditInfo.usage.dailyUsage.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-medium text-foreground mb-2">Daily Usage (Last 30 Days)</h3>
+                  <div className="h-32 w-full">
+                    <CreditUsageChart data={creditInfo.usage.dailyUsage} />
+                  </div>
+                </div>
+              )}
+
+              {/* Usage by Type + Top Agents side by side */}
+              <div className="grid gap-4 md:grid-cols-2 mb-4">
+                {/* Usage by Type */}
+                {creditInfo.usage.byType.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-foreground mb-2">By Type</h3>
+                    <div className="space-y-1.5">
+                      {creditInfo.usage.byType.map((t) => {
+                        const typeLabels: Record<string, string> = { CHAT: "Chat", TEAM_TASK: "Teams", ORCHESTRATION: "Orchestration", SCHEDULED: "Scheduled", WEBHOOK: "Webhooks", EMBEDDING: "Embedding" };
+                        const typeColors: Record<string, string> = { CHAT: "bg-kiln-orange", TEAM_TASK: "bg-blue-500", ORCHESTRATION: "bg-purple-500", SCHEDULED: "bg-kiln-green", WEBHOOK: "bg-amber-500", EMBEDDING: "bg-zinc-500" };
+                        const pct = creditInfo.usage.totalUsed > 0 ? (t.credits / creditInfo.usage.totalUsed) * 100 : 0;
+                        return (
+                          <div key={t.type} className="flex items-center gap-2 text-xs">
+                            <div className={cn("h-2 w-2 rounded-full shrink-0", typeColors[t.type] || "bg-muted")} />
+                            <span className="text-muted-foreground flex-1">{typeLabels[t.type] || t.type}</span>
+                            <span className="font-medium text-foreground">{t.credits.toLocaleString()}</span>
+                            <span className="text-muted-foreground w-10 text-right">{Math.round(pct)}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Top Agents */}
+                {creditInfo.usage.topAgents.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-foreground mb-2">Top Agents</h3>
+                    <div className="space-y-1.5">
+                      {creditInfo.usage.topAgents.map((a) => (
+                        <div key={a.agentId} className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground truncate">{a.agentName}</span>
+                          <span className="font-medium text-foreground">{a.credits.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Buy More Credits */}
               {!creditInfo.isAdmin && (

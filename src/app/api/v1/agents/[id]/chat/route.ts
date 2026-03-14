@@ -7,6 +7,7 @@ import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/l
 import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
 import { decrypt } from "@/lib/encryption";
+import { deductCredits } from "@/lib/credits";
 import crypto from "crypto";
 
 const corsHeaders = {
@@ -202,6 +203,8 @@ export async function POST(
       await prisma.message.create({
         data: { conversationId: conversation.id, role: "ASSISTANT", content: responseText },
       });
+      // Deduct credits (fire-and-forget)
+      deductCredits(agent.userId, selectedModel, "CHAT", params.id, conversation.id).catch(() => {});
     }
 
     return Response.json(

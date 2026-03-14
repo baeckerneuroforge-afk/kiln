@@ -5,6 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { searchRelevantChunks } from "@/lib/rag";
 import { decrypt } from "@/lib/encryption";
+import { deductCredits } from "@/lib/credits";
 
 // GET — Test Cases und Test Runs laden
 export async function GET(
@@ -158,6 +159,9 @@ export async function POST(
           .filter((b): b is Anthropic.TextBlock => b.type === "text")
           .map((b) => b.text)
           .join("\n");
+
+        // Deduct credits per test case (fire-and-forget)
+        deductCredits(agent.userId, model, "CHAT", params.id).catch(() => {});
 
         // Keywords prüfen (case-insensitive)
         const keywords = tc.expectedKeywords as string[];
