@@ -31,7 +31,7 @@ export async function GET() {
         plan: "ADMIN",
         agentCount,
         chatCount,
-        limits: PLAN_LIMITS.AGENCY,
+        limits: PLAN_LIMITS.ENTERPRISE,
       });
     }
 

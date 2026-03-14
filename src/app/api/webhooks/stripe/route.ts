@@ -93,11 +93,21 @@ export async function POST(request: Request) {
 
 function getPlanFromSubscription(subscription: Stripe.Subscription): Plan {
   const priceId = subscription.items.data[0]?.price?.id;
-  const proPriceId = process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID;
-  const agencyPriceId = process.env.NEXT_PUBLIC_STRIPE_AGENCY_PRICE_ID;
 
-  if (priceId === agencyPriceId) return "AGENCY";
-  if (priceId === proPriceId) return "PRO";
+  // Monatliche und jährliche Price IDs prüfen
+  const planMap: { plan: Plan; envKeys: string[] }[] = [
+    { plan: "ENTERPRISE", envKeys: ["NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID", "NEXT_PUBLIC_STRIPE_ENTERPRISE_YEARLY_PRICE_ID"] },
+    { plan: "AGENCY", envKeys: ["NEXT_PUBLIC_STRIPE_AGENCY_PRICE_ID", "NEXT_PUBLIC_STRIPE_AGENCY_YEARLY_PRICE_ID"] },
+    { plan: "PRO", envKeys: ["NEXT_PUBLIC_STRIPE_PRO_PRICE_ID", "NEXT_PUBLIC_STRIPE_PRO_YEARLY_PRICE_ID"] },
+    { plan: "STARTER", envKeys: ["NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID", "NEXT_PUBLIC_STRIPE_STARTER_YEARLY_PRICE_ID"] },
+  ];
+
+  for (const { plan, envKeys } of planMap) {
+    for (const key of envKeys) {
+      if (priceId === process.env[key]) return plan;
+    }
+  }
+
   return "FREE";
 }
 

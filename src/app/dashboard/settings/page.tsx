@@ -48,7 +48,7 @@ import { useToast } from "@/components/toast";
 import { cn } from "@/lib/utils";
 
 interface UserPlan {
-  plan: "FREE" | "PRO" | "AGENCY" | "ADMIN";
+  plan: "FREE" | "STARTER" | "PRO" | "AGENCY" | "ENTERPRISE" | "ADMIN";
   agentCount: number;
   chatCount: number;
   limits: { agents: number; chatsPerMonth: number };
@@ -70,36 +70,71 @@ const plans = [
     id: "FREE" as const,
     name: "Free",
     price: "€0",
+    monthlyPrice: 0,
+    yearlyPrice: 0,
     icon: Zap,
-    features: ["1 Agent", "50 conversations/month", "Basic Support"],
+    features: ["1 Agent", "50 conversations/month", "1 Knowledge Base (5MB)", "Embed Widget", "KILN Branding", "Community Support"],
+  },
+  {
+    id: "STARTER" as const,
+    name: "Starter",
+    price: "€29",
+    monthlyPrice: 29,
+    yearlyPrice: 243,
+    icon: Sparkles,
+    features: ["3 Agents", "500 conversations/month", "3 Knowledge Bases (20MB)", "Basic Analytics", "Email Support", "All Actions"],
   },
   {
     id: "PRO" as const,
     name: "Pro",
-    price: "€49",
+    price: "€79",
+    monthlyPrice: 79,
+    yearlyPrice: 663,
     icon: Crown,
     popular: true,
     features: [
-      "Unlimited Agents",
-      "2,000 conversations/month",
-      "Priority Support",
+      "10 Agents",
+      "Unlimited Chats",
+      "10 Knowledge Bases (50MB)",
+      "Full Analytics + ROI",
       "White-Label",
-      "Custom Actions",
+      "Feedback Loop",
+      "Priority Support",
+      "Prompt Editor",
     ],
   },
   {
     id: "AGENCY" as const,
     name: "Agency",
-    price: "€149",
+    price: "€199",
+    monthlyPrice: 199,
+    yearlyPrice: 1670,
     icon: Building2,
     features: [
-      "Unlimited Agents",
-      "10,000 conversations/month",
-      "Dedicated Support",
-      "White-Label",
-      "Custom Actions",
-      "API Access",
+      "Unlimited Agents & Chats",
+      "Unlimited Knowledge Bases",
+      "API Access + MCP Server",
+      "Agent Cloning",
+      "Custom Domain",
       "Multi-Client Management",
+      "Dedicated Support",
+    ],
+  },
+  {
+    id: "ENTERPRISE" as const,
+    name: "Enterprise",
+    price: "€499",
+    monthlyPrice: 499,
+    yearlyPrice: 4190,
+    icon: Building2,
+    features: [
+      "Everything in Agency",
+      "SLA 99.9%",
+      "Custom Onboarding",
+      "50K Conversations",
+      "Scheduled Agents",
+      "Webhooks",
+      "Priority Queue",
     ],
   },
 ];
@@ -124,6 +159,7 @@ function SettingsContent() {
   const [userPlan, setUserPlan] = useState<UserPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [upgrading, setUpgrading] = useState<string | null>(null);
+  const [billingAnnual, setBillingAnnual] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referredUsers, setReferredUsers] = useState(0);
@@ -263,10 +299,10 @@ function SettingsContent() {
   }, []);
 
   async function handleUpgrade(planId: string) {
-    const priceId =
-      planId === "PRO"
-        ? process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID
-        : process.env.NEXT_PUBLIC_STRIPE_AGENCY_PRICE_ID;
+    const envKey = billingAnnual
+      ? `NEXT_PUBLIC_STRIPE_${planId}_YEARLY_PRICE_ID`
+      : `NEXT_PUBLIC_STRIPE_${planId}_PRICE_ID`;
+    const priceId = process.env[envKey];
     if (!priceId) return;
     setUpgrading(planId);
     try {
@@ -659,10 +695,13 @@ function SettingsContent() {
             )}
 
             {/* Downgrade Warning */}
-            {userPlan && currentPlan === "PRO" && (userPlan.agentCount > 999999 || userPlan.chatCount > 2000) && (
+            {userPlan && !isAdminUser && (
+              userPlan.agentCount >= userPlan.limits.agents ||
+              (userPlan.limits.chatsPerMonth < 999999 && userPlan.chatCount >= userPlan.limits.chatsPerMonth * 0.8)
+            ) && (
               <div className="mt-4 flex items-center gap-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-4">
                 <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-                <p className="text-xs text-amber-400">Your usage exceeds Pro plan limits. Consider upgrading to Agency.</p>
+                <p className="text-xs text-amber-400">You&apos;re approaching your plan limits. Consider upgrading.</p>
               </div>
             )}
           </div>
@@ -717,36 +756,74 @@ function SettingsContent() {
           {/* Available Plans */}
           {!isAdminUser && (
             <>
-              <h2 className="text-lg font-semibold text-foreground">Available Plans</h2>
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-foreground">Available Plans</h2>
+                <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card p-1">
+                  <button
+                    onClick={() => setBillingAnnual(false)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${!billingAnnual ? "bg-white text-[#0C0A09]" : "text-muted-foreground"}`}
+                  >
+                    Monthly
+                  </button>
+                  <button
+                    onClick={() => setBillingAnnual(true)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${billingAnnual ? "bg-white text-[#0C0A09]" : "text-muted-foreground"}`}
+                  >
+                    Yearly
+                    <span className="ml-1 text-[10px] text-[#22C55E]">-30%</span>
+                  </button>
+                </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-5">
                 {plans.map((plan) => {
                   const isCurrent = plan.id === currentPlan;
                   const Icon = plan.icon;
+                  const displayPrice = billingAnnual && plan.monthlyPrice > 0
+                    ? `€${Math.round(plan.yearlyPrice / 12)}`
+                    : plan.price;
+                  const planOrder = ["FREE", "STARTER", "PRO", "AGENCY", "ENTERPRISE"];
+                  const currentIdx = planOrder.indexOf(currentPlan);
+                  const planIdx = planOrder.indexOf(plan.id);
+                  const isDowngrade = planIdx < currentIdx;
                   return (
-                    <div key={plan.id} className={`relative rounded-xl border p-6 ${plan.popular ? "border-kiln-orange bg-kiln-orange/5" : "border-border bg-card"}`}>
-                      {plan.popular && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-kiln-orange px-3 py-0.5 text-xs font-semibold text-white">Popular</div>
+                    <div key={plan.id} className={`relative flex flex-col rounded-xl border p-4 ${plan.popular ? "border-kiln-orange bg-kiln-orange/5" : isCurrent ? "border-kiln-orange/40 bg-kiln-orange/[0.03]" : "border-border bg-card"}`}>
+                      {plan.popular && !isCurrent && (
+                        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-kiln-orange px-2.5 py-0.5 text-[10px] font-semibold text-white whitespace-nowrap">Most Popular</div>
                       )}
-                      <Icon className="mb-3 h-6 w-6 text-kiln-orange" />
-                      <h3 className="text-lg font-semibold text-foreground">{plan.name}</h3>
-                      <p className="mt-1 text-2xl font-bold text-foreground">{plan.price}<span className="text-sm font-normal text-muted-foreground">/month</span></p>
-                      <ul className="mt-4 space-y-2">
+                      {isCurrent && (
+                        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-kiln-orange/20 border border-kiln-orange/30 px-2.5 py-0.5 text-[10px] font-semibold text-kiln-orange whitespace-nowrap">Current</div>
+                      )}
+                      <Icon className="mb-2 h-5 w-5 text-kiln-orange" />
+                      <h3 className="text-sm font-semibold text-foreground">{plan.name}</h3>
+                      <div className="mt-1 flex items-baseline gap-0.5">
+                        <span className="text-xl font-bold text-foreground">{displayPrice}</span>
+                        {plan.monthlyPrice > 0 && <span className="text-[10px] text-muted-foreground">/mo</span>}
+                      </div>
+                      {billingAnnual && plan.monthlyPrice > 0 && (
+                        <p className="mt-0.5 text-[10px] text-muted-foreground">
+                          <span className="line-through">€{plan.monthlyPrice}</span>{" "}
+                          <span className="text-[#22C55E]">€{plan.yearlyPrice}/yr</span>
+                        </p>
+                      )}
+                      <ul className="mt-3 flex-1 space-y-1.5">
                         {plan.features.map((feature) => (
-                          <li key={feature} className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Sparkles className="h-3 w-3 text-kiln-orange" />
+                          <li key={feature} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                            <Check className="mt-0.5 h-3 w-3 shrink-0 text-kiln-orange" />
                             {feature}
                           </li>
                         ))}
                       </ul>
-                      <div className="mt-6">
+                      <div className="mt-4">
                         {isCurrent ? (
-                          <Button disabled className="w-full" variant="outline">Current Plan</Button>
+                          <Button disabled className="w-full h-8 text-xs" variant="outline">Current Plan</Button>
                         ) : plan.id === "FREE" ? (
-                          <Button disabled className="w-full" variant="outline">Included</Button>
+                          <Button disabled className="w-full h-8 text-xs" variant="outline">Included</Button>
+                        ) : isDowngrade ? (
+                          <Button disabled className="w-full h-8 text-xs" variant="outline">Downgrade</Button>
                         ) : (
-                          <Button className="w-full" onClick={() => handleUpgrade(plan.id)} disabled={upgrading !== null}>
-                            {upgrading === plan.id ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null}
-                            Upgrade to {plan.name}
+                          <Button className="w-full h-8 text-xs" onClick={() => handleUpgrade(plan.id)} disabled={upgrading !== null}>
+                            {upgrading === plan.id ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : null}
+                            Upgrade
                           </Button>
                         )}
                       </div>
@@ -763,7 +840,7 @@ function SettingsContent() {
       {activeTab === "api-keys" && (
         <div className="space-y-6">
           {/* BYOK Keys */}
-          {(currentPlan === "PRO" || currentPlan === "AGENCY" || isAdminUser) ? (
+          {(["PRO", "AGENCY", "ENTERPRISE"].includes(currentPlan) || isAdminUser) ? (
             <div className="rounded-xl border border-border bg-card p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10">
@@ -848,7 +925,7 @@ function SettingsContent() {
           )}
 
           {/* API Access Keys */}
-          {(currentPlan === "AGENCY" || isAdminUser) && (
+          {(["AGENCY", "ENTERPRISE"].includes(currentPlan) || isAdminUser) && (
             <div className="rounded-xl border border-border bg-card p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -922,7 +999,7 @@ function SettingsContent() {
       {/* ═══════════════ WEBHOOKS TAB ═══════════════ */}
       {activeTab === "webhooks" && (
         <div className="space-y-6">
-          {(currentPlan === "PRO" || currentPlan === "AGENCY" || isAdminUser) ? (
+          {(["PRO", "AGENCY", "ENTERPRISE"].includes(currentPlan) || isAdminUser) ? (
             <div className="rounded-xl border border-border bg-card p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">

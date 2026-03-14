@@ -654,7 +654,7 @@ export default function LandingPage() {
 
       {/* ── Pricing ─────────────────────────────────────────── */}
       <Section id="pricing" className="border-t border-white/[0.06] py-28">
-        <div className="mx-auto max-w-5xl px-6">
+        <div className="mx-auto max-w-7xl px-6">
           <div className="mb-16 text-center">
             <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Pricing</p>
             <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Simple, fair pricing</h2>
@@ -673,32 +673,42 @@ export default function LandingPage() {
                 className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${annual ? "bg-white text-[#0C0A09]" : "text-neutral-400"}`}
               >
                 Yearly
-                <span className="ml-1.5 text-[10px] text-[#22C55E]">-20%</span>
+                <span className="ml-1.5 rounded-full bg-[#22C55E]/10 px-1.5 py-0.5 text-[10px] text-[#22C55E]">Save 30%</span>
               </button>
             </div>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-5 md:grid-cols-3 sm:grid-cols-2">
             {[
               {
-                name: "Free", price: 0, yearlyPrice: 0, features: [
-                  "1 AI Agent", "50 Chats / Month", "1 Knowledge Base", "Embed Widget", "KILN Branding", "Community Support",
+                name: "Free", price: 0, yearlyMo: 0, yearlyTotal: 0, features: [
+                  "1 AI Agent", "50 Chats / Month", "1 Knowledge Base (5MB)", "Embed Widget", "KILN Branding", "Community Support",
                 ], highlight: false,
               },
               {
-                name: "Pro", price: 49, yearlyPrice: 39, features: [
-                  "Unlimited Agents", "2,000 Chats / Month", "Unlimited Knowledge Bases", "All Actions", "White-Label", "Priority Support", "Analytics Dashboard", "Custom Domain", "BYOK (unlimited chats)",
+                name: "Starter", price: 29, yearlyMo: 20, yearlyTotal: 243, features: [
+                  "3 Agents", "500 Chats / Month", "3 Knowledge Bases (20MB)", "Basic Analytics", "Email Support", "All Actions",
+                ], highlight: false,
+              },
+              {
+                name: "Pro", price: 79, yearlyMo: 55, yearlyTotal: 663, features: [
+                  "10 Agents", "Unlimited Chats", "10 Knowledge Bases (50MB)", "Full Analytics + ROI", "White-Label (no KILN logo)", "Feedback Loop", "Priority Support", "Prompt Editor",
                 ], highlight: true,
               },
               {
-                name: "Agency", price: 149, yearlyPrice: 119, features: [
-                  "Everything in Pro", "10,000 Chats / Month", "Agent Cloning", "Full API Access", "MCP Server (25 tools)", "Webhooks & Integrations", "Multi-Client Management", "Dedicated Support", "SLA 99.9%",
+                name: "Agency", price: 199, yearlyMo: 139, yearlyTotal: 1670, features: [
+                  "Unlimited Agents & Chats", "Unlimited Knowledge Bases", "API Access + MCP Server", "Agent Cloning", "Custom Domain", "Multi-Client Management", "Dedicated Support",
+                ], highlight: false,
+              },
+              {
+                name: "Enterprise", price: 499, yearlyMo: 349, yearlyTotal: 4190, features: [
+                  "Everything in Agency", "SLA 99.9%", "Custom Onboarding", "50K Conversations", "Scheduled Agents", "Webhooks", "Priority Queue",
                 ], highlight: false,
               },
             ].map((plan) => (
               <div
                 key={plan.name}
-                className={`relative flex flex-col rounded-2xl border p-6 ${
+                className={`relative flex flex-col rounded-2xl border p-5 ${
                   plan.highlight
                     ? "border-[#F97316]/30 bg-[#F97316]/[0.03]"
                     : "border-white/[0.06] bg-white/[0.02]"
@@ -709,28 +719,28 @@ export default function LandingPage() {
                     Most Popular
                   </div>
                 )}
-                <h3 className="text-lg font-semibold">{plan.name}</h3>
-                <div className="mt-3 flex items-baseline gap-1">
-                  <span className="font-serif text-4xl">&euro;{annual ? plan.yearlyPrice : plan.price}</span>
-                  <span className="text-sm text-neutral-500">{plan.price === 0 ? "forever" : "/month"}</span>
+                <h3 className="text-base font-semibold">{plan.name}</h3>
+                <div className="mt-2 flex items-baseline gap-1">
+                  <span className="font-serif text-3xl">&euro;{annual ? plan.yearlyMo : plan.price}</span>
+                  <span className="text-xs text-neutral-500">{plan.price === 0 ? "forever" : "/mo"}</span>
                 </div>
                 {annual && plan.price > 0 && (
-                  <p className="mt-1 text-xs text-neutral-500">
-                    <span className="line-through">&euro;{plan.price}</span>{" "}
-                    <span className="text-[#22C55E]">Save &euro;{(plan.price - plan.yearlyPrice) * 12}/year</span>
+                  <p className="mt-1 text-[11px] text-neutral-500">
+                    <span className="line-through">&euro;{plan.price}/mo</span>{" "}
+                    <span className="text-[#22C55E]">&euro;{plan.yearlyTotal}/yr</span>
                   </p>
                 )}
-                <ul className="mt-6 flex-1 space-y-3">
+                <ul className="mt-5 flex-1 space-y-2.5">
                   {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2.5 text-sm text-neutral-400">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#F97316]" />
+                    <li key={f} className="flex items-start gap-2 text-[13px] text-neutral-400">
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#F97316]" />
                       {f}
                     </li>
                   ))}
                 </ul>
                 <Link
                   href="/sign-up"
-                  className={`mt-8 block rounded-xl py-2.5 text-center text-sm font-medium transition-all hover:brightness-110 ${
+                  className={`mt-6 block rounded-xl py-2.5 text-center text-sm font-medium transition-all hover:brightness-110 ${
                     plan.highlight
                       ? "text-white"
                       : "border border-white/10 text-white hover:bg-white/[0.04]"

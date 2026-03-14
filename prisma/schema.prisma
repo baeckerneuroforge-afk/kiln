@@ -46,8 +46,10 @@ model ReferralCredit {
 
 enum Plan {
   FREE
+  STARTER
   PRO
   AGENCY
+  ENTERPRISE
 }
 
 // AI Agent Konfiguration
