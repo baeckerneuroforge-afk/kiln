@@ -53,22 +53,31 @@ enum Plan {
   ENTERPRISE
 }
 
+enum ModelProvider {
+  ANTHROPIC
+  OPENAI
+  PERPLEXITY
+  GOOGLE
+  GROQ
+}
+
 // AI Agent Konfiguration
 model Agent {
-  id                 String      @id @default(cuid())
+  id                 String        @id @default(cuid())
   userId             String
-  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   name               String
-  slug               String      @unique
-  description        String?     @db.Text
-  systemPrompt       String      @db.Text
-  personality        Json?       // { tone, language, formality }
-  welcomeMessage     String?     @db.Text
-  suggestedQuestions String[]    // Array von Vorschlägen
-  llmModel           String      @default("claude-sonnet-4-20250514")
-  status             AgentStatus @default(DRAFT)
-  agentType          AgentType   @default(PUBLIC)
+  slug               String        @unique
+  description        String?       @db.Text
+  systemPrompt       String        @db.Text
+  personality        Json?         // { tone, language, formality }
+  welcomeMessage     String?       @db.Text
+  suggestedQuestions String[]      // Array von Vorschlägen
+  llmModel           String        @default("claude-sonnet-4-20250514")
+  modelProvider      ModelProvider @default(ANTHROPIC)
+  status             AgentStatus   @default(DRAFT)
+  agentType          AgentType     @default(PUBLIC)
 
   // White-Label
   whiteLabel         Json?       // { logo, primaryColor, position, customCss }

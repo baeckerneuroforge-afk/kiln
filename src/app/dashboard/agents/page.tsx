@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { useToast } from "@/components/toast";
+import { getModelDef } from "@/lib/ai";
 
 interface AgentWithCount {
   id: string;
@@ -23,6 +24,7 @@ interface AgentWithCount {
   description: string | null;
   status: "DRAFT" | "LIVE" | "PAUSED";
   agentType?: "PUBLIC" | "INTERNAL";
+  llmModel?: string;
   welcomeMessage: string | null;
   createdAt: string;
   updatedAt: string;
@@ -253,6 +255,12 @@ export default function AgentsPage() {
 
                 {/* Stats Row */}
                 <div className="mt-4 flex items-center gap-3 border-t border-border pt-3 text-[11px] text-muted-foreground">
+                  {agent.llmModel && (() => {
+                    const modelDef = getModelDef(agent.llmModel!);
+                    return modelDef ? (
+                      <span className="rounded-md bg-muted px-1.5 py-0.5 font-medium text-foreground/70">{modelDef.shortLabel}</span>
+                    ) : null;
+                  })()}
                   <div className="flex items-center gap-1">
                     <MessageSquare className="h-3 w-3" />
                     <span>{agent._count.conversations}</span>

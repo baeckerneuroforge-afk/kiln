@@ -59,6 +59,7 @@ import { ChannelsTab } from "@/components/agents/channels-tab";
 import { TeamAccess } from "@/components/agents/team-access";
 import { PromptEditor } from "@/components/agents/prompt-editor";
 import { cn } from "@/lib/utils";
+import { PROVIDERS, getModelsForProvider, getModelDef, type ProviderKey } from "@/lib/ai";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 import { useToast } from "@/components/toast";
 
@@ -72,6 +73,7 @@ interface Agent {
   welcomeMessage: string | null;
   suggestedQuestions: string[];
   llmModel: string;
+  modelProvider: string;
   status: "DRAFT" | "LIVE" | "PAUSED";
   whiteLabel: Record<string, unknown> | null;
   showPoweredBy: boolean;
@@ -140,6 +142,7 @@ export default function AgentDetailPage() {
   const [primaryColor, setPrimaryColor] = useState("#F97316");
   const [logoUrl, setLogoUrl] = useState("");
   const [llmModel, setLlmModel] = useState("claude-sonnet-4-20250514");
+  const [modelProvider, setModelProvider] = useState("ANTHROPIC");
   const [memoryEnabled, setMemoryEnabled] = useState(false);
   const [imageAnalysisEnabled, setImageAnalysisEnabled] = useState(false);
   const [showAiDisclaimer, setShowAiDisclaimer] = useState(true);
@@ -184,6 +187,7 @@ export default function AgentDetailPage() {
         setWelcomeMessage(data.welcomeMessage || "");
         setStatus(data.status);
         setLlmModel(data.llmModel || "claude-sonnet-4-20250514");
+        setModelProvider(data.modelProvider || "ANTHROPIC");
         setMemoryEnabled(data.memoryEnabled || false);
         setImageAnalysisEnabled(data.imageAnalysisEnabled || false);
         setShowAiDisclaimer(data.showAiDisclaimer !== false);
@@ -217,6 +221,7 @@ export default function AgentDetailPage() {
           welcomeMessage,
           status,
           llmModel,
+          modelProvider,
           memoryEnabled,
           imageAnalysisEnabled,
           showAiDisclaimer,
@@ -604,30 +609,95 @@ export default function AgentDetailPage() {
                 />
               </div>
 
-              {/* Model Selection — nur im Advanced Mode */}
-              {advancedMode && (
+              {/* AI Model Section */}
+              <div className="rounded-lg border border-border bg-card/50 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-foreground">AI Model</label>
+                  {(() => {
+                    const md = getModelDef(llmModel);
+                    return md?.badge ? (
+                      <span className={cn(
+                        "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
+                        md.badge === "Most Capable" && "bg-purple-500/15 text-purple-400",
+                        md.badge === "Best Value" && "bg-green-500/15 text-green-400",
+                        md.badge === "Fastest" && "bg-blue-500/15 text-blue-400",
+                        md.badge === "Best for Research" && "bg-orange-500/15 text-orange-400",
+                      )}>{md.badge}</span>
+                    ) : null;
+                  })()}
+                </div>
+
+                {/* Provider */}
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-foreground">
-                    Model
-                    <span className="ml-2 text-xs font-normal text-muted-foreground">
-                      (Advanced)
-                    </span>
-                  </label>
+                  <label className="mb-1 block text-xs text-muted-foreground">Provider</label>
+                  <select
+                    value={modelProvider}
+                    onChange={(e) => {
+                      const newProvider = e.target.value as ProviderKey;
+                      setModelProvider(newProvider);
+                      const models = getModelsForProvider(newProvider);
+                      if (models.length > 0) setLlmModel(models[0].id);
+                    }}
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+                  >
+                    {(Object.keys(PROVIDERS) as ProviderKey[]).map((pk) => (
+                      <option key={pk} value={pk}>{PROVIDERS[pk].label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Model */}
+                <div>
+                  <label className="mb-1 block text-xs text-muted-foreground">Model</label>
                   <select
                     value={llmModel}
                     onChange={(e) => setLlmModel(e.target.value)}
                     className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
                   >
-                    <option value="claude-sonnet-4-20250514">Claude Sonnet (default)</option>
-                    <option value="claude-opus-4-20250514">Claude Opus</option>
-                    <option value="gpt-4o">GPT-4o</option>
-                    <option value="gpt-4o-mini">GPT-4o Mini</option>
+                    {getModelsForProvider(modelProvider as ProviderKey).map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label} {m.badge ? `— ${m.badge}` : ""}
+                      </option>
+                    ))}
                   </select>
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    OpenAI models require an OpenAI API key in Settings. Add your own API keys for unlimited conversations.
-                  </p>
                 </div>
-              )}
+
+                {/* Indicators */}
+                {(() => {
+                  const md = getModelDef(llmModel);
+                  if (!md) return null;
+                  const dots = (n: number, max: number) => "●".repeat(n) + "○".repeat(max - n);
+                  return (
+                    <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+                      <span>Speed: <span className="text-foreground">{dots(md.speed, 3)}</span></span>
+                      <span>Quality: <span className="text-foreground">{dots(md.quality, 3)}</span></span>
+                      <span>Cost: <span className="text-foreground">{dots(md.cost, 3)}</span></span>
+                      {md.supportsTools && <span className="text-green-400">Tools ✓</span>}
+                      {!md.supportsTools && <span className="text-amber-400">No tools</span>}
+                    </div>
+                  );
+                })()}
+
+                {/* Warnings */}
+                {(() => {
+                  const md = getModelDef(llmModel);
+                  if (!md) return null;
+                  return (
+                    <>
+                      {md.requiresByok && (
+                        <p className="text-[10px] text-amber-400">
+                          Requires your own {PROVIDERS[md.provider].label} API key. Add it in Settings → API Keys.
+                        </p>
+                      )}
+                      {!md.supportsTools && agent?.actions.some((a) => a.enabled) && (
+                        <p className="text-[10px] text-red-400">
+                          ⚠ Actions and tool use require Anthropic or OpenAI models. Your enabled actions won&apos;t work with this model.
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
 
               {/* System Prompt */}
               <div>
@@ -1085,6 +1155,7 @@ export default function AgentDetailPage() {
                     setWelcomeMessage(data.welcomeMessage || "");
                     setStatus(data.status);
                     setLlmModel(data.llmModel || "claude-sonnet-4-20250514");
+                    setModelProvider(data.modelProvider || "ANTHROPIC");
                     setMemoryEnabled(data.memoryEnabled || false);
                     setImageAnalysisEnabled(data.imageAnalysisEnabled || false);
                     setCustomDomain(data.customDomain || "");

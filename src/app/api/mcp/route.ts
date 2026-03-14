@@ -424,11 +424,11 @@ function createMcpServer(userId: string) {
 
       // BYOK
       const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
-      const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "anthropic";
+      const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
       let userApiKey: string | null = null;
       try {
         const apiKeyRecord = await prisma.apiKey.findUnique({
-          where: { userId_provider: { userId, provider: modelProvider } },
+          where: { userId_provider: { userId, provider: modelProvider.toLowerCase() } },
         });
         if (apiKeyRecord) userApiKey = decrypt(apiKeyRecord.encryptedKey);
       } catch {
@@ -442,7 +442,7 @@ function createMcpServer(userId: string) {
 
       let responseText = "";
 
-      if (modelProvider === "openai") {
+      if (modelProvider === "OPENAI") {
         const openai = new OpenAI({ apiKey: userApiKey || process.env.OPENAI_API_KEY });
         const response = await openai.chat.completions.create({
           model: selectedModel, max_tokens: 2048,
@@ -625,11 +625,11 @@ function createMcpServer(userId: string) {
 
       // BYOK
       const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
-      const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "anthropic";
+      const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
       let userApiKey: string | null = null;
       try {
         const apiKeyRecord = await prisma.apiKey.findUnique({
-          where: { userId_provider: { userId, provider: modelProvider } },
+          where: { userId_provider: { userId, provider: modelProvider.toLowerCase() } },
         });
         if (apiKeyRecord) userApiKey = decrypt(apiKeyRecord.encryptedKey);
       } catch { /* fallback */ }
@@ -670,7 +670,7 @@ function createMcpServer(userId: string) {
 
         let responseText = "";
         try {
-          if (modelProvider === "openai") {
+          if (modelProvider === "OPENAI") {
             const openai = new OpenAI({ apiKey: userApiKey || process.env.OPENAI_API_KEY });
             const resp = await openai.chat.completions.create({
               model: selectedModel, max_tokens: 1024,

@@ -45,6 +45,8 @@ export async function POST(request: NextRequest) {
       welcomeMessage,
       suggestedQuestions,
       suggestedActions,
+      modelProvider,
+      llmModel: bodyLlmModel,
     } = body;
 
     if (!name || !slug || !systemPrompt) {
@@ -84,7 +86,8 @@ export async function POST(request: NextRequest) {
         personality: personality || {},
         welcomeMessage: welcomeMessage || "",
         suggestedQuestions: suggestedQuestions || [],
-        llmModel: "claude-sonnet-4-20250514",
+        llmModel: bodyLlmModel || "claude-sonnet-4-20250514",
+        modelProvider: modelProvider || "ANTHROPIC",
         status: "DRAFT",
         whiteLabel: { primaryColor: "#F97316", position: "bottom-right" },
         // Create actions from suggested_actions

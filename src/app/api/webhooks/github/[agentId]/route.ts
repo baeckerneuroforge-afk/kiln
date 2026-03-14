@@ -189,14 +189,14 @@ Format your response in GitHub Markdown. Be concise and actionable.${ragContext}
 
     // Get Claude client (BYOK support)
     const model = agent.llmModel || "claude-sonnet-4-20250514";
-    const provider = MODEL_PROVIDER_MAP[model] || "anthropic";
+    const provider = MODEL_PROVIDER_MAP[model] || "ANTHROPIC";
 
-    if (provider !== "anthropic") {
+    if (provider !== "ANTHROPIC") {
       return Response.json({ error: "GitHub integration only supports Anthropic models" }, { status: 400 });
     }
 
     const byokKey = await prisma.apiKey.findFirst({
-      where: { userId: agent.userId, provider: "anthropic" },
+      where: { userId: agent.userId, provider: provider.toLowerCase() },
     });
     const anthropicClient = byokKey
       ? getClaudeClientWithKey(decrypt(byokKey.encryptedKey))

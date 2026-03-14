@@ -59,16 +59,22 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Provider and API key are required" }, { status: 400 });
     }
 
-    if (!["anthropic", "openai"].includes(provider)) {
-      return Response.json({ error: "Invalid provider. Use 'anthropic' or 'openai'" }, { status: 400 });
+    const validProviders = ["anthropic", "openai", "perplexity", "google", "groq"];
+    if (!validProviders.includes(provider)) {
+      return Response.json({ error: `Invalid provider. Use one of: ${validProviders.join(", ")}` }, { status: 400 });
     }
 
     // Basis-Validierung der Key-Formate
-    if (provider === "anthropic" && !apiKey.startsWith("sk-ant-")) {
-      return Response.json({ error: "Invalid Anthropic API key format (should start with sk-ant-)" }, { status: 400 });
-    }
-    if (provider === "openai" && !apiKey.startsWith("sk-")) {
-      return Response.json({ error: "Invalid OpenAI API key format (should start with sk-)" }, { status: 400 });
+    const prefixMap: Record<string, { prefix: string; label: string }> = {
+      anthropic: { prefix: "sk-ant-", label: "Anthropic" },
+      openai: { prefix: "sk-", label: "OpenAI" },
+      perplexity: { prefix: "pplx-", label: "Perplexity" },
+      google: { prefix: "AI", label: "Google AI" },
+      groq: { prefix: "gsk_", label: "Groq" },
+    };
+    const expected = prefixMap[provider];
+    if (expected && !apiKey.startsWith(expected.prefix)) {
+      return Response.json({ error: `Invalid ${expected.label} API key format (should start with ${expected.prefix})` }, { status: 400 });
     }
 
     const encryptedKey = encrypt(apiKey);

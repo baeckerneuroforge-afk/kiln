@@ -165,11 +165,11 @@ async function processWebhookPayload(webhook: any, payload: unknown, startTime: 
 
   // LLM call
   const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
-  const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "anthropic";
+  const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
   let userApiKey: string | null = null;
   try {
     const apiKeyRecord = await prisma.apiKey.findUnique({
-      where: { userId_provider: { userId: agent.userId, provider: modelProvider } },
+      where: { userId_provider: { userId: agent.userId, provider: modelProvider.toLowerCase() } },
     });
     if (apiKeyRecord) userApiKey = decrypt(apiKeyRecord.encryptedKey);
   } catch { /* fallback */ }
@@ -177,7 +177,7 @@ async function processWebhookPayload(webhook: any, payload: unknown, startTime: 
   let responseText = "";
   const actionsExecuted: string[] = [];
 
-  if (modelProvider === "openai") {
+  if (modelProvider === "OPENAI") {
     const openai = new OpenAI({ apiKey: userApiKey || process.env.OPENAI_API_KEY });
     const oaiTools = tools.map((t) => ({
       type: "function" as const,

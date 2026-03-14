@@ -171,8 +171,14 @@ function SettingsContent() {
   const [apiKeys, setApiKeys] = useState<{ id: string; provider: string; keyHint: string }[]>([]);
   const [anthropicKey, setAnthropicKey] = useState("");
   const [openaiKey, setOpenaiKey] = useState("");
+  const [perplexityKey, setPerplexityKey] = useState("");
+  const [googleKey, setGoogleKey] = useState("");
+  const [groqKey, setGroqKey] = useState("");
   const [showAnthropicKey, setShowAnthropicKey] = useState(false);
   const [showOpenaiKey, setShowOpenaiKey] = useState(false);
+  const [showPerplexityKey, setShowPerplexityKey] = useState(false);
+  const [showGoogleKey, setShowGoogleKey] = useState(false);
+  const [showGroqKey, setShowGroqKey] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
   const [keyError, setKeyError] = useState<string | null>(null);
@@ -914,6 +920,87 @@ function SettingsContent() {
                     </div>
                   )}
                   {apiKeys.find((k) => k.provider === "openai") && <p className="mt-1.5 text-xs text-green-400">Using your own OpenAI key — unlimited conversations for GPT models.</p>}
+                </div>
+                {/* Perplexity Key */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">Perplexity API Key</label>
+                  {apiKeys.find((k) => k.provider === "perplexity") ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm text-muted-foreground">{apiKeys.find((k) => k.provider === "perplexity")?.keyHint}</div>
+                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("perplexity")} disabled={deletingKey === "perplexity"} className="text-red-400 hover:bg-red-500/10 hover:text-red-400">
+                        {deletingKey === "perplexity" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
+                        Remove
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input type={showPerplexityKey ? "text" : "password"} value={perplexityKey} onChange={(e) => setPerplexityKey(e.target.value)} placeholder="pplx-..." className="w-full rounded-lg border border-border bg-card px-3 py-2 pr-10 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+                        <button type="button" onClick={() => setShowPerplexityKey(!showPerplexityKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                          {showPerplexityKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      <Button size="sm" onClick={() => saveApiKey("perplexity", perplexityKey)} disabled={savingKey === "perplexity" || !perplexityKey.trim()}>
+                        {savingKey === "perplexity" && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                        Save
+                      </Button>
+                    </div>
+                  )}
+                  {apiKeys.find((k) => k.provider === "perplexity") && <p className="mt-1.5 text-xs text-green-400">Using your own Perplexity key — unlimited conversations for Sonar models.</p>}
+                </div>
+                {/* Google AI Key */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">Google AI API Key</label>
+                  {apiKeys.find((k) => k.provider === "google") ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm text-muted-foreground">{apiKeys.find((k) => k.provider === "google")?.keyHint}</div>
+                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("google")} disabled={deletingKey === "google"} className="text-red-400 hover:bg-red-500/10 hover:text-red-400">
+                        {deletingKey === "google" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
+                        Remove
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input type={showGoogleKey ? "text" : "password"} value={googleKey} onChange={(e) => setGoogleKey(e.target.value)} placeholder="AIza..." className="w-full rounded-lg border border-border bg-card px-3 py-2 pr-10 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+                        <button type="button" onClick={() => setShowGoogleKey(!showGoogleKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                          {showGoogleKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      <Button size="sm" onClick={() => saveApiKey("google", googleKey)} disabled={savingKey === "google" || !googleKey.trim()}>
+                        {savingKey === "google" && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                        Save
+                      </Button>
+                    </div>
+                  )}
+                  {apiKeys.find((k) => k.provider === "google") && <p className="mt-1.5 text-xs text-green-400">Using your own Google AI key — unlimited conversations for Gemini models.</p>}
+                </div>
+                {/* Groq Key */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">Groq API Key</label>
+                  {apiKeys.find((k) => k.provider === "groq") ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm text-muted-foreground">{apiKeys.find((k) => k.provider === "groq")?.keyHint}</div>
+                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("groq")} disabled={deletingKey === "groq"} className="text-red-400 hover:bg-red-500/10 hover:text-red-400">
+                        {deletingKey === "groq" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
+                        Remove
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input type={showGroqKey ? "text" : "password"} value={groqKey} onChange={(e) => setGroqKey(e.target.value)} placeholder="gsk_..." className="w-full rounded-lg border border-border bg-card px-3 py-2 pr-10 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+                        <button type="button" onClick={() => setShowGroqKey(!showGroqKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                          {showGroqKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      <Button size="sm" onClick={() => saveApiKey("groq", groqKey)} disabled={savingKey === "groq" || !groqKey.trim()}>
+                        {savingKey === "groq" && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                        Save
+                      </Button>
+                    </div>
+                  )}
+                  {apiKeys.find((k) => k.provider === "groq") && <p className="mt-1.5 text-xs text-green-400">Using your own Groq key — unlimited conversations for Llama & Mixtral models.</p>}
                 </div>
               </div>
               <div className="mt-4 rounded-lg border border-dashed border-border bg-card/30 p-3">

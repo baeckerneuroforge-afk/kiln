@@ -62,6 +62,7 @@ export async function PATCH(
       welcomeMessage: existing.welcomeMessage,
       suggestedQuestions: existing.suggestedQuestions,
       llmModel: existing.llmModel,
+      modelProvider: existing.modelProvider,
       status: existing.status,
       whiteLabel: existing.whiteLabel,
       showPoweredBy: existing.showPoweredBy,

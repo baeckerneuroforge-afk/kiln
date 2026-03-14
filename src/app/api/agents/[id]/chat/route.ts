@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
+import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP, type ProviderKey } from "@/lib/ai";
 import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
 import { canChat } from "@/lib/plan-limits";
@@ -674,10 +674,10 @@ Which rule (if any) should trigger?`,
 
     // Get Claude client for target agent (BYOK)
     const targetModel = targetAgent.llmModel || "claude-sonnet-4-20250514";
-    const targetProvider = MODEL_PROVIDER_MAP[targetModel] || "anthropic";
+    const targetProvider = MODEL_PROVIDER_MAP[targetModel] || "ANTHROPIC";
     let targetClient: Anthropic;
 
-    if (targetProvider === "anthropic") {
+    if (targetProvider === "ANTHROPIC") {
       try {
         const apiKeyRecord = await prisma.apiKey.findUnique({
           where: { userId_provider: { userId: targetAgent.userId, provider: "anthropic" } },
@@ -696,7 +696,7 @@ Which rule (if any) should trigger?`,
 
     // Call target agent's Claude
     const targetResponse = await targetClient.messages.create({
-      model: targetProvider === "anthropic" ? targetModel : "claude-sonnet-4-20250514",
+      model: targetProvider === "ANTHROPIC" ? targetModel : "claude-sonnet-4-20250514",
       max_tokens: 2048,
       system: targetPrompt,
       messages: targetMessages,
@@ -770,13 +770,14 @@ export async function POST(
 
     // BYOK: Prüfen ob der User einen eigenen Key für den gewählten Provider hat
     const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
-    const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "anthropic";
+    const modelProvider: ProviderKey = (agent.modelProvider as ProviderKey) || MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
+    const providerLower = modelProvider.toLowerCase();
     let userApiKey: string | null = null;
     let usingOwnKey = false;
 
     try {
       const apiKeyRecord = await prisma.apiKey.findUnique({
-        where: { userId_provider: { userId: agent.userId, provider: modelProvider } },
+        where: { userId_provider: { userId: agent.userId, provider: providerLower } },
       });
       if (apiKeyRecord) {
         userApiKey = decrypt(apiKeyRecord.encryptedKey);
@@ -936,9 +937,41 @@ export async function POST(
     const tools = buildTools(agent.actions, agent.customTools);
 
     // Client erstellen: BYOK oder KILN's Key
-    const isOpenAI = modelProvider === "openai";
-    const anthropicClient = isOpenAI ? null : (usingOwnKey && userApiKey ? getClaudeClientWithKey(userApiKey) : getClaudeClient());
-    const openaiClient = isOpenAI ? new OpenAI({ apiKey: userApiKey || process.env.OPENAI_API_KEY }) : null;
+    const isAnthropic = modelProvider === "ANTHROPIC";
+    const isOpenAI = modelProvider === "OPENAI";
+    const isPerplexity = modelProvider === "PERPLEXITY";
+    const isGoogle = modelProvider === "GOOGLE";
+    const isGroq = modelProvider === "GROQ";
+    const isOpenAICompat = isOpenAI || isPerplexity || isGroq; // OpenAI-compatible API format
+
+    // For non-Anthropic/OpenAI providers, BYOK key is required
+    if ((isPerplexity || isGoogle || isGroq) && !userApiKey) {
+      return Response.json(
+        { error: `${modelProvider} requires your own API key. Add it in Settings > API Keys.` },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    const anthropicClient = isAnthropic ? (usingOwnKey && userApiKey ? getClaudeClientWithKey(userApiKey) : getClaudeClient()) : null;
+
+    // Build OpenAI-compatible client for OpenAI, Perplexity, and Groq
+    let openaiCompatClient: OpenAI | null = null;
+    if (isOpenAI) {
+      openaiCompatClient = new OpenAI({ apiKey: userApiKey || process.env.OPENAI_API_KEY });
+    } else if (isPerplexity) {
+      openaiCompatClient = new OpenAI({
+        apiKey: userApiKey!,
+        baseURL: "https://api.perplexity.ai",
+      });
+    } else if (isGroq) {
+      openaiCompatClient = new OpenAI({
+        apiKey: userApiKey!,
+        baseURL: "https://api.groq.com/openai/v1",
+      });
+    }
+
+    // Google Gemini uses its own REST API
+    const googleApiKey = isGoogle ? userApiKey : null;
 
     // Prepare messages — content kann string oder array (multimodal) sein
     const claudeMessages: Anthropic.MessageParam[] = messages.map(
@@ -962,17 +995,59 @@ export async function POST(
       async start(controller) {
         let fullAssistantText = "";
         try {
-          // ===== OpenAI-Pfad =====
-          if (isOpenAI && openaiClient) {
-            // OpenAI Tool-Definitionen konvertieren
-            const openaiTools: OpenAI.ChatCompletionTool[] = tools.map((t) => ({
-              type: "function" as const,
-              function: {
-                name: t.name,
-                description: t.description,
-                parameters: t.input_schema as Record<string, unknown>,
-              },
+          // ===== Google Gemini-Pfad =====
+          if (isGoogle && googleApiKey) {
+            const geminiMessages = messages.map((m: { role: string; content: unknown }) => ({
+              role: m.role === "user" ? "user" : "model",
+              parts: [{ text: extractTextContent(m.content) }],
             }));
+
+            const geminiBody = {
+              system_instruction: { parts: [{ text: systemPrompt }] },
+              contents: geminiMessages,
+              generationConfig: { maxOutputTokens: 2048 },
+            };
+
+            const geminiRes = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${googleApiKey}`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(geminiBody),
+              }
+            );
+
+            if (!geminiRes.ok) {
+              const errData = await geminiRes.json().catch(() => ({}));
+              throw new Error(errData?.error?.message || `Google API error: ${geminiRes.status}`);
+            }
+
+            const geminiData = await geminiRes.json();
+            const geminiText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            if (geminiText) {
+              fullAssistantText += geminiText;
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: geminiText })}\n\n`));
+            }
+
+            if (geminiData?.usageMetadata) {
+              debugInputTokens += geminiData.usageMetadata.promptTokenCount || 0;
+              debugOutputTokens += geminiData.usageMetadata.candidatesTokenCount || 0;
+            }
+          }
+          // ===== OpenAI-compatible Pfad (OpenAI, Perplexity, Groq) =====
+          else if (isOpenAICompat && openaiCompatClient) {
+            // Tool definitions — only for providers that support them
+            const providerSupportsTools = isOpenAI;
+            const openaiTools: OpenAI.ChatCompletionTool[] = providerSupportsTools
+              ? tools.map((t) => ({
+                  type: "function" as const,
+                  function: {
+                    name: t.name,
+                    description: t.description,
+                    parameters: t.input_schema as Record<string, unknown>,
+                  },
+                }))
+              : [];
 
             const openaiMessages: OpenAI.ChatCompletionMessageParam[] = [
               { role: "system", content: systemPrompt },
@@ -994,7 +1069,7 @@ export async function POST(
                 requestParams.tools = openaiTools;
               }
 
-              const response = await openaiClient.chat.completions.create(requestParams);
+              const response = await openaiCompatClient.chat.completions.create(requestParams);
               const choice = response.choices[0];
 
               if (response.usage) {
@@ -1014,7 +1089,6 @@ export async function POST(
               openaiMessages.push(choice.message);
 
               for (const tc of toolCalls) {
-                // Nur function-type Tool-Calls verarbeiten
                 if (tc.type !== "function") continue;
                 const fnCall = tc as { id: string; type: "function"; function: { name: string; arguments: string } };
                 const toolInput = JSON.parse(fnCall.function.arguments || "{}") as Record<string, unknown>;
@@ -1038,7 +1112,6 @@ export async function POST(
                   content: result,
                 });
 
-                // Lead-Score / Email auf Conversation speichern
                 if (fnCall.function.name === "score_lead") {
                   const score = Math.min(10, Math.max(1, Number(toolInput.score) || 5));
                   await prisma.conversation.update({
@@ -1058,7 +1131,6 @@ export async function POST(
                   });
                 }
 
-                // Webhook: action.executed
                 fireWebhookEvent(agent.userId, "action.executed", params.id, {
                   conversationId,
                   action: fnCall.function.name,
@@ -1215,8 +1287,8 @@ export async function POST(
             responseLength: fullAssistantText.length,
           });
 
-          // Orchestration: Check handoff rules after response
-          if (fullAssistantText && anthropicClient) {
+          // Orchestration: Check handoff rules after response (Anthropic only)
+          if (fullAssistantText && anthropicClient && isAnthropic) {
             const lastMsg = messages.filter((m: { role: string }) => m.role === "user").pop();
             const lastUserText = lastMsg ? extractTextContent(lastMsg.content) : "";
 
@@ -1244,8 +1316,8 @@ export async function POST(
             }
           }
 
-          // Persistent Memory: Nach 3+ Nachrichten Fakten extrahieren
-          if (agent.memoryEnabled && claudeMessages.length >= 3 && anthropicClient) {
+          // Persistent Memory: Nach 3+ Nachrichten Fakten extrahieren (Anthropic only)
+          if (agent.memoryEnabled && claudeMessages.length >= 3 && anthropicClient && isAnthropic) {
             const allMessages = claudeMessages
               .filter((m) => typeof m.content === "string")
               .map((m) => ({ role: m.role as string, content: m.content as string }));

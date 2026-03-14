@@ -36,6 +36,7 @@ import {
   Send,
   Sparkles,
 } from "lucide-react";
+import { getModelDef } from "@/lib/ai";
 
 /* ========== Types ========== */
 interface TeamAgent {
@@ -43,6 +44,7 @@ interface TeamAgent {
   name: string;
   slug: string;
   description?: string;
+  llmModel?: string;
 }
 
 interface TeamMember {
@@ -115,6 +117,7 @@ type TeamMemberNodeData = {
   agentName: string;
   responsibilities: string;
   taskCount: number;
+  llmModel?: string;
   [key: string]: unknown;
 };
 
@@ -144,7 +147,13 @@ function TeamMemberNode({ data }: NodeProps<Node<TeamMemberNodeData>>) {
         )}
       </div>
 
-      <p className="text-sm font-semibold text-zinc-100 truncate">{data.agentName}</p>
+      <div className="flex items-center gap-2">
+        <p className="text-sm font-semibold text-zinc-100 truncate">{data.agentName}</p>
+        {data.llmModel && (() => {
+          const m = getModelDef(data.llmModel as string);
+          return m ? <span className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-full shrink-0">{m.shortLabel}</span> : null;
+        })()}
+      </div>
 
       {data.responsibilities && (
         <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{data.responsibilities}</p>
@@ -261,6 +270,7 @@ function buildHierarchyGraph(members: TeamMember[], tasks: TeamTask[]) {
       agentName: m.agent.name,
       responsibilities: m.responsibilities || "",
       taskCount: taskCounts[m.id] || 0,
+      llmModel: m.agent.llmModel || undefined,
     },
   }));
 

@@ -135,12 +135,12 @@ export async function POST(
 
     // BYOK Check
     const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
-    const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "anthropic";
+    const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
     let userApiKey: string | null = null;
 
     try {
       const apiKeyRecord = await prisma.apiKey.findUnique({
-        where: { userId_provider: { userId: authResult.userId, provider: modelProvider } },
+        where: { userId_provider: { userId: authResult.userId, provider: modelProvider.toLowerCase() } },
       });
       if (apiKeyRecord) {
         userApiKey = decrypt(apiKeyRecord.encryptedKey);
@@ -159,7 +159,7 @@ export async function POST(
     const leadScore: number | null = conversation.leadScore;
 
     // ===== OpenAI =====
-    if (modelProvider === "openai") {
+    if (modelProvider === "OPENAI") {
       const openai = new OpenAI({ apiKey: userApiKey || process.env.OPENAI_API_KEY });
 
       const openaiMessages: OpenAI.ChatCompletionMessageParam[] = [

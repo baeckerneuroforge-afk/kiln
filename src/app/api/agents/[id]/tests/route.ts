@@ -106,12 +106,12 @@ export async function POST(
 
     // BYOK prüfen
     const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
-    const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "anthropic";
+    const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
     let client: Anthropic;
 
     try {
       const apiKeyRecord = await prisma.apiKey.findUnique({
-        where: { userId_provider: { userId: agent.userId, provider: modelProvider } },
+        where: { userId_provider: { userId: agent.userId, provider: modelProvider.toLowerCase() } },
       });
       if (apiKeyRecord) {
         client = getClaudeClientWithKey(decrypt(apiKeyRecord.encryptedKey));
