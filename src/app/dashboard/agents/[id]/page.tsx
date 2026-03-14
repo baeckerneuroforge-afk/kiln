@@ -84,6 +84,13 @@ interface Agent {
   customDomain: string | null;
   promptBranches: { name: string; keywords: string[]; promptSnippet: string; enabled: boolean }[] | null;
   agentType: "PUBLIC" | "INTERNAL";
+  agentMode: "CHAT" | "TASK";
+  triggerType?: "MANUAL" | "SCHEDULE" | "WEBHOOK" | "EVENT";
+  outputType?: "NONE" | "HTTP_REQUEST" | "EMAIL" | "NEXT_AGENT" | "WEBHOOK" | "CUSTOM_CODE";
+  triggerConfig?: Record<string, unknown> | null;
+  outputConfig?: Record<string, unknown> | null;
+  lastRunAt?: string | null;
+  lastRunResult?: Record<string, unknown> | null;
   clonedFromId: string | null;
   clonedFromName: string | null;
   createdAt: string;
@@ -92,9 +99,9 @@ interface Agent {
   _count: { conversations: number };
 }
 
-type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "channels" | "integrations" | "tools" | "debug" | "logs" | "memory" | "automations" | "versions" | "testing" | "webhooks";
+type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "channels" | "integrations" | "tools" | "debug" | "logs" | "memory" | "automations" | "versions" | "testing" | "webhooks" | "runs";
 
-const baseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
+const chatBaseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "config", label: "Configuration", icon: Settings2 },
   { id: "knowledge", label: "Knowledge", icon: BookOpen },
   { id: "actions", label: "Actions", icon: Zap },
@@ -102,6 +109,14 @@ const baseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "embed", label: "Embed Code", icon: Code2 },
   { id: "channels", label: "Channels", icon: Radio },
   { id: "integrations", label: "Integrations", icon: Plug },
+];
+
+const taskBaseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
+  { id: "config", label: "Configuration", icon: Settings2 },
+  { id: "runs", label: "Runs", icon: ScrollText },
+  { id: "knowledge", label: "Knowledge", icon: BookOpen },
+  { id: "actions", label: "Actions", icon: Zap },
+  { id: "analytics", label: "Analytics", icon: BarChart3 },
 ];
 
 const advancedTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
@@ -121,7 +136,7 @@ const statusOptions = [
   { value: "PAUSED", label: "Paused" },
 ];
 
-const fullWidthTabs: Tab[] = ["analytics", "tools", "logs", "memory", "automations", "versions", "testing"];
+const fullWidthTabs: Tab[] = ["analytics", "tools", "logs", "memory", "automations", "versions", "testing", "runs"];
 
 export default function AgentDetailPage() {
   const params = useParams();
@@ -175,6 +190,10 @@ export default function AgentDetailPage() {
   // Test case pre-fill from logs
   const [testCasePrefill, setTestCasePrefill] = useState<{ input: string; response: string } | null>(null);
 
+  // Task Agent state
+  const [runningTask, setRunningTask] = useState(false);
+  const [runs, setRuns] = useState<{ id: string; triggerType: string; input: unknown; output: string | null; status: string; duration: number | null; creditsUsed: number; createdAt: string; error: string | null }[]>([]);
+
   useEffect(() => {
     fetch(`/api/agents/${params.id}`)
       .then((res) => {
@@ -208,6 +227,16 @@ export default function AgentDetailPage() {
       .then((data) => setUserPlan(data.plan || "FREE"))
       .catch(() => {});
   }, [params.id, router]);
+
+  // Load runs when switching to the runs tab
+  useEffect(() => {
+    if (activeTab === "runs" && agent?.agentMode === "TASK") {
+      fetch(`/api/agents/${agent.id}/run`)
+        .then((r) => r.json())
+        .then((d) => setRuns(d.runs || []))
+        .catch(() => {});
+    }
+  }, [activeTab, agent?.id, agent?.agentMode]);
 
   async function handleSave() {
     if (!agent) return;
@@ -422,6 +451,7 @@ export default function AgentDetailPage() {
     );
   }
 
+  const baseTabs = agent?.agentMode === "TASK" ? taskBaseTabs : chatBaseTabs;
   const isFullWidth = fullWidthTabs.includes(activeTab);
   const isDebugTab = activeTab === "debug";
 
@@ -436,8 +466,8 @@ export default function AgentDetailPage() {
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10">
-            <Bot className="h-5 w-5 text-kiln-orange" />
+          <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${agent.agentMode === "TASK" ? "bg-kiln-orange/10" : "bg-blue-500/10"}`}>
+            {agent.agentMode === "TASK" ? <Zap className="h-5 w-5 text-kiln-orange" /> : <Bot className="h-5 w-5 text-blue-500" />}
           </div>
           <div>
             <h1 className="font-serif text-2xl text-foreground">{agent.name}</h1>
@@ -495,6 +525,38 @@ export default function AgentDetailPage() {
             >
               <Store className="mr-2 h-3.5 w-3.5" />
               Publish
+            </Button>
+          )}
+          {agent.agentMode === "TASK" && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={runningTask}
+              onClick={async () => {
+                setRunningTask(true);
+                try {
+                  const res = await fetch(`/api/agents/${agent.id}/run`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ input: "Run your configured task." }),
+                  });
+                  const data = await res.json();
+                  if (res.ok) {
+                    toast(`Run completed: ${data.status}`, "success");
+                    // Refresh runs if on runs tab
+                    if (activeTab === "runs") {
+                      fetch(`/api/agents/${agent.id}/run`).then((r) => r.json()).then((d) => setRuns(d.runs || [])).catch(() => {});
+                    }
+                  } else {
+                    toast(data.error || "Run failed", "error");
+                  }
+                } catch { toast("Run failed", "error"); }
+                finally { setRunningTask(false); }
+              }}
+              className="border-kiln-orange/30 text-kiln-orange hover:bg-kiln-orange/10"
+            >
+              {runningTask ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Zap className="mr-2 h-3.5 w-3.5" />}
+              Run Now
             </Button>
           )}
           {advancedMode && (
@@ -1103,6 +1165,69 @@ export default function AgentDetailPage() {
 
           {activeTab === "analytics" && (
             <AnalyticsTab agentId={agent.id} />
+          )}
+
+          {activeTab === "runs" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-foreground">Execution History</h3>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    fetch(`/api/agents/${agent.id}/run`)
+                      .then((r) => r.json())
+                      .then((d) => setRuns(d.runs || []))
+                      .catch(() => {});
+                  }}
+                >
+                  <RefreshCw className="mr-2 h-3 w-3" />
+                  Refresh
+                </Button>
+              </div>
+              {runs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 py-16">
+                  <ScrollText className="mb-3 h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm font-medium text-foreground">No runs yet</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Click &quot;Run Now&quot; to execute this task agent.</p>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-card/50">
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Status</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Trigger</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Output</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Duration</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Credits</th>
+                        <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Time</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {runs.map((run) => (
+                        <tr key={run.id} className="border-b border-border last:border-0 hover:bg-card/30">
+                          <td className="px-4 py-2.5">
+                            <span className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                              run.status === "SUCCESS" ? "bg-kiln-green/10 text-kiln-green" : "bg-destructive/10 text-destructive"
+                            )}>
+                              {run.status === "SUCCESS" ? <CheckCircle2 className="h-2.5 w-2.5" /> : <AlertCircle className="h-2.5 w-2.5" />}
+                              {run.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-xs text-muted-foreground">{run.triggerType}</td>
+                          <td className="px-4 py-2.5 text-xs text-foreground max-w-[200px] truncate">{run.output || "—"}</td>
+                          <td className="px-4 py-2.5 text-xs text-muted-foreground">{run.duration ? `${(run.duration / 1000).toFixed(1)}s` : "—"}</td>
+                          <td className="px-4 py-2.5 text-xs text-muted-foreground">{run.creditsUsed}</td>
+                          <td className="px-4 py-2.5 text-xs text-muted-foreground">{new Date(run.createdAt).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
 
           {activeTab === "debug" && (

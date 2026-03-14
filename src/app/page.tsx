@@ -435,6 +435,7 @@ export default function LandingPage() {
               { icon: Users, title: "Agent Teams", desc: "Build hierarchical AI teams with Head, Coordinator, and Executor roles. Delegate tasks automatically." },
               { icon: Layers, title: "Multi-LLM", desc: "Choose the right model for each agent. Claude, GPT-4o, Perplexity, Gemini, Groq — per agent." },
               { icon: Network, title: "Agent Orchestration", desc: "Visual canvas for multi-agent workflows. Drag, connect, deploy." },
+              { icon: Bot, title: "Task Agents", desc: "Autonomous background agents with triggers, output routing, and execution history." },
               { icon: MessageSquare, title: "Conversational Builder", desc: "Describe your agent in plain English. KILN generates the config." },
               { icon: FileText, title: "RAG Knowledge Base", desc: "Upload PDFs, URLs, or FAQs. Your agent answers with your knowledge." },
               { icon: Zap, title: "Smart Actions", desc: "Book appointments, collect emails, score leads — all built in." },

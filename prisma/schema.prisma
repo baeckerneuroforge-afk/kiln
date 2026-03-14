@@ -74,6 +74,7 @@ enum CreditUsageType {
   SCHEDULED
   WEBHOOK
   EMBEDDING
+  TASK_RUN
 }
 
 // AI Agent Konfiguration
@@ -93,6 +94,15 @@ model Agent {
   modelProvider      ModelProvider @default(ANTHROPIC)
   status             AgentStatus   @default(DRAFT)
   agentType          AgentType     @default(PUBLIC)
+  agentMode          AgentMode   @default(CHAT)
+
+  // Task Agent fields
+  triggerType        TriggerType @default(MANUAL)
+  triggerConfig      Json?       // { cron, webhookPath, sourceAgentId }
+  outputType         OutputType  @default(NONE)
+  outputConfig       Json?       // { url, email, targetAgentId, code }
+  lastRunAt          DateTime?
+  lastRunResult      Json?
 
   // White-Label
   whiteLabel         Json?       // { logo, primaryColor, position, customCss }
@@ -138,6 +148,7 @@ model Agent {
   channels           AgentChannel[]
   teamMembers        TeamMember[]
   agentTeamMembers   AgentTeamMember[] @relation("AgentTeamMembers")
+  runs               AgentRun[]
 
   @@index([userId])
 }
@@ -145,6 +156,32 @@ model Agent {
 enum AgentType {
   PUBLIC
   INTERNAL
+}
+
+enum AgentMode {
+  CHAT
+  TASK
+}
+
+enum TriggerType {
+  MANUAL
+  SCHEDULE
+  WEBHOOK
+  EVENT
+}
+
+enum OutputType {
+  NONE
+  HTTP_REQUEST
+  EMAIL
+  NEXT_AGENT
+  WEBHOOK
+  CUSTOM_CODE
+}
+
+enum RunStatus {
+  SUCCESS
+  ERROR
 }
 
 enum AgentStatus {
@@ -743,4 +780,22 @@ model AiCreditUsage {
   @@index([agentId])
   @@index([userId, createdAt])
   @@index([type])
+}
+
+model AgentRun {
+  id            String    @id @default(cuid())
+  agentId       String
+  agent         Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  triggerType   String    // MANUAL, SCHEDULE, WEBHOOK, EVENT
+  input         Json?
+  output        String?   @db.Text
+  outputAction  Json?     // What output action was taken
+  status        RunStatus @default(SUCCESS)
+  error         String?   @db.Text
+  duration      Int?      // ms
+  creditsUsed   Int       @default(0)
+  createdAt     DateTime  @default(now())
+
+  @@index([agentId])
+  @@index([agentId, createdAt])
 }

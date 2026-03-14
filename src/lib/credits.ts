@@ -65,7 +65,7 @@ export function getCreditCost(modelId: string): number {
 }
 
 // ─── Credit Usage Type ──────────────────────────────────────
-export type CreditUsageType = "CHAT" | "TEAM_TASK" | "ORCHESTRATION" | "SCHEDULED" | "WEBHOOK" | "EMBEDDING";
+export type CreditUsageType = "CHAT" | "TEAM_TASK" | "ORCHESTRATION" | "SCHEDULED" | "WEBHOOK" | "EMBEDDING" | "TASK_RUN";
 
 // ─── Core Credit Functions ──────────────────────────────────
 

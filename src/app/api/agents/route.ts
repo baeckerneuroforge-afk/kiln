@@ -14,7 +14,7 @@ export async function GET() {
     const agents = await prisma.agent.findMany({
       where: { userId },
       include: {
-        _count: { select: { conversations: true } },
+        _count: { select: { conversations: true, runs: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -47,6 +47,11 @@ export async function POST(request: NextRequest) {
       suggestedActions,
       modelProvider,
       llmModel: bodyLlmModel,
+      agentMode,
+      triggerType,
+      triggerConfig,
+      outputType,
+      outputConfig,
     } = body;
 
     if (!name || !slug || !systemPrompt) {
@@ -89,6 +94,11 @@ export async function POST(request: NextRequest) {
         llmModel: bodyLlmModel || "claude-sonnet-4-20250514",
         modelProvider: modelProvider || "ANTHROPIC",
         status: "DRAFT",
+        agentMode: agentMode || "CHAT",
+        triggerType: triggerType || "MANUAL",
+        triggerConfig: triggerConfig || undefined,
+        outputType: outputType || "NONE",
+        outputConfig: outputConfig || undefined,
         whiteLabel: { primaryColor: "#F97316", position: "bottom-right" },
         // Create actions from suggested_actions
         actions: {

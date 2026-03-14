@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Loader2, Upload } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Upload, MessageSquare, Zap, Play } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { BuilderChat } from "@/components/agents/builder-chat";
@@ -10,14 +10,28 @@ import { AgentPreview } from "@/components/agents/agent-preview";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 import type { GeneratedAgentConfig } from "@/types/agent";
 
+type AgentMode = "CHAT" | "TASK";
+type TaskStep = "describe" | "trigger" | "tools" | "output" | "review";
+
 export default function NewAgentPage() {
   const router = useRouter();
   const { advancedMode } = useAdvancedMode();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mode, setMode] = useState<AgentMode | null>(null);
   const [config, setConfig] = useState<GeneratedAgentConfig | null>(null);
   const [streamingText, setStreamingText] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Task Agent builder state
+  const [taskStep, setTaskStep] = useState<TaskStep>("describe");
+  const [taskName, setTaskName] = useState("");
+  const [taskInstructions, setTaskInstructions] = useState("");
+  const [triggerType, setTriggerType] = useState<"MANUAL" | "SCHEDULE" | "WEBHOOK" | "EVENT">("MANUAL");
+  const [cronExpression, setCronExpression] = useState("0 9 * * *");
+  const [outputType, setOutputType] = useState<"NONE" | "HTTP_REQUEST" | "EMAIL" | "NEXT_AGENT" | "WEBHOOK" | "CUSTOM_CODE">("NONE");
+  const [outputConfig, setOutputConfig] = useState<Record<string, string>>({});
+  const [taskSaving, setTaskSaving] = useState(false);
 
   function handleConfigGenerated(newConfig: GeneratedAgentConfig) {
     setConfig(newConfig);
@@ -46,6 +60,7 @@ export default function NewAgentPage() {
           welcomeMessage: config.welcome_message,
           suggestedQuestions: config.suggested_questions,
           suggestedActions: config.suggested_actions,
+          agentMode: "CHAT",
         }),
       });
 
@@ -59,6 +74,48 @@ export default function NewAgentPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
       setIsSaving(false);
+    }
+  }
+
+  async function handleSaveTaskAgent() {
+    if (!taskName.trim() || !taskInstructions.trim()) return;
+    setTaskSaving(true);
+    setError(null);
+
+    try {
+      const slug = taskName.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40) + "-" + Date.now().toString(36).slice(-4);
+      const systemPrompt = `You are a task execution agent. Your job is to complete the following task and return a clear, structured result.\n\nTask Instructions:\n${taskInstructions}`;
+
+      const res = await fetch("/api/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: taskName,
+          slug,
+          description: taskInstructions.slice(0, 200),
+          systemPrompt,
+          personality: { tone: "professional", language: "en", formality: "neutral" },
+          welcomeMessage: "",
+          suggestedQuestions: [],
+          suggestedActions: [],
+          agentMode: "TASK",
+          triggerType,
+          triggerConfig: triggerType === "SCHEDULE" ? { cron: cronExpression } : null,
+          outputType,
+          outputConfig: Object.keys(outputConfig).length > 0 ? outputConfig : null,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Error saving");
+      }
+
+      const agent = await res.json();
+      router.push(`/dashboard/agents/${agent.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+      setTaskSaving(false);
     }
   }
 
@@ -144,20 +201,323 @@ export default function NewAgentPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  return (
-    <div className="flex h-[calc(100vh-3rem)] flex-col">
-      {/* Top Bar */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div className="flex items-center gap-3">
+  // ─── Mode Selection Screen ────────────────────────────────
+  if (!mode) {
+    return (
+      <div className="flex h-[calc(100vh-3rem)] flex-col">
+        <div className="flex items-center border-b border-border px-4 py-3">
           <Link
             href="/dashboard/agents"
             className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
+          <div className="ml-3">
+            <h1 className="text-sm font-semibold text-foreground">New Agent</h1>
+            <p className="text-xs text-muted-foreground">Choose agent type</p>
+          </div>
+        </div>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="mx-auto max-w-2xl px-6">
+            <div className="mb-8 text-center">
+              <h2 className="font-serif text-3xl text-foreground">What kind of agent?</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Choose how your agent will operate.</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Chat Agent Card */}
+              <button
+                onClick={() => setMode("CHAT")}
+                className="flex flex-col items-start rounded-xl border border-border bg-card p-6 text-left transition-all hover:border-blue-500/30 hover:bg-blue-500/5"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 mb-4">
+                  <MessageSquare className="h-6 w-6 text-blue-500" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground">Chat Agent</h3>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                  Conversational AI that chats with your customers. Embed on your website, answer questions, book appointments, collect leads.
+                </p>
+                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-blue-500">
+                  Create Chat Agent <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+                </div>
+              </button>
+
+              {/* Task Agent Card */}
+              <button
+                onClick={() => setMode("TASK")}
+                className="flex flex-col items-start rounded-xl border border-border bg-card p-6 text-left transition-all hover:border-kiln-orange/30 hover:bg-kiln-orange/5"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-kiln-orange/10 mb-4">
+                  <Zap className="h-6 w-6 text-kiln-orange" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground">Task Agent</h3>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                  Autonomous AI that executes tasks. Set a trigger, define instructions, configure outputs. Runs in the background.
+                </p>
+                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-kiln-orange">
+                  Create Task Agent <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Task Agent Builder ──────────────────────────────────
+  if (mode === "TASK") {
+    const steps: { id: TaskStep; label: string }[] = [
+      { id: "describe", label: "Describe" },
+      { id: "trigger", label: "Trigger" },
+      { id: "output", label: "Output" },
+      { id: "review", label: "Review" },
+    ];
+    const stepIdx = steps.findIndex((s) => s.id === taskStep);
+
+    return (
+      <div className="flex h-[calc(100vh-3rem)] flex-col">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => taskStep === "describe" ? setMode(null) : setTaskStep(steps[stepIdx - 1].id)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-kiln-orange/10">
+              <Zap className="h-4 w-4 text-kiln-orange" />
+            </div>
+            <div>
+              <h1 className="text-sm font-semibold text-foreground">New Task Agent</h1>
+              <p className="text-xs text-muted-foreground">Step {stepIdx + 1} of {steps.length}: {steps[stepIdx].label}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {error && <p className="text-xs text-destructive">{error}</p>}
+            {taskStep === "review" && (
+              <Button onClick={handleSaveTaskAgent} disabled={taskSaving} size="sm">
+                {taskSaving ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-2 h-3.5 w-3.5" />}
+                Create Agent
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Step Progress */}
+        <div className="flex items-center gap-1 border-b border-border px-6 py-2">
+          {steps.map((s, i) => (
+            <div key={s.id} className="flex items-center gap-1">
+              <button
+                onClick={() => i <= stepIdx && setTaskStep(s.id)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
+                  i === stepIdx ? "bg-kiln-orange text-white" :
+                  i < stepIdx ? "bg-kiln-orange/10 text-kiln-orange cursor-pointer" :
+                  "bg-muted text-muted-foreground"
+                }`}
+              >
+                {s.label}
+              </button>
+              {i < steps.length - 1 && <div className="h-px w-6 bg-border" />}
+            </div>
+          ))}
+        </div>
+
+        {/* Step Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-2xl px-6 py-8">
+            {taskStep === "describe" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">What should this agent do?</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">Give your task agent a name and describe its job.</p>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">Agent Name</label>
+                  <input
+                    type="text"
+                    value={taskName}
+                    onChange={(e) => setTaskName(e.target.value)}
+                    placeholder="e.g. Daily Lead Report, Content Writer, Data Processor"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">Task Instructions</label>
+                  <textarea
+                    value={taskInstructions}
+                    onChange={(e) => setTaskInstructions(e.target.value)}
+                    rows={8}
+                    placeholder="Describe what this agent should do when triggered. Be specific about the expected input, what to do with it, and what format the output should be in.&#10;&#10;Example: Analyze the incoming webhook data containing a customer support ticket. Categorize the issue (billing, technical, general), extract the customer email, and write a professional response."
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange resize-none"
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <Button onClick={() => setTaskStep("trigger")} disabled={!taskName.trim() || !taskInstructions.trim()}>
+                    Next: Trigger <ArrowLeft className="ml-2 h-3.5 w-3.5 rotate-180" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {taskStep === "trigger" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">When should this agent run?</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">Select what triggers this task agent.</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {([
+                    { id: "MANUAL" as const, label: "Manual", desc: "Run on demand via dashboard, API, or MCP", icon: Play },
+                    { id: "SCHEDULE" as const, label: "Schedule", desc: "Run on a recurring cron schedule", icon: Zap },
+                    { id: "WEBHOOK" as const, label: "Webhook", desc: "Auto-generated URL triggers the agent", icon: Zap },
+                    { id: "EVENT" as const, label: "Event", desc: "When another agent completes a run", icon: Zap },
+                  ]).map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => setTriggerType(t.id)}
+                      className={`flex flex-col items-start rounded-lg border p-4 text-left transition-all ${
+                        triggerType === t.id ? "border-kiln-orange bg-kiln-orange/5" : "border-border hover:border-kiln-orange/30"
+                      }`}
+                    >
+                      <h4 className="text-sm font-semibold text-foreground">{t.label}</h4>
+                      <p className="mt-1 text-xs text-muted-foreground">{t.desc}</p>
+                    </button>
+                  ))}
+                </div>
+                {triggerType === "SCHEDULE" && (
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-foreground">Schedule</label>
+                    <select
+                      value={cronExpression}
+                      onChange={(e) => setCronExpression(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+                    >
+                      <option value="0 * * * *">Every hour</option>
+                      <option value="0 9 * * *">Daily at 9:00 AM</option>
+                      <option value="0 9 * * 1">Weekly on Mondays</option>
+                      <option value="0 9 1 * *">Monthly on the 1st</option>
+                    </select>
+                    <p className="mt-1 text-xs text-muted-foreground">Cron: {cronExpression}</p>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <Button variant="outline" onClick={() => setTaskStep("describe")}>Back</Button>
+                  <Button onClick={() => setTaskStep("output")}>
+                    Next: Output <ArrowLeft className="ml-2 h-3.5 w-3.5 rotate-180" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {taskStep === "output" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">What happens with the result?</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">Configure what to do with the agent&apos;s output.</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {([
+                    { id: "NONE" as const, label: "Log Only", desc: "Just save the result" },
+                    { id: "EMAIL" as const, label: "Send Email", desc: "Email the result to someone" },
+                    { id: "HTTP_REQUEST" as const, label: "HTTP Request", desc: "POST result to an external URL" },
+                    { id: "NEXT_AGENT" as const, label: "Next Agent", desc: "Pass result to another agent" },
+                    { id: "WEBHOOK" as const, label: "Webhook", desc: "POST to a webhook URL" },
+                    { id: "CUSTOM_CODE" as const, label: "Custom Code", desc: "Run JS on the result" },
+                  ]).map((o) => (
+                    <button
+                      key={o.id}
+                      onClick={() => setOutputType(o.id)}
+                      className={`flex flex-col items-start rounded-lg border p-4 text-left transition-all ${
+                        outputType === o.id ? "border-kiln-orange bg-kiln-orange/5" : "border-border hover:border-kiln-orange/30"
+                      }`}
+                    >
+                      <h4 className="text-sm font-semibold text-foreground">{o.label}</h4>
+                      <p className="mt-1 text-xs text-muted-foreground">{o.desc}</p>
+                    </button>
+                  ))}
+                </div>
+                {outputType === "EMAIL" && (
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-foreground">Recipient Email</label>
+                    <input
+                      type="email"
+                      value={outputConfig.email || ""}
+                      onChange={(e) => setOutputConfig({ ...outputConfig, email: e.target.value })}
+                      placeholder="recipient@example.com"
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange"
+                    />
+                  </div>
+                )}
+                {(outputType === "HTTP_REQUEST" || outputType === "WEBHOOK") && (
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-foreground">URL</label>
+                    <input
+                      type="url"
+                      value={outputConfig.url || ""}
+                      onChange={(e) => setOutputConfig({ ...outputConfig, url: e.target.value })}
+                      placeholder="https://example.com/webhook"
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange"
+                    />
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <Button variant="outline" onClick={() => setTaskStep("trigger")}>Back</Button>
+                  <Button onClick={() => setTaskStep("review")}>
+                    Next: Review <ArrowLeft className="ml-2 h-3.5 w-3.5 rotate-180" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {taskStep === "review" && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">Review your Task Agent</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">Everything look good? Create your agent.</p>
+                </div>
+                <div className="space-y-3">
+                  {[
+                    { label: "Name", value: taskName },
+                    { label: "Instructions", value: taskInstructions.slice(0, 200) + (taskInstructions.length > 200 ? "..." : "") },
+                    { label: "Trigger", value: triggerType + (triggerType === "SCHEDULE" ? ` (${cronExpression})` : "") },
+                    { label: "Output", value: outputType === "NONE" ? "Log only" : `${outputType}${outputConfig.email ? ` → ${outputConfig.email}` : ""}${outputConfig.url ? ` → ${outputConfig.url}` : ""}` },
+                  ].map((item) => (
+                    <div key={item.label} className="rounded-lg border border-border bg-card p-4">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{item.label}</p>
+                      <p className="mt-1 text-sm text-foreground">{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between">
+                  <Button variant="outline" onClick={() => setTaskStep("output")}>Back</Button>
+                  <Button onClick={handleSaveTaskAgent} disabled={taskSaving}>
+                    {taskSaving ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-2 h-3.5 w-3.5" />}
+                    Create Task Agent
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Chat Agent Builder (existing) ─────────────────────────
+  return (
+    <div className="flex h-[calc(100vh-3rem)] flex-col">
+      {/* Top Bar */}
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setMode(null)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
           <div>
             <h1 className="text-sm font-semibold text-foreground">
-              {config?.name || "New Agent"}
+              {config?.name || "New Chat Agent"}
             </h1>
             <p className="text-xs text-muted-foreground">
               {config ? "Configuration Generated" : "Describe your Agent"}

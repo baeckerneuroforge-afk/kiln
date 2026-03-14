@@ -9,6 +9,8 @@ import {
   Sparkles,
   Clock,
   TrendingUp,
+  Zap,
+  Play,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -24,11 +26,12 @@ interface AgentWithCount {
   description: string | null;
   status: "DRAFT" | "LIVE" | "PAUSED";
   agentType?: "PUBLIC" | "INTERNAL";
+  agentMode?: "CHAT" | "TASK";
   llmModel?: string;
   welcomeMessage: string | null;
   createdAt: string;
   updatedAt: string;
-  _count: { conversations: number };
+  _count: { conversations: number; runs?: number };
   avgLeadScore?: number | null;
 }
 
@@ -218,23 +221,38 @@ export default function AgentsPage() {
                 {/* Header */}
                 <div className="mb-3 flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10 transition-colors group-hover:bg-kiln-orange/15">
-                      <Bot className="h-5 w-5 text-kiln-orange" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {agent.agentType === "INTERNAL" ? (
-                        <>
-                          <div className="h-2 w-2 rounded-full bg-purple-400" />
-                          <span className="text-[11px] font-medium text-purple-400">Internal</span>
-                        </>
+                    <div className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
+                      agent.agentMode === "TASK" ? "bg-kiln-orange/10 group-hover:bg-kiln-orange/15" : "bg-blue-500/10 group-hover:bg-blue-500/15"
+                    )}>
+                      {agent.agentMode === "TASK" ? (
+                        <Zap className="h-5 w-5 text-kiln-orange" />
                       ) : (
-                        <>
-                          <div className={cn("h-2 w-2 rounded-full", status.dot)} />
-                          <span className="text-[11px] font-medium text-muted-foreground">
-                            {status.label}
-                          </span>
-                        </>
+                        <MessageSquare className="h-5 w-5 text-blue-500" />
                       )}
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold w-fit",
+                        agent.agentMode === "TASK" ? "bg-kiln-orange/10 text-kiln-orange" : "bg-blue-500/10 text-blue-500"
+                      )}>
+                        {agent.agentMode === "TASK" ? <><Zap className="h-2.5 w-2.5" />Task</> : <><MessageSquare className="h-2.5 w-2.5" />Chat</>}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {agent.agentType === "INTERNAL" ? (
+                          <>
+                            <div className="h-2 w-2 rounded-full bg-purple-400" />
+                            <span className="text-[11px] font-medium text-purple-400">Internal</span>
+                          </>
+                        ) : (
+                          <>
+                            <div className={cn("h-2 w-2 rounded-full", status.dot)} />
+                            <span className="text-[11px] font-medium text-muted-foreground">
+                              {status.label}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <button
@@ -262,8 +280,11 @@ export default function AgentsPage() {
                     ) : null;
                   })()}
                   <div className="flex items-center gap-1">
-                    <MessageSquare className="h-3 w-3" />
-                    <span>{agent._count.conversations}</span>
+                    {agent.agentMode === "TASK" ? (
+                      <><Play className="h-3 w-3" /><span>{agent._count.runs || 0} runs</span></>
+                    ) : (
+                      <><MessageSquare className="h-3 w-3" /><span>{agent._count.conversations}</span></>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
