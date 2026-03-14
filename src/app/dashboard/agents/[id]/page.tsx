@@ -60,6 +60,7 @@ import { TeamAccess } from "@/components/agents/team-access";
 import { PromptEditor } from "@/components/agents/prompt-editor";
 import { cn } from "@/lib/utils";
 import { PROVIDERS, getModelsForProvider, getModelDef, type ProviderKey } from "@/lib/ai";
+import { getCreditCost } from "@/lib/credits";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 import { useToast } from "@/components/toast";
 
@@ -672,6 +673,7 @@ export default function AgentDetailPage() {
                       <span>Speed: <span className="text-foreground">{dots(md.speed, 3)}</span></span>
                       <span>Quality: <span className="text-foreground">{dots(md.quality, 3)}</span></span>
                       <span>Cost: <span className="text-foreground">{dots(md.cost, 3)}</span></span>
+                      <span className="text-kiln-orange font-medium">{getCreditCost(md.id)} credits/msg</span>
                       {md.supportsTools && <span className="text-green-400">Tools ✓</span>}
                       {!md.supportsTools && <span className="text-amber-400">No tools</span>}
                     </div>

@@ -73,7 +73,7 @@ const plans = [
     monthlyPrice: 0,
     yearlyPrice: 0,
     icon: Zap,
-    features: ["1 Agent", "50 conversations/month", "1 Knowledge Base (5MB)", "Embed Widget", "KILN Branding", "Community Support"],
+    features: ["1 Agent", "50 AI credits/month", "1 Knowledge Base (5MB)", "Embed Widget", "KILN Branding", "Community Support"],
   },
   {
     id: "STARTER" as const,
@@ -82,7 +82,7 @@ const plans = [
     monthlyPrice: 39,
     yearlyPrice: 327,
     icon: Sparkles,
-    features: ["3 Agents", "500 conversations/month", "3 Knowledge Bases (20MB)", "Basic Analytics", "Email Support", "All Actions"],
+    features: ["3 Agents", "500 AI credits/month", "3 Knowledge Bases (20MB)", "Basic Analytics", "Email Support", "All Actions"],
   },
   {
     id: "PRO" as const,
@@ -94,7 +94,7 @@ const plans = [
     popular: true,
     features: [
       "10 Agents",
-      "Unlimited Chats",
+      "2,000 AI credits/month",
       "10 Knowledge Bases (50MB)",
       "Full Analytics + ROI",
       "White-Label",
@@ -111,7 +111,7 @@ const plans = [
     yearlyPrice: 2091,
     icon: Building2,
     features: [
-      "Unlimited Agents & Chats",
+      "Unlimited Agents, 5,000 credits/mo",
       "Unlimited Knowledge Bases",
       "API Access + MCP Server",
       "Agent Cloning",
@@ -132,7 +132,7 @@ const plans = [
       "Everything in Business",
       "SLA 99.9%",
       "Custom Onboarding",
-      "50K Conversations",
+      "50,000 AI credits/month",
       "Scheduled Agents",
       "Webhooks",
       "Priority Queue",
@@ -231,6 +231,24 @@ function SettingsContent() {
   const [deletingWebhook, setDeletingWebhook] = useState<string | null>(null);
   const [secretCopied, setSecretCopied] = useState<string | null>(null);
 
+  // AI Credits
+  interface CreditInfo {
+    balance: number;
+    totalCredits: number;
+    resetDate: string | null;
+    byokActive: boolean;
+    byokKeyCount: number;
+    plan: string;
+    isAdmin: boolean;
+    usage: {
+      dailyUsage: { date: string; credits: number }[];
+      topAgents: { agentId: string; agentName: string; credits: number }[];
+      totalUsed: number;
+    };
+  }
+  const [creditInfo, setCreditInfo] = useState<CreditInfo | null>(null);
+  const [purchasingCredits, setPurchasingCredits] = useState<string | null>(null);
+
   // My Templates
   interface MyTemplate {
     id: string;
@@ -251,6 +269,16 @@ function SettingsContent() {
       setShowSuccess(true);
       setActiveTab("billing");
       setTimeout(() => setShowSuccess(false), 5000);
+    }
+    if (searchParams.get("credits") === "success") {
+      setActiveTab("billing");
+      toast("Credits purchased successfully! They have been added to your balance.");
+      // Refresh credit info
+      fetch("/api/credits").then((r) => r.json()).then((d) => { if (d.balance !== undefined) setCreditInfo(d); }).catch(() => {});
+    }
+    const tab = searchParams.get("tab");
+    if (tab && ["profile", "billing", "api-keys", "webhooks", "referral", "templates", "danger"].includes(tab)) {
+      setActiveTab(tab as SettingsTab);
     }
   }, [searchParams]);
 
@@ -283,6 +311,11 @@ function SettingsContent() {
     fetch("/api/user/api-keys")
       .then((res) => res.json())
       .then((data) => { if (Array.isArray(data)) setApiKeys(data); })
+      .catch(() => {});
+
+    fetch("/api/credits")
+      .then((res) => res.json())
+      .then((data) => { if (data.balance !== undefined) setCreditInfo(data); })
       .catch(() => {});
 
     fetch("/api/user/api-access-keys")
@@ -376,6 +409,21 @@ function SettingsContent() {
       setAccessKeys((prev) => prev.filter((k) => k.id !== keyId));
       toast("API key deleted", "info");
     } catch { setKeyError("Failed to delete key"); } finally { setDeletingAccessKey(null); }
+  }
+
+  async function purchaseCredits(packageId: string) {
+    setPurchasingCredits(packageId);
+    try {
+      const res = await fetch("/api/credits/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packageId }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else toast("Failed to start checkout", "error");
+    } catch { toast("Failed to purchase credits", "error"); }
+    finally { setPurchasingCredits(null); }
   }
 
   async function saveApiKey(provider: string, apiKey: string) {
@@ -713,6 +761,131 @@ function SettingsContent() {
             )}
           </div>
 
+          {/* AI Credits Dashboard */}
+          {creditInfo && (
+            <div className="rounded-xl border border-border bg-card p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10">
+                  <Zap className="h-5 w-5 text-kiln-orange" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-semibold text-foreground">AI Credits</h2>
+                  <p className="text-xs text-muted-foreground">Credits are consumed per AI response. BYOK keys bypass credit usage.</p>
+                </div>
+                {creditInfo.byokActive && (
+                  <span className="rounded-full bg-green-500/10 border border-green-500/20 px-3 py-1 text-xs font-semibold text-green-400">BYOK: Unlimited</span>
+                )}
+              </div>
+
+              {/* Balance + Reset */}
+              <div className="grid gap-4 md:grid-cols-2 mb-4">
+                <div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Credits remaining</span>
+                    <span className={cn("font-semibold", creditInfo.balance / creditInfo.totalCredits <= 0.2 ? "text-kiln-orange" : "text-foreground")}>
+                      {creditInfo.isAdmin ? "∞" : `${creditInfo.balance.toLocaleString()} / ${creditInfo.totalCredits.toLocaleString()}`}
+                    </span>
+                  </div>
+                  <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={cn("h-full rounded-full transition-all", creditInfo.balance / creditInfo.totalCredits <= 0.2 ? "bg-kiln-orange" : "bg-kiln-green")}
+                      style={{ width: `${creditInfo.isAdmin ? 100 : Math.min((creditInfo.balance / creditInfo.totalCredits) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col justify-center">
+                  {creditInfo.resetDate && (
+                    <p className="text-sm text-muted-foreground">
+                      <Clock className="inline h-3.5 w-3.5 mr-1 -mt-0.5" />
+                      Credits reset: {new Date(creditInfo.resetDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">Used this month: {creditInfo.usage.totalUsed.toLocaleString()} credits</p>
+                </div>
+              </div>
+
+              {/* Low credit warning */}
+              {!creditInfo.isAdmin && creditInfo.balance <= 0 && (
+                <div className="mb-4 flex items-center gap-3 rounded-lg border border-kiln-orange/20 bg-kiln-orange/10 p-3">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-kiln-orange" />
+                  <p className="flex-1 text-xs text-kiln-orange">You&apos;ve used all your AI credits. Upgrade your plan, buy more credits, or add your own API key for unlimited usage.</p>
+                  <div className="flex gap-2">
+                    <Button size="sm" className="h-7 text-[11px]" onClick={() => purchaseCredits("credits_500")}>Buy Credits</Button>
+                  </div>
+                </div>
+              )}
+              {!creditInfo.isAdmin && creditInfo.balance > 0 && creditInfo.balance / creditInfo.totalCredits <= 0.2 && (
+                <div className="mb-4 flex items-center gap-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
+                  <p className="flex-1 text-xs text-amber-400">You have {creditInfo.balance} credits remaining this month.</p>
+                </div>
+              )}
+
+              {/* Usage Chart (simple bar chart) */}
+              {creditInfo.usage.dailyUsage.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-medium text-foreground mb-2">Daily Usage (Last 30 Days)</h3>
+                  <div className="flex items-end gap-0.5 h-20 rounded-lg bg-muted/30 p-2">
+                    {(() => {
+                      const maxCredits = Math.max(...creditInfo.usage.dailyUsage.map((d) => d.credits), 1);
+                      return creditInfo.usage.dailyUsage.map((day) => (
+                        <div key={day.date} className="flex-1 flex flex-col items-center justify-end h-full" title={`${day.date}: ${day.credits} credits`}>
+                          <div
+                            className="w-full rounded-sm bg-kiln-orange/60 hover:bg-kiln-orange transition-colors min-h-[2px]"
+                            style={{ height: `${(day.credits / maxCredits) * 100}%` }}
+                          />
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* Top Agents */}
+              {creditInfo.usage.topAgents.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-medium text-foreground mb-2">Top Credit Consumers</h3>
+                  <div className="space-y-1.5">
+                    {creditInfo.usage.topAgents.map((a) => (
+                      <div key={a.agentId} className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground truncate">{a.agentName}</span>
+                        <span className="font-medium text-foreground">{a.credits.toLocaleString()} credits</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Buy More Credits */}
+              {!creditInfo.isAdmin && (
+                <div>
+                  <h3 className="text-sm font-medium text-foreground mb-2">Buy More Credits</h3>
+                  <div className="grid gap-2 md:grid-cols-3">
+                    {[
+                      { id: "credits_500", credits: "500", price: "€9" },
+                      { id: "credits_2000", credits: "2,000", price: "€29" },
+                      { id: "credits_5000", credits: "5,000", price: "€59" },
+                    ].map((pkg) => (
+                      <button
+                        key={pkg.id}
+                        onClick={() => purchaseCredits(pkg.id)}
+                        disabled={purchasingCredits !== null}
+                        className="flex items-center justify-between rounded-lg border border-border bg-card/50 p-3 text-left transition-all hover:border-kiln-orange/30 hover:bg-kiln-orange/5 disabled:opacity-50"
+                      >
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{pkg.credits} Credits</p>
+                          <p className="text-xs text-muted-foreground">One-time purchase</p>
+                        </div>
+                        <span className="text-sm font-bold text-kiln-orange">{pkg.price}</span>
+                        {purchasingCredits === pkg.id && <Loader2 className="ml-2 h-3.5 w-3.5 animate-spin text-kiln-orange" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Invoice History */}
           {!isAdminUser && currentPlan !== "FREE" && (
             <div className="rounded-xl border border-border bg-card p-6">
@@ -862,6 +1035,14 @@ function SettingsContent() {
                   <p className="text-xs text-muted-foreground">Bring your own API keys for unlimited conversations.</p>
                 </div>
               </div>
+
+              {/* BYOK = Unlimited banner */}
+              {apiKeys.length > 0 && (
+                <div className="mb-4 flex items-center gap-3 rounded-lg border border-green-500/20 bg-green-500/10 p-3">
+                  <Sparkles className="h-4 w-4 shrink-0 text-green-400" />
+                  <p className="text-xs text-green-400">Using your own API key? Enjoy unlimited conversations — no credits consumed.</p>
+                </div>
+              )}
 
               {keyError && <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">{keyError}</div>}
               {keySuccess && <div className="mb-4 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs text-green-400">{keySuccess}</div>}

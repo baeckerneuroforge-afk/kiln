@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Menu } from "lucide-react";
 import { Sidebar } from "@/components/sidebar";
 import { UpgradeBanner } from "@/components/upgrade-banner";
+import { CreditBanner } from "@/components/credit-banner";
 import { ReferralApply } from "@/components/referral-apply";
 import { AdvancedModeProvider } from "@/hooks/use-advanced-mode";
 import { LegalFooter } from "@/components/legal-footer";
@@ -39,6 +40,7 @@ export default function DashboardLayout({
               </div>
             </div>
             <UpgradeBanner />
+            <CreditBanner />
             <ReferralApply />
             <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
             <LegalFooter />

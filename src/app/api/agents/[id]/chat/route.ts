@@ -4,7 +4,7 @@ import OpenAI from "openai";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP, type ProviderKey } from "@/lib/ai";
 import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
-import { canChat } from "@/lib/plan-limits";
+import { checkCredits, deductCredits } from "@/lib/credits";
 import { decrypt } from "@/lib/encryption";
 import { fireWebhookEvent } from "@/lib/webhooks";
 import crypto from "crypto";
@@ -787,15 +787,18 @@ export async function POST(
       // Key-Entschlüsselung fehlgeschlagen — KILN Key verwenden
     }
 
-    // Check chat limit — bei eigenem Key: kein Limit
-    if (!usingOwnKey) {
-      const chatCheck = await canChat(agent.id);
-      if (!chatCheck.allowed) {
-        return Response.json(
-          { error: `Monthly conversation limit reached (${chatCheck.current}/${chatCheck.limit}). The owner needs to upgrade their plan.` },
-          { status: 429, headers: corsHeaders }
-        );
-      }
+    // Credit check — BYOK users bypass credits
+    const creditCheck = await checkCredits(agent.userId, selectedModel, usingOwnKey);
+    if (!creditCheck.allowed) {
+      return Response.json(
+        {
+          error: creditCheck.message,
+          creditExhausted: true,
+          balance: creditCheck.balance,
+          cost: creditCheck.cost,
+        },
+        { status: 429, headers: corsHeaders }
+      );
     }
 
     // Conversation-Persistenz: Session finden oder erstellen
@@ -1271,6 +1274,11 @@ export async function POST(
                 content: fullAssistantText,
               },
             });
+          }
+
+          // Deduct AI credits (skip if BYOK)
+          if (!creditCheck.byokActive && creditCheck.cost > 0) {
+            deductCredits(agent.userId, selectedModel, params.id, conversationId).catch(() => {});
           }
 
           // Conversation-Metadaten aktualisieren

@@ -30,6 +30,24 @@ export async function POST(request: Request) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
+
+        // Handle credit purchases
+        if (session.metadata?.type === "credit_purchase") {
+          const creditUserId = session.metadata.userId;
+          const credits = parseInt(session.metadata.credits || "0", 10);
+
+          if (creditUserId && credits > 0) {
+            await prisma.user.update({
+              where: { id: creditUserId },
+              data: {
+                aiCreditsBalance: { increment: credits },
+              },
+            });
+          }
+
+          return Response.json({ received: true });
+        }
+
         const clerkUserId = session.metadata?.clerkUserId;
         if (!clerkUserId || !session.subscription) break;
 

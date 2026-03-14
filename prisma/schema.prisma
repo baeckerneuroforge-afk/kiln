@@ -23,12 +23,16 @@ model User {
   referredBy       String?  // userId des Referrers
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  aiCreditsBalance   Int       @default(50)
+  aiCreditsResetDate DateTime?
+  byokEnabled        Boolean   @default(false)
 
   agents              Agent[]
   conversations       Conversation[]
   referralCredits     ReferralCredit[]
   marketplaceTemplates MarketplaceTemplate[]
   agentTeams          AgentTeam[]
+  creditUsage         AiCreditUsage[]
 }
 
 // Referral Credits — tracks rewards for referrers
@@ -710,4 +714,20 @@ model WebhookExecution {
   createdAt       DateTime     @default(now())
 
   @@index([webhookId])
+}
+
+// AI Credit Usage — tracks per-message credit consumption
+model AiCreditUsage {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentId        String?
+  conversationId String?
+  creditsUsed    Int
+  model          String
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([agentId])
+  @@index([userId, createdAt])
 }
