@@ -34,6 +34,7 @@ import {
   Trash2,
   X,
   Send,
+  Sparkles,
 } from "lucide-react";
 
 /* ========== Types ========== */
@@ -319,6 +320,9 @@ function TeamDetailInner() {
   // Toggling status
   const [toggling, setToggling] = useState(false);
 
+  // Generate members
+  const [generatingMembers, setGeneratingMembers] = useState(false);
+
   /* Fetch team data */
   const fetchTeam = useCallback(async () => {
     try {
@@ -410,6 +414,30 @@ function TeamDetailInner() {
       }
     } finally {
       setAssigning(false);
+    }
+  };
+
+  /* Generate members from goal via Claude */
+  const generateMembers = async () => {
+    if (!team || generatingMembers) return;
+    setGeneratingMembers(true);
+    try {
+      const res = await fetch(`/api/teams/${teamId}/generate-members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        const data: Team = await res.json();
+        setTeam(data);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Failed to generate members");
+      }
+    } catch {
+      setError("Failed to generate members");
+    } finally {
+      setGeneratingMembers(false);
     }
   };
 
@@ -656,9 +684,38 @@ function TeamDetailInner() {
         {activeTab === "hierarchy" && (
           <div className="h-full w-full">
             {team.members.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-3">
-                <Users className="h-12 w-12 text-zinc-700" />
-                <p>No members in this team yet.</p>
+              <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-4 py-16">
+                <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-orange-500/10">
+                  <Users className="h-10 w-10 text-orange-500/50" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-zinc-300 mb-1">No members in this team yet</p>
+                  <p className="text-xs text-zinc-600 max-w-sm">
+                    {team.goal
+                      ? "Generate agents based on your team's goal using AI."
+                      : "Add a goal to your team, then generate agents."}
+                  </p>
+                </div>
+                {team.goal && (
+                  <Button
+                    size="sm"
+                    onClick={generateMembers}
+                    disabled={generatingMembers}
+                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    {generatingMembers ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating agents...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Generate Members from Goal
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             ) : (
               <ReactFlow
