@@ -507,8 +507,8 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
                   )}
                 </div>
 
-                {/* Model selector */}
-                <div className="mb-3 flex gap-2">
+                {/* Model selector — wraps to vertical stack when space is tight */}
+                <div className="mb-3 flex flex-wrap gap-2">
                   <select
                     value={modelProvider}
                     onChange={(e) => {
@@ -517,7 +517,7 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
                       const models = getModelsForProvider(p);
                       if (models.length > 0) setLlmModel(models[0].id);
                     }}
-                    className="rounded-lg border border-border bg-card px-2 py-1 text-xs text-foreground"
+                    className="min-w-[140px] flex-1 rounded-lg border border-border bg-card px-2 py-1 text-xs text-foreground"
                   >
                     {(Object.keys(PROVIDERS) as ProviderKey[]).map((pk) => (
                       <option key={pk} value={pk}>{PROVIDERS[pk].label}</option>
@@ -526,7 +526,7 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
                   <select
                     value={llmModel}
                     onChange={(e) => setLlmModel(e.target.value)}
-                    className="flex-1 rounded-lg border border-border bg-card px-2 py-1 text-xs text-foreground"
+                    className="min-w-[180px] flex-[2] rounded-lg border border-border bg-card px-2 py-1 text-xs text-foreground"
                   >
                     {getModelsForProvider(modelProvider as ProviderKey).map((m) => (
                       <option key={m.id} value={m.id}>{m.label}</option>
