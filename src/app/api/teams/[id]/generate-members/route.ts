@@ -16,6 +16,7 @@ function generateSlug(name: string): string {
 interface RoleInput {
   name: string;
   role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER";
+  agentMode?: "CHAT" | "TASK";
   responsibilities: string;
   systemPrompt: string;
   reportsTo?: string;
@@ -68,11 +69,14 @@ RULES:
 - 0-1 REPORTER (optional)
 - Every non-HEAD must have "reportsTo" pointing to a manager's name
 - Each agent needs a detailed systemPrompt (at least 2 sentences)
+- Each agent must have an "agentMode": "CHAT" or "TASK"
+  - HEAD, COORDINATOR, REPORTER → always "TASK"
+  - EXECUTOR → "TASK" by default, "CHAT" only if the role involves direct customer/user interaction
 
 Respond ONLY with a valid JSON array. No other text.
 
 JSON format:
-{ "name": "Agent Name", "role": "HEAD"|"COORDINATOR"|"EXECUTOR"|"REPORTER", "responsibilities": "...", "systemPrompt": "...", "reportsTo": "Manager Name" }`,
+{ "name": "Agent Name", "role": "HEAD"|"COORDINATOR"|"EXECUTOR"|"REPORTER", "agentMode": "CHAT"|"TASK", "responsibilities": "...", "systemPrompt": "...", "reportsTo": "Manager Name" }`,
         messages: [
           {
             role: "user",
@@ -121,7 +125,11 @@ JSON format:
     const memberMap = new Map<string, string>();
     const levelMap = { HEAD: 0, COORDINATOR: 1, EXECUTOR: 2, REPORTER: 2 } as const;
 
+    const defaultModeForRole = (r: string): "CHAT" | "TASK" =>
+      r === "HEAD" || r === "COORDINATOR" || r === "REPORTER" ? "TASK" : "TASK";
+
     for (const role of roles) {
+      const agentMode = role.agentMode || defaultModeForRole(role.role);
       const agent = await prisma.agent.create({
         data: {
           userId,
@@ -130,6 +138,7 @@ JSON format:
           systemPrompt: role.systemPrompt,
           description: role.responsibilities,
           status: "DRAFT",
+          agentMode,
         },
       });
 

@@ -47,24 +47,25 @@ function createMcpServer(userId: string) {
   // ── kiln_list_agents ──
   server.tool(
     "kiln_list_agents",
-    "List all AI agents for the authenticated user. Returns id, name, slug, status, model, conversation count, and public URL.",
+    "List all AI agents for the authenticated user. Returns id, name, slug, status, agentMode (CHAT or TASK), model, conversation/run count, and public URL.",
     {},
     async () => {
       const agents = await prisma.agent.findMany({
         where: { userId },
         select: {
           id: true, name: true, slug: true, description: true,
-          llmModel: true, status: true, createdAt: true,
-          _count: { select: { conversations: true } },
+          llmModel: true, status: true, agentMode: true, createdAt: true,
+          _count: { select: { conversations: true, runs: true } },
         },
         orderBy: { createdAt: "desc" },
       });
 
       return ok(agents.map((a) => ({
         id: a.id, name: a.name, slug: a.slug, description: a.description,
-        model: a.llmModel, status: a.status,
+        model: a.llmModel, status: a.status, agentMode: a.agentMode,
         conversationCount: a._count.conversations,
-        publicUrl: `/embed/${a.slug}`,
+        runCount: a._count.runs,
+        publicUrl: a.agentMode === "CHAT" ? `/embed/${a.slug}` : undefined,
         createdAt: a.createdAt.toISOString(),
       })));
     }
@@ -73,13 +74,14 @@ function createMcpServer(userId: string) {
   // ── kiln_create_agent ──
   server.tool(
     "kiln_create_agent",
-    "Create a new AI agent with the given name, description, and optional industry context. Returns the agent ID, slug, and public URL.",
+    "Create a new AI agent. Set agentMode to CHAT for conversational agents or TASK for autonomous background agents. Returns the agent ID, slug, and public URL.",
     {
       name: z.string().describe("Name of the agent"),
       description: z.string().describe("What the agent does"),
       industry: z.string().optional().describe("Industry context (e.g. 'real estate', 'saas', 'ecommerce')"),
+      agentMode: z.enum(["CHAT", "TASK"]).optional().describe("Agent mode: CHAT (conversational, default) or TASK (autonomous background execution)"),
     },
-    async ({ name, description, industry }) => {
+    async ({ name, description, industry, agentMode }) => {
       const agentCheck = await canCreateAgent(userId);
       if (!agentCheck.allowed) {
         return err(`Agent limit reached (${agentCheck.current}/${agentCheck.limit}). Please upgrade your plan.`);
@@ -91,6 +93,7 @@ function createMcpServer(userId: string) {
         create: { id: userId, email: `${userId}@clerk.temp` },
       });
 
+      const mode = agentMode || "CHAT";
       const slug = generateSlug(name);
       const systemPrompt = industry
         ? `You are ${name}, an AI assistant for the ${industry} industry. ${description || ""}\n\nBe helpful, professional, and concise.`
@@ -101,8 +104,9 @@ function createMcpServer(userId: string) {
           userId, name, slug,
           description: description || null,
           systemPrompt,
+          agentMode: mode,
           personality: { tone: "professional", language: "en", formality: "balanced" },
-          welcomeMessage: `Hi! I'm ${name}. How can I help you today?`,
+          welcomeMessage: mode === "CHAT" ? `Hi! I'm ${name}. How can I help you today?` : "",
           suggestedQuestions: [],
           llmModel: "claude-sonnet-4-20250514",
           status: "DRAFT",
@@ -111,9 +115,12 @@ function createMcpServer(userId: string) {
       });
 
       return ok({
-        id: agent.id, slug: agent.slug, publicUrl: `/embed/${agent.slug}`,
+        id: agent.id, slug: agent.slug, agentMode: mode,
+        publicUrl: mode === "CHAT" ? `/embed/${agent.slug}` : undefined,
         status: agent.status,
-        message: `Agent "${name}" created. Deploy with kiln_deploy_agent to make it live.`,
+        message: mode === "TASK"
+          ? `Task Agent "${name}" created. Run with kiln_run_agent or deploy with kiln_deploy_agent.`
+          : `Agent "${name}" created. Deploy with kiln_deploy_agent to make it live.`,
       });
     }
   );
@@ -1156,6 +1163,141 @@ function createMcpServer(userId: string) {
         members: team.members.map((m) => ({ id: m.id, agentName: m.agent.name, role: m.role, level: m.level, responsibilities: m.responsibilities })),
         taskStats,
         recentTasks: team.tasks.slice(0, 10).map((t) => ({ id: t.id, title: t.title, status: t.status, priority: t.priority })),
+      });
+    }
+  );
+
+  // ── kiln_run_agent ──
+  server.tool(
+    "kiln_run_agent",
+    "Manually trigger a Task Agent and return the execution result. Only works for agents with agentMode=TASK.",
+    {
+      agentId: z.string().describe("Agent ID of the task agent to run"),
+      input: z.string().optional().describe("Input text or instructions for the task (defaults to 'Run your configured task.')"),
+    },
+    async ({ agentId, input }) => {
+      const agent = await prisma.agent.findFirst({
+        where: { id: agentId, userId },
+        include: {
+          knowledgeBases: { where: { embeddingStatus: "READY" } },
+          actions: { where: { enabled: true } },
+          customTools: { where: { enabled: true } },
+        },
+      });
+      if (!agent) return err("Agent not found or unauthorized.");
+      if (agent.agentMode !== "TASK") return err("This tool only works for Task Agents (agentMode=TASK). Use kiln_chat for Chat Agents.");
+
+      const startTime = Date.now();
+      const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+      const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
+
+      // BYOK
+      let userApiKey: string | null = null;
+      try {
+        const apiKeyRecord = await prisma.apiKey.findUnique({
+          where: { userId_provider: { userId, provider: modelProvider.toLowerCase() } },
+        });
+        if (apiKeyRecord) userApiKey = decrypt(apiKeyRecord.encryptedKey);
+      } catch { /* fallback */ }
+
+      // Build system prompt with RAG
+      let systemPrompt = agent.systemPrompt;
+      const inputStr = input || "Run your configured task.";
+      if (agent.knowledgeBases.length > 0) {
+        try {
+          const chunks = await searchRelevantChunks(agentId, inputStr.slice(0, 500), 5);
+          if (chunks.length > 0) {
+            systemPrompt += "\n\n---\nRELEVANT KNOWLEDGE:\n" +
+              chunks.map((c: { content: string }, i: number) => `[${i + 1}] ${c.content}`).join("\n\n");
+          }
+        } catch { /* skip RAG */ }
+      }
+
+      const userMessage = `Execute the following task:\n\n${inputStr}`;
+      let responseText = "";
+
+      try {
+        if (modelProvider === "OPENAI") {
+          const openai = new OpenAI({ apiKey: userApiKey || process.env.OPENAI_API_KEY });
+          const resp = await openai.chat.completions.create({
+            model: selectedModel, max_tokens: 2048,
+            messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
+          });
+          responseText = resp.choices[0]?.message?.content || "";
+        } else {
+          const client = userApiKey ? getClaudeClientWithKey(userApiKey) : getClaudeClient();
+          const resp = await client.messages.create({
+            model: selectedModel, max_tokens: 2048,
+            system: systemPrompt,
+            messages: [{ role: "user", content: userMessage }],
+          });
+          for (const block of resp.content) {
+            if (block.type === "text") responseText += block.text;
+          }
+        }
+      } catch (e) {
+        const duration = Date.now() - startTime;
+        await prisma.agentRun.create({
+          data: { agentId, triggerType: "MANUAL", status: "ERROR", error: e instanceof Error ? e.message : "LLM call failed", duration, creditsUsed: 0 },
+        }).catch(() => {});
+        return err(`Task execution failed: ${e instanceof Error ? e.message : "Unknown error"}`);
+      }
+
+      const duration = Date.now() - startTime;
+      const run = await prisma.agentRun.create({
+        data: {
+          agentId, triggerType: "MANUAL",
+          input: { text: inputStr },
+          output: responseText.slice(0, 10000),
+          status: "SUCCESS", duration, creditsUsed: 0,
+        },
+      });
+
+      prisma.agent.update({
+        where: { id: agentId },
+        data: { lastRunAt: new Date(), lastRunResult: { runId: run.id, status: "SUCCESS", duration } },
+      }).catch(() => {});
+
+      return ok({
+        runId: run.id, status: "SUCCESS", duration,
+        output: responseText,
+        message: `Task agent "${agent.name}" executed successfully in ${(duration / 1000).toFixed(1)}s.`,
+      });
+    }
+  );
+
+  // ── kiln_get_runs ──
+  server.tool(
+    "kiln_get_runs",
+    "Get execution history for a Task Agent. Returns recent runs with status, duration, output preview, and credits used.",
+    {
+      agentId: z.string().describe("Agent ID"),
+      limit: z.number().optional().describe("Number of runs to return (default 20, max 50)"),
+    },
+    async ({ agentId, limit: runLimit }) => {
+      const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      const take = Math.min(runLimit || 20, 50);
+      const runs = await prisma.agentRun.findMany({
+        where: { agentId },
+        orderBy: { createdAt: "desc" },
+        take,
+      });
+
+      return ok({
+        agentId, agentName: agent.name, agentMode: agent.agentMode,
+        totalRuns: runs.length,
+        runs: runs.map((r) => ({
+          id: r.id,
+          status: r.status,
+          triggerType: r.triggerType,
+          duration: r.duration,
+          creditsUsed: r.creditsUsed,
+          outputPreview: r.output ? r.output.slice(0, 200) : null,
+          error: r.error,
+          createdAt: r.createdAt.toISOString(),
+        })),
       });
     }
   );

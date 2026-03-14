@@ -5,6 +5,7 @@ import { getClaudeClient } from "@/lib/ai";
 export interface SuggestedRole {
   name: string;
   role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER";
+  agentMode?: "CHAT" | "TASK";
   responsibilities: string;
   systemPrompt: string;
   reportsTo?: string;
@@ -39,6 +40,11 @@ RULES:
 - HEAD has no reportsTo
 - Each agent needs a detailed systemPrompt (at least 2 sentences describing how they work)
 - Each agent needs clear responsibilities
+- Each agent must have an "agentMode": either "CHAT" or "TASK"
+  - HEAD → always "TASK" (autonomous background execution)
+  - COORDINATOR → always "TASK"
+  - REPORTER → always "TASK"
+  - EXECUTOR → "TASK" by default, but use "CHAT" if the role involves direct customer/user interaction (e.g. support chat, onboarding, live sales conversations)
 
 Respond ONLY with a valid JSON array of role objects. No other text.
 
@@ -46,6 +52,7 @@ JSON format per role:
 {
   "name": "Agent Name",
   "role": "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER",
+  "agentMode": "CHAT" | "TASK",
   "responsibilities": "What this agent is responsible for",
   "systemPrompt": "You are a [Role] AI. You [detailed behavior description]...",
   "reportsTo": "Name of manager" // omit for HEAD

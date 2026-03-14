@@ -50,6 +50,9 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  Clock,
+  Webhook as WebhookIcon,
+  Hand,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/toast";
@@ -62,7 +65,9 @@ interface AgentData {
   slug: string;
   status: string;
   description?: string;
-  _count?: { conversations: number };
+  agentMode?: "CHAT" | "TASK";
+  triggerType?: "MANUAL" | "SCHEDULE" | "WEBHOOK" | "EVENT";
+  _count?: { conversations: number; runs?: number };
 }
 
 interface OrchConnection {
@@ -83,11 +88,21 @@ const statusConfig: Record<string, { dot: string; label: string }> = {
   PAUSED: { dot: "bg-amber-500", label: "Paused" },
 };
 
+/* ---------- Trigger type icon map ---------- */
+const triggerIcons: Record<string, React.ElementType> = {
+  SCHEDULE: Clock,
+  WEBHOOK: WebhookIcon,
+  EVENT: Zap,
+  MANUAL: Hand,
+};
+
 /* ---------- Custom Node: Agent ---------- */
 function AgentNode({ data, selected }: NodeProps) {
-  const d = data as { label: string; status: string; description: string; conversations: number };
+  const d = data as { label: string; status: string; description: string; conversations: number; agentMode?: string; triggerType?: string; runs?: number };
   const sc = statusConfig[d.status] || statusConfig.DRAFT;
   const isLive = d.status === "LIVE";
+  const isTask = d.agentMode === "TASK";
+  const TriggerIcon = isTask ? (triggerIcons[d.triggerType || "MANUAL"] || Hand) : null;
 
   return (
     <div
@@ -96,6 +111,13 @@ function AgentNode({ data, selected }: NodeProps) {
         selected && "ring-1 ring-kiln-orange/40 border-stone-700",
       )}
     >
+      {/* Trigger indicator for Task Agents — top center */}
+      {isTask && TriggerIcon && (
+        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 flex h-5 w-5 items-center justify-center rounded-full border border-stone-700 bg-stone-900 shadow-sm">
+          <TriggerIcon className="h-2.5 w-2.5 text-kiln-orange" />
+        </div>
+      )}
+
       <Handle
         type="target"
         position={Position.Left}
@@ -110,13 +132,28 @@ function AgentNode({ data, selected }: NodeProps) {
       <div className="px-3.5 py-3">
         {/* Row 1: Icon + Name */}
         <div className="flex items-center gap-2.5">
-          <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-kiln-orange/10">
-            <Bot className="h-3.5 w-3.5 text-kiln-orange" />
+          <div className={cn(
+            "relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+            isTask ? "bg-kiln-orange/10" : "bg-blue-500/10"
+          )}>
+            {isTask ? (
+              <Zap className="h-3.5 w-3.5 text-kiln-orange" />
+            ) : (
+              <MessageSquare className="h-3.5 w-3.5 text-blue-500" />
+            )}
             {isLive && (
               <div className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border border-stone-900 bg-kiln-green" />
             )}
           </div>
-          <p className="truncate text-[13px] font-semibold text-foreground">{d.label}</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[13px] font-semibold text-foreground">{d.label}</p>
+            <span className={cn(
+              "text-[9px] font-bold uppercase tracking-wider",
+              isTask ? "text-kiln-orange" : "text-blue-400"
+            )}>
+              {isTask ? "Task" : "Chat"}
+            </span>
+          </div>
         </div>
 
         {/* Row 2: Status */}
@@ -125,10 +162,19 @@ function AgentNode({ data, selected }: NodeProps) {
           <span className="text-[10px] font-medium text-muted-foreground">{sc.label}</span>
         </div>
 
-        {/* Row 3: Conversations */}
+        {/* Row 3: Stats */}
         <div className="mt-2 flex items-center gap-1.5 border-t border-stone-800/60 pt-2">
-          <MessageSquare className="h-3 w-3 text-stone-500" />
-          <span className="text-[10px] text-stone-500">{d.conversations} conversations</span>
+          {isTask ? (
+            <>
+              <Play className="h-3 w-3 text-stone-500" />
+              <span className="text-[10px] text-stone-500">{d.runs || 0} runs</span>
+            </>
+          ) : (
+            <>
+              <MessageSquare className="h-3 w-3 text-stone-500" />
+              <span className="text-[10px] text-stone-500">{d.conversations} conversations</span>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -524,7 +570,10 @@ function OrchestrationCanvas() {
         label: agent.name,
         status: agent.status,
         description: agent.description || "",
+        agentMode: agent.agentMode || "CHAT",
+        triggerType: agent.triggerType || "MANUAL",
         conversations: agent._count?.conversations || 0,
+        runs: agent._count?.runs || 0,
       },
     }));
 
@@ -584,13 +633,24 @@ function OrchestrationCanvas() {
         if (data.error) throw new Error(data.error);
         setEdges((eds) => eds.map((e) => (e.id === tempId ? { ...e, id: data.id, label: data.condition || undefined } : e)));
         setConnections((prev) => [...prev, data]);
+
+        // Auto-set outputType to NEXT_AGENT for Task Agents when connected
+        const sourceAgent = agents.find((a) => a.id === params.source);
+        if (sourceAgent?.agentMode === "TASK") {
+          fetch(`/api/agents/${params.source}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ outputType: "NEXT_AGENT", outputConfig: { targetAgentId: params.target } }),
+          }).catch(() => {});
+        }
+
         toast("Connection created");
       } catch {
         setEdges((eds) => eds.filter((e) => e.id !== tempId));
         toast("Failed to create connection", "error");
       }
     },
-    [setEdges, toast]
+    [setEdges, toast, agents]
   );
 
   /* ---------- Delete connection ---------- */
