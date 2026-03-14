@@ -687,6 +687,8 @@ export default function LandingPage() {
                 ], features: [
                   "1 AI Agent", "50 AI Credits / Month", "1 Knowledge Base (5MB)", "Embed Widget", "KILN Branding", "Community Support",
                 ], highlight: false,
+                tagline: "Perfect for testing and exploring AI agents",
+                useCases: ["Side projects", "Testing before you buy"],
               },
               {
                 name: "Starter", price: 39, yearlyMo: 27, yearlyTotal: 327, isCustom: false, creditTiers: [
@@ -696,6 +698,8 @@ export default function LandingPage() {
                 ], features: [
                   "3 Agents", "Basic Analytics", "3 Knowledge Bases (20MB)", "Email Support", "All Actions",
                 ], highlight: false,
+                tagline: "For freelancers, coaches & small businesses getting started",
+                useCases: ["Coaches", "Handwerker", "Freelancers", "Small shops"],
               },
               {
                 name: "Pro", price: 99, yearlyMo: 69, yearlyTotal: 832, isCustom: false, creditTiers: [
@@ -705,6 +709,8 @@ export default function LandingPage() {
                 ], features: [
                   "10 Agents", "Full Analytics + ROI", "10 Knowledge Bases (50MB)", "White-Label", "Feedback Loop", "Priority Support", "Prompt Editor",
                 ], highlight: true,
+                tagline: "For growing businesses that want to automate & convert more",
+                useCases: ["Dental practices", "Real estate agencies", "Restaurants", "Growing SaaS"],
               },
               {
                 name: "Business", price: 249, yearlyMo: 174, yearlyTotal: 2091, isCustom: false, creditTiers: [
@@ -714,6 +720,8 @@ export default function LandingPage() {
                 ], features: [
                   "Unlimited Agents", "Unlimited Knowledge Bases", "API Access + MCP Server", "Agent Cloning", "Custom Domain", "Multi-Client Management", "Dedicated Support",
                 ], highlight: false,
+                tagline: "For agencies & teams managing multiple clients",
+                useCases: ["Marketing agencies", "AI agencies", "Consulting firms", "Multi-location businesses"],
               },
               {
                 name: "Enterprise", price: 0, yearlyMo: 0, yearlyTotal: 0, isCustom: true, creditTiers: [
@@ -721,6 +729,8 @@ export default function LandingPage() {
                 ], features: [
                   "Everything in Business", "SLA 99.9%", "Custom Onboarding", "50,000+ AI Credits", "Scheduled Agents", "Webhooks", "Priority Queue",
                 ], highlight: false,
+                tagline: "For large organizations with custom requirements",
+                useCases: ["Enterprises", "Regulated industries", "Custom SLA requirements"],
               },
             ].map((plan) => (
               <div
@@ -737,6 +747,7 @@ export default function LandingPage() {
                   </div>
                 )}
                 <h3 className="text-base font-semibold">{plan.name}</h3>
+                <p className="mt-1 text-[11px] italic text-neutral-500 leading-snug">{plan.tagline}</p>
                 {(() => {
                   const tierIdx = creditTiers[plan.name] || 0;
                   const tier = plan.creditTiers[tierIdx] || plan.creditTiers[0];
@@ -800,17 +811,21 @@ export default function LandingPage() {
                     1 credit = 1 response (Haiku/Groq) · 0.5 responses (Sonnet) · 0.2 responses (Opus)
                   </p>
                 )}
+                <div className="mt-4 border-t border-white/[0.06] pt-3">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-600 mb-1.5">Recommended for</p>
+                  <p className="text-[11px] text-neutral-500 leading-relaxed">{plan.useCases.join(" · ")}</p>
+                </div>
                 {plan.isCustom ? (
                   <a
                     href="mailto:andre@hephaistos-systems.de"
-                    className="mt-6 block rounded-xl border border-white/10 py-2.5 text-center text-sm font-medium text-white transition-all hover:bg-white/[0.04]"
+                    className="mt-4 block rounded-xl border border-white/10 py-2.5 text-center text-sm font-medium text-white transition-all hover:bg-white/[0.04]"
                   >
                     Contact Sales
                   </a>
                 ) : (
                   <Link
                     href="/sign-up"
-                    className={`mt-6 block rounded-xl py-2.5 text-center text-sm font-medium transition-all hover:brightness-110 ${
+                    className={`mt-4 block rounded-xl py-2.5 text-center text-sm font-medium transition-all hover:brightness-110 ${
                       plan.highlight
                         ? "text-white"
                         : "border border-white/10 text-white hover:bg-white/[0.04]"
