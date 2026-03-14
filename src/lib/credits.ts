@@ -51,11 +51,12 @@ export const MODEL_CREDIT_COSTS: Record<string, number> = {
   // 2 credits — balanced
   "claude-sonnet-4-20250514": 2,
   "sonar": 2,
-  "gemini-2.5-pro": 2,
+  "o3-mini": 2,
   // 3 credits — capable
   "gpt-4o": 3,
-  "o3-mini": 3,
-  "sonar-pro": 3,
+  "gemini-2.5-pro": 3,
+  // 4 credits — premium
+  "sonar-pro": 4,
   // 5 credits — most capable
   "claude-opus-4-20250514": 5,
 };

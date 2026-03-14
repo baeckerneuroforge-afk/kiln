@@ -17,6 +17,8 @@ interface RoleInput {
   name: string;
   role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER";
   agentMode?: "CHAT" | "TASK";
+  suggestedModel?: string;
+  suggestedProvider?: string;
   responsibilities: string;
   systemPrompt: string;
   reportsTo?: string;
@@ -72,11 +74,18 @@ RULES:
 - Each agent must have an "agentMode": "CHAT" or "TASK"
   - HEAD, COORDINATOR, REPORTER → always "TASK"
   - EXECUTOR → "TASK" by default, "CHAT" only if the role involves direct customer/user interaction
+- Each agent must have a "suggestedModel" and "suggestedProvider" for the optimal LLM:
+  - HEAD: "claude-opus-4-20250514" (ANTHROPIC) or "gpt-4o" (OPENAI)
+  - COORDINATOR: "claude-sonnet-4-20250514" (ANTHROPIC)
+  - EXECUTOR research: "sonar-pro" (PERPLEXITY)
+  - EXECUTOR writing: "claude-sonnet-4-20250514" (ANTHROPIC)
+  - EXECUTOR fast tasks: "claude-haiku-4-5-20251001" (ANTHROPIC) or "llama-3.3-70b-versatile" (GROQ)
+  - REPORTER: "gpt-4o-mini" (OPENAI)
 
 Respond ONLY with a valid JSON array. No other text.
 
 JSON format:
-{ "name": "Agent Name", "role": "HEAD"|"COORDINATOR"|"EXECUTOR"|"REPORTER", "agentMode": "CHAT"|"TASK", "responsibilities": "...", "systemPrompt": "...", "reportsTo": "Manager Name" }`,
+{ "name": "Agent Name", "role": "HEAD"|"COORDINATOR"|"EXECUTOR"|"REPORTER", "agentMode": "CHAT"|"TASK", "suggestedModel": "model-id", "suggestedProvider": "PROVIDER", "responsibilities": "...", "systemPrompt": "...", "reportsTo": "Manager Name" }`,
         messages: [
           {
             role: "user",
@@ -139,6 +148,8 @@ JSON format:
           description: role.responsibilities,
           status: "DRAFT",
           agentMode,
+          ...(role.suggestedModel ? { llmModel: role.suggestedModel } : {}),
+          ...(role.suggestedProvider ? { modelProvider: role.suggestedProvider as "ANTHROPIC" | "OPENAI" | "PERPLEXITY" | "GOOGLE" | "GROQ" } : {}),
         },
       });
 

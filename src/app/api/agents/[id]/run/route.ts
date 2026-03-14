@@ -207,12 +207,64 @@ export async function POST(
     let responseText = "";
     const actionsExecuted: string[] = [];
 
-    if (modelProvider === "OPENAI") {
-      const openai = new OpenAI({ apiKey: userApiKey || process.env.OPENAI_API_KEY });
-      const oaiTools = tools.map((t) => ({
-        type: "function" as const,
-        function: { name: t.name, description: t.description || "", parameters: t.input_schema },
-      }));
+    const isOpenAICompat = modelProvider === "OPENAI" || modelProvider === "PERPLEXITY" || modelProvider === "GROQ";
+    const isGoogle = modelProvider === "GOOGLE";
+
+    // Require BYOK for non-Anthropic/OpenAI providers
+    if ((modelProvider === "PERPLEXITY" || modelProvider === "GOOGLE" || modelProvider === "GROQ") && !userApiKey) {
+      return Response.json(
+        { error: `${modelProvider} requires your own API key. Add it in Settings > API Keys.` },
+        { status: 400 }
+      );
+    }
+
+    if (isGoogle && userApiKey) {
+      // ===== Google Gemini REST API =====
+      const geminiMessages = [
+        { role: "user" as const, parts: [{ text: userMessage }] },
+      ];
+
+      const geminiBody = {
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: geminiMessages,
+        generationConfig: { maxOutputTokens: 2048 },
+      };
+
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${userApiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(geminiBody),
+        }
+      );
+
+      if (!geminiRes.ok) {
+        const errData = await geminiRes.json().catch(() => ({}));
+        throw new Error(errData?.error?.message || `Google API error: ${geminiRes.status}`);
+      }
+
+      const geminiData = await geminiRes.json();
+      responseText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    } else if (isOpenAICompat) {
+      // ===== OpenAI-compatible API (OpenAI, Perplexity, Groq) =====
+      let openaiClient: OpenAI;
+      if (modelProvider === "OPENAI") {
+        openaiClient = new OpenAI({ apiKey: userApiKey || process.env.OPENAI_API_KEY });
+      } else if (modelProvider === "PERPLEXITY") {
+        openaiClient = new OpenAI({ apiKey: userApiKey!, baseURL: "https://api.perplexity.ai" });
+      } else {
+        openaiClient = new OpenAI({ apiKey: userApiKey!, baseURL: "https://api.groq.com/openai/v1" });
+      }
+
+      // Tools only for OpenAI (Perplexity/Groq don't support function calling)
+      const providerSupportsTools = modelProvider === "OPENAI";
+      const oaiTools: OpenAI.ChatCompletionTool[] = providerSupportsTools
+        ? tools.map((t) => ({
+            type: "function" as const,
+            function: { name: t.name, description: t.description || "", parameters: t.input_schema },
+          }))
+        : [];
 
       const messages: OpenAI.ChatCompletionMessageParam[] = [
         { role: "system", content: systemPrompt },
@@ -220,7 +272,7 @@ export async function POST(
       ];
 
       for (let round = 0; round < 5; round++) {
-        const resp = await openai.chat.completions.create({
+        const resp = await openaiClient.chat.completions.create({
           model: selectedModel,
           max_tokens: 2048,
           messages,
@@ -244,7 +296,7 @@ export async function POST(
         }
       }
     } else {
-      // ANTHROPIC (default)
+      // ===== Anthropic (default) =====
       const client = userApiKey ? getClaudeClientWithKey(userApiKey) : getClaudeClient();
       let currentMessages: Anthropic.MessageParam[] = [{ role: "user", content: userMessage }];
 

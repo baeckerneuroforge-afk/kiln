@@ -6,6 +6,8 @@ export interface SuggestedRole {
   name: string;
   role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER";
   agentMode?: "CHAT" | "TASK";
+  suggestedModel?: string;
+  suggestedProvider?: string;
   responsibilities: string;
   systemPrompt: string;
   reportsTo?: string;
@@ -45,6 +47,13 @@ RULES:
   - COORDINATOR → always "TASK"
   - REPORTER → always "TASK"
   - EXECUTOR → "TASK" by default, but use "CHAT" if the role involves direct customer/user interaction (e.g. support chat, onboarding, live sales conversations)
+- Each agent must have a "suggestedModel" and "suggestedProvider" for the optimal LLM:
+  - HEAD (strategy/delegation): "claude-opus-4-20250514" (ANTHROPIC) or "gpt-4o" (OPENAI)
+  - COORDINATOR (balanced): "claude-sonnet-4-20250514" (ANTHROPIC)
+  - EXECUTOR doing research: "sonar-pro" (PERPLEXITY) — has built-in web search
+  - EXECUTOR doing writing/content: "claude-sonnet-4-20250514" (ANTHROPIC) — best writing quality
+  - EXECUTOR doing fast/simple tasks: "claude-haiku-4-5-20251001" (ANTHROPIC) or "llama-3.3-70b-versatile" (GROQ) — fastest, cheapest
+  - REPORTER (summarization): "gpt-4o-mini" (OPENAI) — cost-effective summarization
 
 Respond ONLY with a valid JSON array of role objects. No other text.
 
@@ -53,6 +62,8 @@ JSON format per role:
   "name": "Agent Name",
   "role": "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER",
   "agentMode": "CHAT" | "TASK",
+  "suggestedModel": "model-id",
+  "suggestedProvider": "ANTHROPIC" | "OPENAI" | "PERPLEXITY" | "GOOGLE" | "GROQ",
   "responsibilities": "What this agent is responsible for",
   "systemPrompt": "You are a [Role] AI. You [detailed behavior description]...",
   "reportsTo": "Name of manager" // omit for HEAD

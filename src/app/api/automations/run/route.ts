@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { searchRelevantChunks } from "@/lib/rag";
@@ -91,42 +92,73 @@ export async function GET(request: NextRequest) {
       // BYOK prüfen
       const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
       const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
-      let client: Anthropic;
+      let userApiKey: string | null = null;
 
       try {
         const apiKeyRecord = await prisma.apiKey.findUnique({
           where: { userId_provider: { userId: agent.userId, provider: modelProvider.toLowerCase() } },
         });
-        if (apiKeyRecord) {
-          client = getClaudeClientWithKey(decrypt(apiKeyRecord.encryptedKey));
-        } else {
-          client = getClaudeClient();
+        if (apiKeyRecord) userApiKey = decrypt(apiKeyRecord.encryptedKey);
+      } catch { /* fallback to platform key */ }
+
+      const taskMessage = `Execute the following scheduled task:\n\n${automation.taskDescription}\n\nProvide a clear, structured result.`;
+      let resultText = "";
+
+      if (modelProvider === "GOOGLE" && userApiKey) {
+        // Google Gemini REST API
+        const geminiBody = {
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: "user", parts: [{ text: taskMessage }] }],
+          generationConfig: { maxOutputTokens: 2048 },
+        };
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${userApiKey}`,
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(geminiBody) }
+        );
+        if (!geminiRes.ok) {
+          const errData = await geminiRes.json().catch(() => ({}));
+          throw new Error(errData?.error?.message || `Google API error: ${geminiRes.status}`);
         }
-      } catch {
-        client = getClaudeClient();
+        const geminiData = await geminiRes.json();
+        resultText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      } else if (modelProvider === "OPENAI" || modelProvider === "PERPLEXITY" || modelProvider === "GROQ") {
+        // OpenAI-compatible API
+        let openaiClient: OpenAI;
+        if (modelProvider === "OPENAI") {
+          openaiClient = new OpenAI({ apiKey: userApiKey || process.env.OPENAI_API_KEY });
+        } else if (modelProvider === "PERPLEXITY") {
+          if (!userApiKey) throw new Error("Perplexity requires your own API key");
+          openaiClient = new OpenAI({ apiKey: userApiKey, baseURL: "https://api.perplexity.ai" });
+        } else {
+          if (!userApiKey) throw new Error("Groq requires your own API key");
+          openaiClient = new OpenAI({ apiKey: userApiKey, baseURL: "https://api.groq.com/openai/v1" });
+        }
+        const resp = await openaiClient.chat.completions.create({
+          model: selectedModel,
+          max_tokens: 2048,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: taskMessage },
+          ],
+        });
+        resultText = resp.choices[0]?.message?.content || "";
+      } else {
+        // Anthropic (default)
+        const client = userApiKey ? getClaudeClientWithKey(userApiKey) : getClaudeClient();
+        const response = await client.messages.create({
+          model: selectedModel,
+          max_tokens: 2048,
+          system: systemPrompt,
+          messages: [{ role: "user", content: taskMessage }],
+        });
+        resultText = response.content
+          .filter((b): b is Anthropic.TextBlock => b.type === "text")
+          .map((b) => b.text)
+          .join("\n");
       }
 
-      // Claude aufrufen mit der Task-Beschreibung
-      const response = await client.messages.create({
-        model: selectedModel.startsWith("gpt") ? "claude-sonnet-4-20250514" : selectedModel,
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: [
-          {
-            role: "user",
-            content: `Execute the following scheduled task:\n\n${automation.taskDescription}\n\nProvide a clear, structured result.`,
-          },
-        ],
-      });
-
-      const resultText = response.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text)
-        .join("\n");
-
       // Deduct credits (fire-and-forget)
-      const usedModel = selectedModel.startsWith("gpt") ? "claude-sonnet-4-20250514" : selectedModel;
-      deductCredits(agent.userId, usedModel, "SCHEDULED", agent.id).catch(() => {});
+      deductCredits(agent.userId, selectedModel, "SCHEDULED", agent.id).catch(() => {});
 
       // Ergebnis speichern
       await prisma.automationRule.update({
