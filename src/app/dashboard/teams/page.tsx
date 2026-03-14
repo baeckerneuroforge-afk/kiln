@@ -12,11 +12,6 @@ interface TeamMember {
   role: "HEAD" | "COORDINATOR" | "EXECUTOR";
 }
 
-interface TeamTask {
-  id: string;
-  status: string;
-}
-
 interface Team {
   id: string;
   name: string;
@@ -24,7 +19,7 @@ interface Team {
   goal: string | null;
   status: "ACTIVE" | "PAUSED";
   members: TeamMember[];
-  tasks: TeamTask[];
+  _count: { tasks: number };
   createdAt: string;
 }
 
@@ -393,9 +388,7 @@ export default function TeamsPage() {
         /* Team cards grid */
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {teams.map((team) => {
-            const completedTasks = team.tasks.filter(
-              (t) => t.status === "COMPLETED"
-            ).length;
+            const taskCount = team._count?.tasks ?? 0;
 
             return (
               <Link
@@ -444,8 +437,7 @@ export default function TeamsPage() {
                     <div className="flex items-center gap-1.5">
                       <Target className="h-3 w-3" />
                       <span>
-                        {team.tasks.length} task{team.tasks.length !== 1 ? "s" : ""}{" "}
-                        ({completedTasks} completed)
+                        {taskCount} task{taskCount !== 1 ? "s" : ""}
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
