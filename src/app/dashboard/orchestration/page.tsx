@@ -347,41 +347,48 @@ function NodePanel({
   advancedMode: boolean;
   onAddAdvancedNode: (type: string, label: string) => void;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [open, setOpen] = useState(false);
 
   return (
-    <div
-      className={cn(
-        "absolute left-0 top-0 z-10 flex h-full flex-col border-r border-stone-800 bg-stone-950/95 backdrop-blur-md transition-all duration-200",
-        collapsed ? "w-12" : "w-56"
-      )}
-    >
-      {/* Toggle header */}
-      <div className="flex items-center justify-between border-b border-stone-800 px-3 py-2.5">
-        {!collapsed && <span className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Nodes</span>}
+    <>
+      {/* Collapsed: small toggle button on left edge */}
+      {!open && (
         <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="rounded-md p-1 text-stone-500 transition-colors hover:bg-stone-800 hover:text-stone-300"
+          onClick={() => setOpen(true)}
+          className="absolute left-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-lg border border-stone-800 bg-stone-900/90 text-stone-500 shadow-lg backdrop-blur-sm transition-colors hover:bg-stone-800 hover:text-stone-300"
+          title="Open node panel"
         >
-          {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          <PanelLeftOpen className="h-4 w-4" />
         </button>
-      </div>
+      )}
+
+      {/* Open: overlay panel on top of canvas */}
+      <div
+        className={cn(
+          "absolute left-0 top-0 z-20 flex h-full w-56 flex-col border-r border-stone-800 bg-stone-950/95 backdrop-blur-md shadow-2xl transition-transform duration-200",
+          open ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        {/* Header with close button */}
+        <div className="flex items-center justify-between border-b border-stone-800 px-3 py-2.5">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Nodes</span>
+          <button
+            onClick={() => setOpen(false)}
+            className="rounded-md p-1 text-stone-500 transition-colors hover:bg-stone-800 hover:text-stone-300"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
+        </div>
 
       <div className="flex-1 overflow-y-auto">
         {/* Agent nodes */}
-        {!collapsed && (
-          <div className="px-2 pt-3">
-            <p className="mb-2 px-2 text-[9px] font-bold uppercase tracking-widest text-stone-600">Agents</p>
-          </div>
-        )}
-        <div className={cn("flex flex-col gap-0.5", collapsed ? "items-center px-1 pt-2" : "px-2")}>
+        <div className="px-2 pt-3">
+          <p className="mb-2 px-2 text-[9px] font-bold uppercase tracking-widest text-stone-600">Agents</p>
+        </div>
+        <div className="flex flex-col gap-0.5 px-2">
           {agents.map((agent) => {
             const sc = statusConfig[agent.status] || statusConfig.DRAFT;
-            return collapsed ? (
-              <div key={agent.id} className="flex h-8 w-8 items-center justify-center rounded-lg bg-kiln-orange/10" title={agent.name}>
-                <Bot className="h-3.5 w-3.5 text-kiln-orange" />
-              </div>
-            ) : (
+            return (
               <div
                 key={agent.id}
                 className="group flex cursor-default items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-stone-900"
@@ -405,47 +412,35 @@ function NodePanel({
         {/* Advanced nodes */}
         {advancedMode && (
           <>
-            {!collapsed && (
-              <div className="px-2 pt-4">
-                <div className="mb-2 flex items-center gap-2 px-2">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-stone-600">Advanced</p>
-                  <span className="rounded bg-amber-500/15 px-1 py-0.5 text-[7px] font-bold text-amber-500">BETA</span>
-                </div>
+            <div className="px-2 pt-4">
+              <div className="mb-2 flex items-center gap-2 px-2">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-stone-600">Advanced</p>
+                <span className="rounded bg-amber-500/15 px-1 py-0.5 text-[7px] font-bold text-amber-500">BETA</span>
               </div>
-            )}
-            <div className={cn("flex flex-col gap-0.5", collapsed ? "items-center px-1 pt-2" : "px-2")}>
-              {advancedNodePalette.map((item) =>
-                collapsed ? (
-                  <button
-                    key={item.type}
-                    onClick={() => onAddAdvancedNode(item.type, item.label)}
-                    className={cn("flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-stone-800", item.bg)}
-                    title={item.label}
-                  >
-                    <item.icon className={cn("h-3.5 w-3.5", item.color)} />
-                  </button>
-                ) : (
-                  <button
-                    key={item.type}
-                    onClick={() => onAddAdvancedNode(item.type, item.label)}
-                    className="group flex items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-stone-900"
-                  >
-                    <GripVertical className="h-3 w-3 shrink-0 text-stone-700 opacity-0 transition-opacity group-hover:opacity-100" />
-                    <div className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-md", item.bg)}>
-                      <item.icon className={cn("h-3 w-3", item.color)} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className={cn("text-[11px] font-medium", item.color)}>{item.label}</p>
-                      <p className="text-[9px] text-stone-600">{item.desc}</p>
-                    </div>
-                  </button>
-                )
-              )}
+            </div>
+            <div className="flex flex-col gap-0.5 px-2">
+              {advancedNodePalette.map((item) => (
+                <button
+                  key={item.type}
+                  onClick={() => onAddAdvancedNode(item.type, item.label)}
+                  className="group flex items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-stone-900"
+                >
+                  <GripVertical className="h-3 w-3 shrink-0 text-stone-700 opacity-0 transition-opacity group-hover:opacity-100" />
+                  <div className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-md", item.bg)}>
+                    <item.icon className={cn("h-3 w-3", item.color)} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={cn("text-[11px] font-medium", item.color)}>{item.label}</p>
+                    <p className="text-[9px] text-stone-600">{item.desc}</p>
+                  </div>
+                </button>
+              ))}
             </div>
           </>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -522,8 +517,8 @@ function OrchestrationCanvas() {
       id: agent.id,
       type: "agent",
       position: {
-        x: 80 + (i % cols) * spacingX,
-        y: 60 + Math.floor(i / cols) * spacingY,
+        x: 100 + (i % cols) * spacingX,
+        y: 80 + Math.floor(i / cols) * spacingY,
       },
       data: {
         label: agent.name,
