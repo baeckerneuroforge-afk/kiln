@@ -27,6 +27,12 @@ import {
   Key,
   Wrench,
   FlaskConical,
+  Users,
+  Layers,
+  Network,
+  Coins,
+  Send,
+  Store,
 } from "lucide-react";
 
 // ─── Scroll-triggered Fade-Up ──────────────────────────────────────
@@ -188,25 +194,28 @@ export default function LandingPage() {
           </div>
 
           <h1 className="font-serif text-5xl leading-[1.1] tracking-tight sm:text-6xl lg:text-[4.5rem]">
-            Build AI agents
+            The AI Agent
             <br />
             <span
               className="bg-clip-text text-transparent"
               style={{ backgroundImage: "linear-gradient(135deg, #F97316 0%, #DC2626 100%)" }}
             >
-              without code.
+              Platform.
             </span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-neutral-400">
-            Create intelligent chat agents that book appointments, score leads,
-            <br className="hidden sm:block" />
-            and answer from your knowledge base. Deploy in minutes.
+          <p className="mx-auto mt-5 max-w-md text-xl font-medium tracking-tight text-neutral-300">
+            Build agents. Orchestrate teams. Scale with AI.
+          </p>
+
+          <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-relaxed text-neutral-400">
+            Create intelligent AI agents, build autonomous agent teams, connect any LLM,
+            and manage everything from code or no-code. EU-hosted. GDPR compliant.
           </p>
 
           {/* Social proof line */}
           <p className="mt-4 text-xs text-neutral-500">
-            Trusted by 50+ businesses. EU-hosted. GDPR compliant.
+            Now in Early Access — join 100+ builders already on the platform.
           </p>
 
           {/* CTA buttons + waitlist */}
@@ -307,7 +316,7 @@ export default function LandingPage() {
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     {[
                       { name: "Coaching Assistant", status: "Live", color: "#22C55E", chats: 142, leads: 34 },
-                      { name: "Dental Practice Bot", status: "Live", color: "#22C55E", chats: 89, leads: 21 },
+                      { name: "Dental Practice Agent", status: "Live", color: "#22C55E", chats: 89, leads: 21 },
                       { name: "Support Agent", status: "Draft", color: "#A8A29E", chats: 0, leads: 0 },
                     ].map((a) => (
                       <div key={a.name} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
@@ -337,28 +346,29 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Platform (replaces roadmap) ──────────────────────── */}
+      {/* ── Platform ──────────────────────────────────────────── */}
       <Section className="border-t border-white/[0.06] py-28">
         <div className="mx-auto max-w-6xl px-6">
           <div className="mb-16 text-center">
             <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Platform</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Three Modules. One Vision.</h2>
-            <p className="mt-4 text-neutral-400">A complete AI creation platform.</p>
+            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Four Modules. One Platform.</h2>
+            <p className="mt-4 text-neutral-400">Everything you need to build, deploy, and scale AI agents.</p>
           </div>
 
+          {/* Live modules */}
           <div className="grid gap-6 md:grid-cols-3">
             {[
               {
                 icon: Bot, title: "AI Agent Studio", color: "#F97316", badge: "Live", badgeGlow: true,
-                desc: "Create intelligent chat agents with RAG knowledge bases, smart actions, white-label, and analytics.",
+                desc: "Create agents with natural language. RAG knowledge base, smart actions, white-label, analytics.",
               },
               {
-                icon: Globe, title: "Site Builder", color: "#3B82F6", badge: "Q3 2026", badgeGlow: false,
-                desc: "Describe your website in natural language. KILN designs, builds, and hosts it with integrated AI chat.",
+                icon: Users, title: "Agent Teams", color: "#F97316", badge: "Live", badgeGlow: true,
+                desc: "Build hierarchical AI teams. Head agents delegate to coordinators and executors. Sales, support, content — fully autonomous.",
               },
               {
-                icon: Zap, title: "Flow Engine", color: "#22C55E", badge: "Q4 2026", badgeGlow: false,
-                desc: "Automate workflows with natural language. Connect CRM, email, calendar, and 100+ tools.",
+                icon: Network, title: "Orchestration", color: "#F97316", badge: "Live", badgeGlow: true,
+                desc: "Connect agents visually. Define handoff rules, conditions, triggers. Multi-agent workflows on a canvas.",
               },
             ].map((mod) => (
               <div key={mod.title} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-colors hover:border-white/[0.1]">
@@ -382,6 +392,33 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+
+          {/* Coming soon modules */}
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            {[
+              {
+                icon: Globe, title: "Site Builder", color: "#3B82F6", badge: "Q3 2026",
+                desc: "Describe your website in natural language. KILN designs, builds, and hosts it with integrated AI.",
+              },
+              {
+                icon: Zap, title: "Flow Engine", color: "#22C55E", badge: "Q4 2026",
+                desc: "Automate workflows with natural language. Connect CRM, email, calendar, and 100+ tools.",
+              },
+            ].map((mod) => (
+              <div key={mod.title} className="rounded-xl border border-white/[0.06] bg-white/[0.015] p-4 flex items-center gap-4">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${mod.color}10` }}>
+                  <mod.icon className="h-4 w-4" style={{ color: mod.color }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold">{mod.title}</h3>
+                    <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ backgroundColor: `${mod.color}10`, color: mod.color }}>{mod.badge}</span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-neutral-500">{mod.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </Section>
 
@@ -390,23 +427,29 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-6">
           <div className="mb-16 text-center">
             <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Features</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Everything you need to ship AI agents</h2>
+            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Everything you need to ship AI agents — and teams</h2>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
+              { icon: Users, title: "Agent Teams", desc: "Build hierarchical AI teams with Head, Coordinator, and Executor roles. Delegate tasks automatically." },
+              { icon: Layers, title: "Multi-LLM", desc: "Choose the right model for each agent. Claude, GPT-4o, Perplexity, Gemini, Groq — per agent." },
+              { icon: Network, title: "Agent Orchestration", desc: "Visual canvas for multi-agent workflows. Drag, connect, deploy." },
               { icon: MessageSquare, title: "Conversational Builder", desc: "Describe your agent in plain English. KILN generates the config." },
               { icon: FileText, title: "RAG Knowledge Base", desc: "Upload PDFs, URLs, or FAQs. Your agent answers with your knowledge." },
               { icon: Zap, title: "Smart Actions", desc: "Book appointments, collect emails, score leads — all built in." },
+              { icon: Coins, title: "AI Credits", desc: "Transparent usage-based pricing. Buy credits or bring your own API key for unlimited." },
               { icon: BarChart3, title: "ROI Analytics", desc: "Track conversations, leads, estimated revenue, and agent performance." },
               { icon: Brain, title: "Feedback Loop", desc: "Rate bad answers, add corrections. Your agent improves over time." },
+              { icon: Send, title: "Telegram & Email", desc: "Deploy agents on Telegram and Email. Multi-channel from day one." },
               { icon: Palette, title: "White-Label", desc: "Your brand, colors, logo, domain. Remove all KILN branding." },
               { icon: Timer, title: "Scheduled Agents", desc: "Run automated tasks on a schedule. Daily reports, data sync, alerts." },
               { icon: Code2, title: "Custom Code", desc: "Write JavaScript actions that run when your agent triggers them." },
-              { icon: Key, title: "Bring Your Own Key", desc: "Use your Anthropic or OpenAI API key for unlimited conversations." },
-              { icon: Terminal, title: "MCP Server", desc: "25 tools. Manage agents from Claude Code, Cursor, or any MCP client." },
+              { icon: Key, title: "Bring Your Own Key", desc: "Use your Anthropic, OpenAI, Perplexity, or Groq API key for unlimited usage." },
+              { icon: Terminal, title: "MCP Server", desc: "25 tools. Manage agents and teams from Claude Code, Cursor, or any MCP client." },
               { icon: GitFork, title: "Agent Cloning", desc: "Duplicate agents with one click. Clone configs, knowledge, and actions." },
               { icon: Webhook, title: "Webhook Triggers", desc: "Receive HTTP requests from external services. Full agent pipeline." },
+              { icon: Store, title: "Agent Marketplace", desc: "Browse and use community templates. Publish your own agents." },
             ].map((f) => (
               <div
                 key={f.title}
@@ -459,6 +502,8 @@ export default function LandingPage() {
                 {[
                   { icon: MessageSquare, title: "No-Code Agent Builder", desc: "Describe what you need in plain language. No technical knowledge required." },
                   { icon: FileText, title: "Industry Templates", desc: "10 pre-built templates for dental, coaching, real estate, e-commerce, and more." },
+                  { icon: Users, title: "Autonomous Agent Teams", desc: "Agent Teams that handle sales, support, and marketing autonomously." },
+                  { icon: Layers, title: "Best Model for Each Task", desc: "Choose AI models optimized for each task — fast models for support, smart models for sales." },
                   { icon: Code2, title: "Embed Widget", desc: "Add your AI agent to any website with a single line of code." },
                   { icon: BarChart3, title: "Analytics with ROI", desc: "See conversations, leads captured, and estimated revenue generated." },
                 ].map((f) => (
@@ -479,6 +524,8 @@ export default function LandingPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 {[
                   { icon: Palette, title: "White-Label", desc: "Remove all KILN branding. Your logo, colors, custom domain." },
+                  { icon: Users, title: "Agent Teams for Clients", desc: "Deploy agent teams for clients with hierarchical roles — Head, Coordinator, Executor." },
+                  { icon: Layers, title: "Multi-LLM per Agent", desc: "Use Perplexity for research, Claude for writing, Haiku for fast responses — per agent." },
                   { icon: GitFork, title: "Agent Cloning", desc: "Duplicate proven agents across clients. Bulk clone support." },
                   { icon: Shield, title: "Multi-Client Management", desc: "Manage agents for multiple clients from one dashboard." },
                   { icon: Globe, title: "Custom Domains", desc: "Serve agents on your clients' domains with automatic SSL." },
@@ -503,6 +550,8 @@ export default function LandingPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   {[
                     { icon: Terminal, title: "MCP Server (25 tools)", desc: "Full agent lifecycle from Claude Code, Cursor, or any MCP client." },
+                    { icon: Layers, title: "Full Multi-LLM via API", desc: "Route to Claude, GPT-4o, Perplexity, Gemini, or Groq per agent via REST API." },
+                    { icon: Users, title: "Agent Teams via MCP", desc: "Create hierarchical teams from Claude Code. Head, Coordinator, Executor roles." },
                     { icon: Key, title: "REST API + SDK", desc: "Programmatic access to all agent features with API key auth." },
                     { icon: Wrench, title: "BYOK + Custom Code", desc: "Bring your own API keys. Write custom JavaScript actions." },
                     { icon: Webhook, title: "Webhooks + HTTP Triggers", desc: "Inbound webhooks trigger agent processing. Outbound HTTP actions." },
@@ -568,15 +617,15 @@ export default function LandingPage() {
           <div className="grid gap-6 md:grid-cols-3">
             {[
               {
-                quote: "A coaching agency deployed 15 AI agents for their clients in one afternoon.",
+                quote: "A marketing agency built an autonomous content team: Head Agent plans strategy, Writer Agent creates posts, SEO Agent optimizes — all running 24/7.",
                 tag: "Agency", color: "#F97316",
               },
               {
-                quote: "A dental practice handles 80% of appointment requests automatically.",
+                quote: "A dental practice deployed an agent that handles 80% of appointment requests, scores leads, and learns from feedback automatically.",
                 tag: "Business", color: "#3B82F6",
               },
               {
-                quote: "A developer manages 10 agents from Claude Code via MCP.",
+                quote: "A developer orchestrated 10 specialized agents from Claude Code via MCP — research, outreach, qualification, and booking — as one Sales Team.",
                 tag: "Developer", color: "#22C55E",
               },
             ].map((story) => (
@@ -638,14 +687,12 @@ export default function LandingPage() {
                 <span className="ml-3 text-[11px] text-neutral-600">~ terminal</span>
               </div>
               <div className="p-5 font-mono text-xs leading-loose">
-                <div><span className="text-neutral-500">$</span> <span className="text-[#22C55E]">kiln_create_agent</span> <span className="text-neutral-400">--name</span> <span className="text-[#F97316]">&quot;Dental Assistant&quot;</span></div>
-                <div className="text-neutral-500">  Agent created: cm9x7k...</div>
-                <div className="mt-2"><span className="text-neutral-500">$</span> <span className="text-[#22C55E]">kiln_add_knowledge</span> <span className="text-neutral-400">--type</span> <span className="text-[#3B82F6]">FAQ</span></div>
-                <div className="text-neutral-500">  5 chunks embedded</div>
-                <div className="mt-2"><span className="text-neutral-500">$</span> <span className="text-[#22C55E]">kiln_run_tests</span> <span className="text-neutral-400">--agent</span> cm9x7k</div>
-                <div className="text-neutral-500">  5/5 passed (100%)</div>
-                <div className="mt-2"><span className="text-neutral-500">$</span> <span className="text-[#22C55E]">kiln_update_agent</span> <span className="text-neutral-400">--status</span> <span className="text-[#22C55E]">LIVE</span></div>
-                <div className="text-neutral-500">  Agent is live at /a/dental-assistant</div>
+                <div><span className="text-neutral-500">$</span> <span className="text-[#22C55E]">kiln_create_team</span> <span className="text-neutral-400">--name</span> <span className="text-[#F97316]">&quot;Sales Team&quot;</span> <span className="text-neutral-400">--template</span> <span className="text-[#3B82F6]">SALES</span></div>
+                <div className="text-neutral-500">  Team created: 7 agents, 3 levels</div>
+                <div className="mt-2"><span className="text-neutral-500">$</span> <span className="text-[#22C55E]">kiln_assign_task</span> <span className="text-neutral-400">--team</span> sales <span className="text-neutral-400">--goal</span> <span className="text-[#F97316]">&quot;Find 50 leads in DACH&quot;</span></div>
+                <div className="text-neutral-500">  Task delegated to 4 executor agents...</div>
+                <div className="mt-2"><span className="text-neutral-500">$</span> <span className="text-[#22C55E]">kiln_get_team_status</span> <span className="text-neutral-400">--team</span> sales</div>
+                <div className="text-neutral-500">  Research: <span className="text-[#22C55E]">47 leads found</span> | Outreach: <span className="text-[#3B82F6]">38 emails sent</span> | Qualified: <span className="text-[#F97316]">12 hot leads</span></div>
                 <div className="mt-2 inline-block h-3.5 w-2 animate-pulse bg-[#22C55E]" />
               </div>
             </div>
