@@ -18,6 +18,7 @@ export function LegalFooter() {
           <Link href="/impressum" className="transition-colors hover:text-neutral-300">Impressum</Link>
           <Link href="/privacy" className="transition-colors hover:text-neutral-300">Privacy</Link>
           <Link href="/terms" className="transition-colors hover:text-neutral-300">Terms</Link>
+          <Link href="/dpa" className="transition-colors hover:text-neutral-300">DPA</Link>
           <span>&copy; {new Date().getFullYear()} Hephaistos Systems</span>
         </div>
       </div>
