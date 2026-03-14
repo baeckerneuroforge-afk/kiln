@@ -19,6 +19,7 @@ import {
   Store,
   ChevronsLeft,
   ChevronsRight,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -47,6 +48,13 @@ const modules = [
     name: "Orchestration",
     href: "/dashboard/orchestration",
     icon: Network,
+    color: "text-muted-foreground",
+    activeColor: "text-kiln-orange",
+  },
+  {
+    name: "Agent Teams",
+    href: "/dashboard/teams",
+    icon: Users,
     color: "text-muted-foreground",
     activeColor: "text-kiln-orange",
   },

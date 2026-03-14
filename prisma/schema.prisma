@@ -28,6 +28,7 @@ model User {
   conversations       Conversation[]
   referralCredits     ReferralCredit[]
   marketplaceTemplates MarketplaceTemplate[]
+  agentTeams          AgentTeam[]
 }
 
 // Referral Credits — tracks rewards for referrers
@@ -112,6 +113,7 @@ model Agent {
   integrations       AgentIntegration[]
   channels           AgentChannel[]
   teamMembers        TeamMember[]
+  agentTeamMembers   AgentTeamMember[] @relation("AgentTeamMembers")
 
   @@index([userId])
 }
@@ -617,6 +619,73 @@ enum WebhookAuth {
 enum ResponseMode {
   IMMEDIATE
   AFTER_PROCESSING
+}
+
+// ── Agent Teams ─────────────────────────────────────────────
+
+enum AgentTeamStatus {
+  ACTIVE
+  PAUSED
+}
+
+enum AgentTeamRole {
+  HEAD
+  COORDINATOR
+  EXECUTOR
+  REPORTER
+}
+
+model AgentTeam {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?         @db.Text
+  goal        String?         @db.Text
+  status      AgentTeamStatus @default(ACTIVE)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  members     AgentTeamMember[]
+  tasks       AgentTeamTask[]
+
+  @@index([userId])
+}
+
+model AgentTeamMember {
+  id                 String            @id @default(cuid())
+  teamId             String
+  team               AgentTeam         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  agentId            String
+  agent              Agent             @relation("AgentTeamMembers", fields: [agentId], references: [id], onDelete: Cascade)
+  role               AgentTeamRole
+  level              Int               @default(0) // 0 = top (HEAD), 1 = COORDINATOR, 2 = EXECUTOR/REPORTER
+  responsibilities   String?           @db.Text
+  reportsToMemberId  String?
+  reportsTo          AgentTeamMember?  @relation("TeamHierarchy", fields: [reportsToMemberId], references: [id])
+  subordinates       AgentTeamMember[] @relation("TeamHierarchy")
+  createdAt          DateTime          @default(now())
+
+  @@index([teamId])
+  @@index([agentId])
+}
+
+model AgentTeamTask {
+  id           String    @id @default(cuid())
+  teamId       String
+  team         AgentTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  assignedToId String?   // AgentTeamMember ID
+  title        String
+  description  String?   @db.Text
+  status       String    @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED
+  priority     String    @default("MEDIUM")  // LOW, MEDIUM, HIGH, URGENT
+  result       String?   @db.Text
+  parentTaskId String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([teamId])
+  @@index([assignedToId])
 }
 
 // Webhook Execution Log — pipeline execution records

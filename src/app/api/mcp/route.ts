@@ -1042,6 +1042,124 @@ function createMcpServer(userId: string) {
     }
   );
 
+  // ── Agent Teams ──
+
+  server.tool(
+    "kiln_list_teams",
+    "List all Agent Teams for the authenticated user. Returns id, name, goal, status, member count, and task count.",
+    {},
+    async () => {
+      const teams = await prisma.agentTeam.findMany({
+        where: { userId },
+        include: {
+          _count: { select: { members: true, tasks: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      return ok(teams.map((t) => ({
+        id: t.id,
+        name: t.name,
+        goal: t.goal,
+        status: t.status,
+        memberCount: t._count.members,
+        taskCount: t._count.tasks,
+        createdAt: t.createdAt.toISOString(),
+      })));
+    }
+  );
+
+  server.tool(
+    "kiln_create_team",
+    "Create a new Agent Team. Optionally use a template (SALES, SUPPORT, CONTENT) to auto-generate team structure.",
+    {
+      name: z.string().describe("Team name"),
+      goal: z.string().optional().describe("Team goal or mission"),
+      template: z.enum(["SALES", "SUPPORT", "CONTENT"]).optional().describe("Pre-built team template"),
+    },
+    async ({ name, goal, template }) => {
+      const team = await prisma.agentTeam.create({
+        data: { userId, name, goal: goal || null, description: template ? `Created from ${template} template` : null },
+      });
+      return ok({ id: team.id, name: team.name, goal: team.goal, status: team.status, template: template || null, message: `Team "${name}" created.` });
+    }
+  );
+
+  server.tool(
+    "kiln_add_team_member",
+    "Add an agent to a team with a specific role (HEAD, COORDINATOR, EXECUTOR, REPORTER).",
+    {
+      teamId: z.string().describe("Team ID"),
+      agentId: z.string().describe("Agent ID to add"),
+      role: z.enum(["HEAD", "COORDINATOR", "EXECUTOR", "REPORTER"]).describe("Role in the team"),
+      reportsToMemberId: z.string().optional().describe("ID of the team member this one reports to"),
+      responsibilities: z.string().optional().describe("What this member is responsible for"),
+    },
+    async ({ teamId, agentId, role, reportsToMemberId, responsibilities }) => {
+      const team = await prisma.agentTeam.findFirst({ where: { id: teamId, userId } });
+      if (!team) return err("Team not found or access denied.");
+      const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+      if (!agent) return err("Agent not found or access denied.");
+      if (role === "HEAD") {
+        const existingHead = await prisma.agentTeamMember.findFirst({ where: { teamId, role: "HEAD" } });
+        if (existingHead) return err("Team already has a HEAD. Remove the existing HEAD first.");
+      }
+      const levelMap = { HEAD: 0, COORDINATOR: 1, EXECUTOR: 2, REPORTER: 2 };
+      const member = await prisma.agentTeamMember.create({
+        data: { teamId, agentId, role, level: levelMap[role], responsibilities, reportsToMemberId },
+      });
+      return ok({ id: member.id, teamId, agentId, agentName: agent.name, role, level: member.level, message: `${agent.name} added as ${role}.` });
+    }
+  );
+
+  server.tool(
+    "kiln_assign_task",
+    "Assign a task to the team's HEAD agent for delegation. The HEAD will decompose it into subtasks.",
+    {
+      teamId: z.string().describe("Team ID"),
+      task: z.string().describe("Task description or goal"),
+      priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional().describe("Priority level"),
+    },
+    async ({ teamId, task, priority }) => {
+      const team = await prisma.agentTeam.findFirst({ where: { id: teamId, userId } });
+      if (!team) return err("Team not found or access denied.");
+      const created = await prisma.agentTeamTask.create({
+        data: { teamId, title: task, priority: priority || "MEDIUM" },
+      });
+      return ok({ id: created.id, teamId, title: created.title, priority: created.priority, status: created.status, message: "Task assigned to team." });
+    }
+  );
+
+  server.tool(
+    "kiln_get_team_status",
+    "Get current status of a team: members, tasks, progress.",
+    {
+      teamId: z.string().describe("Team ID"),
+    },
+    async ({ teamId }) => {
+      const team = await prisma.agentTeam.findFirst({
+        where: { id: teamId, userId },
+        include: {
+          members: { include: { agent: { select: { id: true, name: true, status: true } } } },
+          tasks: { orderBy: { createdAt: "desc" }, take: 20 },
+        },
+      });
+      if (!team) return err("Team not found or access denied.");
+      const taskStats = {
+        total: team.tasks.length,
+        pending: team.tasks.filter((t) => t.status === "PENDING").length,
+        inProgress: team.tasks.filter((t) => t.status === "IN_PROGRESS").length,
+        completed: team.tasks.filter((t) => t.status === "COMPLETED").length,
+        failed: team.tasks.filter((t) => t.status === "FAILED").length,
+      };
+      return ok({
+        id: team.id, name: team.name, goal: team.goal, status: team.status,
+        members: team.members.map((m) => ({ id: m.id, agentName: m.agent.name, role: m.role, level: m.level, responsibilities: m.responsibilities })),
+        taskStats,
+        recentTasks: team.tasks.slice(0, 10).map((t) => ({ id: t.id, title: t.title, status: t.status, priority: t.priority })),
+      });
+    }
+  );
+
   return server;
 }
 
