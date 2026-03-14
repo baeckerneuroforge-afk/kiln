@@ -1,7 +1,8 @@
 /**
- * Stripe Pricing Setup Script
+ * Stripe Pricing Setup Script (v2)
  *
- * Creates all 5 plan products with monthly + yearly prices in Stripe.
+ * Creates plan products with monthly + yearly prices in Stripe.
+ * Enterprise is contact-sales only (no Stripe product).
  * Run once: npx tsx scripts/setup-stripe-pricing.ts
  *
  * Requires STRIPE_SECRET_KEY in .env.local
@@ -19,6 +20,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 interface PlanConfig {
   name: string;
+  envKey: string;
   monthlyPrice: number; // in cents
   yearlyPrice: number;  // in cents
   features: string[];
@@ -27,32 +29,30 @@ interface PlanConfig {
 const plans: PlanConfig[] = [
   {
     name: "Starter",
-    monthlyPrice: 2900,  // €29
-    yearlyPrice: 24300,  // €243/year (€20.25/mo)
+    envKey: "STARTER",
+    monthlyPrice: 3900,  // €39
+    yearlyPrice: 32700,  // €327/year (€27/mo, 30% off)
     features: ["3 Agents", "500 Chats/month", "3 Knowledge Bases", "Basic Analytics", "Email Support"],
   },
   {
     name: "Pro",
-    monthlyPrice: 7900,  // €79
-    yearlyPrice: 66300,  // €663/year (€55.25/mo)
+    envKey: "PRO",
+    monthlyPrice: 9900,  // €99
+    yearlyPrice: 83200,  // €832/year (€69/mo, 30% off)
     features: ["10 Agents", "Unlimited Chats", "10 Knowledge Bases", "Full Analytics", "White-Label", "Priority Support"],
   },
   {
-    name: "Agency",
-    monthlyPrice: 19900,  // €199
-    yearlyPrice: 167000,  // €1,670/year (€139/mo)
+    name: "Business",
+    envKey: "AGENCY", // DB enum stays AGENCY
+    monthlyPrice: 24900,  // €249
+    yearlyPrice: 209100,  // €2,091/year (€174/mo, 30% off)
     features: ["Unlimited Agents", "Unlimited Chats", "API Access", "MCP Server", "Custom Domain", "Dedicated Support"],
-  },
-  {
-    name: "Enterprise",
-    monthlyPrice: 49900,  // €499
-    yearlyPrice: 419000,  // €4,190/year (€349/mo)
-    features: ["Everything in Agency", "SLA", "Custom Onboarding", "50K Conversations", "Scheduled Agents", "Priority Queue"],
   },
 ];
 
 async function main() {
-  console.log("Creating Stripe products and prices...\n");
+  console.log("Creating Stripe products and prices (v2 pricing)...\n");
+  console.log("Note: Enterprise is contact-sales only — no Stripe product created.\n");
 
   const envLines: string[] = [];
 
@@ -61,7 +61,7 @@ async function main() {
     const product = await stripe.products.create({
       name: `KILN ${plan.name}`,
       description: plan.features.join(", "),
-      metadata: { plan: plan.name.toUpperCase() },
+      metadata: { plan: plan.envKey },
     });
     console.log(`✓ Product: ${product.name} (${product.id})`);
 
@@ -71,7 +71,7 @@ async function main() {
       unit_amount: plan.monthlyPrice,
       currency: "eur",
       recurring: { interval: "month" },
-      metadata: { plan: plan.name.toUpperCase(), billing: "monthly" },
+      metadata: { plan: plan.envKey, billing: "monthly" },
     });
     console.log(`  Monthly: €${plan.monthlyPrice / 100}/mo (${monthlyPriceObj.id})`);
 
@@ -81,18 +81,18 @@ async function main() {
       unit_amount: plan.yearlyPrice,
       currency: "eur",
       recurring: { interval: "year" },
-      metadata: { plan: plan.name.toUpperCase(), billing: "yearly" },
+      metadata: { plan: plan.envKey, billing: "yearly" },
     });
     console.log(`  Yearly:  €${plan.yearlyPrice / 100}/yr (${yearlyPriceObj.id})\n`);
 
-    const key = plan.name.toUpperCase();
-    envLines.push(`NEXT_PUBLIC_STRIPE_${key}_PRICE_ID=${monthlyPriceObj.id}`);
-    envLines.push(`NEXT_PUBLIC_STRIPE_${key}_YEARLY_PRICE_ID=${yearlyPriceObj.id}`);
+    envLines.push(`NEXT_PUBLIC_STRIPE_${plan.envKey}_PRICE_ID=${monthlyPriceObj.id}`);
+    envLines.push(`NEXT_PUBLIC_STRIPE_${plan.envKey}_YEARLY_PRICE_ID=${yearlyPriceObj.id}`);
   }
 
   console.log("═══════════════════════════════════════");
   console.log("Add these to your .env.local:\n");
   console.log(envLines.join("\n"));
+  console.log("\n(Enterprise has no price IDs — contact sales only)");
   console.log("\n═══════════════════════════════════════");
 }
 

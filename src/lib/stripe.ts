@@ -31,7 +31,7 @@ export function getPlanLabel(plan: PlanType): string {
     FREE: "Free",
     STARTER: "Starter",
     PRO: "Pro",
-    AGENCY: "Agency",
+    AGENCY: "Business",
     ENTERPRISE: "Enterprise",
   };
   return labels[plan] || "Free";
@@ -40,10 +40,10 @@ export function getPlanLabel(plan: PlanType): string {
 export function getPlanPrice(plan: PlanType): string {
   const prices: Record<PlanType, string> = {
     FREE: "€0",
-    STARTER: "€29",
-    PRO: "€79",
-    AGENCY: "€199",
-    ENTERPRISE: "€499",
+    STARTER: "€39",
+    PRO: "€99",
+    AGENCY: "€249",
+    ENTERPRISE: "Custom",
   };
   return prices[plan] || "€0";
 }

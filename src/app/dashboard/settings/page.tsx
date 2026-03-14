@@ -78,18 +78,18 @@ const plans = [
   {
     id: "STARTER" as const,
     name: "Starter",
-    price: "€29",
-    monthlyPrice: 29,
-    yearlyPrice: 243,
+    price: "€39",
+    monthlyPrice: 39,
+    yearlyPrice: 327,
     icon: Sparkles,
     features: ["3 Agents", "500 conversations/month", "3 Knowledge Bases (20MB)", "Basic Analytics", "Email Support", "All Actions"],
   },
   {
     id: "PRO" as const,
     name: "Pro",
-    price: "€79",
-    monthlyPrice: 79,
-    yearlyPrice: 663,
+    price: "€99",
+    monthlyPrice: 99,
+    yearlyPrice: 832,
     icon: Crown,
     popular: true,
     features: [
@@ -105,10 +105,10 @@ const plans = [
   },
   {
     id: "AGENCY" as const,
-    name: "Agency",
-    price: "€199",
-    monthlyPrice: 199,
-    yearlyPrice: 1670,
+    name: "Business",
+    price: "€249",
+    monthlyPrice: 249,
+    yearlyPrice: 2091,
     icon: Building2,
     features: [
       "Unlimited Agents & Chats",
@@ -123,12 +123,13 @@ const plans = [
   {
     id: "ENTERPRISE" as const,
     name: "Enterprise",
-    price: "€499",
-    monthlyPrice: 499,
-    yearlyPrice: 4190,
+    price: "Custom",
+    monthlyPrice: 0,
+    yearlyPrice: 0,
+    isCustom: true,
     icon: Building2,
     features: [
-      "Everything in Agency",
+      "Everything in Business",
       "SLA 99.9%",
       "Custom Onboarding",
       "50K Conversations",
@@ -796,10 +797,10 @@ function SettingsContent() {
                       <Icon className="mb-2 h-5 w-5 text-kiln-orange" />
                       <h3 className="text-sm font-semibold text-foreground">{plan.name}</h3>
                       <div className="mt-1 flex items-baseline gap-0.5">
-                        <span className="text-xl font-bold text-foreground">{displayPrice}</span>
-                        {plan.monthlyPrice > 0 && <span className="text-[10px] text-muted-foreground">/mo</span>}
+                        <span className="text-xl font-bold text-foreground">{plan.isCustom ? "Custom" : displayPrice}</span>
+                        {!plan.isCustom && plan.monthlyPrice > 0 && <span className="text-[10px] text-muted-foreground">/mo</span>}
                       </div>
-                      {billingAnnual && plan.monthlyPrice > 0 && (
+                      {!plan.isCustom && billingAnnual && plan.monthlyPrice > 0 && (
                         <p className="mt-0.5 text-[10px] text-muted-foreground">
                           <span className="line-through">€{plan.monthlyPrice}</span>{" "}
                           <span className="text-[#22C55E]">€{plan.yearlyPrice}/yr</span>
@@ -818,6 +819,10 @@ function SettingsContent() {
                           <Button disabled className="w-full h-8 text-xs" variant="outline">Current Plan</Button>
                         ) : plan.id === "FREE" ? (
                           <Button disabled className="w-full h-8 text-xs" variant="outline">Included</Button>
+                        ) : plan.isCustom ? (
+                          <a href="mailto:andre@hephaistos-systems.de" className="flex h-8 w-full items-center justify-center rounded-md border border-border text-xs font-medium text-foreground transition-colors hover:bg-muted">
+                            Contact Sales
+                          </a>
                         ) : isDowngrade ? (
                           <Button disabled className="w-full h-8 text-xs" variant="outline">Downgrade</Button>
                         ) : (

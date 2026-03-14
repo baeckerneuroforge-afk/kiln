@@ -681,28 +681,28 @@ export default function LandingPage() {
           <div className="grid gap-4 lg:grid-cols-5 md:grid-cols-3 sm:grid-cols-2">
             {[
               {
-                name: "Free", price: 0, yearlyMo: 0, yearlyTotal: 0, features: [
+                name: "Free", price: 0, yearlyMo: 0, yearlyTotal: 0, isCustom: false, features: [
                   "1 AI Agent", "50 Chats / Month", "1 Knowledge Base (5MB)", "Embed Widget", "KILN Branding", "Community Support",
                 ], highlight: false,
               },
               {
-                name: "Starter", price: 29, yearlyMo: 20, yearlyTotal: 243, features: [
+                name: "Starter", price: 39, yearlyMo: 27, yearlyTotal: 327, isCustom: false, features: [
                   "3 Agents", "500 Chats / Month", "3 Knowledge Bases (20MB)", "Basic Analytics", "Email Support", "All Actions",
                 ], highlight: false,
               },
               {
-                name: "Pro", price: 79, yearlyMo: 55, yearlyTotal: 663, features: [
+                name: "Pro", price: 99, yearlyMo: 69, yearlyTotal: 832, isCustom: false, features: [
                   "10 Agents", "Unlimited Chats", "10 Knowledge Bases (50MB)", "Full Analytics + ROI", "White-Label (no KILN logo)", "Feedback Loop", "Priority Support", "Prompt Editor",
                 ], highlight: true,
               },
               {
-                name: "Agency", price: 199, yearlyMo: 139, yearlyTotal: 1670, features: [
+                name: "Business", price: 249, yearlyMo: 174, yearlyTotal: 2091, isCustom: false, features: [
                   "Unlimited Agents & Chats", "Unlimited Knowledge Bases", "API Access + MCP Server", "Agent Cloning", "Custom Domain", "Multi-Client Management", "Dedicated Support",
                 ], highlight: false,
               },
               {
-                name: "Enterprise", price: 499, yearlyMo: 349, yearlyTotal: 4190, features: [
-                  "Everything in Agency", "SLA 99.9%", "Custom Onboarding", "50K Conversations", "Scheduled Agents", "Webhooks", "Priority Queue",
+                name: "Enterprise", price: 0, yearlyMo: 0, yearlyTotal: 0, isCustom: true, features: [
+                  "Everything in Business", "SLA 99.9%", "Custom Onboarding", "50K Conversations", "Scheduled Agents", "Webhooks", "Priority Queue",
                 ], highlight: false,
               },
             ].map((plan) => (
@@ -721,10 +721,16 @@ export default function LandingPage() {
                 )}
                 <h3 className="text-base font-semibold">{plan.name}</h3>
                 <div className="mt-2 flex items-baseline gap-1">
-                  <span className="font-serif text-3xl">&euro;{annual ? plan.yearlyMo : plan.price}</span>
-                  <span className="text-xs text-neutral-500">{plan.price === 0 ? "forever" : "/mo"}</span>
+                  {plan.isCustom ? (
+                    <span className="font-serif text-3xl">Custom</span>
+                  ) : (
+                    <>
+                      <span className="font-serif text-3xl">&euro;{annual ? plan.yearlyMo : plan.price}</span>
+                      <span className="text-xs text-neutral-500">{plan.price === 0 ? "forever" : "/mo"}</span>
+                    </>
+                  )}
                 </div>
-                {annual && plan.price > 0 && (
+                {!plan.isCustom && annual && plan.price > 0 && (
                   <p className="mt-1 text-[11px] text-neutral-500">
                     <span className="line-through">&euro;{plan.price}/mo</span>{" "}
                     <span className="text-[#22C55E]">&euro;{plan.yearlyTotal}/yr</span>
@@ -738,20 +744,117 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link
-                  href="/sign-up"
-                  className={`mt-6 block rounded-xl py-2.5 text-center text-sm font-medium transition-all hover:brightness-110 ${
-                    plan.highlight
-                      ? "text-white"
-                      : "border border-white/10 text-white hover:bg-white/[0.04]"
-                  }`}
-                  style={plan.highlight ? { background: "linear-gradient(135deg, #F97316, #DC2626)" } : undefined}
-                >
-                  {plan.price === 0 ? "Get Started Free" : `Choose ${plan.name}`}
-                </Link>
+                {plan.isCustom ? (
+                  <a
+                    href="mailto:andre@hephaistos-systems.de"
+                    className="mt-6 block rounded-xl border border-white/10 py-2.5 text-center text-sm font-medium text-white transition-all hover:bg-white/[0.04]"
+                  >
+                    Contact Sales
+                  </a>
+                ) : (
+                  <Link
+                    href="/sign-up"
+                    className={`mt-6 block rounded-xl py-2.5 text-center text-sm font-medium transition-all hover:brightness-110 ${
+                      plan.highlight
+                        ? "text-white"
+                        : "border border-white/10 text-white hover:bg-white/[0.04]"
+                    }`}
+                    style={plan.highlight ? { background: "linear-gradient(135deg, #F97316, #DC2626)" } : undefined}
+                  >
+                    {plan.price === 0 ? "Get Started Free" : `Choose ${plan.name}`}
+                  </Link>
+                )}
               </div>
             ))}
           </div>
+        </div>
+      </Section>
+
+      {/* ── Professional Setup ────────────────────────────────── */}
+      <Section className="border-t border-white/[0.06] py-28">
+        <div className="mx-auto max-w-5xl px-6">
+          <div className="mb-16 text-center">
+            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Professional Setup</p>
+            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Want us to build it for you?</h2>
+            <p className="mt-4 text-neutral-400">
+              Our team sets up your AI agents, knowledge base, and integrations — ready to go in 24 hours.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
+            {[
+              {
+                name: "Quick Start",
+                price: "€490",
+                subtitle: "Perfect for freelancers and small businesses.",
+                features: [
+                  "1 AI Agent",
+                  "Knowledge Base setup",
+                  "Actions configured",
+                  "Embed on your website",
+                  "30 days email support",
+                ],
+              },
+              {
+                name: "Business Setup",
+                price: "€1,490",
+                subtitle: "For established businesses ready to automate.",
+                features: [
+                  "3 AI Agents",
+                  "Full Knowledge Base",
+                  "Custom Actions",
+                  "White-Label branding",
+                  "Analytics setup",
+                  "1h Training Call",
+                  "30 days support",
+                ],
+              },
+              {
+                name: "Agency Launch",
+                price: "€3,990",
+                subtitle: "For agencies deploying at scale.",
+                features: [
+                  "10+ AI Agents",
+                  "Full Platform Setup",
+                  "Agent Orchestration",
+                  "Webhook Integrations",
+                  "3h Training",
+                  "30 days priority support",
+                ],
+              },
+            ].map((pkg) => (
+              <div
+                key={pkg.name}
+                className="relative flex flex-col rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6"
+              >
+                <h3 className="text-lg font-semibold">{pkg.name}</h3>
+                <div className="mt-2 flex items-baseline gap-1">
+                  <span className="font-serif text-3xl">{pkg.price}</span>
+                  <span className="text-xs text-neutral-500">one-time</span>
+                </div>
+                <p className="mt-2 text-[13px] text-neutral-500">{pkg.subtitle}</p>
+                <ul className="mt-5 flex-1 space-y-2.5">
+                  {pkg.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-[13px] text-neutral-400">
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#F97316]" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <a
+                  href="mailto:andre@hephaistos-systems.de"
+                  className="mt-6 block rounded-xl py-2.5 text-center text-sm font-medium text-white transition-all hover:brightness-110"
+                  style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}
+                >
+                  Book a Call
+                </a>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-10 text-center text-sm text-neutral-500">
+            Every setup includes 30 days of email support and a satisfaction guarantee.
+          </p>
         </div>
       </Section>
 
