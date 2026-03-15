@@ -32,6 +32,7 @@ interface AgentWithCount {
   updatedAt: string;
   _count: { conversations: number; runs?: number };
   avgLeadScore?: number | null;
+  agentTeamMembers?: { team: { id: string; name: string } }[];
 }
 
 const statusConfig = {
@@ -258,9 +259,16 @@ export default function AgentsPage() {
                 </div>
 
                 {/* Name + Description */}
-                <h3 className="mb-1 font-semibold text-foreground group-hover:text-kiln-orange transition-colors">
-                  {agent.name}
-                </h3>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold text-foreground group-hover:text-kiln-orange transition-colors truncate">
+                    {agent.name}
+                  </h3>
+                  {agent.agentTeamMembers?.[0]?.team && (
+                    <span className="shrink-0 rounded-full bg-purple-500/10 px-2 py-0.5 text-[9px] font-medium text-purple-400">
+                      Team: {agent.agentTeamMembers[0].team.name}
+                    </span>
+                  )}
+                </div>
                 <p className="mb-auto text-xs text-muted-foreground line-clamp-2 min-h-[2rem]">
                   {agent.description || agent.welcomeMessage || "No description"}
                 </p>

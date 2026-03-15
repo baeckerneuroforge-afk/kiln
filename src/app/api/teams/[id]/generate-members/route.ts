@@ -139,12 +139,25 @@ JSON format:
 
     for (const role of roles) {
       const agentMode = role.agentMode || defaultModeForRole(role.role);
+      // Auto-include team role context in system prompt
+      const reportsToName = role.reportsTo || null;
+      const roleContext = [
+        `You are the "${role.name}" in the "${team.name}" team.`,
+        `Your role: ${role.role}.`,
+        reportsToName ? `You report to: ${reportsToName}.` : "You are the team lead.",
+        `Your responsibilities: ${role.responsibilities}`,
+        "",
+        "--- Agent Instructions ---",
+        "",
+      ].join("\n");
+      const fullPrompt = roleContext + role.systemPrompt;
+
       const agent = await prisma.agent.create({
         data: {
           userId,
           name: role.name,
           slug: generateSlug(role.name),
-          systemPrompt: role.systemPrompt,
+          systemPrompt: fullPrompt,
           description: role.responsibilities,
           status: "DRAFT",
           agentMode,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
@@ -20,9 +20,19 @@ import {
   ArrowRight,
   Trash2,
   Edit3,
+  ChevronDown,
+  ChevronUp,
+  Wand2,
+  Wrench,
+  Check,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import {
+  PROVIDERS,
+  getModelsForProvider,
+  type ProviderKey,
+} from "@/lib/ai";
 
 /* ---------- Types ---------- */
 interface TeamMember {
@@ -44,9 +54,32 @@ interface Team {
 interface SuggestedRole {
   name: string;
   role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER";
+  agentMode?: "CHAT" | "TASK";
   responsibilities: string;
   systemPrompt: string;
+  suggestedModel?: string;
+  suggestedProvider?: string;
   reportsTo?: string;
+}
+
+type RoleType = "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER";
+type AgentMode = "CHAT" | "TASK";
+type TriggerType = "MANUAL" | "SCHEDULE" | "WEBHOOK" | "EVENT";
+type OutputType = "NEXT_AGENT" | "EMAIL" | "HTTP" | "WEBHOOK" | "LOG";
+
+interface ManualMember {
+  id: string;
+  name: string;
+  role: RoleType;
+  agentMode: AgentMode;
+  provider: ProviderKey;
+  model: string;
+  systemPrompt: string;
+  reportsTo: string; // name of another member
+  trigger: TriggerType;
+  output: OutputType;
+  outputTarget: string; // agent name or URL etc.
+  expanded: boolean;
 }
 
 /* ---------- Template configs ---------- */
@@ -83,6 +116,13 @@ const QUICK_TEMPLATES = [
   },
 ];
 
+const TEAM_TEMPLATES = [
+  { value: "", label: "Custom (no template)" },
+  { value: "sales", label: "Sales Team" },
+  { value: "support", label: "Support Team" },
+  { value: "content", label: "Content Team" },
+];
+
 /* ---------- Helpers ---------- */
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-US", {
@@ -112,6 +152,24 @@ const roleColors: Record<string, { bg: string; text: string }> = {
   REPORTER: { bg: "bg-purple-500/15", text: "text-purple-400" },
 };
 
+function newManualMember(overrides: Partial<ManualMember> = {}): ManualMember {
+  return {
+    id: Math.random().toString(36).slice(2),
+    name: "",
+    role: "EXECUTOR",
+    agentMode: "CHAT",
+    provider: "ANTHROPIC",
+    model: "claude-sonnet-4-20250514",
+    systemPrompt: "",
+    reportsTo: "",
+    trigger: "MANUAL",
+    output: "LOG",
+    outputTarget: "",
+    expanded: true,
+    ...overrides,
+  };
+}
+
 /* ---------- Skeleton ---------- */
 function CardSkeleton() {
   return (
@@ -131,7 +189,736 @@ function CardSkeleton() {
   );
 }
 
-/* ---------- Create Team Modal (multi-step) ---------- */
+/* ---------- Step Indicator ---------- */
+function StepIndicator({
+  steps,
+  current,
+}: {
+  steps: string[];
+  current: number;
+}) {
+  return (
+    <div className="flex items-center gap-0 px-6 py-3 bg-muted/30">
+      {steps.map((label, i) => {
+        const stepNum = i + 1;
+        const isActive = stepNum === current;
+        const isDone = stepNum < current;
+        return (
+          <div key={label} className="flex items-center">
+            <div
+              className={cn(
+                "flex items-center gap-1.5 text-xs font-medium",
+                isActive
+                  ? "text-kiln-orange"
+                  : isDone
+                  ? "text-muted-foreground"
+                  : "text-muted-foreground/50"
+              )}
+            >
+              <span
+                className={cn(
+                  "flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold shrink-0",
+                  isActive
+                    ? "bg-kiln-orange text-white"
+                    : isDone
+                    ? "bg-kiln-orange/30 text-kiln-orange"
+                    : "bg-muted text-muted-foreground/50"
+                )}
+              >
+                {isDone ? <Check className="h-3 w-3" /> : stepNum}
+              </span>
+              <span className="hidden sm:inline">{label}</span>
+            </div>
+            {i < steps.length - 1 && (
+              <div
+                className={cn(
+                  "mx-2 h-px flex-1 w-8",
+                  isDone ? "bg-kiln-orange/30" : "bg-border"
+                )}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------- Role Badge ---------- */
+function RoleBadge({ role }: { role: RoleType }) {
+  const rc = roleColors[role] || roleColors.EXECUTOR;
+  return (
+    <span
+      className={cn(
+        "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full whitespace-nowrap",
+        rc.bg,
+        rc.text
+      )}
+    >
+      {role}
+    </span>
+  );
+}
+
+/* ---------- Model Badge ---------- */
+function ModelBadge({ provider, model }: { provider: ProviderKey; model: string }) {
+  const models = getModelsForProvider(provider);
+  const modelDef = models.find((m) => m.id === model);
+  return (
+    <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono whitespace-nowrap">
+      {modelDef?.shortLabel ?? model}
+    </span>
+  );
+}
+
+/* ---------- Auto-Generate Step 1: Name & Goal ---------- */
+function AutoStep1({
+  name,
+  goal,
+  onNameChange,
+  onGoalChange,
+}: {
+  name: string;
+  goal: string;
+  onNameChange: (v: string) => void;
+  onGoalChange: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Team Name <span className="text-kiln-orange">*</span>
+        </label>
+        <input
+          autoFocus
+          type="text"
+          value={name}
+          onChange={(e) => onNameChange(e.target.value)}
+          placeholder="e.g. Growth Squad"
+          className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/30"
+        />
+      </div>
+      <div>
+        <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Team Goal <span className="text-kiln-orange">*</span>
+        </label>
+        <textarea
+          value={goal}
+          onChange={(e) => onGoalChange(e.target.value)}
+          placeholder="Describe what this team should accomplish. KILN will design the optimal agent structure..."
+          rows={4}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/30 resize-none"
+        />
+      </div>
+      <p className="text-xs text-muted-foreground/70 flex items-center gap-1.5">
+        <Sparkles className="h-3.5 w-3.5 text-kiln-orange/70" />
+        Claude will suggest an optimal team structure based on your goal.
+      </p>
+    </div>
+  );
+}
+
+/* ---------- Shared Review/Edit Step (auto step 2, manual step 4) ---------- */
+function ReviewStep({
+  roles,
+  onUpdate,
+  onRemove,
+  onAdd,
+  editingIdx,
+  setEditingIdx,
+}: {
+  roles: SuggestedRole[];
+  onUpdate: (idx: number, field: keyof SuggestedRole, value: string) => void;
+  onRemove: (idx: number) => void;
+  onAdd: () => void;
+  editingIdx: number | null;
+  setEditingIdx: (idx: number | null) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      {roles.map((role, idx) => {
+        const isEditing = editingIdx === idx;
+
+        return (
+          <div
+            key={idx}
+            className="rounded-lg border border-border bg-background p-3 group"
+          >
+            {isEditing ? (
+              <div className="space-y-2">
+                {/* Name + Role */}
+                <div className="flex gap-2">
+                  <input
+                    value={role.name}
+                    onChange={(e) => onUpdate(idx, "name", e.target.value)}
+                    className="flex-1 rounded border border-border bg-card px-2 py-1 text-sm text-foreground outline-none focus:border-kiln-orange"
+                    placeholder="Agent name"
+                  />
+                  <select
+                    value={role.role}
+                    onChange={(e) => onUpdate(idx, "role", e.target.value)}
+                    className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground outline-none"
+                  >
+                    <option value="HEAD">HEAD</option>
+                    <option value="COORDINATOR">COORDINATOR</option>
+                    <option value="EXECUTOR">EXECUTOR</option>
+                    <option value="REPORTER">REPORTER</option>
+                  </select>
+                </div>
+                {/* Agent Mode */}
+                <div className="flex gap-2 items-center">
+                  <span className="text-[10px] text-muted-foreground min-w-[60px]">Mode:</span>
+                  <select
+                    value={role.agentMode ?? "CHAT"}
+                    onChange={(e) => onUpdate(idx, "agentMode", e.target.value)}
+                    className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground outline-none"
+                  >
+                    <option value="CHAT">Chat Agent</option>
+                    <option value="TASK">Task Agent</option>
+                  </select>
+                </div>
+                {/* Provider + Model */}
+                <div className="flex gap-2 items-center">
+                  <span className="text-[10px] text-muted-foreground min-w-[60px]">Model:</span>
+                  <select
+                    value={role.suggestedProvider ?? "ANTHROPIC"}
+                    onChange={(e) => {
+                      const prov = e.target.value as ProviderKey;
+                      const models = getModelsForProvider(prov);
+                      onUpdate(idx, "suggestedProvider", prov);
+                      onUpdate(idx, "suggestedModel", models[0]?.id ?? "");
+                    }}
+                    className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground outline-none"
+                  >
+                    {(Object.keys(PROVIDERS) as ProviderKey[]).map((p) => (
+                      <option key={p} value={p}>
+                        {PROVIDERS[p].label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={role.suggestedModel ?? ""}
+                    onChange={(e) => onUpdate(idx, "suggestedModel", e.target.value)}
+                    className="flex-1 rounded border border-border bg-card px-2 py-1 text-xs text-foreground outline-none"
+                  >
+                    {getModelsForProvider((role.suggestedProvider as ProviderKey) ?? "ANTHROPIC").map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {/* Responsibilities */}
+                <input
+                  value={role.responsibilities}
+                  onChange={(e) => onUpdate(idx, "responsibilities", e.target.value)}
+                  className="w-full rounded border border-border bg-card px-2 py-1 text-xs text-muted-foreground outline-none focus:border-kiln-orange"
+                  placeholder="Responsibilities"
+                />
+                {/* System Prompt */}
+                <textarea
+                  value={role.systemPrompt}
+                  onChange={(e) => onUpdate(idx, "systemPrompt", e.target.value)}
+                  rows={3}
+                  className="w-full rounded border border-border bg-card px-2 py-1 text-xs text-muted-foreground outline-none focus:border-kiln-orange resize-none"
+                  placeholder="System prompt (optional)"
+                />
+                {/* Reports to */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground min-w-[60px]">
+                    Reports to:
+                  </span>
+                  <select
+                    value={role.reportsTo || ""}
+                    onChange={(e) => onUpdate(idx, "reportsTo", e.target.value || "")}
+                    className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground outline-none"
+                  >
+                    <option value="">None (HEAD)</option>
+                    {roles
+                      .filter((_, i) => i !== idx)
+                      .map((r) => (
+                        <option key={r.name} value={r.name}>
+                          {r.name}
+                        </option>
+                      ))}
+                  </select>
+                  <div className="flex-1" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingIdx(null)}
+                    className="text-xs h-7"
+                  >
+                    Done
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <RoleBadge role={role.role} />
+                    <span className="text-sm font-medium text-foreground truncate">
+                      {role.name || <span className="text-muted-foreground italic">Unnamed</span>}
+                    </span>
+                    {(role.suggestedProvider || role.agentMode) && (
+                      <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono">
+                        {role.agentMode === "TASK" ? "Task" : "Chat"}
+                      </span>
+                    )}
+                    {role.suggestedModel && (
+                      <ModelBadge
+                        provider={(role.suggestedProvider as ProviderKey) ?? "ANTHROPIC"}
+                        model={role.suggestedModel}
+                      />
+                    )}
+                    {role.reportsTo && (
+                      <span className="text-[10px] text-muted-foreground">
+                        → {role.reportsTo}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-1">
+                    {role.responsibilities || (
+                      <span className="italic">No responsibilities set</span>
+                    )}
+                  </p>
+                  {role.systemPrompt && (
+                    <p className="text-[10px] text-muted-foreground/60 line-clamp-1 mt-0.5 font-mono">
+                      {role.systemPrompt.slice(0, 80)}
+                      {role.systemPrompt.length > 80 ? "…" : ""}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => setEditingIdx(idx)}
+                    className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
+                  >
+                    <Edit3 className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => onRemove(idx)}
+                    className="p-1 text-muted-foreground hover:text-red-400 rounded transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <button
+        onClick={onAdd}
+        className="w-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/50 px-3 py-2 text-xs text-muted-foreground hover:border-kiln-orange/40 hover:text-foreground transition-colors"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        Add Agent
+      </button>
+    </div>
+  );
+}
+
+/* ---------- Manual Step 1: Team Basics ---------- */
+function ManualStep1({
+  name,
+  goal,
+  teamTemplate,
+  onNameChange,
+  onGoalChange,
+  onTemplateChange,
+}: {
+  name: string;
+  goal: string;
+  teamTemplate: string;
+  onNameChange: (v: string) => void;
+  onGoalChange: (v: string) => void;
+  onTemplateChange: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Team Name <span className="text-kiln-orange">*</span>
+        </label>
+        <input
+          autoFocus
+          type="text"
+          value={name}
+          onChange={(e) => onNameChange(e.target.value)}
+          placeholder="e.g. Growth Squad"
+          className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/30"
+        />
+      </div>
+      <div>
+        <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Goal / Description <span className="text-kiln-orange">*</span>
+        </label>
+        <textarea
+          value={goal}
+          onChange={(e) => onGoalChange(e.target.value)}
+          placeholder="What should this team accomplish?"
+          rows={3}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/30 resize-none"
+        />
+      </div>
+      <div>
+        <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Team Template <span className="text-muted-foreground/50">(optional)</span>
+        </label>
+        <select
+          value={teamTemplate}
+          onChange={(e) => onTemplateChange(e.target.value)}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/30"
+        >
+          {TEAM_TEMPLATES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Manual Step 2: Define Roles ---------- */
+function ManualStep2({
+  members,
+  onUpdate,
+  onAdd,
+  onRemove,
+  onToggleExpand,
+}: {
+  members: ManualMember[];
+  onUpdate: (id: string, field: keyof ManualMember, value: string | boolean) => void;
+  onAdd: () => void;
+  onRemove: (id: string) => void;
+  onToggleExpand: (id: string) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        Define the agents that will be part of this team. Each agent has a role, model, and system prompt.
+      </p>
+      {members.map((member, idx) => {
+        const providerModels = getModelsForProvider(member.provider);
+        const currentModelInProvider = providerModels.find((m) => m.id === member.model);
+        const displayModel = currentModelInProvider ?? providerModels[0];
+
+        return (
+          <div
+            key={member.id}
+            className="rounded-lg border border-border bg-background overflow-hidden"
+          >
+            {/* Collapsed header */}
+            <div
+              className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
+              onClick={() => onToggleExpand(member.id)}
+            >
+              <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                <RoleBadge role={member.role} />
+                <span className="text-sm font-medium text-foreground truncate">
+                  {member.name || <span className="text-muted-foreground italic">Unnamed Agent {idx + 1}</span>}
+                </span>
+                {!member.expanded && displayModel && (
+                  <ModelBadge provider={member.provider} model={displayModel.id} />
+                )}
+                {!member.expanded && member.agentMode && (
+                  <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+                    {member.agentMode === "TASK" ? "Task" : "Chat"}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                {members.length > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemove(member.id);
+                    }}
+                    className="p-1 text-muted-foreground hover:text-red-400 rounded transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                {member.expanded ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+            </div>
+
+            {/* Expanded fields */}
+            {member.expanded && (
+              <div className="px-3 pb-3 space-y-3 border-t border-border pt-3">
+                {/* Name */}
+                <div>
+                  <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                    Role Name <span className="text-kiln-orange">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={member.name}
+                    onChange={(e) => onUpdate(member.id, "name", e.target.value)}
+                    placeholder="e.g. Sales Lead Agent"
+                    className="w-full rounded border border-border bg-card px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-kiln-orange focus:outline-none"
+                  />
+                </div>
+
+                {/* Role type + Agent mode */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                      Role Type
+                    </label>
+                    <select
+                      value={member.role}
+                      onChange={(e) => onUpdate(member.id, "role", e.target.value)}
+                      className="w-full rounded border border-border bg-card px-2 py-1.5 text-xs text-foreground focus:border-kiln-orange focus:outline-none"
+                    >
+                      <option value="HEAD">HEAD</option>
+                      <option value="COORDINATOR">COORDINATOR</option>
+                      <option value="EXECUTOR">EXECUTOR</option>
+                      <option value="REPORTER">REPORTER</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                      Agent Type
+                    </label>
+                    <select
+                      value={member.agentMode}
+                      onChange={(e) => onUpdate(member.id, "agentMode", e.target.value)}
+                      className="w-full rounded border border-border bg-card px-2 py-1.5 text-xs text-foreground focus:border-kiln-orange focus:outline-none"
+                    >
+                      <option value="CHAT">Chat Agent</option>
+                      <option value="TASK">Task Agent</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Provider + Model */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                      LLM Provider
+                    </label>
+                    <select
+                      value={member.provider}
+                      onChange={(e) => {
+                        const prov = e.target.value as ProviderKey;
+                        const models = getModelsForProvider(prov);
+                        onUpdate(member.id, "provider", prov);
+                        onUpdate(member.id, "model", models[0]?.id ?? "");
+                      }}
+                      className="w-full rounded border border-border bg-card px-2 py-1.5 text-xs text-foreground focus:border-kiln-orange focus:outline-none"
+                    >
+                      {(Object.keys(PROVIDERS) as ProviderKey[]).map((p) => (
+                        <option key={p} value={p}>
+                          {PROVIDERS[p].label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                      Model
+                    </label>
+                    <select
+                      value={member.model}
+                      onChange={(e) => onUpdate(member.id, "model", e.target.value)}
+                      className="w-full rounded border border-border bg-card px-2 py-1.5 text-xs text-foreground focus:border-kiln-orange focus:outline-none"
+                    >
+                      {providerModels.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.label}
+                          {m.badge ? ` — ${m.badge}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Reports To */}
+                <div>
+                  <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                    Reports To
+                  </label>
+                  <select
+                    value={member.reportsTo}
+                    onChange={(e) => onUpdate(member.id, "reportsTo", e.target.value)}
+                    className="w-full rounded border border-border bg-card px-2 py-1.5 text-xs text-foreground focus:border-kiln-orange focus:outline-none"
+                  >
+                    <option value="">None (top-level)</option>
+                    {members
+                      .filter((m) => m.id !== member.id)
+                      .map((m) => (
+                        <option key={m.id} value={m.name || m.id}>
+                          {m.name || `Unnamed Agent ${members.indexOf(m) + 1}`}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* System Prompt */}
+                <div>
+                  <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                    System Prompt
+                  </label>
+                  <textarea
+                    value={member.systemPrompt}
+                    onChange={(e) => onUpdate(member.id, "systemPrompt", e.target.value)}
+                    rows={3}
+                    placeholder="Describe this agent's instructions and behavior..."
+                    className="w-full rounded border border-border bg-card px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-kiln-orange focus:outline-none resize-none"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      <button
+        onClick={onAdd}
+        className="w-full flex items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-background/50 px-3 py-2.5 text-xs text-muted-foreground hover:border-kiln-orange/40 hover:text-foreground transition-colors"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        Add Member
+      </button>
+    </div>
+  );
+}
+
+/* ---------- Manual Step 3: I/O Config ---------- */
+function ManualStep3({
+  members,
+  onUpdate,
+}: {
+  members: ManualMember[];
+  onUpdate: (id: string, field: keyof ManualMember, value: string) => void;
+}) {
+  const taskAgents = members.filter((m) => m.agentMode === "TASK");
+  const chatAgents = members.filter((m) => m.agentMode === "CHAT");
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        Configure triggers and outputs for Task Agents. Chat Agents respond to conversations and don&apos;t need I/O config.
+      </p>
+
+      {taskAgents.length === 0 ? (
+        <div className="rounded-lg border border-border bg-muted/20 p-4 text-center">
+          <p className="text-sm text-muted-foreground">
+            No Task Agents defined. All members are Chat Agents — no I/O config needed.
+          </p>
+          <p className="text-xs text-muted-foreground/70 mt-1">
+            Go back to Step 2 to change an agent type to &quot;Task Agent&quot; if needed.
+          </p>
+        </div>
+      ) : (
+        taskAgents.map((member) => (
+          <div key={member.id} className="rounded-lg border border-border bg-background p-3 space-y-3">
+            <div className="flex items-center gap-2">
+              <RoleBadge role={member.role} />
+              <span className="text-sm font-medium text-foreground">{member.name || "Unnamed"}</span>
+              <span className="text-[10px] bg-green-500/15 text-green-400 px-1.5 py-0.5 rounded">Task Agent</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  Trigger
+                </label>
+                <select
+                  value={member.trigger}
+                  onChange={(e) => onUpdate(member.id, "trigger", e.target.value)}
+                  className="w-full rounded border border-border bg-card px-2 py-1.5 text-xs text-foreground focus:border-kiln-orange focus:outline-none"
+                >
+                  <option value="MANUAL">Manual</option>
+                  <option value="SCHEDULE">Schedule</option>
+                  <option value="WEBHOOK">Webhook</option>
+                  <option value="EVENT">Event</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  Output
+                </label>
+                <select
+                  value={member.output}
+                  onChange={(e) => onUpdate(member.id, "output", e.target.value)}
+                  className="w-full rounded border border-border bg-card px-2 py-1.5 text-xs text-foreground focus:border-kiln-orange focus:outline-none"
+                >
+                  <option value="NEXT_AGENT">Next Agent</option>
+                  <option value="EMAIL">Email</option>
+                  <option value="HTTP">HTTP Request</option>
+                  <option value="WEBHOOK">Webhook</option>
+                  <option value="LOG">Log Only</option>
+                </select>
+              </div>
+            </div>
+
+            {member.output === "NEXT_AGENT" && (
+              <div>
+                <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  Pass to Agent
+                </label>
+                <select
+                  value={member.outputTarget}
+                  onChange={(e) => onUpdate(member.id, "outputTarget", e.target.value)}
+                  className="w-full rounded border border-border bg-card px-2 py-1.5 text-xs text-foreground focus:border-kiln-orange focus:outline-none"
+                >
+                  <option value="">Select agent...</option>
+                  {members
+                    .filter((m) => m.id !== member.id)
+                    .map((m) => (
+                      <option key={m.id} value={m.name || m.id}>
+                        {m.name || "Unnamed"}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
+
+            {(member.output === "EMAIL" || member.output === "HTTP" || member.output === "WEBHOOK") && (
+              <div>
+                <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  {member.output === "EMAIL" ? "Email Address" : "URL"}
+                </label>
+                <input
+                  type="text"
+                  value={member.outputTarget}
+                  onChange={(e) => onUpdate(member.id, "outputTarget", e.target.value)}
+                  placeholder={member.output === "EMAIL" ? "you@example.com" : "https://..."}
+                  className="w-full rounded border border-border bg-card px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-kiln-orange focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
+        ))
+      )}
+
+      {chatAgents.length > 0 && taskAgents.length > 0 && (
+        <div className="rounded-lg border border-border bg-muted/10 p-2.5">
+          <p className="text-[11px] text-muted-foreground">
+            Chat Agents (no I/O config needed):{" "}
+            {chatAgents.map((m) => m.name || "Unnamed").join(", ")}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Create Team Modal ---------- */
+type ModalMode = "pick" | "auto" | "manual";
+type AutoStep = 1 | 2;
+type ManualStep = 1 | 2 | 3 | 4;
+
 function CreateTeamModal({
   open,
   onClose,
@@ -143,27 +930,39 @@ function CreateTeamModal({
 }) {
   const router = useRouter();
 
-  // Step 1 state
-  const [step, setStep] = useState<1 | 2>(1);
+  // Mode selection
+  const [mode, setMode] = useState<ModalMode>("pick");
+
+  // Shared state
   const [name, setName] = useState("");
   const [goal, setGoal] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Step 2 state (AI-suggested structure)
+  // Auto-generate state
+  const [autoStep, setAutoStep] = useState<AutoStep>(1);
   const [suggestedRoles, setSuggestedRoles] = useState<SuggestedRole[]>([]);
   const [generating, setGenerating] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
 
+  // Manual state
+  const [manualStep, setManualStep] = useState<ManualStep>(1);
+  const [teamTemplate, setTeamTemplate] = useState("");
+  const [manualMembers, setManualMembers] = useState<ManualMember[]>([newManualMember()]);
+
   function reset() {
-    setStep(1);
+    setMode("pick");
     setName("");
     setGoal("");
     setError(null);
+    setSubmitting(false);
+    setAutoStep(1);
     setSuggestedRoles([]);
     setGenerating(false);
-    setSubmitting(false);
     setEditingIdx(null);
+    setManualStep(1);
+    setTeamTemplate("");
+    setManualMembers([newManualMember()]);
   }
 
   function handleClose() {
@@ -171,8 +970,8 @@ function CreateTeamModal({
     onClose();
   }
 
-  // Step 1 → Step 2: Ask Claude for structure
-  async function handleNext() {
+  // ---- Auto: Step 1 → Step 2 ----
+  async function handleAutoNext() {
     if (!name.trim() || !goal.trim()) return;
     setError(null);
     setGenerating(true);
@@ -190,25 +989,30 @@ function CreateTeamModal({
       }
 
       const data = await res.json();
-      setSuggestedRoles(data.roles);
-      setStep(2);
+      // Ensure suggested roles have agentMode and model fields
+      const roles: SuggestedRole[] = (data.roles || []).map((r: SuggestedRole) => ({
+        agentMode: "CHAT",
+        suggestedProvider: "ANTHROPIC",
+        suggestedModel: "claude-sonnet-4-20250514",
+        ...r,
+      }));
+      setSuggestedRoles(roles);
+      setAutoStep(2);
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Failed to generate structure";
+      const message = err instanceof Error ? err.message : "Failed to generate structure";
       setError(message);
     } finally {
       setGenerating(false);
     }
   }
 
-  // Step 2 → Create team with roles
-  async function handleCreate() {
-    if (suggestedRoles.length === 0) return;
+  // ---- Shared: Create team with roles ----
+  async function handleCreate(roles: SuggestedRole[]) {
+    if (roles.length === 0) return;
     setSubmitting(true);
     setError(null);
 
     try {
-      // Create the team first
       const teamRes = await fetch("/api/teams", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -222,15 +1026,11 @@ function CreateTeamModal({
 
       const team = await teamRes.json();
 
-      // Generate members with the suggested roles
-      const membersRes = await fetch(
-        `/api/teams/${team.id}/generate-members`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roles: suggestedRoles }),
-        }
-      );
+      const membersRes = await fetch(`/api/teams/${team.id}/generate-members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roles }),
+      });
 
       if (!membersRes.ok) {
         const data = await membersRes.json().catch(() => ({}));
@@ -241,14 +1041,14 @@ function CreateTeamModal({
       onCreated();
       router.push(`/dashboard/teams/${team.id}`);
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Failed to create team";
+      const message = err instanceof Error ? err.message : "Failed to create team";
       setError(message);
     } finally {
       setSubmitting(false);
     }
   }
 
+  // ---- Auto review helpers ----
   function removeRole(idx: number) {
     setSuggestedRoles((prev) => prev.filter((_, i) => i !== idx));
   }
@@ -259,7 +1059,86 @@ function CreateTeamModal({
     );
   }
 
+  function addEmptyRole() {
+    setSuggestedRoles((prev) => [
+      ...prev,
+      {
+        name: "",
+        role: "EXECUTOR",
+        agentMode: "CHAT",
+        responsibilities: "",
+        systemPrompt: "",
+        suggestedProvider: "ANTHROPIC",
+        suggestedModel: "claude-sonnet-4-20250514",
+      },
+    ]);
+  }
+
+  // ---- Manual member helpers ----
+  const updateMember = useCallback(
+    (id: string, field: keyof ManualMember, value: string | boolean) => {
+      setManualMembers((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
+      );
+    },
+    []
+  );
+
+  function addMember() {
+    setManualMembers((prev) => [...prev, newManualMember()]);
+  }
+
+  function removeMember(id: string) {
+    setManualMembers((prev) => prev.filter((m) => m.id !== id));
+  }
+
+  function toggleExpand(id: string) {
+    setManualMembers((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, expanded: !m.expanded } : m))
+    );
+  }
+
+  // Convert manual members to SuggestedRole[] for the API
+  function manualMembersToRoles(): SuggestedRole[] {
+    return manualMembers.map((m) => ({
+      name: m.name || `Agent ${manualMembers.indexOf(m) + 1}`,
+      role: m.role,
+      agentMode: m.agentMode,
+      suggestedModel: m.model,
+      suggestedProvider: m.provider,
+      responsibilities: m.systemPrompt,
+      systemPrompt: m.systemPrompt,
+      reportsTo: m.reportsTo || undefined,
+    }));
+  }
+
   if (!open) return null;
+
+  /* ---- Determine header title & subtitle ---- */
+  let headerTitle = "Create Team";
+  let headerSub = "Choose how you want to build your team.";
+
+  if (mode === "auto") {
+    headerTitle = autoStep === 1 ? "Auto-Generate Team" : "Review Team Structure";
+    headerSub =
+      autoStep === 1
+        ? "Define your team's name and goal. KILN will design the optimal agent structure."
+        : `${suggestedRoles.length} agents suggested. Review, edit, then create.`;
+  } else if (mode === "manual") {
+    const manualStepLabels = ["Team Basics", "Define Roles", "Configure I/O", "Review"];
+    headerTitle = `Build Manually — ${manualStepLabels[manualStep - 1]}`;
+    headerSub = [
+      "Set the name, goal, and optional template for your team.",
+      "Add and configure each agent member.",
+      "Set triggers and outputs for Task Agents.",
+      "Review the full team structure before creating.",
+    ][manualStep - 1];
+  }
+
+  /* ---- Validation helpers ---- */
+  const autoStep1Valid = name.trim().length > 0 && goal.trim().length > 0;
+  const manualStep1Valid = name.trim().length > 0 && goal.trim().length > 0;
+  const manualStep2Valid = manualMembers.length > 0 && manualMembers.every((m) => m.name.trim().length > 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -268,224 +1147,168 @@ function CreateTeamModal({
         onClick={handleClose}
       />
 
-      <div className="relative z-10 w-full max-w-2xl rounded-xl border border-border bg-card shadow-2xl mx-4 max-h-[85vh] flex flex-col">
+      <div className="relative z-10 w-full max-w-3xl rounded-xl border border-border bg-card shadow-2xl mx-4 max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-border">
+        <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border">
           <div>
-            <h2 className="font-serif text-2xl text-foreground">
-              {step === 1 ? "Create Team" : "Review Team Structure"}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              {step === 1
-                ? "Define your team's name and goal. KILN will design the optimal agent structure."
-                : `${suggestedRoles.length} agents suggested. Review, adjust, then create.`}
-            </p>
+            <h2 className="font-serif text-2xl text-foreground">{headerTitle}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{headerSub}</p>
           </div>
           <button
             onClick={handleClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors mt-0.5"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Step indicator */}
-        <div className="flex items-center gap-2 px-6 py-3 bg-muted/30">
-          <div
-            className={cn(
-              "flex items-center gap-2 text-xs font-medium",
-              step === 1 ? "text-kiln-orange" : "text-muted-foreground"
-            )}
-          >
-            <span
-              className={cn(
-                "flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold",
-                step === 1
-                  ? "bg-kiln-orange text-white"
-                  : "bg-kiln-orange/20 text-kiln-orange"
-              )}
-            >
-              1
-            </span>
-            Name & Goal
-          </div>
-          <div className="h-px flex-1 bg-border" />
-          <div
-            className={cn(
-              "flex items-center gap-2 text-xs font-medium",
-              step === 2 ? "text-kiln-orange" : "text-muted-foreground"
-            )}
-          >
-            <span
-              className={cn(
-                "flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold",
-                step === 2
-                  ? "bg-kiln-orange text-white"
-                  : "bg-muted text-muted-foreground"
-              )}
-            >
-              2
-            </span>
-            Team Structure
-          </div>
-        </div>
+        {/* Step Indicator (not shown on pick screen) */}
+        {mode === "auto" && (
+          <StepIndicator
+            steps={["Name & Goal", "Review Structure"]}
+            current={autoStep}
+          />
+        )}
+        {mode === "manual" && (
+          <StepIndicator
+            steps={["Basics", "Roles", "I/O Config", "Review"]}
+            current={manualStep}
+          />
+        )}
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          {step === 1 ? (
+          {/* Mode picker */}
+          {mode === "pick" && (
             <div className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Team Name <span className="text-kiln-orange">*</span>
-                </label>
-                <input
-                  autoFocus
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Growth Squad"
-                  required
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/30"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Team Goal <span className="text-kiln-orange">*</span>
-                </label>
-                <textarea
-                  value={goal}
-                  onChange={(e) => setGoal(e.target.value)}
-                  placeholder="Describe what this team should accomplish. KILN will design the optimal agent structure..."
-                  rows={4}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/30 resize-none"
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {suggestedRoles.map((role, idx) => {
-                const rc = roleColors[role.role] || roleColors.EXECUTOR;
-                const isEditing = editingIdx === idx;
-
-                return (
-                  <div
-                    key={idx}
-                    className="rounded-lg border border-border bg-background p-3 group"
-                  >
-                    {isEditing ? (
-                      <div className="space-y-2">
-                        <div className="flex gap-2">
-                          <input
-                            value={role.name}
-                            onChange={(e) =>
-                              updateRole(idx, "name", e.target.value)
-                            }
-                            className="flex-1 rounded border border-border bg-card px-2 py-1 text-sm text-foreground outline-none focus:border-kiln-orange"
-                            placeholder="Agent name"
-                          />
-                          <select
-                            value={role.role}
-                            onChange={(e) =>
-                              updateRole(idx, "role", e.target.value)
-                            }
-                            className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground outline-none"
-                          >
-                            <option value="HEAD">HEAD</option>
-                            <option value="COORDINATOR">COORDINATOR</option>
-                            <option value="EXECUTOR">EXECUTOR</option>
-                            <option value="REPORTER">REPORTER</option>
-                          </select>
-                        </div>
-                        <input
-                          value={role.responsibilities}
-                          onChange={(e) =>
-                            updateRole(idx, "responsibilities", e.target.value)
-                          }
-                          className="w-full rounded border border-border bg-card px-2 py-1 text-xs text-muted-foreground outline-none focus:border-kiln-orange"
-                          placeholder="Responsibilities"
-                        />
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-muted-foreground">
-                            Reports to:
-                          </span>
-                          <select
-                            value={role.reportsTo || ""}
-                            onChange={(e) =>
-                              updateRole(
-                                idx,
-                                "reportsTo",
-                                e.target.value || ""
-                              )
-                            }
-                            className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground outline-none"
-                          >
-                            <option value="">None (HEAD)</option>
-                            {suggestedRoles
-                              .filter((_, i) => i !== idx)
-                              .map((r) => (
-                                <option key={r.name} value={r.name}>
-                                  {r.name}
-                                </option>
-                              ))}
-                          </select>
-                          <div className="flex-1" />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditingIdx(null)}
-                            className="text-xs h-7"
-                          >
-                            Done
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-start gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span
-                              className={cn(
-                                "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
-                                rc.bg,
-                                rc.text
-                              )}
-                            >
-                              {role.role}
-                            </span>
-                            <span className="text-sm font-medium text-foreground truncate">
-                              {role.name}
-                            </span>
-                            {role.reportsTo && (
-                              <span className="text-[10px] text-muted-foreground">
-                                → {role.reportsTo}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-1">
-                            {role.responsibilities}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => setEditingIdx(idx)}
-                            className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
-                          >
-                            <Edit3 className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => removeRole(idx)}
-                            className="p-1 text-muted-foreground hover:text-red-400 rounded transition-colors"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
+              <p className="text-sm text-muted-foreground">
+                How do you want to create your team?
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* Auto-Generate card */}
+                <button
+                  onClick={() => setMode("auto")}
+                  className="group flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-all hover:border-kiln-orange/50 hover:bg-kiln-orange/5"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10 group-hover:bg-kiln-orange/20 transition-colors">
+                    <Wand2 className="h-5 w-5 text-kiln-orange" />
                   </div>
-                );
-              })}
+                  <div>
+                    <p className="font-semibold text-foreground">Auto-Generate</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Describe your goal. Claude suggests the optimal team structure with agents, roles, and prompts.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-kiln-orange font-medium mt-auto">
+                    Get started <ArrowRight className="h-3.5 w-3.5" />
+                  </div>
+                </button>
+
+                {/* Build Manually card */}
+                <button
+                  onClick={() => setMode("manual")}
+                  className="group flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-all hover:border-blue-500/50 hover:bg-blue-500/5"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
+                    <Wrench className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground">Build Manually</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Define each agent yourself: role, model, system prompt, triggers, and outputs — step by step.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-blue-400 font-medium mt-auto">
+                    4-step wizard <ArrowRight className="h-3.5 w-3.5" />
+                  </div>
+                </button>
+              </div>
             </div>
+          )}
+
+          {/* Auto — Step 1 */}
+          {mode === "auto" && autoStep === 1 && (
+            <AutoStep1
+              name={name}
+              goal={goal}
+              onNameChange={setName}
+              onGoalChange={setGoal}
+            />
+          )}
+
+          {/* Auto — Step 2 (review) */}
+          {mode === "auto" && autoStep === 2 && (
+            <ReviewStep
+              roles={suggestedRoles}
+              onUpdate={updateRole}
+              onRemove={removeRole}
+              onAdd={addEmptyRole}
+              editingIdx={editingIdx}
+              setEditingIdx={setEditingIdx}
+            />
+          )}
+
+          {/* Manual — Step 1 */}
+          {mode === "manual" && manualStep === 1 && (
+            <ManualStep1
+              name={name}
+              goal={goal}
+              teamTemplate={teamTemplate}
+              onNameChange={setName}
+              onGoalChange={setGoal}
+              onTemplateChange={setTeamTemplate}
+            />
+          )}
+
+          {/* Manual — Step 2 */}
+          {mode === "manual" && manualStep === 2 && (
+            <ManualStep2
+              members={manualMembers}
+              onUpdate={updateMember}
+              onAdd={addMember}
+              onRemove={removeMember}
+              onToggleExpand={toggleExpand}
+            />
+          )}
+
+          {/* Manual — Step 3 */}
+          {mode === "manual" && manualStep === 3 && (
+            <ManualStep3
+              members={manualMembers}
+              onUpdate={(id, field, value) => updateMember(id, field, value)}
+            />
+          )}
+
+          {/* Manual — Step 4 (review) */}
+          {mode === "manual" && manualStep === 4 && (
+            <ReviewStep
+              roles={manualMembersToRoles()}
+              onUpdate={(idx, field, value) => {
+                // Sync back to manualMembers on edit
+                const member = manualMembers[idx];
+                if (!member) return;
+                const fieldMap: Partial<Record<keyof SuggestedRole, keyof ManualMember>> = {
+                  name: "name",
+                  role: "role",
+                  agentMode: "agentMode",
+                  suggestedModel: "model",
+                  suggestedProvider: "provider",
+                  systemPrompt: "systemPrompt",
+                  reportsTo: "reportsTo",
+                };
+                const manualField = fieldMap[field];
+                if (manualField) {
+                  updateMember(member.id, manualField, value);
+                }
+              }}
+              onRemove={(idx) => {
+                const member = manualMembers[idx];
+                if (member) removeMember(member.id);
+              }}
+              onAdd={addMember}
+              editingIdx={editingIdx}
+              setEditingIdx={setEditingIdx}
+            />
           )}
 
           {error && (
@@ -495,18 +1318,42 @@ function CreateTeamModal({
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-border">
-          {step === 2 ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setStep(1)}
-              className="text-muted-foreground"
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" /> Back
-            </Button>
-          ) : (
-            <div />
-          )}
+          {/* Left: back button */}
+          <div>
+            {mode === "auto" && autoStep === 2 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setAutoStep(1)}
+                className="text-muted-foreground"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" /> Back
+              </Button>
+            )}
+            {mode === "manual" && manualStep > 1 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setManualStep((s) => (s - 1) as ManualStep)}
+                className="text-muted-foreground"
+                disabled={submitting}
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" /> Back
+              </Button>
+            )}
+            {(mode === "auto" || mode === "manual") && (mode === "auto" ? autoStep === 1 : manualStep === 1) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setMode("pick")}
+                className="text-muted-foreground"
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" /> Change Mode
+              </Button>
+            )}
+          </div>
+
+          {/* Right: cancel + primary action */}
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
@@ -517,11 +1364,15 @@ function CreateTeamModal({
               Cancel
             </Button>
 
-            {step === 1 ? (
+            {/* Pick screen — no primary CTA, both options are clickable cards */}
+            {mode === "pick" && null}
+
+            {/* Auto step 1 */}
+            {mode === "auto" && autoStep === 1 && (
               <Button
                 size="sm"
-                onClick={handleNext}
-                disabled={generating || !name.trim() || !goal.trim()}
+                onClick={handleAutoNext}
+                disabled={generating || !autoStep1Valid}
               >
                 {generating ? (
                   <>
@@ -536,10 +1387,13 @@ function CreateTeamModal({
                   </>
                 )}
               </Button>
-            ) : (
+            )}
+
+            {/* Auto step 2 */}
+            {mode === "auto" && autoStep === 2 && (
               <Button
                 size="sm"
-                onClick={handleCreate}
+                onClick={() => handleCreate(suggestedRoles)}
                 disabled={submitting || suggestedRoles.length === 0}
               >
                 {submitting ? (
@@ -551,6 +1405,42 @@ function CreateTeamModal({
                   <>
                     <Plus className="mr-2 h-4 w-4" />
                     Create Team ({suggestedRoles.length} agents)
+                  </>
+                )}
+              </Button>
+            )}
+
+            {/* Manual steps 1–3: Next */}
+            {mode === "manual" && manualStep < 4 && (
+              <Button
+                size="sm"
+                onClick={() => setManualStep((s) => (s + 1) as ManualStep)}
+                disabled={
+                  (manualStep === 1 && !manualStep1Valid) ||
+                  (manualStep === 2 && !manualStep2Valid)
+                }
+              >
+                Next
+                <ArrowRight className="ml-1 h-4 w-4" />
+              </Button>
+            )}
+
+            {/* Manual step 4: Create */}
+            {mode === "manual" && manualStep === 4 && (
+              <Button
+                size="sm"
+                onClick={() => handleCreate(manualMembersToRoles())}
+                disabled={submitting || manualMembers.length === 0}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating {manualMembers.length} agents...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Team ({manualMembers.length} agents)
                   </>
                 )}
               </Button>

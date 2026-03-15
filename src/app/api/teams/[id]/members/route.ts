@@ -130,6 +130,91 @@ export async function POST(
   }
 }
 
+// Update member (role, responsibilities, reportsToMemberId)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Validate team ownership
+    const team = await prisma.agentTeam.findFirst({
+      where: { id: params.id, userId },
+    });
+    if (!team) {
+      return Response.json({ error: "Team not found" }, { status: 404 });
+    }
+
+    const body = await request.json();
+    const { memberId, role, responsibilities, reportsToMemberId } = body;
+
+    if (!memberId) {
+      return Response.json({ error: "memberId is required." }, { status: 400 });
+    }
+
+    // Validate member belongs to this team
+    const member = await prisma.agentTeamMember.findFirst({
+      where: { id: memberId, teamId: params.id },
+    });
+    if (!member) {
+      return Response.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    // If changing role to HEAD, ensure no other HEAD exists
+    if (role && role === "HEAD" && member.role !== "HEAD") {
+      const existingHead = await prisma.agentTeamMember.findFirst({
+        where: { teamId: params.id, role: "HEAD" },
+      });
+      if (existingHead) {
+        return Response.json(
+          { error: "Team already has a HEAD member. Only one HEAD is allowed per team." },
+          { status: 400 }
+        );
+      }
+    }
+
+    // If reportsToMemberId provided, validate it
+    if (reportsToMemberId !== undefined && reportsToMemberId !== null) {
+      const reportsToMember = await prisma.agentTeamMember.findFirst({
+        where: { id: reportsToMemberId, teamId: params.id },
+      });
+      if (!reportsToMember) {
+        return Response.json(
+          { error: "reportsToMemberId does not reference a valid team member." },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Build update data — only include fields explicitly provided
+    const updateData: Record<string, unknown> = {};
+    if (role !== undefined) updateData.role = role;
+    if (responsibilities !== undefined) updateData.responsibilities = responsibilities || null;
+    if (reportsToMemberId !== undefined) updateData.reportsToMemberId = reportsToMemberId || null;
+
+    const updated = await prisma.agentTeamMember.update({
+      where: { id: memberId },
+      data: updateData,
+      include: {
+        agent: { select: { id: true, name: true, slug: true } },
+        reportsTo: {
+          include: { agent: { select: { id: true, name: true } } },
+        },
+      },
+    });
+
+    return Response.json(updated);
+  } catch (err) {
+    console.error("PATCH /api/teams/[id]/members error:", err);
+    const message = err instanceof Error ? err.message : "Server error";
+    return Response.json({ error: message }, { status: 500 });
+  }
+}
+
 // Remove member from team
 export async function DELETE(
   request: NextRequest,

@@ -35,8 +35,16 @@ import {
   X,
   Send,
   Sparkles,
+  ChevronDown,
+  MessageSquare,
+  Zap,
 } from "lucide-react";
-import { getModelDef } from "@/lib/ai";
+import {
+  PROVIDERS,
+  getModelsForProvider,
+  getModelDef,
+  type ProviderKey,
+} from "@/lib/ai";
 
 /* ========== Types ========== */
 interface TeamAgent {
@@ -45,6 +53,13 @@ interface TeamAgent {
   slug: string;
   description?: string;
   llmModel?: string;
+  modelProvider?: string;
+  agentMode?: "CHAT" | "TASK";
+  systemPrompt?: string;
+  triggerType?: string;
+  outputType?: string;
+  outputConfig?: Record<string, unknown> | null;
+  triggerConfig?: Record<string, unknown> | null;
 }
 
 interface TeamMember {
@@ -118,6 +133,7 @@ type TeamMemberNodeData = {
   responsibilities: string;
   taskCount: number;
   llmModel?: string;
+  agentMode?: string;
   [key: string]: unknown;
 };
 
@@ -128,7 +144,7 @@ function TeamMemberNode({ data }: NodeProps<Node<TeamMemberNodeData>>) {
   return (
     <div
       className={cn(
-        "rounded-xl border bg-zinc-900/90 backdrop-blur-sm px-4 py-3 shadow-lg min-w-[200px] max-w-[260px]",
+        "rounded-xl border bg-zinc-900/90 backdrop-blur-sm px-4 py-3 shadow-lg min-w-[200px] max-w-[260px] cursor-pointer hover:brightness-110 transition-all",
         rc.border
       )}
     >
@@ -157,6 +173,27 @@ function TeamMemberNode({ data }: NodeProps<Node<TeamMemberNodeData>>) {
 
       {data.responsibilities && (
         <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{data.responsibilities}</p>
+      )}
+
+      {/* Agent mode badge */}
+      {data.agentMode && (
+        <div className="mt-2">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full",
+              data.agentMode === "CHAT"
+                ? "bg-blue-500/15 text-blue-400"
+                : "bg-green-500/15 text-green-400"
+            )}
+          >
+            {data.agentMode === "CHAT" ? (
+              <MessageSquare className="h-2.5 w-2.5" />
+            ) : (
+              <Zap className="h-2.5 w-2.5" />
+            )}
+            {data.agentMode === "CHAT" ? "Chat" : "Task"}
+          </span>
+        </div>
       )}
 
       <Handle type="source" position={Position.Bottom} className="!bg-zinc-600 !w-2 !h-2" />
@@ -271,6 +308,7 @@ function buildHierarchyGraph(members: TeamMember[], tasks: TeamTask[]) {
       responsibilities: m.responsibilities || "",
       taskCount: taskCounts[m.id] || 0,
       llmModel: m.agent.llmModel || undefined,
+      agentMode: m.agent.agentMode || undefined,
     },
   }));
 
@@ -296,6 +334,661 @@ const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "activity", label: "Activity", icon: <Activity className="h-4 w-4" /> },
   { key: "analytics", label: "Analytics", icon: <BarChart3 className="h-4 w-4" /> },
 ];
+
+/* ========== Edit Member Panel ========== */
+interface EditMemberPanelProps {
+  member: TeamMember | null;
+  allMembers: TeamMember[];
+  teamId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditMemberPanelProps) {
+  const [agentData, setAgentData] = useState<TeamAgent | null>(null);
+  const [loadingAgent, setLoadingAgent] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
+
+  // Editable fields
+  const [agentName, setAgentName] = useState("");
+  const [role, setRole] = useState<"HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER">("EXECUTOR");
+  const [responsibilities, setResponsibilities] = useState("");
+  const [reportsToMemberId, setReportsToMemberId] = useState<string>("");
+  const [provider, setProvider] = useState<ProviderKey>("ANTHROPIC");
+  const [llmModel, setLlmModel] = useState("");
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [triggerType, setTriggerType] = useState("");
+  const [outputType, setOutputType] = useState("");
+
+  // Fetch full agent data when member changes
+  useEffect(() => {
+    if (!member) return;
+
+    // Seed form from member data immediately
+    setAgentName(member.agent.name);
+    setRole(member.role);
+    setResponsibilities(member.responsibilities || "");
+    setReportsToMemberId(member.reportsToMemberId || "");
+    setProvider((member.agent.modelProvider as ProviderKey) || "ANTHROPIC");
+    setLlmModel(member.agent.llmModel || "");
+    setSystemPrompt(member.agent.systemPrompt || "");
+    setTriggerType(member.agent.triggerType || "");
+    setOutputType(member.agent.outputType || "");
+    setConfirmRemove(false);
+
+    // Fetch full agent to get systemPrompt + mode
+    setLoadingAgent(true);
+    fetch(`/api/agents/${member.agentId}`)
+      .then((r) => r.json())
+      .then((data: TeamAgent) => {
+        setAgentData(data);
+        setAgentName(data.name);
+        setProvider((data.modelProvider as ProviderKey) || "ANTHROPIC");
+        setLlmModel(data.llmModel || "");
+        setSystemPrompt(data.systemPrompt || "");
+        setTriggerType(data.triggerType || "");
+        setOutputType(data.outputType || "");
+      })
+      .catch(() => {
+        // Silently fall back to member.agent data already seeded
+      })
+      .finally(() => setLoadingAgent(false));
+  }, [member]);
+
+  const availableModels = useMemo(() => getModelsForProvider(provider), [provider]);
+
+  const handleProviderChange = (p: ProviderKey) => {
+    setProvider(p);
+    const models = getModelsForProvider(p);
+    setLlmModel(models[0]?.id || "");
+  };
+
+  const handleSave = async () => {
+    if (!member || saving) return;
+    setSaving(true);
+    try {
+      // 1. Update agent fields
+      await fetch(`/api/agents/${member.agentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: agentName.trim(),
+          systemPrompt: systemPrompt.trim(),
+          llmModel: llmModel || undefined,
+          modelProvider: provider,
+          triggerType: triggerType || undefined,
+          outputType: outputType || undefined,
+        }),
+      });
+
+      // 2. Update member fields (role, responsibilities, reportsTo)
+      await fetch(`/api/teams/${teamId}/members`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId: member.id,
+          role,
+          responsibilities: responsibilities.trim() || undefined,
+          reportsToMemberId: reportsToMemberId || null,
+        }),
+      });
+
+      onSaved();
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    if (!member || removing) return;
+    setRemoving(true);
+    try {
+      await fetch(`/api/teams/${teamId}/members`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId: member.id }),
+      });
+      onSaved();
+      onClose();
+    } finally {
+      setRemoving(false);
+    }
+  };
+
+  const agentMode = agentData?.agentMode || member?.agent.agentMode;
+  const rc = member ? (roleColors[member.role] || roleColors.EXECUTOR) : roleColors.EXECUTOR;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className={cn(
+          "fixed inset-0 z-20 bg-black/40 transition-opacity duration-200",
+          member ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        )}
+        onClick={onClose}
+      />
+
+      {/* Slide-in panel */}
+      <div
+        className={cn(
+          "fixed top-0 right-0 h-full w-[380px] z-30 bg-zinc-900 border-l border-border shadow-2xl transform transition-transform duration-200 flex flex-col",
+          member ? "translate-x-0" : "translate-x-full"
+        )}
+      >
+        {/* Panel header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-3">
+            {member && (
+              <span className={cn("text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full", rc.bg, rc.text)}>
+                {member.role}
+              </span>
+            )}
+            <h3 className="text-sm font-semibold text-zinc-100">Edit Member</h3>
+          </div>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Panel body — scrollable */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+          {loadingAgent && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-orange-500" />
+            </div>
+          )}
+
+          {!loadingAgent && member && (
+            <>
+              {/* Agent name */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-400">Agent Name</label>
+                <input
+                  value={agentName}
+                  onChange={(e) => setAgentName(e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-600"
+                  placeholder="Agent name..."
+                />
+              </div>
+
+              {/* Role */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-400">Role</label>
+                <div className="relative">
+                  <select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as typeof role)}
+                    className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                  >
+                    <option value="HEAD">HEAD</option>
+                    <option value="COORDINATOR">COORDINATOR</option>
+                    <option value="EXECUTOR">EXECUTOR</option>
+                    <option value="REPORTER">REPORTER</option>
+                  </select>
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Agent mode badge (read-only) */}
+              {agentMode && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-zinc-400">Agent Mode</label>
+                  <div>
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full",
+                        agentMode === "CHAT"
+                          ? "bg-blue-500/15 text-blue-400 border border-blue-500/30"
+                          : "bg-green-500/15 text-green-400 border border-green-500/30"
+                      )}
+                    >
+                      {agentMode === "CHAT" ? (
+                        <MessageSquare className="h-3 w-3" />
+                      ) : (
+                        <Zap className="h-3 w-3" />
+                      )}
+                      {agentMode === "CHAT" ? "Chat Agent" : "Task Agent"}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* LLM Provider */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-400">LLM Provider</label>
+                <div className="relative">
+                  <select
+                    value={provider}
+                    onChange={(e) => handleProviderChange(e.target.value as ProviderKey)}
+                    className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                  >
+                    {(Object.keys(PROVIDERS) as ProviderKey[]).map((p) => (
+                      <option key={p} value={p}>{PROVIDERS[p].label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* LLM Model */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-400">Model</label>
+                <div className="relative">
+                  <select
+                    value={llmModel}
+                    onChange={(e) => setLlmModel(e.target.value)}
+                    className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                  >
+                    {availableModels.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}{m.badge ? ` — ${m.badge}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Responsibilities */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-400">Responsibilities</label>
+                <textarea
+                  value={responsibilities}
+                  onChange={(e) => setResponsibilities(e.target.value)}
+                  rows={3}
+                  placeholder="Describe this agent's responsibilities..."
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-zinc-600"
+                />
+              </div>
+
+              {/* System prompt */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-400">System Prompt</label>
+                <textarea
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  rows={5}
+                  placeholder="System prompt for this agent..."
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-zinc-600 font-mono text-xs"
+                />
+              </div>
+
+              {/* Reports to */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-400">Reports To</label>
+                <div className="relative">
+                  <select
+                    value={reportsToMemberId}
+                    onChange={(e) => setReportsToMemberId(e.target.value)}
+                    className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                  >
+                    <option value="">— None (root) —</option>
+                    {allMembers
+                      .filter((m) => m.id !== member.id)
+                      .map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.agent.name} ({m.role})
+                        </option>
+                      ))}
+                  </select>
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Task-agent specific fields */}
+              {agentMode === "TASK" && (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-zinc-400">Trigger Type</label>
+                    <div className="relative">
+                      <select
+                        value={triggerType}
+                        onChange={(e) => setTriggerType(e.target.value)}
+                        className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                      >
+                        <option value="">— None —</option>
+                        <option value="MANUAL">Manual</option>
+                        <option value="SCHEDULE">Schedule</option>
+                        <option value="WEBHOOK">Webhook</option>
+                        <option value="EVENT">Event</option>
+                      </select>
+                      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-zinc-400">Output Type</label>
+                    <div className="relative">
+                      <select
+                        value={outputType}
+                        onChange={(e) => setOutputType(e.target.value)}
+                        className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                      >
+                        <option value="">— None —</option>
+                        <option value="NONE">None</option>
+                        <option value="EMAIL">Email</option>
+                        <option value="HTTP">HTTP</option>
+                        <option value="NEXT_AGENT">Next Agent</option>
+                        <option value="WEBHOOK">Webhook</option>
+                      </select>
+                      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Panel footer */}
+        <div className="px-5 py-4 border-t border-border shrink-0 space-y-2">
+          <Button
+            onClick={handleSave}
+            disabled={saving || loadingAgent}
+            className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+            size="sm"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
+
+          {confirmRemove ? (
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setConfirmRemove(false)}
+                className="flex-1 text-zinc-400"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleRemove}
+                disabled={removing}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                {removing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}
+                Confirm Remove
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setConfirmRemove(true)}
+              className="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Remove Member
+            </Button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ========== Add Member Modal ========== */
+interface AddMemberModalProps {
+  teamId: string;
+  allMembers: TeamMember[];
+  onClose: () => void;
+  onAdded: () => void;
+}
+
+function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModalProps) {
+  const [agentName, setAgentName] = useState("");
+  const [role, setRole] = useState<"HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER">("EXECUTOR");
+  const [agentMode, setAgentMode] = useState<"CHAT" | "TASK">("CHAT");
+  const [provider, setProvider] = useState<ProviderKey>("ANTHROPIC");
+  const [llmModel, setLlmModel] = useState("claude-sonnet-4-20250514");
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [reportsToMemberId, setReportsToMemberId] = useState("");
+  const [responsibilities, setResponsibilities] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const availableModels = useMemo(() => getModelsForProvider(provider), [provider]);
+
+  const handleProviderChange = (p: ProviderKey) => {
+    setProvider(p);
+    const models = getModelsForProvider(p);
+    setLlmModel(models[0]?.id || "");
+  };
+
+  const handleCreate = async () => {
+    if (!agentName.trim() || !systemPrompt.trim() || creating) return;
+    setCreating(true);
+    setError(null);
+    try {
+      // 1. Create agent
+      const slug = agentName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now();
+      const agentRes = await fetch("/api/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: agentName.trim(),
+          slug,
+          systemPrompt: systemPrompt.trim(),
+          llmModel,
+          modelProvider: provider,
+          agentMode,
+        }),
+      });
+      if (!agentRes.ok) {
+        const d = await agentRes.json().catch(() => ({}));
+        throw new Error(d.error || "Failed to create agent");
+      }
+      const agent = await agentRes.json();
+
+      // 2. Add as team member
+      const memberRes = await fetch(`/api/teams/${teamId}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agentId: agent.id,
+          role,
+          responsibilities: responsibilities.trim() || undefined,
+          reportsToMemberId: reportsToMemberId || undefined,
+          level: 0,
+        }),
+      });
+      if (!memberRes.ok) {
+        const d = await memberRes.json().catch(() => ({}));
+        throw new Error(d.error || "Failed to add member");
+      }
+
+      onAdded();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-zinc-900 shadow-2xl flex flex-col max-h-[90vh]">
+        {/* Modal header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+          <h2 className="text-base font-semibold text-zinc-100 font-[family-name:var(--font-instrument)]">
+            Add Member
+          </h2>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Modal body */}
+        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+          {/* Agent name */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-400">Agent Name</label>
+            <input
+              autoFocus
+              value={agentName}
+              onChange={(e) => setAgentName(e.target.value)}
+              placeholder="e.g. Research Analyst"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-600"
+            />
+          </div>
+
+          {/* Role */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-400">Role</label>
+            <div className="relative">
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as typeof role)}
+                className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+              >
+                <option value="HEAD">HEAD</option>
+                <option value="COORDINATOR">COORDINATOR</option>
+                <option value="EXECUTOR">EXECUTOR</option>
+                <option value="REPORTER">REPORTER</option>
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Agent mode */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-400">Agent Mode</label>
+            <div className="flex gap-2">
+              {(["CHAT", "TASK"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setAgentMode(mode)}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-colors",
+                    agentMode === mode
+                      ? mode === "CHAT"
+                        ? "bg-blue-500/20 border-blue-500/40 text-blue-300"
+                        : "bg-green-500/20 border-green-500/40 text-green-300"
+                      : "bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300"
+                  )}
+                >
+                  {mode === "CHAT" ? <MessageSquare className="h-3.5 w-3.5" /> : <Zap className="h-3.5 w-3.5" />}
+                  {mode === "CHAT" ? "Chat" : "Task"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Provider */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-400">Provider</label>
+            <div className="relative">
+              <select
+                value={provider}
+                onChange={(e) => handleProviderChange(e.target.value as ProviderKey)}
+                className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+              >
+                {(Object.keys(PROVIDERS) as ProviderKey[]).map((p) => (
+                  <option key={p} value={p}>{PROVIDERS[p].label}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Model */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-400">Model</label>
+            <div className="relative">
+              <select
+                value={llmModel}
+                onChange={(e) => setLlmModel(e.target.value)}
+                className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+              >
+                {availableModels.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}{m.badge ? ` — ${m.badge}` : ""}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* System prompt */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-400">System Prompt</label>
+            <textarea
+              value={systemPrompt}
+              onChange={(e) => setSystemPrompt(e.target.value)}
+              rows={4}
+              placeholder="Define the agent's behavior and expertise..."
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-zinc-600"
+            />
+          </div>
+
+          {/* Responsibilities */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-400">Responsibilities</label>
+            <textarea
+              value={responsibilities}
+              onChange={(e) => setResponsibilities(e.target.value)}
+              rows={2}
+              placeholder="e.g. Research and summarize competitor analysis..."
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-zinc-600"
+            />
+          </div>
+
+          {/* Reports to */}
+          {allMembers.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-zinc-400">Reports To</label>
+              <div className="relative">
+                <select
+                  value={reportsToMemberId}
+                  onChange={(e) => setReportsToMemberId(e.target.value)}
+                  className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                >
+                  <option value="">— None (root) —</option>
+                  {allMembers.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.agent.name} ({m.role})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
+        </div>
+
+        {/* Modal footer */}
+        <div className="px-5 py-4 border-t border-border shrink-0 flex justify-end gap-3">
+          <Button variant="ghost" size="sm" onClick={onClose} className="text-zinc-400">
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleCreate}
+            disabled={creating || !agentName.trim() || !systemPrompt.trim()}
+            className="bg-orange-600 hover:bg-orange-700 text-white min-w-[100px]"
+          >
+            {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+            {creating ? "Creating..." : "Add Member"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ========== Main inner component (needs ReactFlowProvider above) ========== */
 function TeamDetailInner() {
@@ -332,6 +1025,16 @@ function TeamDetailInner() {
 
   // Generate members
   const [generatingMembers, setGeneratingMembers] = useState(false);
+
+  // Member edit panel
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const selectedMember = useMemo(
+    () => (team && selectedMemberId ? team.members.find((m) => m.id === selectedMemberId) || null : null),
+    [team, selectedMemberId]
+  );
+
+  // Add member modal
+  const [showAddMember, setShowAddMember] = useState(false);
 
   /* Fetch team data */
   const fetchTeam = useCallback(async () => {
@@ -686,6 +1389,21 @@ function TeamDetailInner() {
             {tab.label}
           </button>
         ))}
+
+        {/* Add Member button — only shown in hierarchy tab */}
+        {activeTab === "hierarchy" && (
+          <div className="ml-auto pb-1">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowAddMember(true)}
+              className="border-dashed border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 h-8"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Add Member
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* ===== Tab content ===== */}
@@ -702,30 +1420,41 @@ function TeamDetailInner() {
                   <p className="text-sm font-medium text-zinc-300 mb-1">No members in this team yet</p>
                   <p className="text-xs text-zinc-600 max-w-sm">
                     {team.goal
-                      ? "Generate agents based on your team's goal using AI."
-                      : "Add a goal to your team, then generate agents."}
+                      ? "Generate agents based on your team's goal using AI, or add them manually."
+                      : "Add a goal to your team, then generate agents or add them manually."}
                   </p>
                 </div>
-                {team.goal && (
+                <div className="flex gap-2">
+                  {team.goal && (
+                    <Button
+                      size="sm"
+                      onClick={generateMembers}
+                      disabled={generatingMembers}
+                      className="bg-orange-600 hover:bg-orange-700 text-white"
+                    >
+                      {generatingMembers ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Generating agents...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          Generate Members from Goal
+                        </>
+                      )}
+                    </Button>
+                  )}
                   <Button
                     size="sm"
-                    onClick={generateMembers}
-                    disabled={generatingMembers}
-                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                    variant="outline"
+                    onClick={() => setShowAddMember(true)}
+                    className="border-zinc-700 text-zinc-300 hover:text-zinc-100"
                   >
-                    {generatingMembers ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Generating agents...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        Generate Members from Goal
-                      </>
-                    )}
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Manually
                   </Button>
-                )}
+                </div>
               </div>
             ) : (
               <ReactFlow
@@ -738,6 +1467,9 @@ function TeamDetailInner() {
                 maxZoom={1.5}
                 proOptions={{ hideAttribution: true }}
                 className="bg-[#0C0A09]"
+                onNodeClick={(_event, node) => {
+                  setSelectedMemberId(node.id);
+                }}
               >
                 <Background color="#27272a" gap={20} size={1} />
                 <MiniMap
@@ -935,6 +1667,25 @@ function TeamDetailInner() {
           </div>
         )}
       </div>
+
+      {/* ===== Member Edit Panel ===== */}
+      <EditMemberPanel
+        member={selectedMember}
+        allMembers={team.members}
+        teamId={teamId}
+        onClose={() => setSelectedMemberId(null)}
+        onSaved={fetchTeam}
+      />
+
+      {/* ===== Add Member Modal ===== */}
+      {showAddMember && (
+        <AddMemberModal
+          teamId={teamId}
+          allMembers={team.members}
+          onClose={() => setShowAddMember(false)}
+          onAdded={fetchTeam}
+        />
+      )}
 
       {/* ===== Assign Task Dialog (overlay) ===== */}
       {showAssignDialog && (

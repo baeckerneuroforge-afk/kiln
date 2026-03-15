@@ -15,6 +15,10 @@ export async function GET() {
       where: { userId },
       include: {
         _count: { select: { conversations: true, runs: true } },
+        agentTeamMembers: {
+          include: { team: { select: { id: true, name: true } } },
+          take: 1,
+        },
       },
       orderBy: { createdAt: "desc" },
     });
