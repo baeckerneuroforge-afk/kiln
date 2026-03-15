@@ -20,6 +20,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Users,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -28,13 +29,14 @@ import { useEffect, useRef, useState } from "react";
 
 const SIDEBAR_COLLAPSED_KEY = "kiln-sidebar-collapsed";
 
-const modules = [
+const allModules = [
   {
     name: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
     color: "text-muted-foreground",
     activeColor: "text-kiln-orange",
+    minAgents: 0,
   },
   {
     name: "AI Agent Studio",
@@ -42,7 +44,8 @@ const modules = [
     icon: Bot,
     color: "text-muted-foreground",
     activeColor: "text-kiln-orange",
-    badge: null,
+    badge: null as string | null,
+    minAgents: 0,
   },
   {
     name: "Orchestration",
@@ -50,6 +53,7 @@ const modules = [
     icon: Network,
     color: "text-muted-foreground",
     activeColor: "text-kiln-orange",
+    minAgents: 2, // Show after 2+ agents
   },
   {
     name: "Agent Teams",
@@ -57,6 +61,8 @@ const modules = [
     icon: Users,
     color: "text-muted-foreground",
     activeColor: "text-kiln-orange",
+    minAgents: 5, // Show after 5+ agents or Pro+
+    requiresPro: true,
   },
   {
     name: "Integrations",
@@ -64,6 +70,7 @@ const modules = [
     icon: Plug,
     color: "text-muted-foreground",
     activeColor: "text-kiln-blue",
+    minAgents: 1,
   },
   {
     name: "Site Builder",
@@ -71,7 +78,8 @@ const modules = [
     icon: Globe,
     color: "text-muted-foreground",
     activeColor: "text-kiln-blue",
-    badge: "Soon",
+    badge: "Soon" as string | null,
+    minAgents: 0,
   },
   {
     name: "Flow Engine",
@@ -79,7 +87,8 @@ const modules = [
     icon: Zap,
     color: "text-muted-foreground",
     activeColor: "text-kiln-green",
-    badge: "Soon",
+    badge: "Soon" as string | null,
+    minAgents: 0,
   },
 ];
 
@@ -108,6 +117,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
   const { user } = useUser();
   const { signOut } = useClerk();
   const [plan, setPlan] = useState<string>("FREE");
+  const [agentCount, setAgentCount] = useState<number>(0);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -130,6 +140,15 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
     fetch("/api/stripe/plan")
       .then((res) => res.json())
       .then((data) => setPlan(data.plan || "FREE"))
+      .catch(() => {});
+
+    // Load agent count for progressive sidebar reveal
+    fetch("/api/agents")
+      .then((res) => res.json())
+      .then((data) => {
+        const agents = data.agents || data || [];
+        if (Array.isArray(agents)) setAgentCount(agents.length);
+      })
       .catch(() => {});
   }, []);
 
@@ -205,7 +224,20 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
 
         {/* Navigation */}
         <nav className={cn("flex flex-1 flex-col gap-0.5", isCollapsed ? "lg:px-1.5" : "px-3")}>
-          {modules.map((item) => {
+          {allModules
+            .filter((item) => {
+              // Progressive reveal: hide modules until user has enough agents
+              if (agentCount < item.minAgents) {
+                // Agent Teams also unlocks on Pro+
+                if ('requiresPro' in item && item.requiresPro) {
+                  const isPro = ["PRO", "AGENCY", "ENTERPRISE", "ADMIN"].includes(plan);
+                  if (isPro) return true;
+                }
+                return false;
+              }
+              return true;
+            })
+            .map((item) => {
             const isActive =
               pathname === item.href ||
               (item.href !== "/dashboard" && pathname.startsWith(item.href));
@@ -266,6 +298,24 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               <Store className="h-[18px] w-[18px] shrink-0" />
               <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>Marketplace</span>
             </Link>
+          </NavTooltip>
+
+          {/* Community */}
+          <NavTooltip label="Community" show={isCollapsed}>
+            <a
+              href="https://discord.gg/kiln"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onClose}
+              className={cn(
+                "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-150",
+                isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2.5",
+                "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+              )}
+            >
+              <MessageCircle className="h-[18px] w-[18px] shrink-0" />
+              <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>Community</span>
+            </a>
           </NavTooltip>
 
           {/* Settings */}

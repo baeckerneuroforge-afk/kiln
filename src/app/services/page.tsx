@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 const packages = [
   {
     name: "Quick Start",
-    price: "€490",
+    price: "Starting from €490",
     subtitle: "Perfect for freelancers and small businesses.",
     features: [
       "1 AI Agent fully configured",
@@ -23,7 +23,7 @@ const packages = [
   },
   {
     name: "Business Setup",
-    price: "€1,490",
+    price: "Starting from €1,490",
     subtitle: "For established businesses ready to automate.",
     popular: true,
     features: [
@@ -38,7 +38,7 @@ const packages = [
   },
   {
     name: "Agency Launch",
-    price: "€3,990",
+    price: "Starting from €3,990",
     subtitle: "For agencies deploying at scale.",
     features: [
       "10+ AI Agents across clients",
@@ -150,9 +150,8 @@ export default function ServicesPage() {
                   </div>
                 )}
                 <h3 className="text-lg font-semibold text-white">{pkg.name}</h3>
-                <div className="mt-2 flex items-baseline gap-1">
-                  <span className="font-serif text-3xl text-white">{pkg.price}</span>
-                  <span className="text-xs text-neutral-500">one-time</span>
+                <div className="mt-2">
+                  <span className="font-serif text-2xl text-white">{pkg.price}</span>
                 </div>
                 <p className="mt-2 text-[13px] text-neutral-500">{pkg.subtitle}</p>
                 <ul className="mt-5 flex-1 space-y-2.5">
@@ -177,6 +176,16 @@ export default function ServicesPage() {
           </div>
           <p className="mt-10 text-center text-sm text-neutral-500">
             Every setup includes 30 days of email support and a satisfaction guarantee.
+          </p>
+          <p className="mt-4 text-center text-sm text-neutral-400">
+            Not sure which package fits?{" "}
+            <a
+              href="mailto:andre@hephaistos-systems.de?subject=KILN Professional Setup — Discovery Call"
+              className="text-[#F97316] underline underline-offset-2 transition-colors hover:text-[#FB923C]"
+            >
+              Book a free 15-minute discovery call
+            </a>
+            {" "}— no commitment.
           </p>
         </section>
 

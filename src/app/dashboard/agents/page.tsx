@@ -15,7 +15,6 @@ import {
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { useToast } from "@/components/toast";
 import { getModelDef } from "@/lib/ai";
 
@@ -74,7 +73,6 @@ export default function AgentsPage() {
   const [agents, setAgents] = useState<AgentWithCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [wizardDismissed, setWizardDismissed] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -129,11 +127,9 @@ export default function AgentsPage() {
     );
   }
 
-  const showWizard = agents.length === 0 && !wizardDismissed && !error;
-
   return (
     <div className="mx-auto max-w-5xl">
-      {!showWizard && (
+      {agents.length > 0 && (
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="font-serif text-3xl text-foreground">
@@ -172,8 +168,6 @@ export default function AgentsPage() {
             Reload page
           </button>
         </div>
-      ) : agents.length === 0 && !wizardDismissed ? (
-        <OnboardingWizard onDismiss={() => setWizardDismissed(true)} />
       ) : agents.length === 0 ? (
         /* Empty State */
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 py-20">

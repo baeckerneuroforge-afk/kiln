@@ -11,11 +11,12 @@ export async function GET() {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { advancedMode: true },
+      select: { advancedMode: true, onboardingCompleted: true },
     });
 
     return Response.json({
       advancedMode: user?.advancedMode ?? false,
+      onboardingCompleted: user?.onboardingCompleted ?? false,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
@@ -32,19 +33,26 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { advancedMode } = body;
+    const { advancedMode, onboardingCompleted } = body;
 
-    if (typeof advancedMode !== "boolean") {
-      return Response.json({ error: "Invalid value" }, { status: 400 });
+    const updateData: Record<string, boolean> = {};
+    if (typeof advancedMode === "boolean") updateData.advancedMode = advancedMode;
+    if (typeof onboardingCompleted === "boolean") updateData.onboardingCompleted = onboardingCompleted;
+
+    if (Object.keys(updateData).length === 0) {
+      return Response.json({ error: "No valid fields" }, { status: 400 });
     }
 
-    await prisma.user.upsert({
+    const updated = await prisma.user.upsert({
       where: { id: userId },
-      update: { advancedMode },
-      create: { id: userId, email: `${userId}@clerk.temp`, advancedMode },
+      update: updateData,
+      create: { id: userId, email: `${userId}@clerk.temp`, ...updateData },
     });
 
-    return Response.json({ advancedMode });
+    return Response.json({
+      advancedMode: updated.advancedMode,
+      onboardingCompleted: updated.onboardingCompleted,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });

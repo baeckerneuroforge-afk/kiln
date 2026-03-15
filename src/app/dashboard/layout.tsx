@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import { Sidebar } from "@/components/sidebar";
 import { UpgradeBanner } from "@/components/upgrade-banner";
@@ -10,6 +10,7 @@ import { AdvancedModeProvider } from "@/hooks/use-advanced-mode";
 import { LegalFooter } from "@/components/legal-footer";
 import { CookieBanner } from "@/components/cookie-banner";
 import { ToastProvider } from "@/components/toast";
+import { OnboardingWizard } from "@/components/onboarding-wizard";
 
 export default function DashboardLayout({
   children,
@@ -17,6 +18,36 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [checkingOnboarding, setCheckingOnboarding] = useState(true);
+
+  // Check if user needs onboarding (0 agents + not completed)
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/user/preferences").then((r) => r.json()),
+      fetch("/api/agents").then((r) => r.json()),
+    ])
+      .then(([prefs, agentsData]) => {
+        const agents = agentsData.agents || agentsData || [];
+        const hasAgents = Array.isArray(agents) && agents.length > 0;
+        const completed = prefs.onboardingCompleted === true;
+        setShowOnboarding(!hasAgents && !completed);
+      })
+      .catch(() => {})
+      .finally(() => setCheckingOnboarding(false));
+  }, []);
+
+  if (checkingOnboarding) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-kiln-orange" />
+      </div>
+    );
+  }
+
+  if (showOnboarding) {
+    return <OnboardingWizard />;
+  }
 
   return (
     <AdvancedModeProvider>

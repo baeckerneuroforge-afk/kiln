@@ -215,7 +215,7 @@ export default function LandingPage() {
 
           {/* Social proof line */}
           <p className="mt-4 text-xs text-neutral-500">
-            Now in Early Access — join 100+ builders already on the platform.
+            Now in Early Access — join hundreds of builders exploring AI agents.
           </p>
 
           {/* CTA buttons + waitlist */}
@@ -1042,6 +1042,7 @@ export default function LandingPage() {
             <span className="text-xs text-neutral-600">by Hephaistos Systems</span>
           </div>
           <div className="flex items-center gap-6 text-xs text-neutral-600">
+            <a href="https://discord.gg/kiln" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-neutral-300">Community</a>
             <a href="/impressum" className="transition-colors hover:text-neutral-300">Impressum</a>
             <a href="/privacy" className="transition-colors hover:text-neutral-300">Privacy</a>
             <a href="/terms" className="transition-colors hover:text-neutral-300">Terms</a>

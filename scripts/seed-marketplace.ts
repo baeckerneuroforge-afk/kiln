@@ -224,9 +224,9 @@ async function main() {
         price: 0,
         agentConfigSnapshot: t.agentConfigSnapshot,
         isApproved: true,
-        rating: 4.5 + Math.round(Math.random() * 5) / 10,
-        ratingCount: 3 + Math.floor(Math.random() * 8),
-        downloads: 10 + Math.floor(Math.random() * 40),
+        rating: 0,
+        ratingCount: 0,
+        downloads: 0,
       },
     });
     console.log(`Created "${t.name}"`);
