@@ -100,6 +100,8 @@ model Agent {
   // Task Agent fields
   triggerType        TriggerType @default(MANUAL)
   triggerConfig      Json?       // { cron, webhookPath, sourceAgentId }
+  preProcessConfig   Json?       // { enabled, code, conditions: [{field,op,value,action}] }
+  postProcessConfig  Json?       // { enabled, code, conditions: [{field,op,value,action}], branches: [{name,condition,outputType,outputConfig}] }
   outputType         OutputType  @default(NONE)
   outputConfig       Json?       // { url, email, targetAgentId, code }
   lastRunAt          DateTime?

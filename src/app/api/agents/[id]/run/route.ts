@@ -63,6 +63,56 @@ export async function POST(
       // Kein Body — ist ok, Task kann auch ohne Input laufen
     }
 
+    // 4b. Pre-Process: conditions + transform (no LLM, no credits)
+    const preProcessConfig = agent.preProcessConfig as {
+      enabled?: boolean;
+      code?: string;
+      conditions?: { field: string; op: string; value: string }[];
+    } | null;
+
+    if (preProcessConfig?.enabled) {
+      // Evaluate conditions — if any fail, skip the run
+      if (preProcessConfig.conditions?.length) {
+        for (const cond of preProcessConfig.conditions) {
+          if (!evalCondition(cond, input)) {
+            // Condition failed — log as skipped, no credits consumed
+            const skipRun = await prisma.agentRun.create({
+              data: {
+                agentId: agent.id,
+                triggerType: "MANUAL",
+                input: input ? (typeof input === "object" ? (input as Prisma.InputJsonValue) : { text: input }) : Prisma.DbNull,
+                output: `Skipped: condition "${cond.field} ${cond.op} ${cond.value}" not met`,
+                status: "SUCCESS",
+                duration: Date.now() - startTime,
+                creditsUsed: 0,
+              },
+            });
+            return Response.json({
+              runId: skipRun.id,
+              output: skipRun.output,
+              status: "SKIPPED",
+              duration: Date.now() - startTime,
+              actionsExecuted: [],
+              outputAction: { type: "SKIPPED", reason: "pre-process condition failed" },
+              creditsUsed: 0,
+            });
+          }
+        }
+      }
+
+      // Transform input via JS code
+      if (preProcessConfig.code?.trim()) {
+        try {
+          const fn = new Function("input", `"use strict";\n${preProcessConfig.code}`);
+          const transformed = fn(input);
+          if (transformed !== undefined) input = transformed;
+        } catch (err) {
+          // Log transform error but continue with original input
+          console.error("Pre-process transform error:", err);
+        }
+      }
+    }
+
     // 5. Check credits
     const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
     const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
@@ -333,6 +383,58 @@ export async function POST(
       }
     }
 
+    // 9b. Post-Process: transform output + branch routing (no LLM, no credits)
+    const postProcessConfig = agent.postProcessConfig as {
+      enabled?: boolean;
+      code?: string;
+      conditions?: { field: string; op: string; value: string }[];
+      branches?: { name: string; condition: string; outputType: string; outputConfig: Record<string, string> }[];
+    } | null;
+
+    let postProcessedOutput: unknown = responseText;
+    const branchOutputActions: { type: string; config: Record<string, string>; name: string }[] = [];
+
+    if (postProcessConfig?.enabled) {
+      // Transform output via JS code
+      if (postProcessConfig.code?.trim()) {
+        try {
+          const fn = new Function("output", "input", `"use strict";\n${postProcessConfig.code}`);
+          const transformed = fn(responseText, input);
+          if (transformed !== undefined) {
+            postProcessedOutput = transformed;
+            responseText = typeof transformed === "string" ? transformed : JSON.stringify(transformed);
+          }
+        } catch (err) {
+          console.error("Post-process transform error:", err);
+        }
+      }
+
+      // Evaluate branch conditions
+      if (postProcessConfig.branches?.length) {
+        for (const branch of postProcessConfig.branches) {
+          if (branch.condition.trim()) {
+            try {
+              const condFn = new Function("output", "input", `"use strict";\nreturn (${branch.condition});`);
+              if (condFn(postProcessedOutput, input)) {
+                branchOutputActions.push({
+                  type: branch.outputType,
+                  config: branch.outputConfig,
+                  name: branch.name,
+                });
+              }
+            } catch { /* skip broken condition */ }
+          } else {
+            // No condition = always match (default/fallback branch)
+            branchOutputActions.push({
+              type: branch.outputType,
+              config: branch.outputConfig,
+              name: branch.name,
+            });
+          }
+        }
+      }
+    }
+
     // 10. Process output based on agent's outputType
     const outputConfig = (agent.outputConfig || {}) as Record<string, string>;
     const outputActionResult: Record<string, unknown> = { type: agent.outputType };
@@ -458,6 +560,75 @@ export async function POST(
       default:
         // Kein Output-Action nötig
         break;
+    }
+
+    // 10b. Execute post-process branch outputs (if any matched)
+    const branchResults: Record<string, unknown>[] = [];
+    if (branchOutputActions.length > 0) {
+      for (const branch of branchOutputActions) {
+        const branchResult: Record<string, unknown> = { branch: branch.name, type: branch.type };
+        try {
+          switch (branch.type) {
+            case "EMAIL": {
+              const to = branch.config.email;
+              const subject = branch.config.subject || `[${branch.name}] ${agent.name}`;
+              if (to) {
+                const resendKey = process.env.RESEND_API_KEY;
+                if (resendKey) {
+                  const r = await fetch("https://api.resend.com/emails", {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      from: "KILN Tasks <noreply@getkiln.com>",
+                      to, subject,
+                      text: `Branch: ${branch.name}\nAgent: ${agent.name}\n\n${responseText.slice(0, 5000)}`,
+                    }),
+                  });
+                  branchResult.emailSent = r.ok;
+                }
+              }
+              break;
+            }
+            case "HTTP_REQUEST":
+            case "WEBHOOK": {
+              const url = branch.config.url;
+              if (url) {
+                const r = await fetch(url, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    agentId: agent.id, branch: branch.name,
+                    output: responseText, timestamp: new Date().toISOString(),
+                  }),
+                  signal: AbortSignal.timeout(15000),
+                });
+                branchResult.status = r.status;
+                branchResult.ok = r.ok;
+              }
+              break;
+            }
+            case "NEXT_AGENT": {
+              const targetId = branch.config.targetAgentId;
+              if (targetId) {
+                const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln.hephaistos-systems.de";
+                const r = await fetch(`${baseUrl}/api/agents/${targetId}/run`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", Cookie: request.headers.get("cookie") || "" },
+                  body: JSON.stringify({ input: responseText }),
+                  signal: AbortSignal.timeout(60000),
+                });
+                const data = await r.json().catch(() => ({}));
+                branchResult.chainedRunId = data.runId;
+              }
+              break;
+            }
+          }
+        } catch (e) {
+          branchResult.error = e instanceof Error ? e.message : "Branch execution failed";
+        }
+        branchResults.push(branchResult);
+      }
+      outputActionResult.branches = branchResults;
     }
 
     const duration = Date.now() - startTime;
@@ -688,4 +859,36 @@ async function executeTool(
   }
 
   return { error: `Unknown tool: ${toolName}` };
+}
+
+// ─── Condition Evaluator (Pre/Post-Process) ─────────────────
+
+function evalCondition(
+  cond: { field: string; op: string; value: string },
+  data: unknown
+): boolean {
+  const fieldPath = cond.field.replace(/^(input|output)\.?/, "");
+  let fieldValue: unknown = data;
+
+  if (fieldPath) {
+    const parts = fieldPath.split(".");
+    for (const part of parts) {
+      if (fieldValue == null || typeof fieldValue !== "object") { fieldValue = undefined; break; }
+      fieldValue = (fieldValue as Record<string, unknown>)[part];
+    }
+  }
+
+  switch (cond.op) {
+    case "exists": return fieldValue != null && fieldValue !== "";
+    case "not_exists": return fieldValue == null || fieldValue === "";
+    case "equals": return String(fieldValue) === cond.value;
+    case "not_equals": return String(fieldValue) !== cond.value;
+    case "contains": return String(fieldValue ?? "").includes(cond.value);
+    case "not_contains": return !String(fieldValue ?? "").includes(cond.value);
+    case "gt": return Number(fieldValue) > Number(cond.value);
+    case "lt": return Number(fieldValue) < Number(cond.value);
+    case "gte": return Number(fieldValue) >= Number(cond.value);
+    case "lte": return Number(fieldValue) <= Number(cond.value);
+    default: return true;
+  }
 }

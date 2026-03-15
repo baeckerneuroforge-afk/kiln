@@ -29,6 +29,8 @@ import {
   Shield,
   FlaskConical,
   RefreshCw,
+  Filter,
+  Plus,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,12 @@ import { cn } from "@/lib/utils";
 import { PROVIDERS, getModelsForProvider, getModelDef, type ProviderKey } from "@/lib/ai";
 import { getCreditCost } from "@/lib/credits";
 import { useToast } from "@/components/toast";
+import {
+  PreProcessBlock,
+  PostProcessBlock,
+  type PreProcessConfig,
+  type PostProcessConfig,
+} from "@/components/agents/logic-block-editor";
 
 interface Agent {
   id: string;
@@ -61,6 +69,8 @@ interface Agent {
   triggerType?: "MANUAL" | "SCHEDULE" | "WEBHOOK" | "EVENT";
   outputType?: "NONE" | "HTTP_REQUEST" | "EMAIL" | "NEXT_AGENT" | "WEBHOOK" | "CUSTOM_CODE";
   triggerConfig?: Record<string, unknown> | null;
+  preProcessConfig?: PreProcessConfig | null;
+  postProcessConfig?: PostProcessConfig | null;
   outputConfig?: Record<string, unknown> | null;
   lastRunAt?: string | null;
   lastRunResult?: Record<string, unknown> | null;
@@ -166,6 +176,12 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
     (initialAgent.triggerConfig as Record<string, unknown>) || {}
   );
   const [outputType, setOutputType] = useState(initialAgent.outputType || "NONE");
+  const [preProcessConfig, setPreProcessConfig] = useState<PreProcessConfig>(
+    (initialAgent.preProcessConfig as PreProcessConfig) || { enabled: false, code: "", conditions: [] }
+  );
+  const [postProcessConfig, setPostProcessConfig] = useState<PostProcessConfig>(
+    (initialAgent.postProcessConfig as PostProcessConfig) || { enabled: false, code: "", conditions: [], branches: [] }
+  );
   const [outputConfig, setOutputConfig] = useState<Record<string, unknown>>(
     (initialAgent.outputConfig as Record<string, unknown>) || {}
   );
@@ -230,6 +246,8 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
           modelProvider,
           triggerType,
           triggerConfig: Object.keys(triggerConfig).length > 0 ? triggerConfig : undefined,
+          preProcessConfig: preProcessConfig.enabled ? preProcessConfig : null,
+          postProcessConfig: postProcessConfig.enabled ? postProcessConfig : null,
           outputType,
           outputConfig: Object.keys(outputConfig).length > 0 ? outputConfig : undefined,
           memoryEnabled,
@@ -484,6 +502,69 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
               </div>
             </div>
 
+            {/* PRE-PROCESS INSERT POINT */}
+            {preProcessConfig.enabled ? (
+              <>
+                <PipelineArrow />
+                <PipelineArrowDown />
+                {/* PRE-PROCESS BLOCK */}
+                <div className="w-full lg:w-[280px] shrink-0">
+                  <div className="h-full rounded-xl border border-dashed border-stone-500/30 bg-stone-500/[0.02] p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-stone-500/10">
+                          <Filter className="h-4.5 w-4.5 text-stone-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Pre-Process</p>
+                          <p className="text-[10px] text-muted-foreground">Filter & Transform</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setPreProcessConfig({ ...preProcessConfig, enabled: false })}
+                        className="text-[10px] text-muted-foreground hover:text-destructive"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="rounded-lg bg-stone-800/20 px-1">
+                      <PreProcessBlock config={preProcessConfig} onChange={setPreProcessConfig} />
+                    </div>
+                    <p className="mt-2 text-center text-[9px] text-muted-foreground/60">No LLM call · No credits</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* "+ Add Pre-Process" link between Trigger and Process */}
+                <div className="hidden lg:flex items-center justify-center w-6 shrink-0">
+                  <button
+                    onClick={() => setPreProcessConfig({ ...preProcessConfig, enabled: true })}
+                    className="group flex flex-col items-center gap-0.5"
+                    title="Add Pre-Process block"
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-stone-600">
+                      <line x1="12" y1="0" x2="12" y2="24" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" />
+                    </svg>
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-stone-600 bg-stone-800/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Plus className="h-3 w-3 text-stone-400" />
+                    </div>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-stone-600">
+                      <line x1="12" y1="0" x2="12" y2="24" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex lg:hidden items-center justify-center h-8">
+                  <button
+                    onClick={() => setPreProcessConfig({ ...preProcessConfig, enabled: true })}
+                    className="flex items-center gap-1.5 text-[10px] text-stone-500 hover:text-stone-300 transition-colors"
+                  >
+                    <Plus className="h-3 w-3" /> Add Pre-Process
+                  </button>
+                </div>
+              </>
+            )}
+
             <PipelineArrow />
             <PipelineArrowDown />
 
@@ -603,6 +684,69 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
                 )}
               </div>
             </div>
+
+            {/* POST-PROCESS INSERT POINT */}
+            {postProcessConfig.enabled ? (
+              <>
+                <PipelineArrow />
+                <PipelineArrowDown />
+                {/* POST-PROCESS BLOCK */}
+                <div className="w-full lg:w-[300px] shrink-0">
+                  <div className="h-full rounded-xl border border-dashed border-stone-500/30 bg-stone-500/[0.02] p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-stone-500/10">
+                          <Filter className="h-4.5 w-4.5 text-stone-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Post-Process</p>
+                          <p className="text-[10px] text-muted-foreground">Transform & Route</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setPostProcessConfig({ ...postProcessConfig, enabled: false })}
+                        className="text-[10px] text-muted-foreground hover:text-destructive"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <div className="rounded-lg bg-stone-800/20 px-1">
+                      <PostProcessBlock config={postProcessConfig} onChange={setPostProcessConfig} agents={allAgents} />
+                    </div>
+                    <p className="mt-2 text-center text-[9px] text-muted-foreground/60">No LLM call · No credits</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* "+ Add Post-Process" link between Process and Output */}
+                <div className="hidden lg:flex items-center justify-center w-6 shrink-0">
+                  <button
+                    onClick={() => setPostProcessConfig({ ...postProcessConfig, enabled: true })}
+                    className="group flex flex-col items-center gap-0.5"
+                    title="Add Post-Process block"
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-stone-600">
+                      <line x1="12" y1="0" x2="12" y2="24" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" />
+                    </svg>
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-stone-600 bg-stone-800/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Plus className="h-3 w-3 text-stone-400" />
+                    </div>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-stone-600">
+                      <line x1="12" y1="0" x2="12" y2="24" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex lg:hidden items-center justify-center h-8">
+                  <button
+                    onClick={() => setPostProcessConfig({ ...postProcessConfig, enabled: true })}
+                    className="flex items-center gap-1.5 text-[10px] text-stone-500 hover:text-stone-300 transition-colors"
+                  >
+                    <Plus className="h-3 w-3" /> Add Post-Process
+                  </button>
+                </div>
+              </>
+            )}
 
             <PipelineArrow />
             <PipelineArrowDown />
