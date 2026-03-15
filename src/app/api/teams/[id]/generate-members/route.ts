@@ -199,7 +199,7 @@ JSON format:
       include: {
         members: {
           include: {
-            agent: { select: { id: true, name: true, slug: true, description: true } },
+            agent: { select: { id: true, name: true, slug: true, description: true, llmModel: true, modelProvider: true, agentMode: true } },
             reportsTo: { include: { agent: { select: { id: true, name: true } } } },
             subordinates: { include: { agent: { select: { id: true, name: true } } } },
           },

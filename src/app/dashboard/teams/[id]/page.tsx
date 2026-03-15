@@ -38,6 +38,7 @@ import {
   ChevronDown,
   MessageSquare,
   Zap,
+  Info,
 } from "lucide-react";
 import {
   PROVIDERS,
@@ -1025,6 +1026,7 @@ function TeamDetailInner() {
 
   // Generate members
   const [generatingMembers, setGeneratingMembers] = useState(false);
+  const [convertingToTask, setConvertingToTask] = useState(false);
 
   // Member edit panel
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -1151,6 +1153,41 @@ function TeamDetailInner() {
       setError("Failed to generate members");
     } finally {
       setGeneratingMembers(false);
+    }
+  };
+
+  /* Check for non-Task agents that should be Task */
+  const chatModeWarning = useMemo(() => {
+    if (!team) return false;
+    return team.members.some((m) => {
+      const mode = m.agent.agentMode;
+      const role = m.role;
+      // HEAD, COORDINATOR, REPORTER should always be Task
+      if ((role === "HEAD" || role === "COORDINATOR" || role === "REPORTER") && mode === "CHAT") return true;
+      return false;
+    });
+  }, [team]);
+
+  /* Convert HEAD/COORDINATOR/REPORTER agents to Task mode */
+  const convertToTask = async () => {
+    if (!team || convertingToTask) return;
+    setConvertingToTask(true);
+    try {
+      const toConvert = team.members.filter(
+        (m) => (m.role === "HEAD" || m.role === "COORDINATOR" || m.role === "REPORTER") && m.agent.agentMode === "CHAT"
+      );
+      await Promise.all(
+        toConvert.map((m) =>
+          fetch(`/api/agents/${m.agentId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ agentMode: "TASK" }),
+          })
+        )
+      );
+      await fetchTeam();
+    } finally {
+      setConvertingToTask(false);
     }
   };
 
@@ -1410,7 +1447,26 @@ function TeamDetailInner() {
       <div className="flex-1 overflow-hidden">
         {/* ---- Hierarchy Tab ---- */}
         {activeTab === "hierarchy" && (
-          <div className="h-full w-full">
+          <div className="h-full w-full flex flex-col">
+            {/* Chat mode warning banner */}
+            {chatModeWarning && (
+              <div className="mx-4 mt-3 flex items-center gap-3 rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-2.5 shrink-0">
+                <Info className="h-4 w-4 text-blue-400 shrink-0" />
+                <p className="flex-1 text-xs text-zinc-300">
+                  Some agents in this team are set to Chat mode. For autonomous task execution, convert them to Task Agents.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={convertToTask}
+                  disabled={convertingToTask}
+                  className="shrink-0 border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 h-7 text-[11px]"
+                >
+                  {convertingToTask ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Zap className="h-3 w-3 mr-1" />}
+                  Convert All to Task
+                </Button>
+              </div>
+            )}
             {team.members.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-4 py-16">
                 <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-orange-500/10">
@@ -1457,30 +1513,32 @@ function TeamDetailInner() {
                 </div>
               </div>
             ) : (
-              <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                nodeTypes={nodeTypes}
-                fitView
-                fitViewOptions={{ padding: 0.3 }}
-                minZoom={0.2}
-                maxZoom={1.5}
-                proOptions={{ hideAttribution: true }}
-                className="bg-[#0C0A09]"
-                onNodeClick={(_event, node) => {
-                  setSelectedMemberId(node.id);
-                }}
-              >
-                <Background color="#27272a" gap={20} size={1} />
-                <MiniMap
-                  nodeColor={(node) => {
-                    const role = (node.data as TeamMemberNodeData)?.role;
-                    return roleColors[role]?.hex || "#52525b";
+              <div className="flex-1 min-h-0">
+                <ReactFlow
+                  nodes={nodes}
+                  edges={edges}
+                  nodeTypes={nodeTypes}
+                  fitView
+                  fitViewOptions={{ padding: 0.3 }}
+                  minZoom={0.2}
+                  maxZoom={1.5}
+                  proOptions={{ hideAttribution: true }}
+                  className="bg-[#0C0A09]"
+                  onNodeClick={(_event, node) => {
+                    setSelectedMemberId(node.id);
                   }}
-                  maskColor="rgba(0,0,0,0.7)"
-                  className="!bg-zinc-900 !border-border rounded-lg"
-                />
-              </ReactFlow>
+                >
+                  <Background color="#27272a" gap={20} size={1} />
+                  <MiniMap
+                    nodeColor={(node) => {
+                      const role = (node.data as TeamMemberNodeData)?.role;
+                      return roleColors[role]?.hex || "#52525b";
+                    }}
+                    maskColor="rgba(0,0,0,0.7)"
+                    className="!bg-zinc-900 !border-border rounded-lg"
+                  />
+                </ReactFlow>
+              </div>
             )}
           </div>
         )}

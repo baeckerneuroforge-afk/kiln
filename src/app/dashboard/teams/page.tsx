@@ -152,12 +152,22 @@ const roleColors: Record<string, { bg: string; text: string }> = {
   REPORTER: { bg: "bg-purple-500/15", text: "text-purple-400" },
 };
 
+const CHAT_ROLE_KEYWORDS = ["support", "chat", "customer", "website"];
+
+function defaultAgentMode(role: RoleType, name?: string): AgentMode {
+  if (role === "HEAD" || role === "COORDINATOR" || role === "REPORTER") return "TASK";
+  // EXECUTOR: Task by default, Chat only if name suggests customer-facing
+  if (name && CHAT_ROLE_KEYWORDS.some((kw) => name.toLowerCase().includes(kw))) return "CHAT";
+  return "TASK";
+}
+
 function newManualMember(overrides: Partial<ManualMember> = {}): ManualMember {
+  const role = overrides.role || "EXECUTOR";
   return {
     id: Math.random().toString(36).slice(2),
     name: "",
-    role: "EXECUTOR",
-    agentMode: "CHAT",
+    role,
+    agentMode: defaultAgentMode(role, overrides.name),
     provider: "ANTHROPIC",
     model: "claude-sonnet-4-20250514",
     systemPrompt: "",
@@ -366,16 +376,19 @@ function ReviewStep({
                   </select>
                 </div>
                 {/* Agent Mode */}
-                <div className="flex gap-2 items-center">
-                  <span className="text-[10px] text-muted-foreground min-w-[60px]">Mode:</span>
-                  <select
-                    value={role.agentMode ?? "CHAT"}
-                    onChange={(e) => onUpdate(idx, "agentMode", e.target.value)}
-                    className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground outline-none"
-                  >
-                    <option value="CHAT">Chat Agent</option>
-                    <option value="TASK">Task Agent</option>
-                  </select>
+                <div>
+                  <div className="flex gap-2 items-center">
+                    <span className="text-[10px] text-muted-foreground min-w-[60px]">Mode:</span>
+                    <select
+                      value={role.agentMode ?? "TASK"}
+                      onChange={(e) => onUpdate(idx, "agentMode", e.target.value)}
+                      className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground outline-none"
+                    >
+                      <option value="TASK">Task Agent</option>
+                      <option value="CHAT">Chat Agent</option>
+                    </select>
+                  </div>
+                  <p className="text-[9px] text-muted-foreground/60 mt-0.5 ml-[68px]">Task = autonomous. Chat = customer-facing only.</p>
                 </div>
                 {/* Provider + Model */}
                 <div className="flex gap-2 items-center">
@@ -694,9 +707,10 @@ function ManualStep2({
                       onChange={(e) => onUpdate(member.id, "agentMode", e.target.value)}
                       className="w-full rounded border border-border bg-card px-2 py-1.5 text-xs text-foreground focus:border-kiln-orange focus:outline-none"
                     >
-                      <option value="CHAT">Chat Agent</option>
                       <option value="TASK">Task Agent</option>
+                      <option value="CHAT">Chat Agent</option>
                     </select>
+                    <p className="text-[9px] text-muted-foreground/60 mt-0.5">Task = autonomous. Chat = customer-facing only.</p>
                   </div>
                 </div>
 
@@ -991,10 +1005,11 @@ function CreateTeamModal({
       const data = await res.json();
       // Ensure suggested roles have agentMode and model fields
       const roles: SuggestedRole[] = (data.roles || []).map((r: SuggestedRole) => ({
-        agentMode: "CHAT",
         suggestedProvider: "ANTHROPIC",
         suggestedModel: "claude-sonnet-4-20250514",
         ...r,
+        // Default to Task unless Claude already set it or role name is customer-facing
+        agentMode: r.agentMode || defaultAgentMode(r.role, r.name),
       }));
       setSuggestedRoles(roles);
       setAutoStep(2);
@@ -1065,7 +1080,7 @@ function CreateTeamModal({
       {
         name: "",
         role: "EXECUTOR",
-        agentMode: "CHAT",
+        agentMode: "TASK",
         responsibilities: "",
         systemPrompt: "",
         suggestedProvider: "ANTHROPIC",
@@ -1078,7 +1093,15 @@ function CreateTeamModal({
   const updateMember = useCallback(
     (id: string, field: keyof ManualMember, value: string | boolean) => {
       setManualMembers((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
+        prev.map((m) => {
+          if (m.id !== id) return m;
+          const updated = { ...m, [field]: value };
+          // Auto-adjust agentMode when role changes
+          if (field === "role") {
+            updated.agentMode = defaultAgentMode(value as RoleType, m.name);
+          }
+          return updated;
+        })
       );
     },
     []

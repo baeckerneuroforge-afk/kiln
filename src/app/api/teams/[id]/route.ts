@@ -18,7 +18,7 @@ export async function GET(
       include: {
         members: {
           include: {
-            agent: { select: { id: true, name: true, slug: true, description: true, llmModel: true } },
+            agent: { select: { id: true, name: true, slug: true, description: true, llmModel: true, modelProvider: true, agentMode: true, systemPrompt: true } },
             reportsTo: {
               include: {
                 agent: { select: { id: true, name: true } },
