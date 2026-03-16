@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { TaskAgentDetail } from "@/components/agents/task-agent-detail";
 import {
   ArrowLeft,
@@ -82,6 +82,7 @@ interface Agent {
   status: "DRAFT" | "LIVE" | "PAUSED";
   whiteLabel: Record<string, unknown> | null;
   showPoweredBy: boolean;
+  autoDetectLanguage: boolean;
   memoryEnabled: boolean;
   imageAnalysisEnabled: boolean;
   showAiDisclaimer: boolean;
@@ -139,6 +140,7 @@ const fullWidthTabs: Tab[] = ["analytics", "eval", "tools", "logs", "memory", "a
 export default function AgentDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { advancedMode } = useAdvancedMode();
   const { toast } = useToast();
   const [agent, setAgent] = useState<Agent | null>(null);
@@ -156,6 +158,7 @@ export default function AgentDetailPage() {
   const [logoUrl, setLogoUrl] = useState("");
   const [llmModel, setLlmModel] = useState("claude-sonnet-4-20250514");
   const [modelProvider, setModelProvider] = useState("ANTHROPIC");
+  const [autoDetectLanguage, setAutoDetectLanguage] = useState(true);
   const [memoryEnabled, setMemoryEnabled] = useState(false);
   const [imageAnalysisEnabled, setImageAnalysisEnabled] = useState(false);
   const [showAiDisclaimer, setShowAiDisclaimer] = useState(true);
@@ -202,6 +205,7 @@ export default function AgentDetailPage() {
         setStatus(data.status);
         setLlmModel(data.llmModel || "claude-sonnet-4-20250514");
         setModelProvider(data.modelProvider || "ANTHROPIC");
+        setAutoDetectLanguage(data.autoDetectLanguage !== false);
         setMemoryEnabled(data.memoryEnabled || false);
         setImageAnalysisEnabled(data.imageAnalysisEnabled || false);
         setShowAiDisclaimer(data.showAiDisclaimer !== false);
@@ -237,6 +241,7 @@ export default function AgentDetailPage() {
           status,
           llmModel,
           modelProvider,
+          autoDetectLanguage,
           memoryEnabled,
           imageAnalysisEnabled,
           showAiDisclaimer,
@@ -417,6 +422,20 @@ export default function AgentDetailPage() {
       setActiveTab("config");
     }
   }, [advancedMode, activeTab]);
+
+  useEffect(() => {
+    const requestedTab = searchParams.get("tab");
+    if (!requestedTab) return;
+
+    const availableTabs = new Set<Tab>([
+      ...chatBaseTabs.map((tab) => tab.id),
+      ...(advancedMode ? advancedTabs.map((tab) => tab.id) : []),
+    ]);
+
+    if (availableTabs.has(requestedTab as Tab)) {
+      setActiveTab(requestedTab as Tab);
+    }
+  }, [advancedMode, searchParams]);
 
   if (loading || !agent) {
     return (
@@ -860,6 +879,39 @@ export default function AgentDetailPage() {
                 </div>
               </div>
 
+              {/* Auto-detect Language Toggle */}
+              <div className="rounded-xl border border-border bg-card/50 p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/10">
+                      <Globe className="h-4 w-4 text-cyan-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Auto-detect Language
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Automatically respond in the visitor&apos;s language.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setAutoDetectLanguage(!autoDetectLanguage)}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                      autoDetectLanguage ? "bg-cyan-500" : "bg-muted"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform",
+                        autoDetectLanguage ? "translate-x-5" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </div>
+              </div>
+
               {/* Persistent Memory Toggle — nur im Advanced Mode */}
               {advancedMode && (
               <div className="rounded-xl border border-border bg-card/50 p-5">
@@ -1202,6 +1254,7 @@ export default function AgentDetailPage() {
                     setStatus(data.status);
                     setLlmModel(data.llmModel || "claude-sonnet-4-20250514");
                     setModelProvider(data.modelProvider || "ANTHROPIC");
+                    setAutoDetectLanguage(data.autoDetectLanguage !== false);
                     setMemoryEnabled(data.memoryEnabled || false);
                     setImageAnalysisEnabled(data.imageAnalysisEnabled || false);
                     setCustomDomain(data.customDomain || "");

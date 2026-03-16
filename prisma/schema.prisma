@@ -117,6 +117,9 @@ model Agent {
   // ROI-Berechnung
   avgDealValue       Float?      // Durchschnittlicher Deal-Wert in EUR
 
+  // Auto-detect visitor language and respond in the same language
+  autoDetectLanguage Boolean     @default(true)
+
   // Persistent Memory
   memoryEnabled      Boolean     @default(false)
 
@@ -286,6 +289,9 @@ model Conversation {
   visitorName  String?
   visitorEmail String?
 
+  // Human Handoff tracking
+  handoffStatus HandoffStatus?
+
   messages  Message[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -312,6 +318,12 @@ enum MessageRole {
   USER
   ASSISTANT
   SYSTEM
+  HUMAN
+}
+
+enum HandoffStatus {
+  REQUESTED
+  RESPONDED
 }
 
 enum Channel {

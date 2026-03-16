@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Bot, User, ImageIcon, X } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Send, Loader2, Bot, User, ImageIcon, X, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MarkdownMessage } from "./markdown-message";
 
 interface ChatMessage {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "human";
   content: string;
   imageUrl?: string;
 }
@@ -47,12 +47,51 @@ export function PublicAgentChat({
   const [isStreaming, setIsStreaming] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID());
   const [pendingImage, setPendingImage] = useState<{ dataUrl: string; mediaType: string } | null>(null);
+  const lastHumanPollRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Poll for human replies when handoff is active
+  const pollForHumanReplies = useCallback(async () => {
+    try {
+      const url = new URL(`/api/agents/${agentId}/chat/poll`, window.location.origin);
+      url.searchParams.set("sessionId", sessionId);
+      if (lastHumanPollRef.current) {
+        url.searchParams.set("after", lastHumanPollRef.current);
+      }
+      const res = await fetch(url.toString());
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.messages && data.messages.length > 0) {
+        const newMsgs: ChatMessage[] = data.messages.map((m: { id: string; content: string; createdAt: string }) => ({
+          id: m.id,
+          role: "human" as const,
+          content: m.content,
+        }));
+        setMessages((prev) => {
+          // Deduplicate
+          const existingIds = new Set(prev.map((m) => m.id));
+          const unique = newMsgs.filter((m: ChatMessage) => !existingIds.has(m.id));
+          return unique.length > 0 ? [...prev, ...unique] : prev;
+        });
+        const lastMsg = data.messages[data.messages.length - 1];
+        lastHumanPollRef.current = lastMsg.createdAt;
+      }
+    } catch {
+      // Polling failure is silent
+    }
+  }, [agentId, sessionId]);
+
+  useEffect(() => {
+    // Start polling after first message exchange
+    if (messages.filter((m) => m.role === "user").length === 0) return;
+    const interval = setInterval(pollForHumanReplies, 5000);
+    return () => clearInterval(interval);
+  }, [messages, pollForHumanReplies]);
 
   function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -241,6 +280,14 @@ export function PublicAgentChat({
                 <Bot className="h-4 w-4" style={{ color: primaryColor }} />
               </div>
             )}
+            {msg.role === "human" && (
+              <div
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full mt-0.5"
+                style={{ backgroundColor: "#22C55E20" }}
+              >
+                <UserCheck className="h-4 w-4" style={{ color: "#22C55E" }} />
+              </div>
+            )}
             <div
               className={cn(
                 "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
@@ -250,7 +297,9 @@ export function PublicAgentChat({
               )}
               style={{
                 backgroundColor:
-                  msg.role === "user" ? primaryColor : "#292524",
+                  msg.role === "user" ? primaryColor :
+                  msg.role === "human" ? "#14532d" :
+                  "#292524",
               }}
             >
               {/* Image Thumbnail */}

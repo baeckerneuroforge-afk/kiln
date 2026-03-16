@@ -481,6 +481,7 @@ export default function LandingPage() {
               { icon: BarChart3, title: "ROI Analytics", desc: "Track conversations, leads, estimated revenue, and agent performance." },
               { icon: Brain, title: "Feedback Loop", desc: "Rate bad answers, add corrections. Your agent improves over time." },
               { icon: Send, title: "Telegram & Email", desc: "Deploy agents on Telegram and Email. Multi-channel from day one." },
+              { icon: Globe, title: "Auto Language Detection", desc: "Your agent detects and responds in your customer's language automatically." },
               { icon: Palette, title: "White-Label", desc: "Your brand, colors, logo, domain. Remove all KILN branding." },
               { icon: Timer, title: "Scheduled Agents", desc: "Run automated tasks on a schedule. Daily reports, data sync, alerts." },
               { icon: Code2, title: "Custom Code", desc: "Write JavaScript actions that run when your agent triggers them." },

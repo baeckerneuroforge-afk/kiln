@@ -68,6 +68,7 @@ export async function PATCH(
       status: existing.status,
       whiteLabel: existing.whiteLabel,
       showPoweredBy: existing.showPoweredBy,
+      autoDetectLanguage: existing.autoDetectLanguage,
       memoryEnabled: existing.memoryEnabled,
       imageAnalysisEnabled: existing.imageAnalysisEnabled,
       showAiDisclaimer: existing.showAiDisclaimer,

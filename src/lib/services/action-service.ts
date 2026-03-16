@@ -110,6 +110,24 @@ export function buildTools(
         });
         break;
 
+      case "HANDOFF_HUMAN":
+        tools.push({
+          name: "handoff_human",
+          description:
+            "Use this tool when the user explicitly asks to speak to a human, or when you cannot adequately help with their request. This will notify a team member to follow up.",
+          input_schema: {
+            type: "object" as const,
+            properties: {
+              reason: {
+                type: "string",
+                description: "Brief summary of why the handoff is needed",
+              },
+            },
+            required: ["reason"],
+          },
+        });
+        break;
+
       case "CUSTOM_CODE":
         if (config.code && config.description) {
           tools.push({
@@ -460,6 +478,14 @@ export async function executeChatTool(
         const errorMsg = err instanceof Error ? err.message : "HTTP request failed";
         return JSON.stringify({ success: false, message: errorMsg });
       }
+    }
+
+    case "handoff_human": {
+      return JSON.stringify({
+        success: true,
+        message: "A team member has been notified and will follow up shortly.",
+        reason: toolInput.reason,
+      });
     }
 
     default:

@@ -10,7 +10,7 @@ import { checkCredits, deductCredits } from "@/lib/credits";
 import { decrypt } from "@/lib/encryption";
 import { fireWebhookEvent } from "@/lib/webhooks";
 import { emitEvent } from "@/lib/events";
-import { sendNewLeadEmail } from "@/lib/email-notifications";
+import { sendNewLeadEmail, sendHandoffEmail } from "@/lib/email-notifications";
 import crypto from "crypto";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
@@ -224,6 +224,11 @@ export async function POST(
     let systemPrompt = resolvedPrompt.includes(knowledgeContext)
       ? resolvedPrompt
       : resolvedPrompt + knowledgeContext;
+
+    // Auto-detect language: platform-level instruction prepended to system prompt
+    if (agent.autoDetectLanguage) {
+      systemPrompt = "IMPORTANT: Detect the language of the user's message and ALWAYS respond in the same language. If the user writes in German, respond in German. If in Spanish, respond in Spanish. Do this automatically without mentioning the language switch.\n\n" + systemPrompt;
+    }
 
     // Persistent Memory: Bekannte Fakten über den Besucher laden
     const sessionHash = hashSession(sessionId);
@@ -487,6 +492,34 @@ export async function POST(
                     })
                   );
                 }
+                if (fnCall.function.name === "handoff_human") {
+                  // Mark conversation as handoff requested
+                  await prisma.conversation.update({
+                    where: { id: conversationId },
+                    data: { handoffStatus: "REQUESTED" },
+                  });
+                  // Send handoff email
+                  const recentMsgs = await prisma.message.findMany({
+                    where: { conversationId },
+                    orderBy: { createdAt: "desc" },
+                    take: 5,
+                    select: { role: true, content: true },
+                  });
+                  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
+                  const convUrl = `${appUrl}/dashboard/agents/${params.id}?tab=logs`;
+                  waitUntil(
+                    sendHandoffEmail(
+                      agent.userId,
+                      agent.name,
+                      (toolInput.reason as string) || "No reason provided",
+                      recentMsgs.reverse().map((m) => ({ role: m.role, content: m.content })),
+                      { name: conversation.visitorName, email: conversation.visitorEmail },
+                      convUrl
+                    ).catch((err) => {
+                      console.error("Handoff email failed:", err);
+                    })
+                  );
+                }
 
                 waitUntil(
                   fireWebhookEvent(agent.userId, "action.executed", params.id, {
@@ -619,6 +652,33 @@ export async function POST(
                     emitEvent("appointment.booked", agent.userId, params.id, {
                       conversationId,
                       input: block.input,
+                    })
+                  );
+                }
+                if (block.name === "handoff_human") {
+                  const input = block.input as Record<string, unknown>;
+                  await prisma.conversation.update({
+                    where: { id: conversationId },
+                    data: { handoffStatus: "REQUESTED" },
+                  });
+                  const recentMsgs = await prisma.message.findMany({
+                    where: { conversationId },
+                    orderBy: { createdAt: "desc" },
+                    take: 5,
+                    select: { role: true, content: true },
+                  });
+                  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
+                  const convUrl = `${appUrl}/dashboard/agents/${params.id}?tab=logs`;
+                  waitUntil(
+                    sendHandoffEmail(
+                      agent.userId,
+                      agent.name,
+                      (input.reason as string) || "No reason provided",
+                      recentMsgs.reverse().map((m) => ({ role: m.role, content: m.content })),
+                      { name: conversation.visitorName, email: conversation.visitorEmail },
+                      convUrl
+                    ).catch((err) => {
+                      console.error("Handoff email failed:", err);
                     })
                   );
                 }

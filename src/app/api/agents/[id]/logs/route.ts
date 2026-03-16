@@ -128,6 +128,7 @@ export async function GET(
       actionsUsed: c.actionsUsed,
       visitorName: c.visitorName,
       visitorEmail: c.visitorEmail,
+      handoffStatus: c.handoffStatus,
       messageCount: c._count.messages,
       createdAt: c.createdAt,
       messages: c.messages.map((m) => ({

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser, useClerk } from "@clerk/nextjs";
 import {
+  Activity,
   Bot,
   Globe,
   Zap,
@@ -46,6 +47,14 @@ const allModules = [
     color: "text-muted-foreground",
     activeColor: "text-kiln-orange",
     badge: null as string | null,
+    minAgents: 0,
+  },
+  {
+    name: "Operations",
+    href: "/dashboard/operations",
+    icon: Activity,
+    color: "text-muted-foreground",
+    activeColor: "text-kiln-orange",
     minAgents: 0,
   },
   {
