@@ -10,6 +10,7 @@ import {
   BookOpen,
   Zap,
   BarChart3,
+  Gauge,
   Code2,
   Loader2,
   Save,
@@ -48,6 +49,7 @@ import { AgentLiveChat } from "@/components/agents/agent-live-chat";
 import { KnowledgeTab } from "@/components/agents/knowledge-tab";
 import { ActionsTab } from "@/components/agents/actions-tab";
 import { AnalyticsTab } from "@/components/agents/analytics-tab";
+import { EvalTab } from "@/components/agents/eval-tab";
 import { LogsTab } from "@/components/agents/logs-tab";
 import { MemoryTab } from "@/components/agents/memory-tab";
 import { CustomToolsTab } from "@/components/agents/custom-tools-tab";
@@ -55,6 +57,7 @@ import { AutomationsTab } from "@/components/agents/automations-tab";
 import { VersionsTab } from "@/components/agents/versions-tab";
 import { TestingTab } from "@/components/agents/testing-tab";
 import { WebhooksTab } from "@/components/agents/webhooks-tab";
+import { EventSubscriptionsTab } from "@/components/agents/event-subscriptions-tab";
 import { IntegrationsTab } from "@/components/agents/integrations-tab";
 import { ChannelsTab } from "@/components/agents/channels-tab";
 import { TeamAccess } from "@/components/agents/team-access";
@@ -100,13 +103,14 @@ interface Agent {
   _count: { conversations: number };
 }
 
-type Tab = "config" | "knowledge" | "actions" | "analytics" | "embed" | "channels" | "integrations" | "tools" | "debug" | "logs" | "memory" | "automations" | "versions" | "testing" | "webhooks" | "runs";
+type Tab = "config" | "knowledge" | "actions" | "analytics" | "eval" | "embed" | "channels" | "integrations" | "tools" | "debug" | "logs" | "memory" | "automations" | "versions" | "testing" | "webhooks" | "runs";
 
 const chatBaseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "config", label: "Configuration", icon: Settings2 },
   { id: "knowledge", label: "Knowledge", icon: BookOpen },
   { id: "actions", label: "Actions", icon: Zap },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
+  { id: "eval", label: "Eval", icon: Gauge },
   { id: "embed", label: "Embed Code", icon: Code2 },
   { id: "channels", label: "Channels", icon: Radio },
   { id: "integrations", label: "Integrations", icon: Plug },
@@ -130,7 +134,7 @@ const statusOptions = [
   { value: "PAUSED", label: "Paused" },
 ];
 
-const fullWidthTabs: Tab[] = ["analytics", "tools", "logs", "memory", "automations", "versions", "testing", "runs"];
+const fullWidthTabs: Tab[] = ["analytics", "eval", "tools", "logs", "memory", "automations", "versions", "testing", "runs"];
 
 export default function AgentDetailPage() {
   const params = useParams();
@@ -1134,6 +1138,10 @@ export default function AgentDetailPage() {
             <AnalyticsTab agentId={agent.id} />
           )}
 
+          {activeTab === "eval" && (
+            <EvalTab agentId={agent.id} />
+          )}
+
           {activeTab === "debug" && (
             <div className="space-y-4">
               <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-4">
@@ -1208,7 +1216,12 @@ export default function AgentDetailPage() {
           )}
 
           {activeTab === "webhooks" && (
-            <WebhooksTab agentId={agent.id} />
+            <div className="space-y-10">
+              <WebhooksTab agentId={agent.id} />
+              <div className="border-t border-white/[0.06] pt-8">
+                <EventSubscriptionsTab agentId={agent.id} />
+              </div>
+            </div>
           )}
 
           {activeTab === "channels" && (

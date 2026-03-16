@@ -9,6 +9,7 @@ import { searchRelevantChunks } from "@/lib/rag";
 import { checkCredits, deductCredits } from "@/lib/credits";
 import { decrypt } from "@/lib/encryption";
 import { fireWebhookEvent } from "@/lib/webhooks";
+import { emitEvent } from "@/lib/events";
 import { sendNewLeadEmail } from "@/lib/email-notifications";
 import crypto from "crypto";
 import { Ratelimit } from "@upstash/ratelimit";
@@ -136,6 +137,13 @@ export async function POST(
           channel: channel || "WEB",
         }).catch((err) => {
           console.error("Conversation started webhook dispatch failed:", err);
+        })
+      );
+      waitUntil(
+        emitEvent("conversation.started", agent.userId, params.id, {
+          conversationId: conversation.id,
+          sessionId,
+          channel: channel || "WEB",
         })
       );
 
@@ -463,6 +471,21 @@ export async function POST(
                     where: { id: conversationId },
                     data: { visitorEmail: (toolInput.email as string) || undefined, visitorName: (toolInput.name as string) || undefined },
                   });
+                  waitUntil(
+                    emitEvent("lead.captured", agent.userId, params.id, {
+                      conversationId,
+                      email: toolInput.email || null,
+                      name: toolInput.name || null,
+                    })
+                  );
+                }
+                if (fnCall.function.name === "book_appointment") {
+                  waitUntil(
+                    emitEvent("appointment.booked", agent.userId, params.id, {
+                      conversationId,
+                      input: toolInput,
+                    })
+                  );
                 }
 
                 waitUntil(
@@ -583,6 +606,21 @@ export async function POST(
                       visitorName: (input.name as string) || undefined,
                     },
                   });
+                  waitUntil(
+                    emitEvent("lead.captured", agent.userId, params.id, {
+                      conversationId,
+                      email: input.email || null,
+                      name: input.name || null,
+                    })
+                  );
+                }
+                if (block.name === "book_appointment") {
+                  waitUntil(
+                    emitEvent("appointment.booked", agent.userId, params.id, {
+                      conversationId,
+                      input: block.input,
+                    })
+                  );
                 }
 
                 // Webhook: action.executed
@@ -622,7 +660,15 @@ export async function POST(
           // Deduct AI credits (skip if BYOK)
           if (!creditCheck.byokActive && creditCheck.cost > 0) {
             waitUntil(
-              deductCredits(agent.userId, selectedModel, "CHAT", params.id, conversationId).catch((err) => {
+              deductCredits(agent.userId, selectedModel, "CHAT", params.id, conversationId).then((result) => {
+                if (result.creditsLow) {
+                  emitEvent("credits.low", agent.userId, params.id, {
+                    balance: result.newBalance,
+                    total: result.totalCredits,
+                    percentRemaining: result.totalCredits ? Math.round((result.newBalance / result.totalCredits) * 100) : 0,
+                  });
+                }
+              }).catch((err) => {
                 Sentry.captureException(err, { tags: { component: "credit-deduction", agentId: params.id }, extra: { userId: agent.userId, model: selectedModel } });
               })
             );
@@ -643,6 +689,14 @@ export async function POST(
               responseLength: fullAssistantText.length,
             }).catch((err) => {
               console.error("Conversation ended webhook dispatch failed:", err);
+            })
+          );
+          waitUntil(
+            emitEvent("conversation.completed", agent.userId, params.id, {
+              conversationId,
+              sessionId,
+              actionsUsed,
+              responseLength: fullAssistantText.length,
             })
           );
 

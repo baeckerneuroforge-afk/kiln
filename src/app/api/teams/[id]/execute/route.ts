@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getClaudeClient } from "@/lib/ai";
 import { deductCredits } from "@/lib/credits";
+import { emitEvent } from "@/lib/events";
 
 // Execute a team goal — decompose into subtasks via Claude
 export async function POST(
@@ -139,6 +140,16 @@ Respond ONLY with a valid JSON array, no other text.`,
           },
         })
       )
+    );
+
+    // Emit team.completed event
+    waitUntil(
+      emitEvent("team.completed", userId, undefined, {
+        teamId: params.id,
+        teamName: team.name,
+        taskCount: createdTasks.length,
+        tasks: createdTasks.map((t) => ({ id: t.id, title: t.title, priority: t.priority })),
+      })
     );
 
     return Response.json(

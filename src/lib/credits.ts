@@ -151,7 +151,7 @@ export async function deductCredits(
   type: CreditUsageType = "CHAT",
   agentId?: string,
   conversationId?: string
-): Promise<{ newBalance: number }> {
+): Promise<{ newBalance: number; creditsLow?: boolean; totalCredits?: number }> {
   const cost = getCreditCost(modelId);
   if (cost <= 0) return { newBalance: 0 };
 
@@ -194,7 +194,8 @@ export async function deductCredits(
     }
   }
 
-  return { newBalance };
+  const creditsLow = totalCredits > 0 && newBalance > 0 && (newBalance / totalCredits) <= 0.2;
+  return { newBalance, creditsLow, totalCredits };
 }
 
 /**

@@ -3,6 +3,7 @@ import { waitUntil } from "@vercel/functions";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { fireWebhookEvent } from "@/lib/webhooks";
+import { emitEvent } from "@/lib/events";
 
 // Load agent details
 export async function GET(
@@ -113,6 +114,13 @@ export async function PATCH(
         changedFields: Object.keys(body),
       }).catch((err) => {
         console.error("Agent updated webhook dispatch failed:", err);
+      })
+    );
+    waitUntil(
+      emitEvent("agent.updated", userId, params.id, {
+        agentName: agent.name,
+        status: agent.status,
+        changedFields: Object.keys(body),
       })
     );
 

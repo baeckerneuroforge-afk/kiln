@@ -12,6 +12,7 @@ import { checkCredits, deductCredits } from "@/lib/credits";
 import { Prisma } from "@prisma/client";
 import { safeEval } from "@/lib/safe-eval";
 import { executeTaskTool, evalCondition, executeOutputAction, executeBranchOutputs } from "@/lib/services/task-service";
+import { emitEvent } from "@/lib/events";
 
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
@@ -469,7 +470,17 @@ export async function POST(
       },
     });
 
-    // 12. Update agent.lastRunAt and lastRunResult
+    // 12. Emit task.completed event
+    waitUntil(
+      emitEvent("task.completed", userId, agent.id, {
+        runId: run.id,
+        duration,
+        outputPreview: responseText.slice(0, 500),
+        actionsExecuted,
+      })
+    );
+
+    // 13. Update agent.lastRunAt and lastRunResult
     waitUntil(
       prisma.agent.update({
         where: { id: agent.id },
@@ -488,10 +499,18 @@ export async function POST(
       })
     );
 
-    // 13. Deduct credits
+    // 14. Deduct credits
     if (!creditCheck.byokActive) {
       waitUntil(
-        deductCredits(userId, selectedModel, "TASK_RUN", agent.id).catch((err) => {
+        deductCredits(userId, selectedModel, "TASK_RUN", agent.id).then((result) => {
+          if (result.creditsLow) {
+            emitEvent("credits.low", userId, agent.id, {
+              balance: result.newBalance,
+              total: result.totalCredits,
+              percentRemaining: result.totalCredits ? Math.round((result.newBalance / result.totalCredits) * 100) : 0,
+            });
+          }
+        }).catch((err) => {
           Sentry.captureException(err, { tags: { component: "credit-deduction", agentId: agent.id }, extra: { userId, model: selectedModel } });
         })
       );
@@ -528,6 +547,19 @@ export async function POST(
         },
       });
     } catch { /* ignore logging errors */ }
+
+    // Emit task.failed event (best-effort, userId may not be available in all error paths)
+    try {
+      const { userId: failedUserId } = await auth();
+      if (failedUserId) {
+        waitUntil(
+          emitEvent("task.failed", failedUserId, params.id, {
+            error: message,
+            duration,
+          })
+        );
+      }
+    } catch { /* ignore */ }
 
     return Response.json({ error: message }, { status: 500 });
   }

@@ -464,8 +464,9 @@ model AgentTestRun {
 model WebhookEndpoint {
   id         String   @id @default(cuid())
   userId     String
+  agentId    String?  // Optional: agent-spezifische Subscriptions
   url        String
-  events     Json     // String-Array: ["conversation.started", "lead.scored", ...]
+  events     Json     // String-Array: ["conversation.started", "lead.captured", ...]
   secret     String   // HMAC-SHA256 Signing Secret
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())
@@ -473,6 +474,7 @@ model WebhookEndpoint {
   deliveries WebhookDelivery[]
 
   @@index([userId])
+  @@index([agentId])
   @@index([active])
 }
 
