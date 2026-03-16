@@ -36,6 +36,7 @@ model User {
   referralCredits     ReferralCredit[]
   marketplaceTemplates MarketplaceTemplate[]
   agentTeams          AgentTeam[]
+  teamExecutions      TeamExecution[]
   creditUsage         AiCreditUsage[]
 }
 
@@ -152,6 +153,7 @@ model Agent {
   channels           AgentChannel[]
   teamMembers        TeamMember[]
   agentTeamMembers   AgentTeamMember[] @relation("AgentTeamMembers")
+  teamExecutionLogs  TeamExecutionLog[]
   runs               AgentRun[]
 
   @@index([userId])
@@ -715,6 +717,21 @@ enum AgentTeamStatus {
   PAUSED
 }
 
+enum TeamExecutionStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+enum TeamExecutionTaskStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
 enum AgentTeamRole {
   HEAD
   COORDINATOR
@@ -735,6 +752,8 @@ model AgentTeam {
 
   members     AgentTeamMember[]
   tasks       AgentTeamTask[]
+  executions  TeamExecution[]
+  executionLogs TeamExecutionLog[]
 
   @@index([userId])
 }
@@ -771,8 +790,58 @@ model AgentTeamTask {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  executionLogs TeamExecutionLog[]
+
   @@index([teamId])
   @@index([assignedToId])
+}
+
+model TeamExecution {
+  id             String              @id @default(uuid())
+  teamId         String
+  team           AgentTeam           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal           String?             @db.Text
+  status         TeamExecutionStatus @default(RUNNING)
+  startedAt      DateTime            @default(now())
+  completedAt    DateTime?
+  totalTasks     Int                 @default(0)
+  completedTasks Int                 @default(0)
+  failedTasks    Int                 @default(0)
+
+  logs           TeamExecutionLog[]
+
+  @@index([teamId])
+  @@index([userId])
+  @@index([startedAt])
+}
+
+model TeamExecutionLog {
+  id          String                  @id @default(cuid())
+  teamId      String
+  team        AgentTeam               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  executionId String
+  execution   TeamExecution           @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  taskId      String?
+  task        AgentTeamTask?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  taskIndex   Int
+  taskTitle   String
+  agentId     String?
+  agent       Agent?                  @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  attempt     Int                     @default(1)
+  status      TeamExecutionTaskStatus @default(PENDING)
+  input       Json?
+  output      String?                 @db.Text
+  startedAt   DateTime?
+  completedAt DateTime?
+  error       String?                 @db.Text
+
+  @@index([teamId])
+  @@index([executionId])
+  @@index([taskId])
+  @@index([agentId])
+  @@index([executionId, taskIndex])
 }
 
 // Webhook Execution Log — pipeline execution records

@@ -23,6 +23,7 @@ import {
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EvalSuggestions } from "@/components/agents/eval-suggestions";
 
 interface EvalData {
   configuredActions: string[];
@@ -413,6 +414,17 @@ export function EvalTab({ agentId }: EvalTabProps) {
             )}
           </div>
         </div>
+      </div>
+
+      {/* AI Suggestions — Eval-to-Fix Loop */}
+      <div>
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold text-foreground">Suggestions</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            AI-detected knowledge gaps with one-click fixes. Edit suggestions before applying.
+          </p>
+        </div>
+        <EvalSuggestions agentId={agentId} />
       </div>
     </div>
   );

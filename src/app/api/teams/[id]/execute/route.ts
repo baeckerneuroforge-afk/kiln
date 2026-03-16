@@ -4,7 +4,10 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getClaudeClient } from "@/lib/ai";
 import { deductCredits } from "@/lib/credits";
-import { emitEvent } from "@/lib/events";
+import {
+  executeTeamExecution,
+  loadTeamExecutionRuntimeContext,
+} from "@/lib/services/team-runtime";
 
 // Execute a team goal — decompose into subtasks via Claude
 export async function POST(
@@ -17,16 +20,7 @@ export async function POST(
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const team = await prisma.agentTeam.findFirst({
-      where: { id: params.id, userId },
-      include: {
-        members: {
-          include: {
-            agent: { select: { id: true, name: true, description: true } },
-          },
-        },
-      },
-    });
+    const team = await loadTeamExecutionRuntimeContext(params.id, userId);
     if (!team) {
       return Response.json({ error: "Team not found" }, { status: 404 });
     }
@@ -124,6 +118,17 @@ Respond ONLY with a valid JSON array, no other text.`,
     const validMemberIds = new Set(team.members.map((m) => m.id));
 
     // Create all tasks in the database
+    const execution = await prisma.teamExecution.create({
+      data: {
+        teamId: params.id,
+        userId,
+        goal,
+        totalTasks: subtasks.length,
+        completedTasks: 0,
+        failedTasks: 0,
+      },
+    });
+
     const createdTasks = await prisma.$transaction(
       subtasks.map((task) =>
         prisma.agentTeamTask.create({
@@ -142,18 +147,32 @@ Respond ONLY with a valid JSON array, no other text.`,
       )
     );
 
-    // Emit team.completed event
     waitUntil(
-      emitEvent("team.completed", userId, undefined, {
-        teamId: params.id,
-        teamName: team.name,
-        taskCount: createdTasks.length,
-        tasks: createdTasks.map((t) => ({ id: t.id, title: t.title, priority: t.priority })),
+      executeTeamExecution({
+        executionId: execution.id,
+        team,
+        userId,
+        goal,
+        tasks: createdTasks.map((task, taskIndex) => ({
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          priority: task.priority,
+          assignedToId: task.assignedToId,
+          taskIndex,
+        })),
+      }).catch((error) => {
+        console.error("Background team execution failed:", error);
       })
     );
 
     return Response.json(
-      { tasks: createdTasks, count: createdTasks.length },
+      {
+        executionId: execution.id,
+        status: execution.status,
+        tasks: createdTasks,
+        count: createdTasks.length,
+      },
       { status: 201 }
     );
   } catch (err) {

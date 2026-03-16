@@ -16,6 +16,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
+import { TeamExecutionsTab } from "@/components/teams/executions-tab";
 import { cn } from "@/lib/utils";
 import {
   Users,
@@ -82,7 +83,7 @@ interface TeamTask {
   assignedToId?: string | null;
   title: string;
   description?: string | null;
-  status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "FAILED";
+  status: "PENDING" | "RUNNING" | "IN_PROGRESS" | "COMPLETED" | "FAILED" | "SKIPPED";
   priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   result?: string | null;
   parentTaskId?: string | null;
@@ -118,13 +119,19 @@ const priorityColors: Record<string, { bg: string; text: string }> = {
   URGENT: { bg: "bg-red-500/20", text: "text-red-400" },
 };
 
-const statusColumns = ["PENDING", "IN_PROGRESS", "COMPLETED", "FAILED"] as const;
+const statusColumns = ["PENDING", "RUNNING", "COMPLETED", "FAILED", "SKIPPED"] as const;
 const statusLabels: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   PENDING: { label: "Pending", icon: <Clock className="h-4 w-4" />, color: "text-zinc-400" },
-  IN_PROGRESS: { label: "In Progress", icon: <Loader2 className="h-4 w-4 animate-spin" />, color: "text-blue-400" },
+  RUNNING: { label: "Running", icon: <Loader2 className="h-4 w-4 animate-spin" />, color: "text-blue-400" },
+  IN_PROGRESS: { label: "Running", icon: <Loader2 className="h-4 w-4 animate-spin" />, color: "text-blue-400" },
   COMPLETED: { label: "Completed", icon: <CheckCircle2 className="h-4 w-4" />, color: "text-green-400" },
   FAILED: { label: "Failed", icon: <AlertTriangle className="h-4 w-4" />, color: "text-red-400" },
+  SKIPPED: { label: "Skipped", icon: <Info className="h-4 w-4" />, color: "text-zinc-500" },
 };
+
+function normalizeTaskStatus(status: TeamTask["status"]) {
+  return status === "IN_PROGRESS" ? "RUNNING" : status;
+}
 
 /* ========== Custom ReactFlow Node ========== */
 type TeamMemberNodeData = {
@@ -327,13 +334,14 @@ function buildHierarchyGraph(members: TeamMember[], tasks: TeamTask[]) {
 }
 
 /* ========== Tabs ========== */
-type TabKey = "hierarchy" | "tasks" | "activity" | "analytics";
+type TabKey = "hierarchy" | "tasks" | "activity" | "analytics" | "executions";
 
 const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "hierarchy", label: "Hierarchy", icon: <Users className="h-4 w-4" /> },
   { key: "tasks", label: "Tasks", icon: <Target className="h-4 w-4" /> },
   { key: "activity", label: "Activity", icon: <Activity className="h-4 w-4" /> },
   { key: "analytics", label: "Analytics", icon: <BarChart3 className="h-4 w-4" /> },
+  { key: "executions", label: "Executions", icon: <Clock className="h-4 w-4" /> },
 ];
 
 /* ========== Edit Member Panel ========== */
@@ -1001,6 +1009,7 @@ function TeamDetailInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("hierarchy");
+  const [focusedExecutionId, setFocusedExecutionId] = useState<string | null>(null);
 
   // Inline name editing
   const [editingName, setEditingName] = useState(false);
@@ -1122,9 +1131,11 @@ function TeamDetailInner() {
         body: JSON.stringify({ goal: assignGoal.trim() }),
       });
       if (res.ok) {
+        const data = await res.json();
         setShowAssignDialog(false);
         setAssignGoal("");
-        setActiveTab("tasks");
+        setFocusedExecutionId(data.executionId || null);
+        setActiveTab("executions");
         await fetchTeam();
       }
     } finally {
@@ -1249,17 +1260,18 @@ function TeamDetailInner() {
     const memberMap = new Map(team.members.map((m) => [m.id, m.agent.name]));
 
     team.tasks.forEach((t) => {
+      const normalizedStatus = normalizeTaskStatus(t.status);
       items.push({
         id: `${t.id}-created`,
         timestamp: t.createdAt,
         description: `Task "${t.title}" created`,
         memberName: t.assignedToId ? (memberMap.get(t.assignedToId) || "Unassigned") : "Unassigned",
       });
-      if (t.status !== "PENDING") {
+      if (normalizedStatus !== "PENDING") {
         items.push({
           id: `${t.id}-status`,
           timestamp: t.updatedAt,
-          description: `Task "${t.title}" moved to ${statusLabels[t.status]?.label || t.status}`,
+          description: `Task "${t.title}" moved to ${statusLabels[normalizedStatus]?.label || normalizedStatus}`,
           memberName: t.assignedToId ? (memberMap.get(t.assignedToId) || "Unassigned") : "System",
         });
       }
@@ -1607,10 +1619,10 @@ function TeamDetailInner() {
             </div>
 
             {/* Kanban columns */}
-            <div className="grid grid-cols-4 gap-4 min-h-[400px]">
+            <div className="grid grid-cols-1 gap-4 min-h-[400px] md:grid-cols-2 2xl:grid-cols-5">
               {statusColumns.map((status) => {
                 const col = statusLabels[status];
-                const colTasks = team.tasks.filter((t) => t.status === status);
+                const colTasks = team.tasks.filter((t) => normalizeTaskStatus(t.status) === status);
                 const memberMap = new Map(team.members.map((m) => [m.id, m.agent.name]));
 
                 return (
@@ -1723,6 +1735,14 @@ function TeamDetailInner() {
               ))}
             </div>
           </div>
+        )}
+
+        {activeTab === "executions" && (
+          <TeamExecutionsTab
+            teamId={teamId}
+            focusExecutionId={focusedExecutionId}
+            onRefreshTeam={fetchTeam}
+          />
         )}
       </div>
 
