@@ -33,11 +33,13 @@ import {
   Coins,
   Send,
   Store,
+  Sparkles,
+  ChevronRight,
 } from "lucide-react";
 import { DEMO_AGENT_SLUG } from "@/lib/demo-agent";
 
 // ─── Scroll-triggered Fade-Up ──────────────────────────────────────
-function useFadeUp() {
+function useFadeUp(delay = 0) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -59,9 +61,10 @@ function useFadeUp() {
 
   return {
     ref,
-    className: `transition-all duration-700 ${
+    className: `transition-all duration-700 ease-out ${
       visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
     }`,
+    style: { transitionDelay: `${delay}ms` },
   };
 }
 
@@ -79,6 +82,44 @@ function Section({
     <section id={id} ref={fade.ref} className={`${fade.className} ${className}`}>
       {children}
     </section>
+  );
+}
+
+// ─── Gradient Divider ──────────────────────────────────────────────
+function GradientDivider() {
+  return (
+    <div className="relative h-px w-full">
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+      <div className="absolute left-1/2 -translate-x-1/2 top-0 w-1/3 h-px bg-gradient-to-r from-transparent via-[#F97316]/20 to-transparent" />
+    </div>
+  );
+}
+
+// ─── Section Header ────────────────────────────────────────────────
+function SectionHeader({
+  eyebrow,
+  title,
+  subtitle,
+  eyebrowColor = "text-[#F97316]",
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle?: string;
+  eyebrowColor?: string;
+}) {
+  return (
+    <div className="mb-16 text-center">
+      <div className={`mb-4 inline-flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] px-4 py-1.5 text-xs font-medium uppercase tracking-[0.2em] ${eyebrowColor} backdrop-blur-sm`}>
+        <Sparkles className="h-3 w-3" />
+        {eyebrow}
+      </div>
+      <h2 className="font-serif text-3xl tracking-tight sm:text-4xl lg:text-5xl">{title}</h2>
+      {subtitle && (
+        <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-neutral-400 sm:text-lg">
+          {subtitle}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -136,19 +177,19 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0C0A09] text-[#FAFAF9] font-sans antialiased selection:bg-[#F97316]/20">
+    <div className="min-h-screen bg-[#0C0A09] text-[#FAFAF9] font-sans antialiased selection:bg-[#F97316]/20 overflow-x-hidden">
       {/* ── Nav ─────────────────────────────────────────────── */}
       <nav
-        className={`fixed top-0 z-50 w-full transition-all duration-300 ${
+        className={`fixed top-0 z-50 w-full transition-all duration-500 ${
           scrolled
-            ? "border-b border-white/5 bg-[#0C0A09]/70 backdrop-blur-2xl"
+            ? "border-b border-white/[0.06] bg-[#0C0A09]/80 backdrop-blur-2xl shadow-[0_1px_30px_rgba(0,0,0,0.4)]"
             : "bg-transparent"
         }`}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2.5">
             <div
-              className="flex h-8 w-8 items-center justify-center rounded-lg font-serif text-sm font-bold text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-lg font-serif text-sm font-bold text-white shadow-lg shadow-[#F97316]/20"
               style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}
             >
               K
@@ -156,18 +197,18 @@ export default function LandingPage() {
             <span className="font-serif text-xl tracking-tight">KILN</span>
           </div>
           <div className="hidden items-center gap-8 text-[13px] text-neutral-400 sm:flex">
-            <a href="#features" className="transition-colors hover:text-white">Features</a>
-            <a href="#pricing" className="transition-colors hover:text-white">Pricing</a>
-            <Link href="/marketplace" className="transition-colors hover:text-white">Marketplace</Link>
-            <a href="#developers" className="transition-colors hover:text-white">Developers</a>
+            <a href="#features" className="transition-colors duration-200 hover:text-white">Features</a>
+            <a href="#pricing" className="transition-colors duration-200 hover:text-white">Pricing</a>
+            <Link href="/marketplace" className="transition-colors duration-200 hover:text-white">Marketplace</Link>
+            <a href="#developers" className="transition-colors duration-200 hover:text-white">Developers</a>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/sign-in" className="text-[13px] text-neutral-400 transition-colors hover:text-white">
+            <Link href="/sign-in" className="text-[13px] text-neutral-400 transition-colors duration-200 hover:text-white">
               Login
             </Link>
             <Link
               href="/sign-up"
-              className="rounded-lg bg-white px-4 py-2 text-[13px] font-medium text-[#0C0A09] transition-opacity hover:opacity-90"
+              className="group relative rounded-lg bg-white px-4 py-2 text-[13px] font-medium text-[#0C0A09] transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)]"
             >
               Get Started Free
             </Link>
@@ -176,57 +217,116 @@ export default function LandingPage() {
       </nav>
 
       {/* ── Hero ────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden pt-32 pb-24 lg:pt-40 lg:pb-32">
-        {/* Grid pattern */}
+      <section className="relative overflow-hidden pt-32 pb-24 lg:pt-44 lg:pb-36">
+        {/* Dot grid pattern */}
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.03]"
+          className="pointer-events-none absolute inset-0"
           style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-            backgroundSize: "64px 64px",
+            backgroundImage: `radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px)`,
+            backgroundSize: "32px 32px",
+            animation: "hero-grid-fade 1.5s ease-out 0.2s both",
+            maskImage: "radial-gradient(ellipse 80% 60% at 50% 30%, black, transparent)",
+            WebkitMaskImage: "radial-gradient(ellipse 80% 60% at 50% 30%, black, transparent)",
           }}
         />
-        {/* Animated gradient glow */}
-        <div className="pointer-events-none absolute left-1/2 top-16 -translate-x-1/2 animate-pulse" style={{ width: "1000px", height: "600px", background: "radial-gradient(ellipse, rgba(249,115,22,0.12) 0%, rgba(220,38,38,0.06) 30%, transparent 65%)", animationDuration: "4s" }} />
 
-        <div className="relative mx-auto max-w-4xl px-6 text-center">
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-1.5 text-xs text-neutral-400 backdrop-blur-sm">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#22C55E] animate-pulse" />
+        {/* Primary aurora glow */}
+        <div
+          className="pointer-events-none absolute left-1/2 top-0"
+          style={{
+            width: "1000px",
+            height: "600px",
+            background: "radial-gradient(ellipse at center, rgba(249,115,22,0.12) 0%, rgba(220,38,38,0.06) 30%, transparent 60%)",
+            animation: "hero-glow-drift 8s ease-in-out infinite",
+          }}
+        />
+        {/* Secondary blue accent glow */}
+        <div
+          className="pointer-events-none absolute left-1/2 top-32"
+          style={{
+            width: "600px",
+            height: "400px",
+            background: "radial-gradient(ellipse at center, rgba(59,130,246,0.05) 0%, transparent 60%)",
+            animation: "hero-glow-drift-2 10s ease-in-out infinite",
+          }}
+        />
+
+        {/* Noise texture overlay */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.012]"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
+          }}
+        />
+
+        <div className="relative mx-auto max-w-5xl px-6 text-center">
+          {/* Animated badge */}
+          <div className="hero-animate-1 mb-10 inline-flex items-center gap-2.5 rounded-full px-5 py-2 text-[13px] text-neutral-300 backdrop-blur-md"
+            style={{
+              background: "linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: "0 0 20px rgba(249,115,22,0.06), inset 0 1px 0 rgba(255,255,255,0.05)",
+            }}
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#22C55E] opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#22C55E]" />
+            </span>
             Now Live — Start Building for Free
+            <ChevronRight className="h-3.5 w-3.5 text-neutral-500" />
           </div>
 
-          <h1 className="font-serif text-5xl leading-[1.1] tracking-tight sm:text-6xl lg:text-[4.5rem]">
-            The AI Agent
-            <br />
+          {/* Main headline */}
+          <h1 className="hero-animate-2 font-serif text-5xl leading-[1.05] tracking-tight sm:text-7xl lg:text-[5.5rem]">
+            <span className="block">The AI Agent</span>
             <span
               className="bg-clip-text text-transparent"
-              style={{ backgroundImage: "linear-gradient(135deg, #F97316 0%, #DC2626 100%)" }}
+              style={{
+                backgroundImage: "linear-gradient(135deg, #F97316 0%, #FB923C 40%, #DC2626 100%)",
+                WebkitBackgroundClip: "text",
+              }}
             >
               Platform.
             </span>
           </h1>
 
-          <p className="mx-auto mt-5 max-w-md text-xl font-medium tracking-tight text-neutral-300">
+          {/* Tagline */}
+          <p className="hero-animate-3 mx-auto mt-6 max-w-lg text-xl font-medium tracking-tight text-neutral-200 sm:text-2xl">
             Build agents. Orchestrate teams. Scale with AI.
           </p>
 
-          <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-relaxed text-neutral-400">
+          {/* Description */}
+          <p className="hero-animate-4 mx-auto mt-5 max-w-2xl text-base leading-relaxed text-neutral-400 sm:text-[17px]">
             Create intelligent AI agents, build autonomous agent teams, connect any LLM,
             and manage everything from code or no-code. EU-hosted. GDPR compliant.
           </p>
 
-          {/* Social proof line */}
-          <p className="mt-4 text-xs text-neutral-500">
-            Now in Early Access — join hundreds of builders exploring AI agents.
-          </p>
+          {/* Social proof pills */}
+          <div className="hero-animate-4 mt-6 flex flex-wrap items-center justify-center gap-3 text-xs text-neutral-500">
+            {[
+              { icon: Users, label: "Hundreds of builders" },
+              { icon: Shield, label: "GDPR compliant" },
+              { icon: Globe, label: "EU-hosted" },
+            ].map((item) => (
+              <span key={item.label} className="flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.02] px-3 py-1.5 backdrop-blur-sm">
+                <item.icon className="h-3 w-3 text-neutral-400" />
+                {item.label}
+              </span>
+            ))}
+          </div>
 
-          {/* CTA buttons + waitlist */}
-          <div className="mx-auto mt-10 flex max-w-lg flex-col items-center gap-4">
+          {/* CTA group */}
+          <div className="hero-animate-5 mx-auto mt-10 flex max-w-lg flex-col items-center gap-4">
             <Link
               href="/sign-up"
-              className="flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-medium text-white transition-all hover:brightness-110"
-              style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}
+              className="hero-cta-glow group relative flex items-center gap-2.5 rounded-xl px-9 py-4 text-[15px] font-semibold text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
+              style={{
+                background: "linear-gradient(135deg, #F97316, #DC2626)",
+                boxShadow: "0 4px 24px rgba(249,115,22,0.25), 0 1px 3px rgba(0,0,0,0.3)",
+              }}
             >
-              Get Started Free <ArrowRight className="h-4 w-4" />
+              Get Started Free
+              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
             </Link>
 
             {submitted === "hero" ? (
@@ -245,12 +345,12 @@ export default function LandingPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="or join the waitlist"
                   required
-                  className="flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-[#F97316]/50 focus:outline-none focus:ring-1 focus:ring-[#F97316]/30 backdrop-blur-sm"
+                  className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm text-white placeholder:text-neutral-500 transition-all duration-200 focus:border-[#F97316]/40 focus:bg-white/[0.05] focus:outline-none focus:ring-2 focus:ring-[#F97316]/20 backdrop-blur-md"
                 />
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm text-neutral-300 transition-colors hover:bg-white/[0.08] disabled:opacity-50"
+                  className="rounded-xl border border-white/[0.08] bg-white/[0.05] px-5 py-3 text-sm font-medium text-neutral-200 backdrop-blur-md transition-all duration-200 hover:bg-white/[0.1] hover:text-white disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Join"}
                 </button>
@@ -258,30 +358,39 @@ export default function LandingPage() {
             )}
           </div>
 
-          {/* Dashboard Mockup — perspective tilt + glow border */}
-          <div className="mx-auto mt-16 max-w-3xl" style={{ perspective: "1200px" }}>
+          {/* Dashboard Mockup — floating perspective with glow */}
+          <div className="hero-animate-6 mx-auto mt-20 max-w-4xl" style={{ perspective: "1400px" }}>
+            {/* Glow behind mockup */}
+            <div className="absolute left-1/2 -translate-x-1/2 w-[80%] h-[60%] rounded-full" style={{ background: "radial-gradient(ellipse, rgba(249,115,22,0.08) 0%, transparent 70%)", filter: "blur(40px)" }} />
+
             <div
-              className="overflow-hidden rounded-xl border border-[#F97316]/20 bg-[#141211] shadow-2xl"
+              className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#141211]/90 backdrop-blur-sm"
               style={{
                 transform: "rotateX(4deg)",
-                boxShadow: "0 0 60px rgba(249,115,22,0.08), 0 20px 60px rgba(0,0,0,0.5)",
+                boxShadow: "0 0 0 1px rgba(249,115,22,0.08), 0 0 80px rgba(249,115,22,0.06), 0 24px 80px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.3)",
+                animation: "hero-float 6s ease-in-out infinite",
               }}
             >
               {/* Window chrome */}
-              <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3">
-                <div className="h-3 w-3 rounded-full bg-[#DC2626]/40" />
-                <div className="h-3 w-3 rounded-full bg-[#F97316]/40" />
-                <div className="h-3 w-3 rounded-full bg-[#22C55E]/40" />
-                <div className="ml-4 h-5 flex-1 rounded-md bg-white/[0.04]">
-                  <span className="flex items-center justify-center h-full text-[10px] text-neutral-600">kiln-topaz.vercel.app/dashboard</span>
+              <div className="flex items-center gap-2 border-b border-white/[0.06] bg-white/[0.02] px-4 py-3">
+                <div className="flex gap-1.5">
+                  <div className="h-3 w-3 rounded-full bg-[#DC2626]/50 transition-colors hover:bg-[#DC2626]" />
+                  <div className="h-3 w-3 rounded-full bg-[#F97316]/50 transition-colors hover:bg-[#F97316]" />
+                  <div className="h-3 w-3 rounded-full bg-[#22C55E]/50 transition-colors hover:bg-[#22C55E]" />
+                </div>
+                <div className="ml-4 flex-1">
+                  <div className="mx-auto max-w-xs h-6 rounded-lg bg-white/[0.04] flex items-center justify-center">
+                    <span className="text-[10px] text-neutral-500 font-mono">kiln-topaz.vercel.app/dashboard</span>
+                  </div>
                 </div>
               </div>
+
               <div className="flex">
                 {/* Sidebar */}
                 <div className="hidden w-14 shrink-0 border-r border-white/[0.06] bg-[#0F0E0D] p-2 sm:flex sm:flex-col sm:items-center sm:gap-3 sm:pt-4">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg font-serif text-xs font-bold text-white" style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}>K</div>
                   <div className="mt-4 flex flex-col items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F97316]/10"><Bot className="h-4 w-4 text-[#F97316]" /></div>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F97316]/10 ring-1 ring-[#F97316]/20"><Bot className="h-4 w-4 text-[#F97316]" /></div>
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.04]"><Globe className="h-4 w-4 text-neutral-500" /></div>
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.04]"><Zap className="h-4 w-4 text-neutral-500" /></div>
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.04]"><BarChart3 className="h-4 w-4 text-neutral-500" /></div>
@@ -294,7 +403,7 @@ export default function LandingPage() {
                       <div className="font-serif text-lg text-white">AI Agent Studio</div>
                       <div className="text-xs text-neutral-500">3 Agents &middot; 231 Conversations this month</div>
                     </div>
-                    <div className="rounded-lg px-3 py-1.5 text-xs font-medium text-white" style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}>+ New Agent</div>
+                    <div className="rounded-lg px-3 py-1.5 text-xs font-medium text-white shadow-sm" style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}>+ New Agent</div>
                   </div>
 
                   {/* Stats bar */}
@@ -302,13 +411,13 @@ export default function LandingPage() {
                     {[
                       { label: "Total Chats", value: "1,284", change: "+18%" },
                       { label: "Leads Captured", value: "89", change: "+12%" },
-                      { label: "Est. Revenue", value: "€4,250", change: "+24%" },
+                      { label: "Est. Revenue", value: "\u20AC4,250", change: "+24%" },
                     ].map((s) => (
                       <div key={s.label} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
                         <div className="text-[10px] text-neutral-500">{s.label}</div>
                         <div className="mt-1 flex items-baseline gap-1.5">
                           <span className="text-sm font-semibold text-white">{s.value}</span>
-                          <span className="text-[10px] text-[#22C55E]">{s.change}</span>
+                          <span className="text-[10px] font-medium text-[#22C55E]">{s.change}</span>
                         </div>
                       </div>
                     ))}
@@ -320,7 +429,7 @@ export default function LandingPage() {
                       { name: "Dental Practice Agent", status: "Live", color: "#22C55E", chats: 89, leads: 21 },
                       { name: "Support Agent", status: "Draft", color: "#A8A29E", chats: 0, leads: 0 },
                     ].map((a) => (
-                      <div key={a.name} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+                      <div key={a.name} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 transition-colors hover:border-white/[0.1]">
                         <div className="mb-2 flex items-center justify-between">
                           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#F97316]/10">
                             <Bot className="h-3.5 w-3.5 text-[#F97316]" />
@@ -341,25 +450,28 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
-            {/* Reflection */}
-            <div className="mx-auto h-24 w-[90%] rounded-b-xl bg-gradient-to-b from-white/[0.015] to-transparent blur-sm" />
+
+            {/* Reflection gradient */}
+            <div className="mx-auto h-32 w-[85%] -mt-1 rounded-b-3xl bg-gradient-to-b from-[#F97316]/[0.03] via-white/[0.01] to-transparent blur-md" />
           </div>
         </div>
+
+        {/* Bottom fade into next section */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0C0A09] to-transparent" />
       </section>
 
       {/* ── Try It Now — Live Demo ────────────────────────────── */}
       {DEMO_AGENT_SLUG && (
-        <Section className="border-t border-white/[0.06] py-20" id="demo">
-          <div className="mx-auto max-w-3xl px-6">
-            <div className="mb-10 text-center">
-              <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Live Demo</p>
-              <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Try it now.</h2>
-              <p className="mt-4 text-neutral-400">
-                This is a real KILN agent. No sign-up required.
-              </p>
-            </div>
+        <Section className="py-20" id="demo">
+          <GradientDivider />
+          <div className="mx-auto max-w-3xl px-6 pt-20">
+            <SectionHeader
+              eyebrow="Live Demo"
+              title="Try it now."
+              subtitle="This is a real KILN agent. No sign-up required."
+            />
             <div
-              className="overflow-hidden rounded-2xl border border-white/[0.08]"
+              className="overflow-hidden rounded-2xl border border-white/[0.08] transition-shadow duration-500 hover:shadow-[0_0_80px_rgba(249,115,22,0.08)]"
               style={{ boxShadow: "0 0 60px rgba(249,115,22,0.06), 0 20px 40px rgba(0,0,0,0.3)" }}
             >
               <iframe
@@ -370,13 +482,14 @@ export default function LandingPage() {
                 title="KILN Demo Agent"
               />
             </div>
-            <div className="mt-6 text-center">
+            <div className="mt-8 text-center">
               <Link
                 href="/sign-up"
-                className="inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-white transition-all hover:brightness-110"
+                className="group inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
                 style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}
               >
-                Build your own agent in 2 minutes <ArrowRight className="h-4 w-4" />
+                Build your own agent in 2 minutes
+                <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
               </Link>
               <p className="mt-3 text-xs text-neutral-500">Free plan includes 50 AI credits — no credit card required.</p>
             </div>
@@ -385,16 +498,17 @@ export default function LandingPage() {
       )}
 
       {/* ── Platform ──────────────────────────────────────────── */}
-      <Section className="border-t border-white/[0.06] py-28">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-16 text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Platform</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Four Modules. One Platform.</h2>
-            <p className="mt-4 text-neutral-400">Everything you need to build, deploy, and scale AI agents.</p>
-          </div>
+      <Section className="py-28">
+        <GradientDivider />
+        <div className="mx-auto max-w-6xl px-6 pt-28">
+          <SectionHeader
+            eyebrow="Platform"
+            title="Four Modules. One Platform."
+            subtitle="Everything you need to build, deploy, and scale AI agents."
+          />
 
-          {/* Live modules */}
-          <div className="grid gap-6 md:grid-cols-3">
+          {/* Live modules — Bento-style */}
+          <div className="grid gap-4 md:grid-cols-3">
             {[
               {
                 icon: Bot, title: "AI Agent Studio", color: "#F97316", badge: "Live", badgeGlow: true,
@@ -409,24 +523,31 @@ export default function LandingPage() {
                 desc: "Connect agents visually. Define handoff rules, conditions, triggers. Multi-agent workflows on a canvas.",
               },
             ].map((mod) => (
-              <div key={mod.title} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-colors hover:border-white/[0.1]">
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: `${mod.color}15` }}>
-                    <mod.icon className="h-5 w-5" style={{ color: mod.color }} />
+              <div
+                key={mod.title}
+                className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all duration-300 hover:border-white/[0.12] hover:-translate-y-1 hover:shadow-[0_20px_60px_rgba(0,0,0,0.3)]"
+              >
+                {/* Subtle gradient on hover */}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <div className="relative">
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110" style={{ backgroundColor: `${mod.color}15` }}>
+                      <mod.icon className="h-5 w-5" style={{ color: mod.color }} />
+                    </div>
+                    <span
+                      className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
+                      style={{
+                        backgroundColor: `${mod.color}15`,
+                        color: mod.color,
+                        boxShadow: mod.badgeGlow ? `0 0 12px ${mod.color}30` : undefined,
+                      }}
+                    >
+                      {mod.badge}
+                    </span>
                   </div>
-                  <span
-                    className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
-                    style={{
-                      backgroundColor: `${mod.color}15`,
-                      color: mod.color,
-                      boxShadow: mod.badgeGlow ? `0 0 12px ${mod.color}30` : undefined,
-                    }}
-                  >
-                    {mod.badge}
-                  </span>
+                  <h3 className="text-lg font-semibold">{mod.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-neutral-400">{mod.desc}</p>
                 </div>
-                <h3 className="text-lg font-semibold">{mod.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-neutral-400">{mod.desc}</p>
               </div>
             ))}
           </div>
@@ -443,8 +564,8 @@ export default function LandingPage() {
                 desc: "Automate workflows with natural language. Connect CRM, email, calendar, and 100+ tools.",
               },
             ].map((mod) => (
-              <div key={mod.title} className="rounded-xl border border-white/[0.06] bg-white/[0.015] p-4 flex items-center gap-4">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${mod.color}10` }}>
+              <div key={mod.title} className="group rounded-xl border border-white/[0.06] bg-white/[0.015] p-4 flex items-center gap-4 transition-all duration-300 hover:border-white/[0.1] hover:bg-white/[0.025]">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-transform duration-300 group-hover:scale-110" style={{ backgroundColor: `${mod.color}10` }}>
                   <mod.icon className="h-4 w-4" style={{ color: mod.color }} />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -460,44 +581,52 @@ export default function LandingPage() {
         </div>
       </Section>
 
-      {/* ── Features Grid (12 cards) ─────────────────────────── */}
-      <Section id="features" className="border-t border-white/[0.06] py-28">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-16 text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Features</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Everything you need to ship AI agents — and teams</h2>
-          </div>
+      {/* ── Features Grid (Bento Layout) ─────────────────────── */}
+      <Section id="features" className="py-28">
+        <GradientDivider />
+        <div className="mx-auto max-w-6xl px-6 pt-28">
+          <SectionHeader
+            eyebrow="Features"
+            title="Everything you need to ship AI agents — and teams"
+          />
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Bento grid with varied sizes */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 auto-rows-[minmax(140px,auto)]">
             {[
-              { icon: Users, title: "Agent Teams", desc: "Build hierarchical AI teams with Head, Coordinator, and Executor roles. Delegate tasks automatically." },
-              { icon: Layers, title: "Multi-LLM", desc: "Choose the right model for each agent. Claude, GPT-4o, Perplexity, Gemini, Groq — per agent." },
-              { icon: Network, title: "Agent Orchestration", desc: "Visual canvas for multi-agent workflows. Drag, connect, deploy." },
-              { icon: Bot, title: "Task Agents", desc: "Autonomous background agents with triggers, output routing, and execution history." },
-              { icon: MessageSquare, title: "Conversational Builder", desc: "Describe your agent in plain English. KILN generates the config." },
-              { icon: FileText, title: "RAG Knowledge Base", desc: "Upload PDFs, URLs, or FAQs. Your agent answers with your knowledge." },
-              { icon: Zap, title: "Smart Actions", desc: "Book appointments, collect emails, score leads — all built in." },
-              { icon: Coins, title: "AI Credits", desc: "Transparent usage-based pricing. Buy credits or bring your own API key for unlimited." },
-              { icon: BarChart3, title: "ROI Analytics", desc: "Track conversations, leads, estimated revenue, and agent performance." },
-              { icon: Brain, title: "Feedback Loop", desc: "Rate bad answers, add corrections. Your agent improves over time." },
-              { icon: Send, title: "Telegram & Email", desc: "Deploy agents on Telegram and Email. Multi-channel from day one." },
-              { icon: Globe, title: "Auto Language Detection", desc: "Your agent detects and responds in your customer's language automatically." },
-              { icon: Palette, title: "White-Label", desc: "Your brand, colors, logo, domain. Remove all KILN branding." },
-              { icon: Timer, title: "Scheduled Agents", desc: "Run automated tasks on a schedule. Daily reports, data sync, alerts." },
-              { icon: Code2, title: "Custom Code", desc: "Write JavaScript actions that run when your agent triggers them." },
-              { icon: Key, title: "Bring Your Own Key", desc: "Use your Anthropic, OpenAI, Perplexity, or Groq API key for unlimited usage." },
-              { icon: Terminal, title: "MCP Server", desc: "25 tools. Manage agents and teams from Claude Code, Cursor, or any MCP client." },
-              { icon: GitFork, title: "Agent Cloning", desc: "Duplicate agents with one click. Clone configs, knowledge, and actions." },
-              { icon: Webhook, title: "Webhook Triggers", desc: "Receive HTTP requests from external services. Full agent pipeline." },
-              { icon: Store, title: "Agent Marketplace", desc: "Browse and use community templates. Publish your own agents." },
+              { icon: Users, title: "Agent Teams", desc: "Build hierarchical AI teams with Head, Coordinator, and Executor roles. Delegate tasks automatically.", span: "lg:col-span-2 lg:row-span-2" },
+              { icon: Layers, title: "Multi-LLM", desc: "Choose the right model for each agent. Claude, GPT-4o, Perplexity, Gemini, Groq — per agent.", span: "" },
+              { icon: Network, title: "Agent Orchestration", desc: "Visual canvas for multi-agent workflows. Drag, connect, deploy.", span: "" },
+              { icon: Bot, title: "Task Agents", desc: "Autonomous background agents with triggers, output routing, and execution history.", span: "lg:col-span-2" },
+              { icon: MessageSquare, title: "Conversational Builder", desc: "Describe your agent in plain English. KILN generates the config.", span: "" },
+              { icon: FileText, title: "RAG Knowledge Base", desc: "Upload PDFs, URLs, or FAQs. Your agent answers with your knowledge.", span: "" },
+              { icon: Zap, title: "Smart Actions", desc: "Book appointments, collect emails, score leads — all built in.", span: "" },
+              { icon: Coins, title: "AI Credits", desc: "Transparent usage-based pricing. Buy credits or bring your own API key for unlimited.", span: "" },
+              { icon: BarChart3, title: "ROI Analytics", desc: "Track conversations, leads, estimated revenue, and agent performance.", span: "lg:col-span-2" },
+              { icon: Brain, title: "Feedback Loop", desc: "Rate bad answers, add corrections. Your agent improves over time.", span: "" },
+              { icon: Send, title: "Telegram & Email", desc: "Deploy agents on Telegram and Email. Multi-channel from day one.", span: "" },
+              { icon: Globe, title: "Auto Language Detection", desc: "Your agent detects and responds in your customer's language automatically.", span: "" },
+              { icon: Palette, title: "White-Label", desc: "Your brand, colors, logo, domain. Remove all KILN branding.", span: "" },
+              { icon: Timer, title: "Scheduled Agents", desc: "Run automated tasks on a schedule. Daily reports, data sync, alerts.", span: "" },
+              { icon: Code2, title: "Custom Code", desc: "Write JavaScript actions that run when your agent triggers them.", span: "" },
+              { icon: Key, title: "Bring Your Own Key", desc: "Use your Anthropic, OpenAI, Perplexity, or Groq API key for unlimited usage.", span: "lg:col-span-2" },
+              { icon: Terminal, title: "MCP Server", desc: "25 tools. Manage agents and teams from Claude Code, Cursor, or any MCP client.", span: "" },
+              { icon: GitFork, title: "Agent Cloning", desc: "Duplicate agents with one click. Clone configs, knowledge, and actions.", span: "" },
+              { icon: Webhook, title: "Webhook Triggers", desc: "Receive HTTP requests from external services. Full agent pipeline.", span: "" },
+              { icon: Store, title: "Agent Marketplace", desc: "Browse and use community templates. Publish your own agents.", span: "" },
             ].map((f) => (
               <div
                 key={f.title}
-                className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 transition-colors hover:border-white/[0.1]"
+                className={`group relative overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 transition-all duration-300 hover:border-white/[0.12] hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(0,0,0,0.25)] ${f.span}`}
               >
-                <f.icon className="mb-3 h-5 w-5 text-[#F97316]" />
-                <h3 className="text-sm font-semibold">{f.title}</h3>
-                <p className="mt-1.5 text-xs leading-relaxed text-neutral-500">{f.desc}</p>
+                {/* Hover gradient reveal */}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#F97316]/[0.03] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <div className="relative">
+                  <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-[#F97316]/[0.08] transition-transform duration-300 group-hover:scale-110">
+                    <f.icon className="h-4.5 w-4.5 text-[#F97316]" />
+                  </div>
+                  <h3 className="text-sm font-semibold">{f.title}</h3>
+                  <p className="mt-1.5 text-xs leading-relaxed text-neutral-500">{f.desc}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -505,16 +634,17 @@ export default function LandingPage() {
       </Section>
 
       {/* ── Built for Everyone (3 audience tabs) ──────────────── */}
-      <Section className="border-t border-white/[0.06] py-28">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-12 text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Audience</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Built for everyone</h2>
-          </div>
+      <Section className="py-28">
+        <GradientDivider />
+        <div className="mx-auto max-w-6xl px-6 pt-28">
+          <SectionHeader
+            eyebrow="Audience"
+            title="Built for everyone"
+          />
 
           {/* Tabs */}
           <div className="mb-10 flex justify-center">
-            <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.03] p-1">
+            <div className="inline-flex rounded-xl border border-white/[0.08] bg-white/[0.02] p-1 backdrop-blur-sm">
               {([
                 { id: "business" as const, label: "For Business" },
                 { id: "agency" as const, label: "For Agencies" },
@@ -523,9 +653,9 @@ export default function LandingPage() {
                 <button
                   key={t.id}
                   onClick={() => setAudienceTab(t.id)}
-                  className={`rounded-lg px-5 py-2 text-sm font-medium transition-all ${
+                  className={`relative rounded-lg px-5 py-2 text-sm font-medium transition-all duration-300 ${
                     audienceTab === t.id
-                      ? "bg-white text-[#0C0A09]"
+                      ? "bg-white text-[#0C0A09] shadow-sm"
                       : "text-neutral-400 hover:text-white"
                   }`}
                 >
@@ -547,8 +677,8 @@ export default function LandingPage() {
                   { icon: Code2, title: "Embed Widget", desc: "Add your AI agent to any website with a single line of code." },
                   { icon: BarChart3, title: "Analytics with ROI", desc: "See conversations, leads captured, and estimated revenue generated." },
                 ].map((f) => (
-                  <div key={f.title} className="flex gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F97316]/10">
+                  <div key={f.title} className="group flex gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 transition-all duration-300 hover:border-white/[0.12] hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(0,0,0,0.2)]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F97316]/10 transition-transform duration-300 group-hover:scale-110">
                       <f.icon className="h-5 w-5 text-[#F97316]" />
                     </div>
                     <div>
@@ -572,8 +702,8 @@ export default function LandingPage() {
                   { icon: Key, title: "API Access", desc: "Full REST API and MCP server for programmatic agent management." },
                   { icon: Webhook, title: "Webhooks", desc: "Real-time events for conversations, leads, and actions." },
                 ].map((f) => (
-                  <div key={f.title} className="flex gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F97316]/10">
+                  <div key={f.title} className="group flex gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 transition-all duration-300 hover:border-white/[0.12] hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(0,0,0,0.2)]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F97316]/10 transition-transform duration-300 group-hover:scale-110">
                       <f.icon className="h-5 w-5 text-[#F97316]" />
                     </div>
                     <div>
@@ -598,8 +728,8 @@ export default function LandingPage() {
                     { icon: FlaskConical, title: "Prompt Branching", desc: "Keyword-triggered conditional prompt injection for dynamic behavior." },
                     { icon: Code2, title: "Custom Tools", desc: "Define HTTP tools with template variables. Claude calls them automatically." },
                   ].map((f) => (
-                    <div key={f.title} className="flex gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F97316]/10">
+                    <div key={f.title} className="group flex gap-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 transition-all duration-300 hover:border-white/[0.12] hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(0,0,0,0.2)]">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F97316]/10 transition-transform duration-300 group-hover:scale-110">
                         <f.icon className="h-5 w-5 text-[#F97316]" />
                       </div>
                       <div>
@@ -619,7 +749,7 @@ export default function LandingPage() {
                         setMcpCopied(true);
                         setTimeout(() => setMcpCopied(false), 2000);
                       }}
-                      className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-white"
+                      className="flex items-center gap-1.5 text-xs text-neutral-500 transition-colors duration-200 hover:text-white"
                     >
                       {mcpCopied ? <Check className="h-3 w-3 text-[#22C55E]" /> : <CopyIcon className="h-3 w-3" />}
                       {mcpCopied ? "Copied" : "Copy"}
@@ -647,12 +777,13 @@ export default function LandingPage() {
       </Section>
 
       {/* ── Social Proof ─────────────────────────────────────── */}
-      <Section className="border-t border-white/[0.06] py-28">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-16 text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Use Cases</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">What people are building</h2>
-          </div>
+      <Section className="py-28">
+        <GradientDivider />
+        <div className="mx-auto max-w-6xl px-6 pt-28">
+          <SectionHeader
+            eyebrow="Use Cases"
+            title="What people are building"
+          />
 
           <div className="grid gap-6 md:grid-cols-3">
             {[
@@ -671,8 +802,13 @@ export default function LandingPage() {
             ].map((story) => (
               <div
                 key={story.tag}
-                className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6"
+                className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all duration-300 hover:border-white/[0.12] hover:-translate-y-1 hover:shadow-[0_20px_60px_rgba(0,0,0,0.3)]"
               >
+                {/* Top gradient accent */}
+                <div
+                  className="pointer-events-none absolute inset-x-0 top-0 h-px opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  style={{ background: `linear-gradient(90deg, transparent, ${story.color}40, transparent)` }}
+                />
                 <span
                   className="mb-4 inline-block rounded-full px-3 py-1 text-[10px] font-semibold"
                   style={{ backgroundColor: `${story.color}15`, color: story.color }}
@@ -689,15 +825,23 @@ export default function LandingPage() {
       </Section>
 
       {/* ── Developer Section ────────────────────────────────── */}
-      <Section id="developers" className="border-t border-white/[0.06] bg-[#0A0908] py-28">
-        <div className="mx-auto max-w-6xl px-6">
+      <Section id="developers" className="relative py-28">
+        <GradientDivider />
+        {/* Subtle background shift */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0C0A09] via-[#0A0908] to-[#0C0A09]" />
+        <div className="relative mx-auto max-w-6xl px-6 pt-28">
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
             <div>
-              <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#22C55E]">For Developers</p>
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] px-4 py-1.5 text-xs font-medium uppercase tracking-[0.2em] text-[#22C55E] backdrop-blur-sm">
+                <Terminal className="h-3 w-3" />
+                For Developers
+              </div>
               <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">
                 Infrastructure for the
                 <br />
-                <span className="text-[#22C55E]">Agentic Coding</span> era.
+                <span className="bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(135deg, #22C55E, #3B82F6)", WebkitBackgroundClip: "text" }}>
+                  Agentic Coding
+                </span>{" "}era.
               </h2>
               <p className="mt-4 max-w-lg text-[15px] leading-relaxed text-neutral-400">
                 KILN is an MCP server. Build agents from Claude Code, Cursor, or any MCP client. 25 tools. Full lifecycle management.
@@ -705,13 +849,13 @@ export default function LandingPage() {
               <div className="mt-6 flex items-center gap-4">
                 <Link
                   href="/sign-up"
-                  className="rounded-xl bg-[#22C55E] px-5 py-2.5 text-sm font-medium text-[#0C0A09] transition-opacity hover:opacity-90"
+                  className="rounded-xl bg-[#22C55E] px-5 py-2.5 text-sm font-medium text-[#0C0A09] transition-all duration-300 hover:shadow-[0_0_20px_rgba(34,197,94,0.3)]"
                 >
                   Get API Key
                 </Link>
                 <a
                   href="/docs/mcp-server.md"
-                  className="text-sm text-neutral-400 underline underline-offset-4 hover:text-white"
+                  className="text-sm text-neutral-400 underline underline-offset-4 transition-colors duration-200 hover:text-white"
                 >
                   Read the docs
                 </a>
@@ -719,12 +863,12 @@ export default function LandingPage() {
             </div>
 
             {/* Terminal mockup */}
-            <div className="rounded-xl border border-white/[0.06] bg-[#0F0E0D] shadow-2xl shadow-black/50">
+            <div className="rounded-xl border border-white/[0.06] bg-[#0F0E0D] shadow-2xl shadow-black/50 transition-shadow duration-500 hover:shadow-[0_0_60px_rgba(34,197,94,0.05)]">
               <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3">
                 <div className="h-3 w-3 rounded-full bg-[#DC2626]/40" />
                 <div className="h-3 w-3 rounded-full bg-[#F97316]/40" />
                 <div className="h-3 w-3 rounded-full bg-[#22C55E]/40" />
-                <span className="ml-3 text-[11px] text-neutral-600">~ terminal</span>
+                <span className="ml-3 text-[11px] text-neutral-600 font-mono">~ terminal</span>
               </div>
               <div className="p-5 font-mono text-xs leading-loose">
                 <div><span className="text-neutral-500">$</span> <span className="text-[#22C55E]">kiln_create_team</span> <span className="text-neutral-400">--name</span> <span className="text-[#F97316]">&quot;Sales Team&quot;</span> <span className="text-neutral-400">--template</span> <span className="text-[#3B82F6]">SALES</span></div>
@@ -741,24 +885,27 @@ export default function LandingPage() {
       </Section>
 
       {/* ── Pricing ─────────────────────────────────────────── */}
-      <Section id="pricing" className="border-t border-white/[0.06] py-28">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="mb-16 text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Pricing</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Simple, fair pricing</h2>
-            <p className="mt-4 text-neutral-400">Start free. Upgrade as you grow.</p>
+      <Section id="pricing" className="py-28">
+        <GradientDivider />
+        <div className="mx-auto max-w-7xl px-6 pt-28">
+          <SectionHeader
+            eyebrow="Pricing"
+            title="Simple, fair pricing"
+            subtitle="Start free. Upgrade as you grow."
+          />
 
-            {/* Toggle */}
-            <div className="mt-8 inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.03] p-1">
+          {/* Toggle */}
+          <div className="mb-12 flex justify-center">
+            <div className="inline-flex items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.02] p-1 backdrop-blur-sm">
               <button
                 onClick={() => setAnnual(false)}
-                className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${!annual ? "bg-white text-[#0C0A09]" : "text-neutral-400"}`}
+                className={`rounded-full px-5 py-2 text-xs font-medium transition-all duration-300 ${!annual ? "bg-white text-[#0C0A09] shadow-sm" : "text-neutral-400 hover:text-white"}`}
               >
                 Monthly
               </button>
               <button
                 onClick={() => setAnnual(true)}
-                className={`rounded-full px-4 py-1.5 text-xs font-medium transition-all ${annual ? "bg-white text-[#0C0A09]" : "text-neutral-400"}`}
+                className={`rounded-full px-5 py-2 text-xs font-medium transition-all duration-300 ${annual ? "bg-white text-[#0C0A09] shadow-sm" : "text-neutral-400 hover:text-white"}`}
               >
                 Yearly
                 <span className="ml-1.5 rounded-full bg-[#22C55E]/10 px-1.5 py-0.5 text-[10px] text-[#22C55E]">Save 30%</span>
@@ -822,14 +969,14 @@ export default function LandingPage() {
             ].map((plan) => (
               <div
                 key={plan.name}
-                className={`relative flex flex-col rounded-2xl border p-5 ${
+                className={`group relative flex flex-col rounded-2xl border p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_60px_rgba(0,0,0,0.3)] ${
                   plan.highlight
-                    ? "border-[#F97316]/30 bg-[#F97316]/[0.03]"
+                    ? "border-[#F97316]/30 bg-gradient-to-b from-[#F97316]/[0.06] to-[#F97316]/[0.02] shadow-[0_0_40px_rgba(249,115,22,0.08)]"
                     : "border-white/[0.06] bg-white/[0.02]"
                 }`}
               >
                 {plan.highlight && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[10px] font-semibold text-white" style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}>
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[10px] font-semibold text-white shadow-lg" style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}>
                     Most Popular
                   </div>
                 )}
@@ -869,7 +1016,7 @@ export default function LandingPage() {
                             max={plan.creditTiers.length - 1}
                             value={tierIdx}
                             onChange={(e) => setCreditTiers((prev) => ({ ...prev, [plan.name]: Number(e.target.value) }))}
-                            className="w-full h-1 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#F97316] [&::-webkit-slider-thumb]:shadow-sm"
+                            className="w-full h-1 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#F97316] [&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:shadow-[#F97316]/30"
                             style={{ background: `linear-gradient(to right, #F97316 ${tierIdx / (plan.creditTiers.length - 1) * 100}%, rgba(255,255,255,0.1) ${tierIdx / (plan.creditTiers.length - 1) * 100}%)` }}
                           />
                           <div className="flex justify-between text-[9px] text-neutral-600 mt-0.5">
@@ -905,17 +1052,17 @@ export default function LandingPage() {
                 {plan.isCustom ? (
                   <a
                     href="mailto:andre@hephaistos-systems.de"
-                    className="mt-4 block rounded-xl border border-white/10 py-2.5 text-center text-sm font-medium text-white transition-all hover:bg-white/[0.04]"
+                    className="mt-4 block rounded-xl border border-white/10 py-2.5 text-center text-sm font-medium text-white transition-all duration-300 hover:bg-white/[0.04] hover:border-white/20"
                   >
                     Contact Sales
                   </a>
                 ) : (
                   <Link
                     href="/sign-up"
-                    className={`mt-4 block rounded-xl py-2.5 text-center text-sm font-medium transition-all hover:brightness-110 ${
+                    className={`mt-4 block rounded-xl py-2.5 text-center text-sm font-medium transition-all duration-300 hover:scale-[1.01] ${
                       plan.highlight
-                        ? "text-white"
-                        : "border border-white/10 text-white hover:bg-white/[0.04]"
+                        ? "text-white shadow-lg shadow-[#F97316]/20 hover:shadow-[#F97316]/30"
+                        : "border border-white/10 text-white hover:bg-white/[0.04] hover:border-white/20"
                     }`}
                     style={plan.highlight ? { background: "linear-gradient(135deg, #F97316, #DC2626)" } : undefined}
                   >
@@ -929,21 +1076,20 @@ export default function LandingPage() {
       </Section>
 
       {/* ── Professional Setup ────────────────────────────────── */}
-      <Section className="border-t border-white/[0.06] py-28">
-        <div className="mx-auto max-w-5xl px-6">
-          <div className="mb-16 text-center">
-            <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Professional Setup</p>
-            <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Want us to build it for you?</h2>
-            <p className="mt-4 text-neutral-400">
-              Our team sets up your AI agents, knowledge base, and integrations — ready to go in 24 hours.
-            </p>
-          </div>
+      <Section className="py-28">
+        <GradientDivider />
+        <div className="mx-auto max-w-5xl px-6 pt-28">
+          <SectionHeader
+            eyebrow="Professional Setup"
+            title="Want us to build it for you?"
+            subtitle="Our team sets up your AI agents, knowledge base, and integrations — ready to go in 24 hours."
+          />
 
           <div className="grid gap-6 md:grid-cols-3">
             {[
               {
                 name: "Quick Start",
-                price: "€490",
+                price: "\u20AC490",
                 subtitle: "Perfect for freelancers and small businesses.",
                 features: [
                   "1 AI Agent",
@@ -955,7 +1101,7 @@ export default function LandingPage() {
               },
               {
                 name: "Business Setup",
-                price: "€1,490",
+                price: "\u20AC1,490",
                 subtitle: "For established businesses ready to automate.",
                 features: [
                   "3 AI Agents",
@@ -969,7 +1115,7 @@ export default function LandingPage() {
               },
               {
                 name: "Agency Launch",
-                price: "€3,990",
+                price: "\u20AC3,990",
                 subtitle: "For agencies deploying at scale.",
                 features: [
                   "10+ AI Agents",
@@ -983,8 +1129,10 @@ export default function LandingPage() {
             ].map((pkg) => (
               <div
                 key={pkg.name}
-                className="relative flex flex-col rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6"
+                className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all duration-300 hover:border-white/[0.12] hover:-translate-y-1 hover:shadow-[0_20px_60px_rgba(0,0,0,0.3)]"
               >
+                {/* Top gradient accent on hover */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#F97316]/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                 <h3 className="text-lg font-semibold">{pkg.name}</h3>
                 <div className="mt-2 flex items-baseline gap-1">
                   <span className="font-serif text-3xl">{pkg.price}</span>
@@ -1001,7 +1149,7 @@ export default function LandingPage() {
                 </ul>
                 <a
                   href="mailto:andre@hephaistos-systems.de"
-                  className="mt-6 block rounded-xl py-2.5 text-center text-sm font-medium text-white transition-all hover:brightness-110"
+                  className="mt-6 block rounded-xl py-2.5 text-center text-sm font-medium text-white transition-all duration-300 hover:scale-[1.01] hover:shadow-lg hover:shadow-[#F97316]/20"
                   style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}
                 >
                   Book a Call
@@ -1017,22 +1165,31 @@ export default function LandingPage() {
       </Section>
 
       {/* ── Final CTA ───────────────────────────────────────── */}
-      <Section className="border-t border-white/[0.06] py-28">
-        <div className="mx-auto max-w-2xl px-6 text-center">
-          <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">
+      <Section className="relative py-28">
+        <GradientDivider />
+        {/* Background glow */}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="h-[400px] w-[600px] rounded-full bg-[#F97316]/[0.04] blur-[100px]" />
+        </div>
+        <div className="relative mx-auto max-w-2xl px-6 pt-28 text-center">
+          <h2 className="font-serif text-3xl tracking-tight sm:text-4xl lg:text-5xl">
             Ready to build?
           </h2>
-          <p className="mt-4 text-neutral-400">
+          <p className="mt-4 text-lg text-neutral-400">
             Start free. No code. No credit card.
           </p>
 
           <div className="mx-auto mt-10 flex flex-col items-center gap-4">
             <Link
               href="/sign-up"
-              className="flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-medium text-white transition-all hover:brightness-110"
-              style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}
+              className="group flex items-center gap-2 rounded-xl px-8 py-3.5 text-sm font-medium text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
+              style={{
+                background: "linear-gradient(135deg, #F97316, #DC2626)",
+                boxShadow: "0 4px 24px rgba(249,115,22,0.25)",
+              }}
             >
-              Get Started Free <ArrowRight className="h-4 w-4" />
+              Get Started Free
+              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
             </Link>
 
             {submitted === "cta" ? (
@@ -1051,12 +1208,12 @@ export default function LandingPage() {
                   onChange={(e) => setCtaEmail(e.target.value)}
                   placeholder="or join the waitlist"
                   required
-                  className="flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-[#F97316]/50 focus:outline-none focus:ring-1 focus:ring-[#F97316]/30"
+                  className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-sm text-white placeholder:text-neutral-500 transition-all duration-200 focus:border-[#F97316]/40 focus:outline-none focus:ring-2 focus:ring-[#F97316]/20 backdrop-blur-md"
                 />
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm text-neutral-300 transition-colors hover:bg-white/[0.08] disabled:opacity-50"
+                  className="rounded-xl border border-white/[0.08] bg-white/[0.04] px-5 py-2.5 text-sm text-neutral-300 transition-all duration-200 hover:bg-white/[0.08] hover:text-white disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Join"}
                 </button>
@@ -1065,7 +1222,7 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-12 flex flex-col items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] text-neutral-400">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.02] px-4 py-1.5 text-[11px] text-neutral-400 backdrop-blur-sm">
               &#x1f1ea;&#x1f1fa; EU-hosted &middot; GDPR compliant &middot; Built in Germany
             </span>
           </div>
@@ -1073,18 +1230,19 @@ export default function LandingPage() {
       </Section>
 
       {/* ── Footer ──────────────────────────────────────────── */}
-      <footer className="border-t border-white/[0.06] py-10">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 sm:flex-row">
+      <footer className="relative py-10">
+        <GradientDivider />
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 pt-10 sm:flex-row">
           <div className="flex items-center gap-2.5">
             <div className="flex h-6 w-6 items-center justify-center rounded font-serif text-[10px] font-bold text-white" style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}>K</div>
             <span className="font-serif text-sm">KILN</span>
             <span className="text-xs text-neutral-600">by Hephaistos Systems</span>
           </div>
           <div className="flex items-center gap-6 text-xs text-neutral-600">
-            <a href="https://discord.gg/kiln" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-neutral-300">Community</a>
-            <a href="/impressum" className="transition-colors hover:text-neutral-300">Impressum</a>
-            <a href="/privacy" className="transition-colors hover:text-neutral-300">Privacy</a>
-            <a href="/terms" className="transition-colors hover:text-neutral-300">Terms</a>
+            <a href="https://discord.gg/kiln" target="_blank" rel="noopener noreferrer" className="transition-colors duration-200 hover:text-neutral-300">Community</a>
+            <a href="/impressum" className="transition-colors duration-200 hover:text-neutral-300">Impressum</a>
+            <a href="/privacy" className="transition-colors duration-200 hover:text-neutral-300">Privacy</a>
+            <a href="/terms" className="transition-colors duration-200 hover:text-neutral-300">Terms</a>
             <span>&copy; {new Date().getFullYear()} Hephaistos Systems</span>
           </div>
         </div>
@@ -1102,7 +1260,7 @@ export default function LandingPage() {
         )}
         <button
           onClick={() => setChatOpen(!chatOpen)}
-          className="flex h-14 w-14 items-center justify-center rounded-full text-white transition-transform hover:scale-110"
+          className="flex h-14 w-14 items-center justify-center rounded-full text-white transition-all duration-300 hover:scale-110 hover:shadow-[0_0_30px_rgba(249,115,22,0.4)]"
           style={{
             background: "linear-gradient(135deg, #F97316, #DC2626)",
             boxShadow: "0 4px 20px rgba(249,115,22,0.4)",
