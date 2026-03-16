@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { canCreateAgent } from "@/lib/plan-limits";
+import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
 
 // Load all agents for the user
 export async function GET() {
@@ -75,10 +76,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Ensure user exists in DB (Clerk Sync)
+    const userEmail = await getUserEmailOrPlaceholder(userId);
     await prisma.user.upsert({
       where: { id: userId },
       update: {},
-      create: { id: userId, email: `${userId}@clerk.temp` },
+      create: { id: userId, email: userEmail },
     });
 
     // Check slug collision

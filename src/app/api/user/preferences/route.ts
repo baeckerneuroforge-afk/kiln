@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
 
 const ALLOWED_FIELDS = [
   "advancedMode",
@@ -54,10 +55,11 @@ export async function PATCH(request: Request) {
       return Response.json({ error: "No valid fields" }, { status: 400 });
     }
 
+    const userEmail = await getUserEmailOrPlaceholder(userId);
     const updated = await prisma.user.upsert({
       where: { id: userId },
       update: updateData,
-      create: { id: userId, email: `${userId}@clerk.temp`, ...updateData },
+      create: { id: userId, email: userEmail, ...updateData },
     });
 
     return Response.json({

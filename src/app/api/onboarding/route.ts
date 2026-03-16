@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
 
 // POST: Onboarding-Daten speichern (Company Name)
 export async function POST(request: Request) {
@@ -12,10 +13,11 @@ export async function POST(request: Request) {
     const { companyName } = await request.json();
 
     // User upsert (falls noch nicht in DB)
+    const userEmail = await getUserEmailOrPlaceholder(userId);
     await prisma.user.upsert({
       where: { id: userId },
       update: { companyName: companyName || null },
-      create: { id: userId, email: `${userId}@clerk.temp`, companyName: companyName || null },
+      create: { id: userId, email: userEmail, companyName: companyName || null },
     });
 
     return Response.json({ success: true });

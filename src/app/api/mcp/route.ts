@@ -10,6 +10,7 @@ import { authenticateApiKey } from "@/lib/api-auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { canCreateAgent } from "@/lib/plan-limits";
+import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
 import { searchRelevantChunks } from "@/lib/rag";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { decrypt } from "@/lib/encryption";
@@ -88,10 +89,11 @@ function createMcpServer(userId: string) {
         return err(`Agent limit reached (${agentCheck.current}/${agentCheck.limit}). Please upgrade your plan.`);
       }
 
+      const userEmail = await getUserEmailOrPlaceholder(userId);
       await prisma.user.upsert({
         where: { id: userId },
         update: {},
-        create: { id: userId, email: `${userId}@clerk.temp` },
+        create: { id: userId, email: userEmail },
       });
 
       const mode = agentMode || "CHAT";

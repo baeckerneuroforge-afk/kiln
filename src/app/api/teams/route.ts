@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getTeamTemplate } from "@/lib/team-templates";
+import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
 import crypto from "crypto";
 
 function generateSlug(name: string): string {
@@ -61,10 +62,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Ensure user exists
+    const userEmail = await getUserEmailOrPlaceholder(userId);
     await prisma.user.upsert({
       where: { id: userId },
       update: {},
-      create: { id: userId, email: `${userId}@clerk.temp` },
+      create: { id: userId, email: userEmail },
     });
 
     // If a template key was provided, use the template to provision agents
