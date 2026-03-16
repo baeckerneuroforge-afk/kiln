@@ -1178,7 +1178,646 @@ function createMcpServer(userId: string) {
     }
   );
 
-  // ── kiln_run_agent ──
+  // ── Task Agent & Workflow Tools ──────────────────────────────
+
+  // ── kiln_create_task_agent ──
+  server.tool(
+    "kiln_create_task_agent",
+    "Create a fully configured Task Agent with input schema, output format, pre/post-processing, and actions. Returns the agent ID ready for execution.",
+    {
+      name: z.string().describe("Name of the task agent"),
+      description: z.string().describe("What the task does"),
+      systemPrompt: z.string().optional().describe("Custom system prompt (auto-generated if omitted)"),
+      model: z.string().optional().describe("LLM model ID (default: claude-sonnet-4-20250514)"),
+      inputSchema: z.object({
+        fields: z.array(z.object({
+          name: z.string(),
+          type: z.enum(["string", "number", "boolean", "object", "array"]),
+          description: z.string().optional(),
+          required: z.boolean().optional(),
+        })).describe("Expected input fields"),
+      }).optional().describe("Schema describing what input data the task expects"),
+      outputFormat: z.enum(["json", "text", "markdown"]).optional().describe("Desired output format (default: text)"),
+      preProcess: z.object({
+        code: z.string().optional().describe("JavaScript transform code (receives `input`, returns transformed input)"),
+        conditions: z.array(z.object({
+          field: z.string().describe("Field path (e.g. 'input.email')"),
+          op: z.enum(["exists", "not_exists", "equals", "not_equals", "contains", "not_contains", "gt", "lt", "gte", "lte"]),
+          value: z.string().optional(),
+        })).optional().describe("Conditions that must be met to run the task"),
+      }).optional().describe("Pre-processing: validate/transform input before LLM call"),
+      postProcess: z.object({
+        code: z.string().optional().describe("JavaScript transform code (receives `output` and `input`, returns transformed output)"),
+        branches: z.array(z.object({
+          name: z.string().describe("Branch name"),
+          condition: z.string().describe("JavaScript condition expression (e.g. 'output.score > 7')"),
+          outputType: z.enum(["EMAIL", "HTTP_REQUEST", "WEBHOOK", "NEXT_AGENT", "NONE"]),
+          outputConfig: z.record(z.string()).optional().describe("Config for the output action (e.g. { email, subject, url, targetAgentId })"),
+        })).optional().describe("Conditional output routing based on result"),
+      }).optional().describe("Post-processing: transform output and route to branches"),
+      actions: z.array(z.enum(["COLLECT_EMAIL", "SCORE_LEAD", "HTTP_REQUEST", "FIRE_WEBHOOK", "CUSTOM_CODE"])).optional().describe("Actions the agent can use during execution"),
+    },
+    async ({ name, description, systemPrompt, model, inputSchema, outputFormat, preProcess, postProcess, actions }) => {
+      const agentCheck = await canCreateAgent(userId);
+      if (!agentCheck.allowed) {
+        return err(`Agent limit reached (${agentCheck.current}/${agentCheck.limit}). Please upgrade your plan.`);
+      }
+
+      const userEmail = await getUserEmailOrPlaceholder(userId);
+      await prisma.user.upsert({
+        where: { id: userId },
+        update: {},
+        create: { id: userId, email: userEmail },
+      });
+
+      // Build system prompt with output format instruction
+      const formatInstructions: Record<string, string> = {
+        json: "\n\nAlways respond with valid JSON. No markdown, no explanations outside the JSON.",
+        markdown: "\n\nFormat your response as clean Markdown with headers, lists, and emphasis where appropriate.",
+        text: "",
+      };
+      const basePrompt = systemPrompt || `You are ${name}, a task execution agent. ${description}\n\nBe precise, thorough, and follow instructions exactly.`;
+      const finalPrompt = basePrompt + (formatInstructions[outputFormat || "text"] || "");
+
+      // Build input schema description for the prompt
+      let schemaHint = "";
+      if (inputSchema?.fields?.length) {
+        schemaHint = "\n\nExpected input fields:\n" + inputSchema.fields.map((f) =>
+          `- ${f.name} (${f.type}${f.required ? ", required" : ""}): ${f.description || ""}`
+        ).join("\n");
+      }
+
+      const slug = generateSlug(name);
+      const agent = await prisma.agent.create({
+        data: {
+          userId, name, slug,
+          description: description || null,
+          systemPrompt: finalPrompt + schemaHint,
+          agentMode: "TASK",
+          personality: { tone: "professional", language: "en", formality: "balanced" },
+          welcomeMessage: "",
+          suggestedQuestions: [],
+          llmModel: model || "claude-sonnet-4-20250514",
+          status: "DRAFT",
+          whiteLabel: { primaryColor: "#F97316" },
+          ...(preProcess ? {
+            preProcessConfig: {
+              enabled: true,
+              code: preProcess.code || null,
+              conditions: preProcess.conditions?.map((c) => ({
+                field: c.field,
+                op: c.op,
+                value: c.value || "",
+              })) || [],
+            },
+          } : {}),
+          ...(postProcess ? {
+            postProcessConfig: {
+              enabled: true,
+              code: postProcess.code || null,
+              branches: postProcess.branches?.map((b) => ({
+                name: b.name,
+                condition: b.condition,
+                outputType: b.outputType,
+                outputConfig: b.outputConfig || {},
+              })) || [],
+            },
+          } : {}),
+          ...(outputFormat === "json" ? { outputType: "NONE", outputConfig: { format: "json" } } : {}),
+        },
+      });
+
+      // Create actions
+      if (actions?.length) {
+        await prisma.agentAction.createMany({
+          data: actions.map((type) => ({
+            agentId: agent.id, type, enabled: true,
+          })),
+        });
+      }
+
+      return ok({
+        id: agent.id, slug: agent.slug, name: agent.name,
+        agentMode: "TASK",
+        model: agent.llmModel,
+        inputSchema: inputSchema || null,
+        outputFormat: outputFormat || "text",
+        hasPreProcess: !!preProcess,
+        hasPostProcess: !!postProcess,
+        actionsEnabled: actions || [],
+        message: `Task Agent "${name}" created. Execute with kiln_run_task or deploy with kiln_deploy_agent.`,
+      });
+    }
+  );
+
+  // ── kiln_run_task ──
+  server.tool(
+    "kiln_run_task",
+    "Execute a Task Agent with structured JSON input. Waits for completion and returns the full result including any actions executed and output routing.",
+    {
+      agentId: z.string().describe("Agent ID of the task agent to run"),
+      input: z.record(z.unknown()).optional().describe("JSON object with input data matching the agent's input schema"),
+    },
+    async ({ agentId, input }) => {
+      const agent = await prisma.agent.findFirst({
+        where: { id: agentId, userId },
+        include: {
+          knowledgeBases: { where: { embeddingStatus: "READY" } },
+          actions: { where: { enabled: true } },
+          customTools: { where: { enabled: true } },
+        },
+      });
+      if (!agent) return err("Agent not found or unauthorized.");
+      if (agent.agentMode !== "TASK") return err("This tool only works for Task Agents (agentMode=TASK). Use kiln_chat for Chat Agents.");
+
+      const startTime = Date.now();
+      const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+      const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
+
+      // Pre-process: evaluate conditions
+      const preProcessConfig = agent.preProcessConfig as {
+        enabled?: boolean;
+        code?: string;
+        conditions?: { field: string; op: string; value: string }[];
+      } | null;
+
+      let processedInput: unknown = input;
+
+      if (preProcessConfig?.enabled) {
+        if (preProcessConfig.conditions?.length) {
+          for (const cond of preProcessConfig.conditions) {
+            const { evalCondition } = await import("@/lib/services/task-service");
+            if (!evalCondition(cond, processedInput)) {
+              const duration = Date.now() - startTime;
+              return ok({
+                status: "SKIPPED",
+                reason: `Pre-process condition not met: ${cond.field} ${cond.op} ${cond.value}`,
+                duration,
+                output: null,
+              });
+            }
+          }
+        }
+        if (preProcessConfig.code?.trim()) {
+          const { safeEval: evalSafe } = await import("@/lib/safe-eval");
+          const evalResult = await evalSafe({
+            args: ["input"],
+            values: [processedInput],
+            code: preProcessConfig.code,
+            userId,
+            agentId,
+            label: "pre-process",
+          });
+          if (evalResult.success && evalResult.result !== undefined && evalResult.result !== null) {
+            processedInput = evalResult.result;
+          }
+        }
+      }
+
+      // BYOK
+      let userApiKey: string | null = null;
+      try {
+        const apiKeyRecord = await prisma.apiKey.findUnique({
+          where: { userId_provider: { userId, provider: modelProvider.toLowerCase() } },
+        });
+        if (apiKeyRecord) userApiKey = decrypt(apiKeyRecord.encryptedKey);
+      } catch { /* fallback */ }
+
+      // Build system prompt with RAG
+      let systemPrompt = agent.systemPrompt;
+      const inputStr = processedInput
+        ? (typeof processedInput === "object" ? JSON.stringify(processedInput) : String(processedInput))
+        : "";
+      if (agent.knowledgeBases.length > 0 && inputStr) {
+        try {
+          const chunks = await searchRelevantChunks(agentId, inputStr.slice(0, 500), 5);
+          if (chunks.length > 0) {
+            systemPrompt += "\n\n---\nRELEVANT KNOWLEDGE:\n" +
+              chunks.map((c: { content: string }, i: number) => `[${i + 1}] ${c.content}`).join("\n\n");
+          }
+        } catch { /* skip RAG */ }
+      }
+
+      const taskInput = processedInput
+        ? (typeof processedInput === "object" ? JSON.stringify(processedInput, null, 2) : String(processedInput))
+        : "Run your configured task.";
+      const userMessage = `Execute the following task:\n\n${taskInput}`;
+
+      // Build tools
+      const tools: Anthropic.Tool[] = [];
+      for (const action of agent.actions) {
+        const config = (action.config || {}) as Record<string, string>;
+        switch (action.type) {
+          case "COLLECT_EMAIL":
+            tools.push({ name: "collect_email", description: "Collect visitor email", input_schema: { type: "object" as const, properties: { email: { type: "string" }, name: { type: "string" } }, required: ["email"] } });
+            break;
+          case "SCORE_LEAD":
+            tools.push({ name: "score_lead", description: "Score lead quality 1-10", input_schema: { type: "object" as const, properties: { score: { type: "number" }, reasoning: { type: "string" }, email: { type: "string" } }, required: ["score", "reasoning"] } });
+            break;
+          case "HTTP_REQUEST":
+            if (config.url && config.description) {
+              tools.push({ name: "http_request", description: config.description, input_schema: { type: "object" as const, properties: { data: { type: "object" } }, required: [] } });
+            }
+            break;
+          case "FIRE_WEBHOOK":
+            if (config.url) {
+              tools.push({ name: "fire_webhook", description: config.description || "Fire a webhook", input_schema: { type: "object" as const, properties: { data: { type: "object" } }, required: [] } });
+            }
+            break;
+        }
+      }
+
+      // Custom HTTP tools
+      for (const ct of agent.customTools) {
+        const placeholders = [...(ct.url.match(/\{\{(\w+)\}\}/g) || []), ...((ct.bodyTemplate || "").match(/\{\{(\w+)\}\}/g) || [])];
+        const unique = Array.from(new Set(placeholders.map((p: string) => p.replace(/\{\{|\}\}/g, ""))));
+        const props: Record<string, unknown> = {};
+        for (const n of unique) props[n] = { type: "string", description: `Value for ${n}` };
+        tools.push({ name: `custom_tool_${ct.name}`, description: ct.description, input_schema: { type: "object" as const, properties: props, required: unique } });
+      }
+
+      let responseText = "";
+      const actionsExecuted: string[] = [];
+
+      try {
+        const { executeTaskTool } = await import("@/lib/services/task-service");
+
+        if (modelProvider === "OPENAI") {
+          const openai = new OpenAI({ apiKey: userApiKey || process.env.OPENAI_API_KEY });
+          const oaiTools: OpenAI.ChatCompletionTool[] = tools.map((t) => ({
+            type: "function" as const,
+            function: { name: t.name, description: t.description || "", parameters: t.input_schema },
+          }));
+          const messages: OpenAI.ChatCompletionMessageParam[] = [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ];
+          for (let round = 0; round < 5; round++) {
+            const resp = await openai.chat.completions.create({
+              model: selectedModel, max_tokens: 2048, messages,
+              ...(oaiTools.length > 0 ? { tools: oaiTools } : {}),
+            });
+            const choice = resp.choices[0];
+            if (!choice.message.tool_calls?.length) {
+              responseText = choice.message.content || "";
+              break;
+            }
+            messages.push(choice.message);
+            for (const call of choice.message.tool_calls) {
+              if (call.type !== "function") continue;
+              const fnCall = call as { id: string; type: "function"; function: { name: string; arguments: string } };
+              const args = JSON.parse(fnCall.function.arguments || "{}");
+              const result = await executeTaskTool(fnCall.function.name, args, agent, processedInput);
+              actionsExecuted.push(fnCall.function.name);
+              messages.push({ role: "tool", tool_call_id: fnCall.id, content: JSON.stringify(result) });
+            }
+          }
+        } else {
+          const client = userApiKey ? getClaudeClientWithKey(userApiKey) : getClaudeClient();
+          let currentMessages: Anthropic.MessageParam[] = [{ role: "user", content: userMessage }];
+          for (let round = 0; round < 5; round++) {
+            const resp = await client.messages.create({
+              model: selectedModel, max_tokens: 2048, system: systemPrompt, messages: currentMessages,
+              ...(tools.length > 0 ? { tools } : {}),
+            });
+            const toolUseBlocks = resp.content.filter((b) => b.type === "tool_use");
+            if (toolUseBlocks.length === 0) {
+              for (const block of resp.content) { if (block.type === "text") responseText += block.text; }
+              break;
+            }
+            const toolResults: Anthropic.ToolResultBlockParam[] = [];
+            for (const block of toolUseBlocks) {
+              if (block.type !== "tool_use") continue;
+              const result = await executeTaskTool(block.name, block.input as Record<string, unknown>, agent, processedInput);
+              actionsExecuted.push(block.name);
+              toolResults.push({ type: "tool_result", tool_use_id: block.id, content: JSON.stringify(result) });
+            }
+            currentMessages = [...currentMessages, { role: "assistant", content: resp.content }, { role: "user", content: toolResults }];
+          }
+        }
+      } catch (e) {
+        const duration = Date.now() - startTime;
+        await prisma.agentRun.create({
+          data: { agentId, triggerType: "MANUAL", status: "ERROR", error: e instanceof Error ? e.message : "LLM call failed", duration, creditsUsed: 0 },
+        }).catch(() => {});
+        return err(`Task execution failed: ${e instanceof Error ? e.message : "Unknown error"}`);
+      }
+
+      // Post-process
+      const postProcessConfig = agent.postProcessConfig as {
+        enabled?: boolean; code?: string;
+        branches?: { name: string; condition: string; outputType: string; outputConfig: Record<string, string> }[];
+      } | null;
+
+      let postProcessedOutput: unknown = responseText;
+      if (postProcessConfig?.enabled && postProcessConfig.code?.trim()) {
+        const { safeEval: evalSafe } = await import("@/lib/safe-eval");
+        const evalResult = await evalSafe({
+          args: ["output", "input"],
+          values: [responseText, processedInput],
+          code: postProcessConfig.code,
+          userId, agentId,
+          label: "post-process",
+        });
+        if (evalResult.success && evalResult.result !== undefined) {
+          postProcessedOutput = evalResult.result;
+          responseText = typeof evalResult.result === "string" ? evalResult.result : JSON.stringify(evalResult.result);
+        }
+      }
+
+      const duration = Date.now() - startTime;
+      const run = await prisma.agentRun.create({
+        data: {
+          agentId, triggerType: "MANUAL",
+          input: processedInput ? JSON.parse(JSON.stringify(processedInput)) : undefined,
+          output: responseText.slice(0, 10000),
+          status: "SUCCESS", duration, creditsUsed: 0,
+        },
+      });
+
+      waitUntil(
+        prisma.agent.update({
+          where: { id: agentId },
+          data: { lastRunAt: new Date(), lastRunResult: { runId: run.id, status: "SUCCESS", duration, actionsExecuted } },
+        }).catch((updateErr) => { console.error("MCP task run metadata update failed:", updateErr); })
+      );
+
+      // Try to parse JSON output if format indicates it
+      let parsedOutput: unknown = responseText;
+      try {
+        const trimmed = responseText.trim();
+        if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+          parsedOutput = JSON.parse(trimmed);
+        }
+      } catch { /* keep as string */ }
+
+      return ok({
+        runId: run.id,
+        status: "SUCCESS",
+        duration,
+        output: parsedOutput,
+        actionsExecuted,
+        postProcessed: postProcessedOutput !== responseText,
+        message: `Task agent "${agent.name}" executed successfully in ${(duration / 1000).toFixed(1)}s.`,
+      });
+    }
+  );
+
+  // ── kiln_execute_team ──
+  server.tool(
+    "kiln_execute_team",
+    "Execute a team workflow: decompose a goal into subtasks assigned to team members using the HEAD agent. Returns all generated tasks.",
+    {
+      teamId: z.string().describe("Team ID"),
+      goal: z.string().describe("Goal or task for the team to execute"),
+    },
+    async ({ teamId, goal }) => {
+      const team = await prisma.agentTeam.findFirst({
+        where: { id: teamId, userId },
+        include: {
+          members: {
+            include: { agent: { select: { id: true, name: true, systemPrompt: true, agentMode: true, llmModel: true } } },
+            orderBy: { level: "asc" },
+          },
+        },
+      });
+      if (!team) return err("Team not found or access denied.");
+      if (team.members.length === 0) return err("Team has no members. Add agents with kiln_add_team_member first.");
+
+      const head = team.members.find((m) => m.role === "HEAD");
+      if (!head) return err("Team has no HEAD member. Add a HEAD agent with kiln_add_team_member first.");
+
+      // Use Claude to decompose the goal into subtasks
+      const memberDescriptions = team.members.map((m) =>
+        `- ${m.agent.name} (${m.role}): ${m.responsibilities || "General purpose"}`
+      ).join("\n");
+
+      let userApiKey: string | null = null;
+      try {
+        const apiKeyRecord = await prisma.apiKey.findUnique({
+          where: { userId_provider: { userId, provider: "anthropic" } },
+        });
+        if (apiKeyRecord) userApiKey = decrypt(apiKeyRecord.encryptedKey);
+      } catch { /* fallback */ }
+
+      const client = userApiKey ? getClaudeClientWithKey(userApiKey) : getClaudeClient();
+
+      const decomposition = await client.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 2048,
+        system: `You are a project manager. Given a goal and a list of team members with roles, decompose the goal into 3-8 concrete, actionable subtasks. Assign each to the most appropriate team member.
+
+Return ONLY a JSON array: [{"title": "...", "description": "...", "assignTo": "Agent Name", "priority": "HIGH|MEDIUM|LOW"}]`,
+        messages: [{ role: "user", content: `Goal: ${goal}\n\nTeam members:\n${memberDescriptions}` }],
+      });
+
+      const decomText = decomposition.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("");
+      const jsonMatch = decomText.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) return err("Failed to decompose goal into tasks. Try rephrasing the goal.");
+
+      let tasks: { title: string; description?: string; assignTo: string; priority?: string }[];
+      try {
+        tasks = JSON.parse(jsonMatch[0]);
+      } catch {
+        return err("Failed to parse task decomposition. Try again.");
+      }
+
+      // Create tasks and assign to members
+      const createdTasks = [];
+      for (const task of tasks) {
+        const member = team.members.find((m) => m.agent.name.toLowerCase() === task.assignTo.toLowerCase());
+        const created = await prisma.agentTeamTask.create({
+          data: {
+            teamId,
+            title: task.title,
+            description: task.description || null,
+            priority: (task.priority as "HIGH" | "MEDIUM" | "LOW") || "MEDIUM",
+            assignedToId: member?.id || null,
+          },
+        });
+        createdTasks.push({
+          id: created.id,
+          title: created.title,
+          description: created.description,
+          priority: created.priority,
+          assignedTo: member?.agent.name || "Unassigned",
+          status: created.status,
+        });
+      }
+
+      return ok({
+        teamId,
+        teamName: team.name,
+        goal,
+        tasksCreated: createdTasks.length,
+        tasks: createdTasks,
+        message: `Goal decomposed into ${createdTasks.length} tasks and assigned to team members.`,
+      });
+    }
+  );
+
+  // ── kiln_create_workflow_automation ──
+  server.tool(
+    "kiln_create_workflow_automation",
+    "Create a scheduled or webhook-triggered automation for an agent or team. Supports cron expressions, webhooks, and notification routing.",
+    {
+      agentId: z.string().describe("Agent ID to automate"),
+      name: z.string().describe("Automation name"),
+      trigger: z.object({
+        type: z.enum(["schedule", "webhook"]).describe("Trigger type"),
+        schedule: z.string().optional().describe("Cron expression (e.g. '0 9 * * *' for daily at 9am UTC) or shorthand: 'hourly', 'daily', 'weekly'"),
+        webhookConfig: z.object({
+          authType: z.enum(["NONE", "HEADER_AUTH", "HMAC"]).optional(),
+          authValue: z.string().optional(),
+        }).optional().describe("Webhook authentication config"),
+      }).describe("How the automation is triggered"),
+      inputTemplate: z.string().optional().describe("Input template for each run (supports {{date}}, {{timestamp}} placeholders)"),
+      notification: z.object({
+        method: z.enum(["NONE", "EMAIL", "WEBHOOK"]).optional(),
+        target: z.string().optional().describe("Email address or webhook URL for notifications"),
+      }).optional().describe("How to notify about results"),
+    },
+    async ({ agentId, name: autoName, trigger, inputTemplate, notification }) => {
+      const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      const count = await prisma.automationRule.count({ where: { agentId } });
+      if (count >= 10) return err("Maximum 10 automations per agent.");
+
+      if (trigger.type === "schedule") {
+        // Resolve shorthand cron expressions
+        const cronMap: Record<string, string> = {
+          "hourly": "0 * * * *",
+          "daily": "0 9 * * *",
+          "weekly": "0 9 * * 1",
+          "every-6h": "0 */6 * * *",
+          "twice-daily": "0 9,17 * * *",
+        };
+        const cronExpression = cronMap[trigger.schedule || "daily"] || trigger.schedule || "0 9 * * *";
+
+        const automation = await prisma.automationRule.create({
+          data: {
+            agentId,
+            name: autoName,
+            cronExpression,
+            taskDescription: inputTemplate || "Run your configured task.",
+            enabled: true,
+            notificationMethod: notification?.method || "NONE",
+            notificationTarget: notification?.target || null,
+          },
+        });
+
+        return ok({
+          id: automation.id,
+          name: automation.name,
+          triggerType: "schedule",
+          cronExpression,
+          inputTemplate: inputTemplate || null,
+          notification: { method: notification?.method || "NONE", target: notification?.target || null },
+          enabled: true,
+          message: `Scheduled automation "${autoName}" created (${cronExpression}).`,
+        });
+      } else {
+        // Webhook trigger — create a webhook endpoint
+        const path = `${agent.slug}-auto-${crypto.randomBytes(4).toString("hex")}`;
+        const secret = crypto.randomBytes(16).toString("hex");
+
+        const webhook = await prisma.agentWebhook.create({
+          data: {
+            agentId,
+            path,
+            secret,
+            httpMethods: ["POST"],
+            authType: trigger.webhookConfig?.authType || "NONE",
+            authValue: trigger.webhookConfig?.authValue || null,
+            responseMode: "AFTER_PROCESSING",
+            isActive: true,
+          },
+        });
+
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln-topaz.vercel.app";
+        return ok({
+          id: webhook.id,
+          name: autoName,
+          triggerType: "webhook",
+          webhookUrl: `${baseUrl}/api/webhooks/agent/${webhook.path}`,
+          secret: webhook.secret,
+          authType: webhook.authType,
+          inputTemplate: inputTemplate || null,
+          message: `Webhook automation "${autoName}" created. POST to ${baseUrl}/api/webhooks/agent/${webhook.path}`,
+        });
+      }
+    }
+  );
+
+  // ── kiln_list_workflows ──
+  server.tool(
+    "kiln_list_workflows",
+    "List all automations, team configurations, and orchestration rules. Provides a complete overview of all workflows.",
+    {},
+    async () => {
+      const [automations, teams, orchestrations] = await Promise.all([
+        prisma.automationRule.findMany({
+          where: { agent: { userId } },
+          include: { agent: { select: { id: true, name: true, agentMode: true } } },
+          orderBy: { createdAt: "desc" },
+        }),
+        prisma.agentTeam.findMany({
+          where: { userId },
+          include: {
+            members: { include: { agent: { select: { id: true, name: true } } } },
+            _count: { select: { tasks: true } },
+          },
+          orderBy: { createdAt: "desc" },
+        }),
+        prisma.agentOrchestration.findMany({
+          where: { sourceAgent: { userId } },
+          include: {
+            sourceAgent: { select: { id: true, name: true } },
+            targetAgent: { select: { id: true, name: true } },
+          },
+          orderBy: { createdAt: "desc" },
+        }),
+      ]);
+
+      return ok({
+        automations: automations.map((a) => ({
+          id: a.id,
+          name: a.name,
+          agentName: a.agent.name,
+          agentId: a.agentId,
+          cronExpression: a.cronExpression,
+          enabled: a.enabled,
+          lastRunAt: a.lastRunAt?.toISOString() || null,
+          notificationMethod: a.notificationMethod,
+        })),
+        teams: teams.map((t) => ({
+          id: t.id,
+          name: t.name,
+          goal: t.goal,
+          status: t.status,
+          memberCount: t.members.length,
+          members: t.members.map((m) => ({ agentName: m.agent.name, role: m.role })),
+          taskCount: t._count.tasks,
+        })),
+        orchestrations: orchestrations.map((o) => ({
+          id: o.id,
+          source: o.sourceAgent.name,
+          target: o.targetAgent.name,
+          condition: o.condition,
+          enabled: o.enabled,
+        })),
+        summary: {
+          totalAutomations: automations.length,
+          activeAutomations: automations.filter((a) => a.enabled).length,
+          totalTeams: teams.length,
+          totalOrchestrations: orchestrations.length,
+        },
+      });
+    }
+  );
+
+  // ── kiln_run_agent (legacy) ──
   server.tool(
     "kiln_run_agent",
     "Manually trigger a Task Agent and return the execution result. Only works for agents with agentMode=TASK.",

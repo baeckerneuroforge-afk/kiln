@@ -1,0 +1,15 @@
+name: Acme Support Bot
+type: chat
+model: claude-sonnet-4-6
+systemPrompt: |
+  You are a helpful support agent for Acme Inc.
+  Answer questions about our products and services.
+  Be friendly and professional.
+greeting: "Hi! How can I help you today?"
+knowledge:
+  urls:
+    - https://acme.com/faq
+    - https://acme.com/docs
+actions:
+  - COLLECT_EMAIL
+  - BOOK_APPOINTMENT

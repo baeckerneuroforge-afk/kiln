@@ -34,13 +34,16 @@ interface Template {
     welcomeMessage?: string;
     suggestedQuestions?: string[];
     actions?: { type: string; enabled: boolean }[];
+    workflowTemplateId?: string;
+    workflowAgents?: { name: string; agentMode: "CHAT" | "TASK" }[];
+    orchestration?: { mode?: string; description?: string };
   };
   createdAt: string;
 }
 
 const categories = [
   "All", "Business", "Marketing", "Support", "Sales", "Health",
-  "Education", "Real Estate", "Trades", "Restaurant", "Other",
+  "Education", "Real Estate", "Trades", "Restaurant", "Workflow Templates", "Other",
 ];
 
 const categoryColors: Record<string, string> = {
@@ -53,6 +56,7 @@ const categoryColors: Record<string, string> = {
   "Real Estate": "bg-emerald-500/10 text-emerald-400",
   Trades: "bg-stone-500/10 text-stone-400",
   Restaurant: "bg-rose-500/10 text-rose-400",
+  "Workflow Templates": "bg-sky-500/10 text-sky-400",
   Other: "bg-muted text-muted-foreground",
 };
 
@@ -123,6 +127,11 @@ export default function MarketplacePage() {
         return;
       }
       if (data.error) throw new Error(data.error);
+      if (data.teamId) {
+        toast(`Workflow "${data.teamName}" deployed!`);
+        window.location.href = `/dashboard/teams/${data.teamId}`;
+        return;
+      }
       toast(`Agent "${data.agentName}" created from template!`);
       window.location.href = `/dashboard/agents/${data.agentId}`;
     } catch {
@@ -356,6 +365,30 @@ export default function MarketplacePage() {
                     {previewTemplate.agentConfigSnapshot.suggestedQuestions.map((q, i) => (
                       <span key={i} className="rounded-full bg-muted px-2.5 py-1 text-[10px] text-foreground">{q}</span>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {previewTemplate.agentConfigSnapshot.workflowAgents && previewTemplate.agentConfigSnapshot.workflowAgents.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Workflow Agents</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {previewTemplate.agentConfigSnapshot.workflowAgents.map((agent, i) => (
+                      <span key={i} className="rounded-full bg-muted px-2.5 py-1 text-[10px] text-foreground">
+                        {agent.name} ({agent.agentMode})
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {previewTemplate.agentConfigSnapshot.orchestration?.description && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Orchestration</p>
+                  <div className="rounded-lg bg-muted/50 p-3">
+                    <p className="text-xs text-foreground">
+                      {previewTemplate.agentConfigSnapshot.orchestration.description}
+                    </p>
                   </div>
                 </div>
               )}

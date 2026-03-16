@@ -182,6 +182,73 @@ Permanently delete an agent.
 |------|------|----------|-------------|
 | `id` | string | Yes | Agent ID |
 
+---
+
+### `kiln_create_task_agent`
+Create a fully configured Task Agent with input schema, output format, pre/post-processing, and actions.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `name` | string | Yes | Name of the task agent |
+| `description` | string | Yes | What the task does |
+| `systemPrompt` | string | No | Custom system prompt |
+| `model` | string | No | LLM model ID |
+| `inputSchema` | object | No | `{ fields: [{ name, type, description, required }] }` |
+| `outputFormat` | string | No | `json`, `text`, or `markdown` |
+| `preProcess` | object | No | `{ code, conditions }` for input validation/transform |
+| `postProcess` | object | No | `{ code, branches }` for output transform and routing |
+| `actions` | string[] | No | Actions to enable: `COLLECT_EMAIL`, `SCORE_LEAD`, `HTTP_REQUEST`, `FIRE_WEBHOOK`, `CUSTOM_CODE` |
+
+---
+
+### `kiln_run_task`
+Execute a Task Agent with structured JSON input, full tool calling, pre/post-processing, and output routing.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `agentId` | string | Yes | Agent ID of the task agent |
+| `input` | object | No | JSON object with input data matching the agent's input schema |
+
+**Returns:** Run ID, status, duration, output (parsed JSON if applicable), actions executed.
+
+---
+
+### `kiln_execute_team`
+Execute a team workflow: decompose a goal into subtasks assigned to team members.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `teamId` | string | Yes | Team ID |
+| `goal` | string | Yes | Goal or task for the team |
+
+**Returns:** Array of created tasks with assignments and priorities.
+
+---
+
+### `kiln_create_workflow_automation`
+Create an advanced automation with cron expressions, webhook triggers, or input templates.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `agentId` | string | Yes | Agent ID to automate |
+| `name` | string | Yes | Automation name |
+| `trigger` | object | Yes | `{ type: "schedule"|"webhook", schedule, webhookConfig }` |
+| `inputTemplate` | string | No | Input template with `{{date}}` / `{{timestamp}}` placeholders |
+| `notification` | object | No | `{ method: "NONE"|"EMAIL"|"WEBHOOK", target }` |
+
+---
+
+### `kiln_list_workflows`
+List all automations, team configurations, and orchestration rules in one call.
+
+**Parameters:** None
+
+**Returns:** Automations with schedules, teams with members, orchestration rules, and summary counts.
+
 ## Authentication
 
 All requests require a valid API access key passed in the `Authorization` header:

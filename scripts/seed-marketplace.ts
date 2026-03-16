@@ -1,8 +1,9 @@
 /**
- * Seed the marketplace with 5 free agent templates.
+ * Seed the marketplace with free agent and workflow templates.
  * Run: npx tsx scripts/seed-marketplace.ts
  */
 import { PrismaClient } from "@prisma/client";
+import { WORKFLOW_MARKETPLACE_TEMPLATES } from "../src/lib/workflow-templates";
 
 const prisma = new PrismaClient();
 
@@ -193,6 +194,7 @@ Goal: Drive reservations and get guests to visit the restaurant.`,
       customTools: [],
     },
   },
+  ...WORKFLOW_MARKETPLACE_TEMPLATES,
 ];
 
 async function main() {
