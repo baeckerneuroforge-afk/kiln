@@ -7,7 +7,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { BuilderChat } from "@/components/agents/builder-chat";
 import { AgentPreview } from "@/components/agents/agent-preview";
-import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 import type { GeneratedAgentConfig } from "@/types/agent";
 
 type AgentMode = "CHAT" | "TASK";
@@ -15,7 +14,6 @@ type TaskStep = "describe" | "trigger" | "tools" | "output" | "review";
 
 export default function NewAgentPage() {
   const router = useRouter();
-  const { advancedMode } = useAdvancedMode();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<AgentMode | null>(null);
   const [config, setConfig] = useState<GeneratedAgentConfig | null>(null);
@@ -119,6 +117,79 @@ export default function NewAgentPage() {
     }
   }
 
+  function parseYaml(text: string): Record<string, unknown> {
+    // Simple YAML parser for flat/nested key-value configs
+    const result: Record<string, unknown> = {};
+    const lines = text.split("\n");
+    let currentObj: Record<string, unknown> | null = null;
+    let listKey = "";
+    let listItems: string[] = [];
+
+    function flushList() {
+      if (listKey && listItems.length > 0) {
+        if (currentObj) currentObj[listKey] = listItems;
+        else result[listKey] = listItems;
+        listItems = [];
+        listKey = "";
+      }
+    }
+
+    for (const raw of lines) {
+      const line = raw.replace(/\r$/, "");
+      if (!line.trim() || line.trim().startsWith("#")) continue;
+
+      // List item
+      const listMatch = line.match(/^(\s*)- (.+)$/);
+      if (listMatch) {
+        const value = listMatch[2].trim().replace(/^["']|["']$/g, "");
+        listItems.push(value);
+        continue;
+      }
+
+      flushList();
+
+      const kvMatch = line.match(/^(\s*)(\w+)\s*:\s*(.*)$/);
+      if (!kvMatch) continue;
+
+      const indent = kvMatch[1].length;
+      const key = kvMatch[2];
+      let val: string | boolean | number | null = kvMatch[3].trim();
+
+      // Remove quotes
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+
+      // Empty value = start of nested object or list
+      if (val === "" || val === "|" || val === ">") {
+        if (indent === 0) {
+          currentObj = {};
+          result[key] = currentObj;
+          listKey = key;
+        } else if (currentObj) {
+          listKey = key;
+        }
+        continue;
+      }
+
+      // Parse typed values
+      if (val === "true") val = true;
+      else if (val === "false") val = false;
+      else if (val === "null" || val === "~") val = null;
+      else if (/^-?\d+$/.test(val as string)) val = parseInt(val as string, 10);
+      else if (/^-?\d+\.\d+$/.test(val as string)) val = parseFloat(val as string);
+
+      if (indent > 0 && currentObj) {
+        currentObj[key] = val;
+      } else {
+        currentObj = null;
+        result[key] = val;
+      }
+    }
+    flushList();
+    return result;
+  }
+
   async function handleImportConfig(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -127,7 +198,31 @@ export default function NewAgentPage() {
 
     try {
       const text = await file.text();
-      const data = JSON.parse(text);
+      const isYaml = file.name.endsWith(".yml") || file.name.endsWith(".yaml");
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let data: any;
+      if (isYaml) {
+        data = parseYaml(text);
+        // YAML CLI format uses snake_case — map to camelCase
+        if (data.system_prompt && !data.systemPrompt) data.systemPrompt = data.system_prompt;
+        if (data.welcome_message && !data.welcomeMessage) data.welcomeMessage = data.welcome_message;
+        if (data.suggested_questions && !data.suggestedQuestions) data.suggestedQuestions = data.suggested_questions;
+        if (data.agent_mode && !data.agentMode) data.agentMode = data.agent_mode;
+        if (data.llm_model && !data.llmModel) data.llmModel = data.llm_model;
+        if (data.model_provider && !data.modelProvider) data.modelProvider = data.model_provider;
+        if (data.trigger_type && !data.triggerType) data.triggerType = data.trigger_type;
+        if (data.output_type && !data.outputType) data.outputType = data.output_type;
+        if (data.white_label && !data.whiteLabel) data.whiteLabel = data.white_label;
+        if (data.prompt_branches && !data.promptBranches) data.promptBranches = data.prompt_branches;
+        if (data.memory_enabled && !data.memoryEnabled) data.memoryEnabled = data.memory_enabled;
+        if (data.image_analysis_enabled && !data.imageAnalysisEnabled) data.imageAnalysisEnabled = data.image_analysis_enabled;
+        if (data.show_ai_disclaimer !== undefined && data.showAiDisclaimer === undefined) data.showAiDisclaimer = data.show_ai_disclaimer;
+        if (data.agent_type && !data.agentType) data.agentType = data.agent_type;
+        if (data.show_powered_by !== undefined && data.showPoweredBy === undefined) data.showPoweredBy = data.show_powered_by;
+      } else {
+        data = JSON.parse(text);
+      }
 
       // Validate required fields
       if (!data.name || !data.systemPrompt) {
@@ -135,6 +230,7 @@ export default function NewAgentPage() {
       }
 
       const slug = data.slug || data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
+      const agentMode = data.agentMode === "TASK" ? "TASK" : "CHAT";
 
       // Map action types to suggested actions format
       const actionTypeMap: Record<string, string> = {
@@ -163,6 +259,7 @@ export default function NewAgentPage() {
           welcomeMessage: data.welcomeMessage || "",
           suggestedQuestions: data.suggestedQuestions || [],
           suggestedActions,
+          agentMode,
         }),
       });
 
@@ -173,15 +270,22 @@ export default function NewAgentPage() {
 
       const agent = await res.json();
 
-      // If the imported config has additional fields, update them
+      // Update additional fields via PATCH
       const updateFields: Record<string, unknown> = {};
       if (data.memoryEnabled) updateFields.memoryEnabled = true;
       if (data.imageAnalysisEnabled) updateFields.imageAnalysisEnabled = true;
       if (data.showAiDisclaimer === false) updateFields.showAiDisclaimer = false;
       if (data.llmModel) updateFields.llmModel = data.llmModel;
+      if (data.modelProvider) updateFields.modelProvider = data.modelProvider;
       if (data.whiteLabel) updateFields.whiteLabel = data.whiteLabel;
       if (data.promptBranches) updateFields.promptBranches = data.promptBranches;
       if (data.agentType === "INTERNAL") updateFields.agentType = "INTERNAL";
+      if (data.showPoweredBy === false) updateFields.showPoweredBy = false;
+      // Task agent fields
+      if (data.triggerType) updateFields.triggerType = data.triggerType;
+      if (data.triggerConfig) updateFields.triggerConfig = data.triggerConfig;
+      if (data.outputType) updateFields.outputType = data.outputType;
+      if (data.outputConfig) updateFields.outputConfig = data.outputConfig;
 
       if (Object.keys(updateFields).length > 0) {
         await fetch(`/api/agents/${agent.id}`, {
@@ -193,7 +297,7 @@ export default function NewAgentPage() {
 
       router.push(`/dashboard/agents/${agent.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid JSON file");
+      setError(err instanceof Error ? err.message : "Invalid config file");
       setIsSaving(false);
     }
 
@@ -256,6 +360,16 @@ export default function NewAgentPage() {
                 <div className="mt-4 flex items-center gap-2 text-sm font-medium text-kiln-orange">
                   Create Task Agent <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
                 </div>
+              </button>
+            </div>
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isSaving}
+                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <Upload className="mr-1.5 inline h-3.5 w-3.5" />
+                Import from config file
               </button>
             </div>
           </div>
@@ -529,26 +643,22 @@ export default function NewAgentPage() {
           {error && (
             <p className="text-xs text-destructive">{error}</p>
           )}
-          {advancedMode && (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={handleImportConfig}
-                className="hidden"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isSaving}
-              >
-                <Upload className="mr-2 h-3.5 w-3.5" />
-                Import Config
-              </Button>
-            </>
-          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,.yml,.yaml"
+            onChange={handleImportConfig}
+            className="hidden"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isSaving}
+          >
+            <Upload className="mr-2 h-3.5 w-3.5" />
+            Import Config
+          </Button>
           {config && (
             <Button onClick={handleSave} disabled={isSaving} size="sm">
               {isSaving ? (

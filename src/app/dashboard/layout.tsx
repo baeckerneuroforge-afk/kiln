@@ -40,7 +40,7 @@ export default function DashboardLayout({
 
   // Show onboarding wizard if needed
   if (showOnboarding === true) {
-    return <OnboardingWizard />;
+    return <OnboardingWizard onSkip={() => setShowOnboarding(false)} />;
   }
 
   // Render the dashboard shell immediately — don't block on onboarding check

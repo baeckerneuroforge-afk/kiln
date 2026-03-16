@@ -45,6 +45,15 @@ import {
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/toast";
+import {
+  API_ACCESS_EXPIRY_OPTIONS,
+  API_ACCESS_SCOPES,
+  DEFAULT_API_ACCESS_SCOPES,
+  formatApiAccessExpiry,
+  isApiAccessKeyExpiringSoon,
+  type ApiAccessExpiryOption,
+  type ApiAccessScope,
+} from "@/lib/api-access-keys";
 import { cn } from "@/lib/utils";
 import { CreditUsageChart } from "@/components/credit-usage-chart";
 
@@ -64,6 +73,21 @@ interface Invoice {
   currency: string;
   status: string | null;
   pdfUrl: string | null;
+}
+
+interface AccessKeyItem {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  scopes: ApiAccessScope[];
+  expiresAt: string | null;
+  lastUsed: string | null;
+  createdAt: string;
+  usage: {
+    requests7d: number;
+    requests30d: number;
+    mostUsedEndpoints: { endpoint: string; count: number }[];
+  };
 }
 
 const plans = [
@@ -186,12 +210,15 @@ function SettingsContent() {
   const [keySuccess, setKeySuccess] = useState<string | null>(null);
 
   // API Access Keys
-  const [accessKeys, setAccessKeys] = useState<{ id: string; name: string; keyPrefix: string; lastUsed: string | null; createdAt: string }[]>([]);
+  const [accessKeys, setAccessKeys] = useState<AccessKeyItem[]>([]);
   const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyScopes, setNewKeyScopes] = useState<ApiAccessScope[]>(DEFAULT_API_ACCESS_SCOPES);
+  const [newKeyExpiry, setNewKeyExpiry] = useState<ApiAccessExpiryOption>("never");
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [generatingKey, setGeneratingKey] = useState(false);
   const [deletingAccessKey, setDeletingAccessKey] = useState<string | null>(null);
   const [accessKeyCopied, setAccessKeyCopied] = useState(false);
+  const [accessKeyError, setAccessKeyError] = useState<string | null>(null);
 
   // Subscription management
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -386,25 +413,33 @@ function SettingsContent() {
     if (!newKeyName.trim()) return;
     setGeneratingKey(true);
     setGeneratedKey(null);
+    setAccessKeyError(null);
     try {
       const res = await fetch("/api/user/api-access-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newKeyName.trim() }),
+        body: JSON.stringify({
+          name: newKeyName.trim(),
+          scopes: newKeyScopes,
+          expiry: newKeyExpiry,
+        }),
       });
       const data = await res.json();
-      if (!res.ok) { setKeyError(data.error || "Failed to generate key"); return; }
+      if (!res.ok) { setAccessKeyError(data.error || "Failed to generate key"); return; }
       setGeneratedKey(data.key);
       setNewKeyName("");
+      setNewKeyScopes(DEFAULT_API_ACCESS_SCOPES);
+      setNewKeyExpiry("never");
       toast("API key generated");
       const keysRes = await fetch("/api/user/api-access-keys");
       const keysData = await keysRes.json();
       if (Array.isArray(keysData)) setAccessKeys(keysData);
-    } catch { setKeyError("Failed to generate API key"); } finally { setGeneratingKey(false); }
+    } catch { setAccessKeyError("Failed to generate API key"); } finally { setGeneratingKey(false); }
   }
 
   async function deleteAccessKey(keyId: string) {
     setDeletingAccessKey(keyId);
+    setAccessKeyError(null);
     try {
       await fetch("/api/user/api-access-keys", {
         method: "DELETE",
@@ -413,7 +448,24 @@ function SettingsContent() {
       });
       setAccessKeys((prev) => prev.filter((k) => k.id !== keyId));
       toast("API key deleted", "info");
-    } catch { setKeyError("Failed to delete key"); } finally { setDeletingAccessKey(null); }
+    } catch { setAccessKeyError("Failed to delete key"); } finally { setDeletingAccessKey(null); }
+  }
+
+  function toggleAccessScope(scope: ApiAccessScope) {
+    setNewKeyScopes((prev) => {
+      if (scope === "admin") {
+        return prev.includes("admin") ? prev : ["admin"];
+      }
+
+      const withoutAdmin = prev.filter((item) => item !== "admin");
+      if (withoutAdmin.includes(scope)) {
+        return withoutAdmin.length === 1
+          ? prev
+          : withoutAdmin.filter((item) => item !== scope);
+      }
+
+      return [...withoutAdmin, scope];
+    });
   }
 
   async function purchaseCredits(packageId: string) {
@@ -1297,26 +1349,87 @@ function SettingsContent() {
                 </div>
               )}
 
-              <div className="mb-4 flex items-center gap-2">
-                <input type="text" value={newKeyName} onChange={(e) => setNewKeyName(e.target.value)} placeholder="Key name (e.g. Production, Staging)" className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" onKeyDown={(e) => e.key === "Enter" && generateAccessKey()} />
-                <Button size="sm" onClick={generateAccessKey} disabled={generatingKey || !newKeyName.trim()}>
-                  {generatingKey ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Plus className="mr-1.5 h-3.5 w-3.5" />}
-                  Generate Key
-                </Button>
+              {accessKeyError && (
+                <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                  {accessKeyError}
+                </div>
+              )}
+
+              <div className="mb-4 space-y-4 rounded-lg border border-dashed border-border bg-card/30 p-4">
+                <div className="flex flex-col gap-2 md:flex-row">
+                  <input type="text" value={newKeyName} onChange={(e) => setNewKeyName(e.target.value)} placeholder="Key name (e.g. Production, Staging)" className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" onKeyDown={(e) => e.key === "Enter" && generateAccessKey()} />
+                  <select value={newKeyExpiry} onChange={(e) => setNewKeyExpiry(e.target.value as ApiAccessExpiryOption)} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+                    {API_ACCESS_EXPIRY_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id}>{option.label}</option>
+                    ))}
+                  </select>
+                  <Button size="sm" onClick={generateAccessKey} disabled={generatingKey || !newKeyName.trim()}>
+                    {generatingKey ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Plus className="mr-1.5 h-3.5 w-3.5" />}
+                    Generate Key
+                  </Button>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Scopes</p>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {API_ACCESS_SCOPES.map((scope) => {
+                      const checked = newKeyScopes.includes(scope.id);
+
+                      return (
+                        <label key={scope.id} className={cn("flex items-start gap-3 rounded-lg border px-3 py-2 text-sm transition-colors", checked ? "border-kiln-orange/40 bg-kiln-orange/5" : "border-border bg-card")}>
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 h-4 w-4 rounded border-border bg-card text-kiln-orange focus:ring-kiln-orange"
+                            checked={checked}
+                            onChange={() => toggleAccessScope(scope.id)}
+                          />
+                          <div>
+                            <p className="font-medium text-foreground">{scope.label}</p>
+                            <p className="text-xs text-muted-foreground">{scope.description}</p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               {accessKeys.length > 0 ? (
                 <div className="space-y-2">
                   {accessKeys.map((key) => (
-                    <div key={key.id} className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-4 py-3">
-                      <div className="flex items-center gap-3">
+                    <div key={key.id} className="flex items-start justify-between rounded-lg border border-border bg-muted/20 px-4 py-3">
+                      <div className="flex items-start gap-3">
                         <Key className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <p className="text-sm font-medium text-foreground">{key.name}</p>
-                          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-medium text-foreground">{key.name}</p>
+                            {isApiAccessKeyExpiringSoon(key.expiresAt) && (
+                              <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                                Expiring soon
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
                             <span className="font-mono">{key.keyPrefix}</span>
                             <span>Created {new Date(key.createdAt).toLocaleDateString()}</span>
                             {key.lastUsed && <span>Last used {new Date(key.lastUsed).toLocaleDateString()}</span>}
+                            <span>Expires {formatApiAccessExpiry(key.expiresAt)}</span>
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {key.scopes.map((scope) => (
+                              <span key={`${key.id}-${scope}`} className="rounded-full border border-border bg-card px-2 py-0.5 text-[10px] text-muted-foreground">
+                                {scope}
+                              </span>
+                            ))}
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+                            <span>{key.usage.requests7d} requests / 7d</span>
+                            <span>{key.usage.requests30d} requests / 30d</span>
+                            <span>
+                              Top: {key.usage.mostUsedEndpoints[0]
+                                ? `${key.usage.mostUsedEndpoints[0].endpoint} (${key.usage.mostUsedEndpoints[0].count})`
+                                : "No usage yet"}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -1331,7 +1444,7 @@ function SettingsContent() {
               )}
 
               <div className="mt-4 rounded-lg border border-dashed border-border bg-card/30 p-3">
-                <p className="text-xs text-muted-foreground">API keys provide full access to your agents. Keep them secure and never expose them in client-side code. Maximum 5 keys per account. Rate limit: 100 requests/minute per key.</p>
+                <p className="text-xs text-muted-foreground">API keys support scoped access, optional expiry, and per-request usage tracking. Keep them secure and never expose them in client-side code. Maximum 5 keys per account. Rate limit: 100 requests/minute per key.</p>
               </div>
             </div>
           )}

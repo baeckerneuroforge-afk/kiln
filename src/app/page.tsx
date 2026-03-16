@@ -34,6 +34,7 @@ import {
   Send,
   Store,
 } from "lucide-react";
+import { DEMO_AGENT_SLUG } from "@/lib/demo-agent";
 
 // ─── Scroll-triggered Fade-Up ──────────────────────────────────────
 function useFadeUp() {
@@ -345,6 +346,43 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Try It Now — Live Demo ────────────────────────────── */}
+      {DEMO_AGENT_SLUG && (
+        <Section className="border-t border-white/[0.06] py-20" id="demo">
+          <div className="mx-auto max-w-3xl px-6">
+            <div className="mb-10 text-center">
+              <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Live Demo</p>
+              <h2 className="font-serif text-3xl tracking-tight sm:text-4xl">Try it now.</h2>
+              <p className="mt-4 text-neutral-400">
+                This is a real KILN agent. No sign-up required.
+              </p>
+            </div>
+            <div
+              className="overflow-hidden rounded-2xl border border-white/[0.08]"
+              style={{ boxShadow: "0 0 60px rgba(249,115,22,0.06), 0 20px 40px rgba(0,0,0,0.3)" }}
+            >
+              <iframe
+                src={`/embed/${DEMO_AGENT_SLUG}`}
+                className="w-full border-0"
+                style={{ height: "520px" }}
+                allow="clipboard-write"
+                title="KILN Demo Agent"
+              />
+            </div>
+            <div className="mt-6 text-center">
+              <Link
+                href="/sign-up"
+                className="inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-medium text-white transition-all hover:brightness-110"
+                style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}
+              >
+                Build your own agent in 2 minutes <ArrowRight className="h-4 w-4" />
+              </Link>
+              <p className="mt-3 text-xs text-neutral-500">Free plan includes 50 AI credits — no credit card required.</p>
+            </div>
+          </div>
+        </Section>
+      )}
 
       {/* ── Platform ──────────────────────────────────────────── */}
       <Section className="border-t border-white/[0.06] py-28">

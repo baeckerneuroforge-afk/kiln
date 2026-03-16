@@ -25,7 +25,7 @@ const INDUSTRIES = [
   { id: "custom", label: "Something else...", prompt: "" },
 ];
 
-export function OnboardingWizard() {
+export function OnboardingWizard({ onSkip }: { onSkip?: () => void } = {}) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [agentType, setAgentType] = useState<"CHAT" | "TASK" | null>(null);
@@ -34,6 +34,25 @@ export function OnboardingWizard() {
   const [creating, setCreating] = useState(false);
   const [createdAgent, setCreatedAgent] = useState<{ id: string; slug: string; name: string } | null>(null);
   const [embedCopied, setEmbedCopied] = useState(false);
+  const [skipping, setSkipping] = useState(false);
+
+  async function skipOnboarding() {
+    setSkipping(true);
+    try {
+      await fetch("/api/user/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ onboardingCompleted: true }),
+      });
+      if (onSkip) {
+        onSkip();
+      } else {
+        router.push("/dashboard");
+      }
+    } catch {
+      router.push("/dashboard");
+    }
+  }
 
   async function createAgent() {
     setCreating(true);
@@ -135,6 +154,13 @@ export function OnboardingWizard() {
             >
               Get Started <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
+            <button
+              onClick={skipOnboarding}
+              disabled={skipping}
+              className="mt-4 text-xs text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+            >
+              {skipping ? "Skipping..." : "Skip for now"}
+            </button>
           </div>
         )}
 
@@ -169,6 +195,15 @@ export function OnboardingWizard() {
                 <span className="mt-1 text-center text-xs text-muted-foreground">
                   Runs background tasks. Automate workflows.
                 </span>
+              </button>
+            </div>
+            <div className="mt-6 text-center">
+              <button
+                onClick={skipOnboarding}
+                disabled={skipping}
+                className="text-xs text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+              >
+                {skipping ? "Skipping..." : "Skip for now"}
               </button>
             </div>
           </div>
@@ -220,6 +255,15 @@ export function OnboardingWizard() {
                 )}
               </Button>
             </div>
+            <div className="mt-4 text-center">
+              <button
+                onClick={skipOnboarding}
+                disabled={skipping || creating}
+                className="text-xs text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+              >
+                {skipping ? "Skipping..." : "Skip for now"}
+              </button>
+            </div>
           </div>
         )}
 
@@ -251,6 +295,15 @@ export function OnboardingWizard() {
                   <>Create Agent <ArrowRight className="ml-2 h-4 w-4" /></>
                 )}
               </Button>
+            </div>
+            <div className="mt-4 text-center">
+              <button
+                onClick={skipOnboarding}
+                disabled={skipping || creating}
+                className="text-xs text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+              >
+                {skipping ? "Skipping..." : "Skip for now"}
+              </button>
             </div>
           </div>
         )}

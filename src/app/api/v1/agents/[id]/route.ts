@@ -1,7 +1,13 @@
 import { NextRequest } from "next/server";
 import { waitUntil } from "@vercel/functions";
 import { ActionType } from "@prisma/client";
-import { authenticateApiKey } from "@/lib/api-auth";
+import {
+  apiKeyAuthErrorResponse,
+  apiKeyJson,
+  authenticateApiKey,
+  requireApiKeyScope,
+  type ApiKeyAuthSuccess,
+} from "@/lib/api-auth";
 import { getModelDef, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -63,19 +69,26 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  let authResult: ApiKeyAuthSuccess | null = null;
+
   try {
-    const authResult = await authenticateApiKey(request.headers.get("authorization"));
-    if (!authResult) {
-      return Response.json(
-        { error: "Invalid or missing API key. Use Authorization: Bearer sk-kiln-..." },
-        { status: 401, headers: corsHeaders }
-      );
+    const auth = await authenticateApiKey(request.headers.get("authorization"));
+    if (!auth.ok) {
+      return apiKeyAuthErrorResponse(auth, corsHeaders);
     }
+    authResult = auth;
     waitUntil(authResult.touchLastUsed);
+
+    const scopeError = requireApiKeyScope(request, authResult, "agents:read", corsHeaders);
+    if (scopeError) {
+      return scopeError;
+    }
 
     const rateCheck = checkRateLimit(authResult.keyId);
     if (!rateCheck.allowed) {
-      return Response.json(
+      return apiKeyJson(
+        request,
+        authResult,
         { error: "Rate limit exceeded. 100 requests per minute." },
         {
           status: 429,
@@ -84,7 +97,7 @@ export async function GET(
             "X-RateLimit-Remaining": "0",
             "Retry-After": String(Math.ceil((rateCheck.resetAt - Date.now()) / 1000)),
           },
-        }
+        },
       );
     }
 
@@ -96,10 +109,12 @@ export async function GET(
     });
 
     if (!agent) {
-      return Response.json({ error: "Agent not found or unauthorized" }, { status: 404, headers: corsHeaders });
+      return apiKeyJson(request, authResult, { error: "Agent not found or unauthorized" }, { status: 404, headers: corsHeaders });
     }
 
-    return Response.json(
+    return apiKeyJson(
+      request,
+      authResult,
       {
         id: agent.id,
         name: agent.name,
@@ -118,10 +133,13 @@ export async function GET(
           ...corsHeaders,
           "X-RateLimit-Remaining": String(rateCheck.remaining),
         },
-      }
+      },
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
+    if (authResult) {
+      return apiKeyJson(request, authResult, { error: message }, { status: 500, headers: corsHeaders });
+    }
     return Response.json({ error: message }, { status: 500, headers: corsHeaders });
   }
 }
@@ -130,19 +148,26 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  let authResult: ApiKeyAuthSuccess | null = null;
+
   try {
-    const authResult = await authenticateApiKey(request.headers.get("authorization"));
-    if (!authResult) {
-      return Response.json(
-        { error: "Invalid or missing API key. Use Authorization: Bearer sk-kiln-..." },
-        { status: 401, headers: corsHeaders }
-      );
+    const auth = await authenticateApiKey(request.headers.get("authorization"));
+    if (!auth.ok) {
+      return apiKeyAuthErrorResponse(auth, corsHeaders);
     }
+    authResult = auth;
     waitUntil(authResult.touchLastUsed);
+
+    const scopeError = requireApiKeyScope(request, authResult, "agents:write", corsHeaders);
+    if (scopeError) {
+      return scopeError;
+    }
 
     const rateCheck = checkRateLimit(authResult.keyId);
     if (!rateCheck.allowed) {
-      return Response.json(
+      return apiKeyJson(
+        request,
+        authResult,
         { error: "Rate limit exceeded. 100 requests per minute." },
         {
           status: 429,
@@ -151,7 +176,7 @@ export async function PUT(
             "X-RateLimit-Remaining": "0",
             "Retry-After": String(Math.ceil((rateCheck.resetAt - Date.now()) / 1000)),
           },
-        }
+        },
       );
     }
 
@@ -159,7 +184,7 @@ export async function PUT(
       where: { id: params.id, userId: authResult.userId },
     });
     if (!existing) {
-      return Response.json({ error: "Agent not found or unauthorized" }, { status: 404, headers: corsHeaders });
+      return apiKeyJson(request, authResult, { error: "Agent not found or unauthorized" }, { status: 404, headers: corsHeaders });
     }
 
     const body = await request.json();
@@ -196,7 +221,9 @@ export async function PUT(
       return agent;
     });
 
-    return Response.json(
+    return apiKeyJson(
+      request,
+      authResult,
       {
         id: updated.id,
         name: updated.name,
@@ -214,10 +241,13 @@ export async function PUT(
           ...corsHeaders,
           "X-RateLimit-Remaining": String(rateCheck.remaining),
         },
-      }
+      },
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
+    if (authResult) {
+      return apiKeyJson(request, authResult, { error: message }, { status: 500, headers: corsHeaders });
+    }
     return Response.json({ error: message }, { status: 500, headers: corsHeaders });
   }
 }

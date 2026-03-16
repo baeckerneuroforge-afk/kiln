@@ -6,7 +6,13 @@ import { waitUntil } from "@vercel/functions";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
-import { authenticateApiKey } from "@/lib/api-auth";
+import {
+  apiKeyAuthErrorResponse,
+  apiKeyJson,
+  authenticateApiKey,
+  requireApiKeyScope,
+  type ApiKeyAuthSuccess,
+} from "@/lib/api-auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { canCreateAgent } from "@/lib/plan-limits";
@@ -1060,6 +1066,181 @@ function createMcpServer(userId: string) {
     }
   );
 
+  // ── Agent Config Import/Export ──
+
+  server.tool(
+    "kiln_export_agent_config",
+    "Export an agent's full configuration as JSON. Includes all settings, actions, prompt branches, and task config. Does NOT include conversations, knowledge base content, or API keys.",
+    {
+      id: z.string().describe("Agent ID to export"),
+    },
+    async ({ id }) => {
+      const agent = await prisma.agent.findFirst({
+        where: { id, userId },
+        include: {
+          actions: { select: { type: true, enabled: true, config: true } },
+          customTools: { select: { name: true, description: true, method: true, url: true, headers: true, bodyTemplate: true, responseMapping: true, enabled: true } },
+        },
+      });
+      if (!agent) return err("Agent not found or unauthorized.");
+
+      const exportData: Record<string, unknown> = {
+        kiln_version: "1.0",
+        name: agent.name,
+        slug: agent.slug,
+        description: agent.description,
+        agentMode: agent.agentMode,
+        systemPrompt: agent.systemPrompt,
+        personality: agent.personality,
+        welcomeMessage: agent.welcomeMessage,
+        suggestedQuestions: agent.suggestedQuestions,
+        llmModel: agent.llmModel,
+        modelProvider: agent.modelProvider,
+        memoryEnabled: agent.memoryEnabled,
+        imageAnalysisEnabled: agent.imageAnalysisEnabled,
+        showAiDisclaimer: agent.showAiDisclaimer,
+        agentType: agent.agentType,
+        whiteLabel: agent.whiteLabel,
+        showPoweredBy: agent.showPoweredBy,
+        promptBranches: agent.promptBranches,
+        actions: agent.actions.map((a) => ({ type: a.type, enabled: a.enabled, config: a.config })),
+        customTools: agent.customTools.map((t) => ({
+          name: t.name, description: t.description, method: t.method,
+          url: t.url, headers: t.headers, bodyTemplate: t.bodyTemplate,
+          responseMapping: t.responseMapping, enabled: t.enabled,
+        })),
+      };
+
+      if (agent.agentMode === "TASK") {
+        exportData.triggerType = agent.triggerType;
+        exportData.triggerConfig = agent.triggerConfig;
+        exportData.outputType = agent.outputType;
+        exportData.outputConfig = agent.outputConfig;
+        exportData.preProcessConfig = agent.preProcessConfig;
+        exportData.postProcessConfig = agent.postProcessConfig;
+      }
+
+      return ok(exportData);
+    }
+  );
+
+  server.tool(
+    "kiln_import_agent_config",
+    "Create a new agent from a previously exported configuration JSON. Accepts the same format as kiln_export_agent_config output.",
+    {
+      config: z.object({
+        name: z.string().describe("Agent name"),
+        systemPrompt: z.string().describe("System prompt"),
+        description: z.string().optional(),
+        agentMode: z.enum(["CHAT", "TASK"]).optional(),
+        personality: z.record(z.unknown()).optional(),
+        welcomeMessage: z.string().optional(),
+        suggestedQuestions: z.array(z.string()).optional(),
+        llmModel: z.string().optional(),
+        modelProvider: z.string().optional(),
+        memoryEnabled: z.boolean().optional(),
+        imageAnalysisEnabled: z.boolean().optional(),
+        showAiDisclaimer: z.boolean().optional(),
+        agentType: z.string().optional(),
+        whiteLabel: z.record(z.unknown()).optional(),
+        showPoweredBy: z.boolean().optional(),
+        promptBranches: z.array(z.record(z.unknown())).optional(),
+        actions: z.array(z.object({ type: z.string(), enabled: z.boolean(), config: z.record(z.unknown()).optional() })).optional(),
+        customTools: z.array(z.record(z.unknown())).optional(),
+        triggerType: z.string().optional(),
+        triggerConfig: z.record(z.unknown()).optional(),
+        outputType: z.string().optional(),
+        outputConfig: z.record(z.unknown()).optional(),
+      }).describe("Agent configuration object (from kiln_export_agent_config)"),
+    },
+    async ({ config: cfg }) => {
+      const agentCheck = await canCreateAgent(userId);
+      if (!agentCheck.allowed) {
+        return err(`Agent limit reached (${agentCheck.current}/${agentCheck.limit}). Upgrade your plan.`);
+      }
+
+      const userEmail = await getUserEmailOrPlaceholder(userId);
+      await prisma.user.upsert({
+        where: { id: userId },
+        update: {},
+        create: { id: userId, email: userEmail },
+      });
+
+      const slug = generateSlug(cfg.name);
+      const mode = cfg.agentMode || "CHAT";
+
+      const agent = await prisma.agent.create({
+        data: {
+          userId, name: cfg.name, slug,
+          description: cfg.description || null,
+          systemPrompt: cfg.systemPrompt,
+          agentMode: mode,
+          personality: (cfg.personality || { tone: "professional", language: "en", formality: "balanced" }) as object,
+          welcomeMessage: cfg.welcomeMessage || "",
+          suggestedQuestions: cfg.suggestedQuestions || [],
+          llmModel: cfg.llmModel || "claude-sonnet-4-20250514",
+          modelProvider: (cfg.modelProvider || "ANTHROPIC") as "ANTHROPIC" | "OPENAI" | "PERPLEXITY" | "GOOGLE" | "GROQ",
+          memoryEnabled: cfg.memoryEnabled ?? false,
+          imageAnalysisEnabled: cfg.imageAnalysisEnabled ?? false,
+          showAiDisclaimer: cfg.showAiDisclaimer ?? true,
+          agentType: (cfg.agentType === "INTERNAL" ? "INTERNAL" : "PUBLIC") as "PUBLIC" | "INTERNAL",
+          whiteLabel: (cfg.whiteLabel || { primaryColor: "#F97316", position: "bottom-right" }) as object,
+          showPoweredBy: cfg.showPoweredBy ?? true,
+          promptBranches: cfg.promptBranches ? (cfg.promptBranches as object[]) : undefined,
+          status: "DRAFT",
+          ...(mode === "TASK" ? {
+            triggerType: (cfg.triggerType || "MANUAL") as "MANUAL" | "SCHEDULE" | "WEBHOOK" | "EVENT",
+            triggerConfig: cfg.triggerConfig ? (cfg.triggerConfig as object) : undefined,
+            outputType: (cfg.outputType || "NONE") as "NONE" | "HTTP_REQUEST" | "EMAIL" | "NEXT_AGENT" | "WEBHOOK" | "CUSTOM_CODE",
+            outputConfig: cfg.outputConfig ? (cfg.outputConfig as object) : undefined,
+          } : {}),
+        },
+      });
+
+      // Create actions if provided
+      if (cfg.actions && cfg.actions.length > 0) {
+        await prisma.$transaction(
+          cfg.actions.map((a) =>
+            prisma.agentAction.create({
+              data: {
+                agentId: agent.id,
+                type: a.type as "BOOK_APPOINTMENT" | "COLLECT_EMAIL" | "SEND_EMAIL" | "SCORE_LEAD" | "NOTIFY_OWNER" | "FIRE_WEBHOOK" | "HANDOFF_HUMAN" | "CUSTOM_CODE" | "HTTP_REQUEST",
+                enabled: a.enabled,
+                config: (a.config || {}) as object,
+              },
+            })
+          )
+        );
+      }
+
+      // Create custom tools if provided
+      if (cfg.customTools && cfg.customTools.length > 0) {
+        for (const tool of cfg.customTools) {
+          await prisma.agentCustomTool.create({
+            data: {
+              agentId: agent.id,
+              name: (tool.name as string) || "untitled_tool",
+              description: (tool.description as string) || "",
+              method: (tool.method as string) || "GET",
+              url: (tool.url as string) || "",
+              headers: tool.headers ? (tool.headers as object) : undefined,
+              bodyTemplate: (tool.bodyTemplate as string) || undefined,
+              responseMapping: (tool.responseMapping as string) || undefined,
+              enabled: tool.enabled !== false,
+            },
+          });
+        }
+      }
+
+      return ok({
+        id: agent.id, slug: agent.slug, agentMode: mode,
+        publicUrl: mode === "CHAT" ? `/embed/${agent.slug}` : undefined,
+        status: "DRAFT",
+        message: `Agent "${cfg.name}" imported successfully. Deploy with kiln_deploy_agent to make it live.`,
+      });
+    }
+  );
+
   // ── Agent Teams ──
 
   server.tool(
@@ -1961,23 +2142,30 @@ Return ONLY a JSON array: [{"title": "...", "description": "...", "assignTo": "A
 
 // Handler for all HTTP methods
 async function handleMcpRequest(req: Request): Promise<Response> {
+  let authResult: ApiKeyAuthSuccess | null = null;
+
   try {
     // Authenticate
-    const authResult = await authenticateApiKey(req.headers.get("authorization"));
-    if (!authResult) {
-      return Response.json(
-        { error: "Invalid or missing API key. Use Authorization: Bearer sk-kiln-..." },
-        { status: 401 }
-      );
+    const auth = await authenticateApiKey(req.headers.get("authorization"));
+    if (!auth.ok) {
+      return apiKeyAuthErrorResponse(auth);
     }
+    authResult = auth;
     waitUntil(authResult.touchLastUsed);
+
+    const scopeError = requireApiKeyScope(req, authResult, "admin");
+    if (scopeError) {
+      return scopeError;
+    }
 
     // Rate limit
     const rateCheck = checkRateLimit(authResult.keyId);
     if (!rateCheck.allowed) {
-      return Response.json(
+      return apiKeyJson(
+        req,
+        authResult,
         { error: "Rate limit exceeded. 100 requests per minute." },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
@@ -1990,9 +2178,14 @@ async function handleMcpRequest(req: Request): Promise<Response> {
     const server = createMcpServer(authResult.userId);
     await server.connect(transport);
 
-    return transport.handleRequest(req);
+    const response = await transport.handleRequest(req);
+    waitUntil(authResult.logUsage(req, response.status));
+    return response;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
+    if (authResult) {
+      return apiKeyJson(req, authResult, { error: message }, { status: 500 });
+    }
     return Response.json({ error: message }, { status: 500 });
   }
 }

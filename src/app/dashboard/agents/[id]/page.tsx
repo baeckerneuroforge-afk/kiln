@@ -369,16 +369,18 @@ export default function AgentDetailPage() {
 
   function handleExportConfig() {
     if (!agent) return;
-    const exportData = {
+    const exportData: Record<string, unknown> = {
       kiln_version: "1.0",
       name: agent.name,
       slug: agent.slug,
       description: agent.description,
+      agentMode: agent.agentMode,
       systemPrompt: agent.systemPrompt,
       personality: agent.personality,
       welcomeMessage: agent.welcomeMessage,
       suggestedQuestions: agent.suggestedQuestions,
       llmModel: agent.llmModel,
+      modelProvider: agent.modelProvider,
       memoryEnabled: agent.memoryEnabled,
       imageAnalysisEnabled: agent.imageAnalysisEnabled,
       showAiDisclaimer: agent.showAiDisclaimer,
@@ -392,11 +394,18 @@ export default function AgentDetailPage() {
         config: a.config,
       })),
     };
+    // Task Agent fields
+    if (agent.agentMode === "TASK") {
+      exportData.triggerType = agent.triggerType;
+      exportData.triggerConfig = agent.triggerConfig;
+      exportData.outputType = agent.outputType;
+      exportData.outputConfig = agent.outputConfig;
+    }
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${agent.slug}-config.json`;
+    a.download = `agent-${agent.slug}-config.json`;
     a.click();
     URL.revokeObjectURL(url);
     toast("Config exported", "success");
@@ -530,12 +539,10 @@ export default function AgentDetailPage() {
               Publish
             </Button>
           )}
-          {advancedMode && (
-            <Button variant="outline" size="sm" onClick={handleExportConfig}>
-              <Download className="mr-2 h-3.5 w-3.5" />
-              Export
-            </Button>
-          )}
+          <Button variant="outline" size="sm" onClick={handleExportConfig}>
+            <Download className="mr-2 h-3.5 w-3.5" />
+            Export
+          </Button>
           <Button onClick={handleSave} disabled={saving} size="sm">
             {saving ? (
               <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />

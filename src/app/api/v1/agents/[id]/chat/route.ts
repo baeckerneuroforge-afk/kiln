@@ -2,7 +2,13 @@ import { NextRequest } from "next/server";
 import { waitUntil } from "@vercel/functions";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import { authenticateApiKey } from "@/lib/api-auth";
+import {
+  apiKeyAuthErrorResponse,
+  apiKeyJson,
+  authenticateApiKey,
+  requireApiKeyScope,
+  type ApiKeyAuthSuccess,
+} from "@/lib/api-auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { prisma } from "@/lib/prisma";
@@ -26,21 +32,28 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  let authResult: ApiKeyAuthSuccess | null = null;
+
   try {
     // API Key Auth
-    const authResult = await authenticateApiKey(request.headers.get("authorization"));
-    if (!authResult) {
-      return Response.json(
-        { error: "Invalid or missing API key. Use Authorization: Bearer sk-kiln-..." },
-        { status: 401, headers: corsHeaders }
-      );
+    const auth = await authenticateApiKey(request.headers.get("authorization"));
+    if (!auth.ok) {
+      return apiKeyAuthErrorResponse(auth, corsHeaders);
     }
+    authResult = auth;
     waitUntil(authResult.touchLastUsed);
+
+    const scopeError = requireApiKeyScope(request, authResult, "chat", corsHeaders);
+    if (scopeError) {
+      return scopeError;
+    }
 
     // Rate Limiting
     const rateCheck = checkRateLimit(authResult.keyId);
     if (!rateCheck.allowed) {
-      return Response.json(
+      return apiKeyJson(
+        request,
+        authResult,
         { error: "Rate limit exceeded. 100 requests per minute." },
         {
           status: 429,
@@ -49,7 +62,7 @@ export async function POST(
             "X-RateLimit-Remaining": "0",
             "Retry-After": String(Math.ceil((rateCheck.resetAt - Date.now()) / 1000)),
           },
-        }
+        },
       );
     }
 
@@ -57,9 +70,11 @@ export async function POST(
     const { message, sessionId: clientSessionId } = body;
 
     if (!message || typeof message !== "string") {
-      return Response.json(
+      return apiKeyJson(
+        request,
+        authResult,
         { error: "message (string) is required in the request body" },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: corsHeaders },
       );
     }
 
@@ -74,9 +89,11 @@ export async function POST(
     });
 
     if (!agent) {
-      return Response.json(
+      return apiKeyJson(
+        request,
+        authResult,
         { error: "Agent not found or unauthorized" },
-        { status: 404, headers: corsHeaders }
+        { status: 404, headers: corsHeaders },
       );
     }
 
@@ -213,7 +230,9 @@ export async function POST(
       );
     }
 
-    return Response.json(
+    return apiKeyJson(
+      request,
+      authResult,
       {
         response: responseText,
         sessionId,
@@ -226,10 +245,13 @@ export async function POST(
           ...corsHeaders,
           "X-RateLimit-Remaining": String(rateCheck.remaining),
         },
-      }
+      },
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
+    if (authResult) {
+      return apiKeyJson(request, authResult, { error: message }, { status: 500, headers: corsHeaders });
+    }
     return Response.json({ error: message }, { status: 500, headers: corsHeaders });
   }
 }
