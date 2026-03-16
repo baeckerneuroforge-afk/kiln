@@ -41,7 +41,40 @@ export async function GET(
   }
 }
 
-// Create new knowledge base entry + process
+// Background: process text → chunks → embeddings → store
+async function processKnowledgeEntry(
+  kbId: string,
+  agentId: string,
+  userId: string,
+  textContent: string
+) {
+  try {
+    const chunks = chunkText(textContent);
+    const embeddings = await generateEmbeddings(chunks);
+    await storeChunks(kbId, agentId, chunks, embeddings);
+
+    await prisma.knowledgeBase.update({
+      where: { id: kbId },
+      data: {
+        chunkCount: chunks.length,
+        embeddingStatus: "READY",
+      },
+    });
+
+    // Deduct embedding credits (fire-and-forget)
+    deductEmbeddingCredits(userId, chunks.length, agentId).catch((err) => {
+      console.error("Knowledge embedding credit deduction failed:", err);
+    });
+  } catch (err) {
+    console.error(`Knowledge embedding failed for ${kbId}:`, err instanceof Error ? err.message : err);
+    await prisma.knowledgeBase.update({
+      where: { id: kbId },
+      data: { embeddingStatus: "ERROR" },
+    }).catch(() => {});
+  }
+}
+
+// Create new knowledge base entry + process async
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -64,8 +97,9 @@ export async function POST(
     let type: "PDF" | "URL" | "FAQ" | "TEXT";
     let sourceName: string;
     let textContent: string;
+
     if (contentType.includes("multipart/form-data")) {
-      // PDF Upload
+      // PDF Upload — parse synchronously (needs request body), embed async
       const formData = await request.formData();
       const file = formData.get("file") as File | null;
 
@@ -94,29 +128,23 @@ export async function POST(
         throw new Error(`Upload error: ${uploadError.message}`);
       }
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("knowledge-files").getPublicUrl(filePath);
-      // fileUrl available for later reference
-      void publicUrl;
-
-      // Extract PDF text (pdf-parse v1 — using lib/pdf-parse directly to avoid test-PDF bug)
+      // Extract PDF text
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const pdfParse = require("pdf-parse/lib/pdf-parse");
       const pdfData = await pdfParse(buffer);
       textContent = pdfData.text;
     } else {
-      // JSON Body: URL oder Text
+      // JSON Body: URL, FAQ, or Text
       const body = await request.json();
 
       if (body.type === "URL") {
         type = "URL";
         sourceName = body.url;
+        // URL fetch happens synchronously so we can validate content before creating the KB entry
         textContent = await fetchUrlContent(body.url);
       } else if (body.type === "FAQ") {
         type = "FAQ";
         sourceName = body.title || "FAQ";
-        // FAQ formatted as Q&A pairs
         textContent = (body.pairs || [])
           .map(
             (p: { question: string; answer: string }) =>
@@ -137,62 +165,25 @@ export async function POST(
       );
     }
 
-    // Create KB entry in Prisma (status: PROCESSING)
+    // Create KB entry with PROCESSING status
     const kb = await prisma.knowledgeBase.create({
       data: {
         agentId: params.id,
         type,
         sourceName,
-        content: textContent.slice(0, 50000), // Max 50k characters
+        content: textContent.slice(0, 50000),
         embeddingStatus: "PROCESSING",
       },
     });
 
-    // Async: Chunking + Embedding (in background, but we await it)
-    try {
-      const chunks = chunkText(textContent);
-      const embeddings = await generateEmbeddings(chunks);
-      await storeChunks(kb.id, params.id, chunks, embeddings);
+    // Run heavy embedding work in background via waitUntil
+    waitUntil(processKnowledgeEntry(kb.id, params.id, userId, textContent));
 
-      // Set status to READY
-      await prisma.knowledgeBase.update({
-        where: { id: kb.id },
-        data: {
-          chunkCount: chunks.length,
-          embeddingStatus: "READY",
-        },
-      });
-
-      // Deduct embedding credits (1 per 10 chunks, fire-and-forget)
-      if (userId) {
-        waitUntil(
-          deductEmbeddingCredits(userId, chunks.length, params.id).catch((err) => {
-            console.error("Knowledge embedding credit deduction failed:", err);
-          })
-        );
-      }
-
-      return Response.json({
-        ...kb,
-        chunkCount: chunks.length,
-        embeddingStatus: "READY",
-      });
-    } catch (embeddingError) {
-      // Embedding failed → status ERROR
-      await prisma.knowledgeBase.update({
-        where: { id: kb.id },
-        data: { embeddingStatus: "ERROR" },
-      });
-
-      const errMsg =
-        embeddingError instanceof Error
-          ? embeddingError.message
-          : "Embedding error";
-      return Response.json(
-        { ...kb, embeddingStatus: "ERROR", error: errMsg },
-        { status: 200 } // 200 because KB was created, only embedding failed
-      );
-    }
+    // Return immediately with 202
+    return Response.json(
+      { ...kb, status: "processing", id: kb.id },
+      { status: 202 }
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });
