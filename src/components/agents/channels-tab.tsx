@@ -14,6 +14,10 @@ import {
   AlertCircle,
   Copy,
   Clock,
+  FileText,
+  RefreshCw,
+  Database,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/toast";
@@ -50,6 +54,27 @@ interface SlackChannelOption {
   name: string;
   isMember: boolean;
   isPrivate: boolean;
+}
+
+interface NotionStatus {
+  connected: boolean;
+  notionConnected?: boolean;
+  workspaceName?: string | null;
+  config?: {
+    kbPageIds?: { id: string; title: string }[];
+    leadDatabaseId?: string | null;
+    leadDatabaseTitle?: string | null;
+    autoSyncEnabled?: boolean;
+  };
+  lastSyncAt?: string | null;
+  searchResults?: { id: string; title: string; url?: string; icon?: string | null }[];
+}
+
+interface NotionSearchResult {
+  id: string;
+  title: string;
+  url?: string;
+  icon?: string | null;
 }
 
 const channels = [
@@ -100,6 +125,15 @@ const channels = [
     bg: "bg-purple-500/10",
     border: "border-purple-500/20",
   },
+  {
+    id: "notion",
+    name: "Notion",
+    description: "Sync pages as Knowledge Base, export leads to databases",
+    icon: FileText,
+    color: "text-neutral-300",
+    bg: "bg-neutral-500/10",
+    border: "border-neutral-500/20",
+  },
 ];
 
 function timeAgo(dateStr: string): string {
@@ -146,6 +180,21 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
   const [slackError, setSlackError] = useState("");
   const [loadingChannels, setLoadingChannels] = useState(false);
 
+  // Notion state
+  const [notionStatus, setNotionStatus] = useState<NotionStatus>({ connected: false });
+  const [notionLoading, setNotionLoading] = useState(true);
+  const [showNotionSetup, setShowNotionSetup] = useState(false);
+  const [notionError, setNotionError] = useState("");
+  const [notionPages, setNotionPages] = useState<NotionSearchResult[]>([]);
+  const [notionDatabases, setNotionDatabases] = useState<NotionSearchResult[]>([]);
+  const [selectedNotionPages, setSelectedNotionPages] = useState<{ id: string; title: string }[]>([]);
+  const [selectedLeadDb, setSelectedLeadDb] = useState("");
+  const [notionSearchQuery, setNotionSearchQuery] = useState("");
+  const [searchingNotion, setSearchingNotion] = useState(false);
+  const [notionSaving, setNotionSaving] = useState(false);
+  const [notionSyncing, setNotionSyncing] = useState(false);
+  const [notionDisconnecting, setNotionDisconnecting] = useState(false);
+
   const loadTelegramStatus = useCallback(async () => {
     try {
       const res = await fetch(`/api/agents/${agentId}/channels/telegram`);
@@ -185,7 +234,22 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
     }
   }, [agentId]);
 
-  useEffect(() => { loadTelegramStatus(); loadEmailStatus(); loadSlackStatus(); }, [loadTelegramStatus, loadEmailStatus, loadSlackStatus]);
+  const loadNotionStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/agents/${agentId}/integrations/notion`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setNotionStatus(data);
+      if (data.config?.kbPageIds) setSelectedNotionPages(data.config.kbPageIds);
+      if (data.config?.leadDatabaseId) setSelectedLeadDb(data.config.leadDatabaseId);
+    } catch {
+      // Not connected
+    } finally {
+      setNotionLoading(false);
+    }
+  }, [agentId]);
+
+  useEffect(() => { loadTelegramStatus(); loadEmailStatus(); loadSlackStatus(); loadNotionStatus(); }, [loadTelegramStatus, loadEmailStatus, loadSlackStatus, loadNotionStatus]);
 
   // Telegram handlers
   const connectTelegram = async () => {
@@ -280,6 +344,130 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
     }
   };
 
+  // Notion handlers
+  const startNotionOAuth = () => {
+    window.location.href = `${window.location.origin}/api/integrations/notion/auth?agentId=${agentId}`;
+  };
+
+  const searchNotionPages = async () => {
+    setSearchingNotion(true);
+    try {
+      const res = await fetch(
+        `/api/agents/${agentId}/integrations/notion?action=searchPages&q=${encodeURIComponent(notionSearchQuery)}`
+      );
+      const data = await res.json();
+      if (data.searchResults) setNotionPages(data.searchResults);
+    } catch {
+      setNotionError("Failed to search Notion");
+    } finally {
+      setSearchingNotion(false);
+    }
+  };
+
+  const searchNotionDatabases = async () => {
+    setSearchingNotion(true);
+    try {
+      const res = await fetch(
+        `/api/agents/${agentId}/integrations/notion?action=searchDatabases&q=`
+      );
+      const data = await res.json();
+      if (data.searchResults) setNotionDatabases(data.searchResults);
+    } catch {
+      setNotionError("Failed to load databases");
+    } finally {
+      setSearchingNotion(false);
+    }
+  };
+
+  const saveNotionConfig = async () => {
+    setNotionSaving(true);
+    setNotionError("");
+    try {
+      // Save KB pages
+      await fetch(`/api/agents/${agentId}/integrations/notion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "setKbPages", pages: selectedNotionPages }),
+      });
+
+      // Save lead database
+      const selectedDb = notionDatabases.find((d) => d.id === selectedLeadDb);
+      await fetch(`/api/agents/${agentId}/integrations/notion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "setLeadDatabase",
+          databaseId: selectedLeadDb || null,
+          databaseTitle: selectedDb?.title || null,
+        }),
+      });
+
+      toast("Notion configuration saved!");
+      await loadNotionStatus();
+      setShowNotionSetup(false);
+    } catch {
+      setNotionError("Failed to save configuration");
+    } finally {
+      setNotionSaving(false);
+    }
+  };
+
+  const syncNotionNow = async () => {
+    setNotionSyncing(true);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/integrations/notion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "syncNow" }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        toast(data.error, "error");
+        return;
+      }
+      toast("Notion sync started! Pages will be imported to your Knowledge Base.");
+    } catch {
+      toast("Failed to start sync", "error");
+    } finally {
+      setNotionSyncing(false);
+    }
+  };
+
+  const toggleNotionAutoSync = async (enabled: boolean) => {
+    try {
+      await fetch(`/api/agents/${agentId}/integrations/notion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "setAutoSync", enabled }),
+      });
+      setNotionStatus((prev) => ({
+        ...prev,
+        config: { ...prev.config, autoSyncEnabled: enabled },
+      }));
+      toast(enabled ? "Auto-sync enabled" : "Auto-sync disabled");
+    } catch {
+      toast("Failed to update", "error");
+    }
+  };
+
+  const disconnectNotion = async () => {
+    setNotionDisconnecting(true);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/integrations/notion`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast("Notion disconnected from this agent");
+      setNotionStatus((prev) => ({ ...prev, connected: false }));
+      setSelectedNotionPages([]);
+      setSelectedLeadDb("");
+      setShowNotionSetup(false);
+    } catch {
+      toast("Failed to disconnect", "error");
+    } finally {
+      setNotionDisconnecting(false);
+    }
+  };
+
   // Slack handlers
   const startSlackOAuth = () => {
     const appUrl = window.location.origin;
@@ -371,6 +559,7 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
           const isTelegram = ch.id === "telegram";
           const isEmail = ch.id === "email";
           const isSlack = ch.id === "slack";
+          const isNotion = ch.id === "notion";
           return (
             <div key={ch.id} className="rounded-xl border border-border bg-card">
               {/* Channel card header */}
@@ -468,6 +657,33 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                   )}
 
                   {isSlack && slackLoading && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+
+                  {/* Notion status */}
+                  {isNotion && !notionLoading && notionStatus.connected && (
+                    <span className="flex items-center gap-1.5 rounded-full bg-kiln-green/10 px-3 py-1 text-[10px] font-semibold text-kiln-green">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Connected
+                    </span>
+                  )}
+
+                  {isNotion && !notionLoading && !notionStatus.connected && (
+                    <button
+                      onClick={() => {
+                        setShowNotionSetup(!showNotionSetup);
+                        if (!showNotionSetup && notionStatus.notionConnected) {
+                          if (notionPages.length === 0) searchNotionPages();
+                          if (notionDatabases.length === 0) searchNotionDatabases();
+                        }
+                      }}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                    >
+                      Set Up
+                    </button>
+                  )}
+
+                  {isNotion && notionLoading && (
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   )}
 
@@ -769,6 +985,264 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                         >
                           {slackConnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquare className="h-3.5 w-3.5" />}
                           Connect Channel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Notion: Connected details */}
+              {isNotion && notionStatus.connected && (
+                <div className="border-t border-border px-4 py-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{notionStatus.workspaceName}</span>
+                      {notionStatus.lastSyncAt && (
+                        <span className="ml-2 text-muted-foreground/60">
+                          <Clock className="inline h-3 w-3 mr-0.5" />
+                          Last sync {timeAgo(notionStatus.lastSyncAt)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={syncNotionNow}
+                        disabled={notionSyncing}
+                        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-neutral-300 transition-colors hover:bg-neutral-500/10"
+                      >
+                        {notionSyncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        Sync Now
+                      </button>
+                      <button
+                        onClick={disconnectNotion}
+                        disabled={notionDisconnecting}
+                        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                      >
+                        {notionDisconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        Disconnect
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* KB Pages summary */}
+                  {notionStatus.config?.kbPageIds && notionStatus.config.kbPageIds.length > 0 && (
+                    <div className="mb-2">
+                      <span className="text-[10px] font-medium text-muted-foreground">KB Sync Pages:</span>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {notionStatus.config.kbPageIds.map((p) => (
+                          <span key={p.id} className="rounded bg-muted px-2 py-0.5 text-[10px] text-foreground">
+                            {p.title}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Lead Database summary */}
+                  {notionStatus.config?.leadDatabaseTitle && (
+                    <div className="mb-2">
+                      <span className="text-[10px] font-medium text-muted-foreground">Lead Export:</span>
+                      <span className="ml-1.5 rounded bg-muted px-2 py-0.5 text-[10px] text-foreground">
+                        <Database className="inline h-3 w-3 mr-0.5" />
+                        {notionStatus.config.leadDatabaseTitle}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Auto-sync toggle */}
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+                    <span className="text-[10px] text-muted-foreground">Auto-sync daily</span>
+                    <button onClick={() => toggleNotionAutoSync(!notionStatus.config?.autoSyncEnabled)}>
+                      <div className={cn("relative h-5 w-9 rounded-full transition-colors duration-200", notionStatus.config?.autoSyncEnabled ? "bg-kiln-green" : "bg-muted")}>
+                        <div className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200", notionStatus.config?.autoSyncEnabled ? "translate-x-4" : "translate-x-0.5")} />
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Edit config button */}
+                  <button
+                    onClick={() => {
+                      setShowNotionSetup(true);
+                      if (notionPages.length === 0) searchNotionPages();
+                      if (notionDatabases.length === 0) searchNotionDatabases();
+                    }}
+                    className="mt-2 w-full rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                  >
+                    Edit Configuration
+                  </button>
+                </div>
+              )}
+
+              {/* Notion: Setup form */}
+              {isNotion && showNotionSetup && (
+                <div className="border-t border-border p-4">
+                  {!notionStatus.notionConnected ? (
+                    // Step 1: Connect Notion workspace via OAuth
+                    <div>
+                      <div className="mb-4 rounded-lg border border-neutral-500/20 bg-neutral-500/5 p-3">
+                        <p className="text-xs font-medium text-neutral-300 mb-2">Setup Instructions</p>
+                        <ol className="space-y-1.5 text-[11px] text-muted-foreground list-decimal list-inside">
+                          <li>Click <span className="font-medium text-foreground">Connect Notion</span> below</li>
+                          <li>Authorize KILN to access your Notion workspace</li>
+                          <li>Select pages to sync as Knowledge Base</li>
+                          <li>Optionally select a database for lead export</li>
+                        </ol>
+                      </div>
+
+                      <button
+                        onClick={startNotionOAuth}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-neutral-600 px-4 py-2.5 text-xs font-medium text-white transition-colors hover:bg-neutral-600/90"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        Connect Notion Workspace
+                      </button>
+
+                      <button
+                        onClick={() => { setShowNotionSetup(false); setNotionError(""); }}
+                        className="mt-2 w-full rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    // Step 2: Configure KB sync + lead export
+                    <div className="space-y-4">
+                      <div className="rounded-lg bg-neutral-500/5 border border-neutral-500/20 px-3 py-2">
+                        <span className="text-[10px] text-muted-foreground">Connected to</span>
+                        <p className="text-sm font-medium text-foreground">{notionStatus.workspaceName}</p>
+                      </div>
+
+                      {/* KB Page selection */}
+                      <div>
+                        <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                          <FileText className="h-3 w-3" />
+                          Knowledge Base Pages
+                        </label>
+                        <p className="mb-2 text-[10px] text-muted-foreground/70">
+                          Select Notion pages to import as knowledge for your agent.
+                        </p>
+
+                        <div className="mb-2 flex gap-1.5">
+                          <input
+                            type="text"
+                            value={notionSearchQuery}
+                            onChange={(e) => setNotionSearchQuery(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); searchNotionPages(); } }}
+                            placeholder="Search pages..."
+                            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/30 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400/20"
+                          />
+                          <button
+                            onClick={searchNotionPages}
+                            disabled={searchingNotion}
+                            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted"
+                          >
+                            {searchingNotion ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
+                          </button>
+                        </div>
+
+                        {/* Selected pages */}
+                        {selectedNotionPages.length > 0 && (
+                          <div className="mb-2 flex flex-wrap gap-1">
+                            {selectedNotionPages.map((p) => (
+                              <span
+                                key={p.id}
+                                className="flex items-center gap-1 rounded-md bg-neutral-500/10 px-2 py-1 text-[10px] text-foreground"
+                              >
+                                {p.title}
+                                <button
+                                  onClick={() => setSelectedNotionPages((prev) => prev.filter((x) => x.id !== p.id))}
+                                  className="ml-0.5 text-muted-foreground hover:text-red-400"
+                                >
+                                  &times;
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Page search results */}
+                        {notionPages.length > 0 && (
+                          <div className="max-h-40 overflow-y-auto rounded-lg border border-border">
+                            {notionPages.map((page) => {
+                              const isSelected = selectedNotionPages.some((p) => p.id === page.id);
+                              return (
+                                <button
+                                  key={page.id}
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      setSelectedNotionPages((prev) => prev.filter((p) => p.id !== page.id));
+                                    } else {
+                                      setSelectedNotionPages((prev) => [...prev, { id: page.id, title: page.title }]);
+                                    }
+                                  }}
+                                  className={cn(
+                                    "flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-muted",
+                                    isSelected && "bg-neutral-500/10"
+                                  )}
+                                >
+                                  <span className="shrink-0 text-sm">{page.icon || "📄"}</span>
+                                  <span className="min-w-0 truncate text-foreground">{page.title}</span>
+                                  {isSelected && <CheckCircle2 className="ml-auto h-3.5 w-3.5 shrink-0 text-kiln-green" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Lead Database selection */}
+                      <div>
+                        <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                          <Database className="h-3 w-3" />
+                          Lead Export Database <span className="text-muted-foreground/50">(optional)</span>
+                        </label>
+                        <p className="mb-2 text-[10px] text-muted-foreground/70">
+                          When your agent captures a lead, automatically create a row in this Notion database.
+                        </p>
+
+                        {searchingNotion && notionDatabases.length === 0 ? (
+                          <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Loading databases...
+                          </div>
+                        ) : (
+                          <select
+                            value={selectedLeadDb}
+                            onChange={(e) => setSelectedLeadDb(e.target.value)}
+                            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400/20"
+                          >
+                            <option value="">No lead export</option>
+                            {notionDatabases.map((db) => (
+                              <option key={db.id} value={db.id}>
+                                {db.icon || "📋"} {db.title}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+
+                      {notionError && (
+                        <div className="flex items-center gap-1.5 text-xs text-red-400">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                          {notionError}
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setShowNotionSetup(false); setNotionError(""); }}
+                          className="flex-1 rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={saveNotionConfig}
+                          disabled={notionSaving}
+                          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-neutral-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-neutral-600/90 disabled:opacity-50"
+                        >
+                          {notionSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                          Save Configuration
                         </button>
                       </div>
                     </div>

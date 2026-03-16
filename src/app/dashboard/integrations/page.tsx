@@ -47,9 +47,36 @@ interface IntegrationConnection {
   agentIntegrations: { id: string; agentId: string; enabled: boolean }[];
 }
 
+interface GoogleCalendarDetails {
+  connected: boolean;
+  name?: string;
+  isActive?: boolean;
+  lastSyncAt?: string | null;
+  selectedCalendarId?: string | null;
+  selectedCalendarName?: string | null;
+  calendars: {
+    id: string;
+    summary: string;
+    primary: boolean;
+    timeZone?: string;
+  }[];
+  upcomingAppointments: {
+    id: string;
+    summary: string;
+    htmlLink?: string;
+    start: string | null;
+    end: string | null;
+    status: string | null;
+  }[];
+}
+
+function normalizeProvider(provider: string) {
+  return provider === "google-calendar" ? "google_calendar" : provider;
+}
+
 /* ---------- Catalog ---------- */
 const integrationsCatalog = [
-  { provider: "google-calendar", name: "Google Calendar", description: "Schedule meetings and check availability", icon: Calendar, color: "bg-blue-500", accent: "border-t-blue-500", category: "Productivity" },
+  { provider: "google_calendar", name: "Google Calendar", description: "Schedule meetings and check live availability", icon: Calendar, color: "bg-blue-500", accent: "border-t-blue-500", category: "Productivity" },
   { provider: "gmail", name: "Gmail", description: "Send and receive emails from your agents", icon: Mail, color: "bg-red-500", accent: "border-t-red-500", category: "Communication" },
   { provider: "hubspot", name: "HubSpot", description: "CRM contacts, deals, and pipeline management", icon: BarChart3, color: "bg-orange-500", accent: "border-t-orange-500", category: "CRM" },
   { provider: "slack", name: "Slack", description: "Send messages and notifications to channels", icon: MessageSquare, color: "bg-purple-500", accent: "border-t-purple-500", category: "Communication" },
@@ -275,6 +302,7 @@ export default function IntegrationsPage() {
   const { toast } = useToast();
   const { advancedMode } = useAdvancedMode();
   const [connections, setConnections] = useState<IntegrationConnection[]>([]);
+  const [googleCalendar, setGoogleCalendar] = useState<GoogleCalendarDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
@@ -291,13 +319,25 @@ export default function IntegrationsPage() {
   const [ghAgentId, setGhAgentId] = useState("");
   const [ghAgents, setGhAgents] = useState<{ id: string; name: string }[]>([]);
   const [ghSaving, setGhSaving] = useState(false);
+  const [savingGoogleCalendar, setSavingGoogleCalendar] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
-      const res = await fetch("/api/integrations");
-      const data = await res.json();
+      const [connectionsRes, googleCalendarRes] = await Promise.all([
+        fetch("/api/integrations"),
+        fetch("/api/integrations/google-calendar"),
+      ]);
+
+      const data = await connectionsRes.json();
       if (data.error) throw new Error(data.error);
       setConnections(data.connections || []);
+
+      if (googleCalendarRes.ok) {
+        const googleData = await googleCalendarRes.json();
+        setGoogleCalendar(googleData);
+      } else {
+        setGoogleCalendar(null);
+      }
     } catch {
       toast("Failed to load integrations", "error");
     } finally {
@@ -307,7 +347,7 @@ export default function IntegrationsPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const connectedProviders = new Set(connections.map((c) => c.provider));
+  const connectedProviders = new Set(connections.map((c) => normalizeProvider(c.provider)));
 
   const saveConnection = async (provider: string, name: string, config: Record<string, string>, isCustom: boolean) => {
     setSaving(true);
@@ -345,6 +385,29 @@ export default function IntegrationsPage() {
     } catch {
       setConnections((prev) => prev.map((c) => (c.id === conn.id ? { ...c, isActive: conn.isActive } : c)));
       toast("Failed to update", "error");
+    }
+  };
+
+  const connectGoogleCalendar = () => {
+    window.location.href = "/api/integrations/google-calendar/auth?redirectTo=/dashboard/integrations";
+  };
+
+  const selectGoogleCalendar = async (calendarId: string) => {
+    setSavingGoogleCalendar(true);
+    try {
+      const res = await fetch("/api/integrations/google-calendar", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ calendarId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update calendar");
+      toast("Booking calendar updated");
+      await loadData();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Failed to update calendar", "error");
+    } finally {
+      setSavingGoogleCalendar(false);
     }
   };
 
@@ -494,11 +557,13 @@ export default function IntegrationsPage() {
           <h2 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Connected ({connections.length})</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {connections.map((conn) => {
-              const catalog = integrationsCatalog.find((c) => c.provider === conn.provider);
+              const provider = normalizeProvider(conn.provider);
+              const catalog = integrationsCatalog.find((c) => c.provider === provider);
               const Icon = catalog?.icon || Plug;
               const color = catalog?.color || "bg-muted-foreground";
               const accent = catalog?.accent || "border-t-muted-foreground";
               const enabledAgents = conn.agentIntegrations.filter((a) => a.enabled).length;
+              const isGoogleCalendar = provider === "google_calendar";
 
               return (
                 <div key={conn.id} className={cn("card-hover-lift group relative overflow-hidden rounded-xl border border-t-2 p-4 transition-all", accent, conn.isActive ? "bg-card" : "bg-card opacity-50")}>
@@ -534,6 +599,49 @@ export default function IntegrationsPage() {
                     {enabledAgents > 0 && <span>{enabledAgents} agent{enabledAgents !== 1 ? "s" : ""}</span>}
                     {conn.lastSyncAt && <span>Synced {timeAgo(conn.lastSyncAt)}</span>}
                   </div>
+                  {isGoogleCalendar && googleCalendar?.connected && (
+                    <div className="mt-3 rounded-lg border border-border/60 bg-background/50 p-3">
+                      <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Booking Calendar
+                      </label>
+                      <select
+                        value={googleCalendar.selectedCalendarId || ""}
+                        onChange={(e) => selectGoogleCalendar(e.target.value)}
+                        disabled={savingGoogleCalendar}
+                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/20"
+                      >
+                        {googleCalendar.calendars.map((calendar) => (
+                          <option key={calendar.id} value={calendar.id}>
+                            {calendar.summary}{calendar.primary ? " (Primary)" : ""}
+                          </option>
+                        ))}
+                      </select>
+
+                      <div className="mt-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Upcoming Appointments
+                        </p>
+                        {googleCalendar.upcomingAppointments.length > 0 ? (
+                          <div className="mt-2 space-y-2">
+                            {googleCalendar.upcomingAppointments.slice(0, 3).map((appointment) => (
+                              <div key={appointment.id} className="rounded-md border border-border/50 bg-card/70 px-2.5 py-2">
+                                <p className="truncate text-xs font-medium text-foreground">
+                                  {appointment.summary || "Booked appointment"}
+                                </p>
+                                <p className="mt-1 text-[10px] text-muted-foreground">
+                                  {appointment.start ? timeAgo(appointment.start) : "Start time unavailable"}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-[11px] text-muted-foreground">
+                            No upcoming bookings on the selected calendar yet.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -577,10 +685,28 @@ export default function IntegrationsPage() {
                     <Plug className="h-2.5 w-2.5" />
                     Connect
                   </button>
+                ) : item.provider === "google_calendar" ? (
+                  <button
+                    onClick={connectGoogleCalendar}
+                    className="flex items-center gap-1 rounded-full bg-kiln-orange/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-orange transition-colors hover:bg-kiln-orange/20"
+                  >
+                    <Plug className="h-2.5 w-2.5" />
+                    Connect
+                  </button>
                 ) : item.provider === "slack" ? (
                   <button
                     onClick={() => {
                       window.location.href = `/api/integrations/slack/auth`;
+                    }}
+                    className="flex items-center gap-1 rounded-full bg-kiln-orange/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-orange transition-colors hover:bg-kiln-orange/20"
+                  >
+                    <Plug className="h-2.5 w-2.5" />
+                    Connect
+                  </button>
+                ) : item.provider === "notion" ? (
+                  <button
+                    onClick={() => {
+                      window.location.href = `/api/integrations/notion/auth`;
                     }}
                     className="flex items-center gap-1 rounded-full bg-kiln-orange/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-orange transition-colors hover:bg-kiln-orange/20"
                   >
@@ -606,6 +732,15 @@ export default function IntegrationsPage() {
                   Connect Repository
                 </button>
               )}
+              {!isConnected && item.provider === "google_calendar" && (
+                <button
+                  onClick={connectGoogleCalendar}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-500/90"
+                >
+                  <Calendar className="h-3.5 w-3.5" />
+                  Connect Google Calendar
+                </button>
+              )}
               {!isConnected && item.provider === "slack" && (
                 <button
                   onClick={() => {
@@ -617,7 +752,18 @@ export default function IntegrationsPage() {
                   Connect Workspace
                 </button>
               )}
-              {!isConnected && item.provider !== "github" && item.provider !== "slack" && (
+              {!isConnected && item.provider === "notion" && (
+                <button
+                  onClick={() => {
+                    window.location.href = `/api/integrations/notion/auth`;
+                  }}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-neutral-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-neutral-600/90"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  Connect Notion
+                </button>
+              )}
+              {!isConnected && item.provider !== "github" && item.provider !== "slack" && item.provider !== "google_calendar" && item.provider !== "notion" && (
                 isSubmitted ? (
                   <div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-kiln-green/30 bg-kiln-green/5 px-3 py-2 text-xs font-medium text-kiln-green">
                     <Bell className="h-3.5 w-3.5" />

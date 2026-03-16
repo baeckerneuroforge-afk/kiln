@@ -11,6 +11,7 @@ import { decrypt } from "@/lib/encryption";
 import { fireWebhookEvent } from "@/lib/webhooks";
 import { emitEvent } from "@/lib/events";
 import { sendNewLeadEmail, sendHandoffEmail } from "@/lib/email-notifications";
+import { exportLeadToNotion } from "@/lib/services/notion-lead-export";
 import crypto from "crypto";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
@@ -34,6 +35,14 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
+
+function parseToolResult(result: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(result) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
 
 // CORS Preflight
 export async function OPTIONS() {
@@ -445,7 +454,21 @@ export async function POST(
                   : fnCall.function.name.toUpperCase();
                 if (!actionsUsed.includes(actionType)) actionsUsed.push(actionType);
 
-                const result = await executeChatTool(fnCall.function.name, toolInput, params.id, agent.actions, agent.customTools);
+                const result = await executeChatTool(
+                  fnCall.function.name,
+                  toolInput,
+                  params.id,
+                  agent.actions,
+                  agent.customTools,
+                  {
+                    userId: agent.userId,
+                    conversationId,
+                    visitorName: conversation.visitorName,
+                    visitorEmail: conversation.visitorEmail,
+                    agentName: agent.name,
+                  }
+                );
+                const parsedToolResult = parseToolResult(result);
 
                 debugToolCalls.push({ name: fnCall.function.name, input: toolInput, result });
 
@@ -483,12 +506,24 @@ export async function POST(
                       name: toolInput.name || null,
                     })
                   );
+                  // Export lead to Notion (if configured)
+                  waitUntil(
+                    exportLeadToNotion(params.id, agent.userId, {
+                      email: (toolInput.email as string) || "",
+                      name: (toolInput.name as string) || undefined,
+                      conversationId,
+                    })
+                  );
                 }
-                if (fnCall.function.name === "book_appointment") {
+                if (fnCall.function.name === "book_appointment" && parsedToolResult?.action === "booked") {
                   waitUntil(
                     emitEvent("appointment.booked", agent.userId, params.id, {
                       conversationId,
                       input: toolInput,
+                      eventId: parsedToolResult.eventId || null,
+                      start: parsedToolResult.start || null,
+                      end: parsedToolResult.end || null,
+                      attendeeEmail: parsedToolResult.attendeeEmail || null,
                     })
                   );
                 }
@@ -592,8 +627,16 @@ export async function POST(
                   block.input as Record<string, unknown>,
                   params.id,
                   agent.actions,
-                  agent.customTools
+                  agent.customTools,
+                  {
+                    userId: agent.userId,
+                    conversationId,
+                    visitorName: conversation.visitorName,
+                    visitorEmail: conversation.visitorEmail,
+                    agentName: agent.name,
+                  }
                 );
+                const parsedToolResult = parseToolResult(result);
 
                 debugToolCalls.push({
                   name: block.name,
@@ -646,12 +689,24 @@ export async function POST(
                       name: input.name || null,
                     })
                   );
+                  // Export lead to Notion (if configured)
+                  waitUntil(
+                    exportLeadToNotion(params.id, agent.userId, {
+                      email: (input.email as string) || "",
+                      name: (input.name as string) || undefined,
+                      conversationId,
+                    })
+                  );
                 }
-                if (block.name === "book_appointment") {
+                if (block.name === "book_appointment" && parsedToolResult?.action === "booked") {
                   waitUntil(
                     emitEvent("appointment.booked", agent.userId, params.id, {
                       conversationId,
                       input: block.input,
+                      eventId: parsedToolResult.eventId || null,
+                      start: parsedToolResult.start || null,
+                      end: parsedToolResult.end || null,
+                      attendeeEmail: parsedToolResult.attendeeEmail || null,
                     })
                   );
                 }

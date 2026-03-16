@@ -122,6 +122,71 @@ export async function sendHandoffEmail(
   await sendEmail(email, subject, html);
 }
 
+export async function sendAppointmentConfirmationEmails(params: {
+  agentOwnerId: string;
+  agentName: string;
+  visitorEmail?: string | null;
+  visitorName?: string | null;
+  start: string;
+  end: string;
+  timezone?: string | null;
+  eventLink?: string | null;
+  location?: string | null;
+}) {
+  const timezone = params.timezone || "UTC";
+  const startDate = new Date(params.start);
+  const endDate = new Date(params.end);
+  const schedule = new Intl.DateTimeFormat("en-US", {
+    dateStyle: "full",
+    timeStyle: "short",
+    timeZone: timezone,
+  }).format(startDate);
+  const endTime = new Intl.DateTimeFormat("en-US", {
+    timeStyle: "short",
+    timeZone: timezone,
+  }).format(endDate);
+
+  const ownerEmail = await getNotifiableEmail(params.agentOwnerId);
+  if (ownerEmail) {
+    await sendEmail(
+      ownerEmail,
+      `Appointment booked on "${params.agentName}"`,
+      `
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;color:#1a1a1a">
+          <p>A new appointment was booked through <strong>${escapeHtml(params.agentName)}</strong>.</p>
+          <div style="background:#f5f5f5;border-radius:8px;padding:12px 16px;margin:16px 0;font-size:14px;color:#333">
+            <p style="margin:0"><strong>When:</strong> ${escapeHtml(schedule)} - ${escapeHtml(endTime)} (${escapeHtml(timezone)})</p>
+            <p style="margin:8px 0 0"><strong>Visitor:</strong> ${escapeHtml(params.visitorName || "Unknown visitor")} ${params.visitorEmail ? `&lt;${escapeHtml(params.visitorEmail)}&gt;` : ""}</p>
+            ${params.location ? `<p style="margin:8px 0 0"><strong>Location:</strong> ${escapeHtml(params.location)}</p>` : ""}
+          </div>
+          ${params.eventLink ? `<a href="${params.eventLink}" style="display:inline-block;background:#F97316;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500">Open Calendar Event</a>` : ""}
+          <p style="color:#888;font-size:12px;margin-top:24px">— The KILN Team</p>
+        </div>
+      `
+    );
+  }
+
+  if (params.visitorEmail) {
+    await sendEmail(
+      params.visitorEmail,
+      `Your appointment with ${params.agentName} is confirmed`,
+      `
+        <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;color:#1a1a1a">
+          <p>${params.visitorName ? `Hi ${escapeHtml(params.visitorName)},` : "Hi,"}</p>
+          <p>Your appointment with <strong>${escapeHtml(params.agentName)}</strong> is confirmed.</p>
+          <div style="background:#f5f5f5;border-radius:8px;padding:12px 16px;margin:16px 0;font-size:14px;color:#333">
+            <p style="margin:0"><strong>When:</strong> ${escapeHtml(schedule)} - ${escapeHtml(endTime)} (${escapeHtml(timezone)})</p>
+            ${params.location ? `<p style="margin:8px 0 0"><strong>Location:</strong> ${escapeHtml(params.location)}</p>` : ""}
+          </div>
+          ${params.eventLink ? `<a href="${params.eventLink}" style="display:inline-block;background:#F97316;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500">Open Calendar Invite</a>` : ""}
+          <p style="color:#888;font-size:12px;margin-top:24px">If you need to reschedule, reply to this email or contact the organizer.</p>
+          <p style="color:#888;font-size:12px">— The KILN Team</p>
+        </div>
+      `
+    );
+  }
+}
+
 /**
  * Weekly summary email with key stats. (Stub — implementation coming later)
  */

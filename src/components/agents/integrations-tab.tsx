@@ -33,6 +33,7 @@ interface AgentIntegrationItem {
 
 /* ---------- Provider visual config ---------- */
 const providerConfig: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
+  google_calendar: { icon: Calendar, color: "text-blue-400", bg: "bg-blue-500/10" },
   "google-calendar": { icon: Calendar, color: "text-blue-400", bg: "bg-blue-500/10" },
   gmail: { icon: Mail, color: "text-red-400", bg: "bg-red-500/10" },
   hubspot: { icon: BarChart3, color: "text-orange-400", bg: "bg-orange-500/10" },

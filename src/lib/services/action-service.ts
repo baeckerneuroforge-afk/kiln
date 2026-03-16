@@ -1,5 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
+import { sendAppointmentConfirmationEmails } from "@/lib/email-notifications";
+import {
+  getGoogleCalendarIntegrationForAgent,
+  type GoogleCalendarDateRange,
+} from "@/lib/integrations/google-calendar";
 import { safeEval } from "@/lib/safe-eval";
 import { validateUrl } from "@/lib/url-validation";
 
@@ -26,6 +31,73 @@ export function resolveJsonPath(obj: unknown, path: string): unknown {
   return current;
 }
 
+export interface ChatToolExecutionContext {
+  userId?: string;
+  conversationId?: string;
+  visitorName?: string | null;
+  visitorEmail?: string | null;
+  agentName?: string;
+}
+
+function buildAvailabilityRange(toolInput: Record<string, unknown>): GoogleCalendarDateRange {
+  const timezone = typeof toolInput.timezone === "string" && toolInput.timezone
+    ? toolInput.timezone
+    : "UTC";
+  const slotMinutes = Number(toolInput.slotMinutes) || 30;
+  const dayStartHour = Number(toolInput.dayStartHour);
+  const dayEndHour = Number(toolInput.dayEndHour);
+
+  if (typeof toolInput.rangeStart === "string" && typeof toolInput.rangeEnd === "string") {
+    return {
+      start: toolInput.rangeStart,
+      end: toolInput.rangeEnd,
+      timezone,
+      slotMinutes,
+      dayStartHour: Number.isFinite(dayStartHour) ? dayStartHour : undefined,
+      dayEndHour: Number.isFinite(dayEndHour) ? dayEndHour : undefined,
+      maxSlots: Number(toolInput.maxSlots) || 8,
+    };
+  }
+
+  if (typeof toolInput.preferredDate === "string" && toolInput.preferredDate) {
+    const preferredDate = new Date(toolInput.preferredDate);
+    const start = new Date(preferredDate);
+    start.setHours(Number.isFinite(dayStartHour) ? dayStartHour : 9, 0, 0, 0);
+    const end = new Date(preferredDate);
+    end.setHours(Number.isFinite(dayEndHour) ? dayEndHour : 17, 0, 0, 0);
+
+    return {
+      start: start.toISOString(),
+      end: end.toISOString(),
+      timezone,
+      slotMinutes,
+      dayStartHour: Number.isFinite(dayStartHour) ? dayStartHour : 9,
+      dayEndHour: Number.isFinite(dayEndHour) ? dayEndHour : 17,
+      maxSlots: Number(toolInput.maxSlots) || 8,
+    };
+  }
+
+  const start = new Date();
+  start.setHours(9, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 5);
+  end.setHours(17, 0, 0, 0);
+
+  return {
+    start: start.toISOString(),
+    end: end.toISOString(),
+    timezone,
+    slotMinutes,
+    dayStartHour: 9,
+    dayEndHour: 17,
+    maxSlots: Number(toolInput.maxSlots) || 8,
+  };
+}
+
+function formatSlotList(slots: { label: string }[]) {
+  return slots.map((slot, index) => `${index + 1}. ${slot.label}`).join("\n");
+}
+
 // Tool definitions based on enabled actions + custom tools
 export function buildTools(
   actions: { type: string; enabled: boolean; config: unknown }[],
@@ -39,23 +111,62 @@ export function buildTools(
 
     switch (action.type) {
       case "BOOK_APPOINTMENT":
-        if (config.calendlyUrl) {
-          tools.push({
-            name: "book_appointment",
-            description:
-              "Use this tool when the user wants to book an appointment, wants a consultation, or asks about available times. Show the user the booking link.",
-            input_schema: {
-              type: "object" as const,
-              properties: {
-                reason: {
-                  type: "string",
-                  description: "Reason for the appointment",
-                },
+        tools.push({
+          name: "book_appointment",
+          description:
+            "Use this tool when the user wants to book an appointment, asks for available times, or confirms a slot. First check live availability when possible. Once the user picks a time, create the booking with their name and email. If no live calendar is available, fall back to the configured booking link.",
+          input_schema: {
+            type: "object" as const,
+            properties: {
+              operation: {
+                type: "string",
+                enum: ["availability", "book"],
+                description: "Use 'availability' to fetch open slots or 'book' to create the appointment.",
               },
-              required: ["reason"],
+              reason: {
+                type: "string",
+                description: "Reason for the appointment or meeting topic.",
+              },
+              preferredDate: {
+                type: "string",
+                description: "Preferred booking date if the user mentioned a specific day.",
+              },
+              rangeStart: {
+                type: "string",
+                description: "ISO datetime for the beginning of the availability search window.",
+              },
+              rangeEnd: {
+                type: "string",
+                description: "ISO datetime for the end of the availability search window.",
+              },
+              timezone: {
+                type: "string",
+                description: "IANA timezone like Europe/Berlin or America/New_York.",
+              },
+              slotStart: {
+                type: "string",
+                description: "ISO datetime for the chosen appointment start time.",
+              },
+              slotEnd: {
+                type: "string",
+                description: "ISO datetime for the chosen appointment end time.",
+              },
+              attendeeName: {
+                type: "string",
+                description: "Visitor or attendee name.",
+              },
+              attendeeEmail: {
+                type: "string",
+                description: "Visitor or attendee email address.",
+              },
+              title: {
+                type: "string",
+                description: "Optional custom appointment title.",
+              },
             },
-          });
-        }
+            required: ["operation"],
+          },
+        });
         break;
 
       case "COLLECT_EMAIL":
@@ -219,7 +330,8 @@ export async function executeChatTool(
   toolInput: Record<string, unknown>,
   agentId: string,
   actions: { type: string; config: unknown }[],
-  customTools: CustomToolDef[] = []
+  customTools: CustomToolDef[] = [],
+  context: ChatToolExecutionContext = {}
 ): Promise<string> {
   // Custom HTTP Tool?
   if (toolName.startsWith("custom_tool_")) {
@@ -292,12 +404,198 @@ export async function executeChatTool(
     case "book_appointment": {
       const config = (actions.find((a) => a.type === "BOOK_APPOINTMENT")
         ?.config || {}) as Record<string, string>;
-      const url = config.calendlyUrl || "";
+      const fallbackUrl = config.calendlyUrl || "";
+      const operation =
+        typeof toolInput.operation === "string" && toolInput.operation
+          ? toolInput.operation
+          : "availability";
+      const googleCalendar = await getGoogleCalendarIntegrationForAgent(agentId);
+
+      if (!googleCalendar) {
+        if (!fallbackUrl) {
+          return JSON.stringify({
+            success: false,
+            action: "unavailable",
+            message:
+              "Appointment booking is enabled, but this agent does not have Google Calendar connected and no fallback booking link is configured.",
+          });
+        }
+
+        return JSON.stringify({
+          success: true,
+          action: "link_shared",
+          message: `Here is the booking link: ${fallbackUrl}`,
+          bookingUrl: fallbackUrl,
+          reason: toolInput.reason || null,
+        });
+      }
+
+      const { integration, config: connectionConfig } = googleCalendar;
+      let calendarId = connectionConfig.selectedCalendarId || null;
+
+      if (!calendarId) {
+        const calendars = await integration.listCalendars();
+        const primaryCalendar = calendars.find((calendar) => calendar.primary) || calendars[0];
+        calendarId = primaryCalendar?.id || null;
+      }
+
+      if (!calendarId) {
+        return JSON.stringify({
+          success: false,
+          action: "unavailable",
+          message: "Google Calendar is connected, but no writable calendar is available for bookings.",
+        });
+      }
+
+      if (operation === "availability") {
+        const range = buildAvailabilityRange(toolInput);
+        const slots = await integration.getAvailableSlots(calendarId, range);
+
+        if (slots.length === 0) {
+          return JSON.stringify({
+            success: true,
+            action: "availability",
+            slots: [],
+            message: "I could not find any open slots in that time range. Ask the user for another day or broader availability.",
+          });
+        }
+
+        return JSON.stringify({
+          success: true,
+          action: "availability",
+          calendarId,
+          slots,
+          message: `Here are the next available slots:\n${formatSlotList(slots)}`,
+        });
+      }
+
+      if (operation !== "book") {
+        return JSON.stringify({
+          success: false,
+          action: "invalid_operation",
+          message: "Invalid appointment operation. Use 'availability' or 'book'.",
+        });
+      }
+
+      const attendeeEmail =
+        (typeof toolInput.attendeeEmail === "string" ? toolInput.attendeeEmail : null) ||
+        context.visitorEmail ||
+        null;
+      const attendeeName =
+        (typeof toolInput.attendeeName === "string" ? toolInput.attendeeName : null) ||
+        context.visitorName ||
+        null;
+      const slotStart =
+        typeof toolInput.slotStart === "string" ? new Date(toolInput.slotStart) : null;
+      const slotEnd =
+        typeof toolInput.slotEnd === "string" ? new Date(toolInput.slotEnd) : null;
+
+      if (!attendeeEmail || !attendeeEmail.includes("@")) {
+        return JSON.stringify({
+          success: false,
+          action: "missing_attendee_email",
+          message: "Ask the user for a valid email address before booking the appointment.",
+        });
+      }
+
+      if (!slotStart || Number.isNaN(slotStart.getTime())) {
+        return JSON.stringify({
+          success: false,
+          action: "missing_slot",
+          message: "Ask the user which available slot they want before creating the appointment.",
+        });
+      }
+
+      const resolvedEnd =
+        slotEnd && !Number.isNaN(slotEnd.getTime())
+          ? slotEnd
+          : new Date(slotStart.getTime() + 30 * 60_000);
+      const timezone =
+        (typeof toolInput.timezone === "string" && toolInput.timezone) ||
+        "UTC";
+
+      const availabilityCheck = await integration.getAvailableSlots(calendarId, {
+        start: slotStart.toISOString(),
+        end: resolvedEnd.toISOString(),
+        timezone,
+        slotMinutes: Math.max(15, Math.round((resolvedEnd.getTime() - slotStart.getTime()) / 60_000)),
+        dayStartHour: slotStart.getHours(),
+        dayEndHour: Math.max(slotStart.getHours() + 1, resolvedEnd.getHours()),
+        maxSlots: 4,
+      });
+
+      const exactSlotStillFree = availabilityCheck.some(
+        (slot) => slot.start === slotStart.toISOString() && slot.end === resolvedEnd.toISOString()
+      );
+
+      if (!exactSlotStillFree) {
+        return JSON.stringify({
+          success: false,
+          action: "slot_unavailable",
+          message: "That slot is no longer available. Ask the user to choose another open time.",
+        });
+      }
+
+      const title =
+        (typeof toolInput.title === "string" && toolInput.title) ||
+        `${context.agentName || "KILN"} appointment`;
+      const description = [
+        typeof toolInput.reason === "string" && toolInput.reason
+          ? `Reason: ${toolInput.reason}`
+          : null,
+        attendeeName ? `Attendee: ${attendeeName}` : null,
+        attendeeEmail ? `Email: ${attendeeEmail}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const event = await integration.createEvent(calendarId, {
+        title,
+        description,
+        start: slotStart.toISOString(),
+        end: resolvedEnd.toISOString(),
+        timezone,
+        attendeeName,
+        attendeeEmail,
+      });
+
+      if (context.conversationId) {
+        await prisma.conversation.update({
+          where: { id: context.conversationId },
+          data: {
+            visitorEmail: attendeeEmail,
+            visitorName: attendeeName || undefined,
+          },
+        });
+      }
+
+      if (context.userId && context.agentName) {
+        await sendAppointmentConfirmationEmails({
+          agentOwnerId: context.userId,
+          agentName: context.agentName,
+          visitorEmail: attendeeEmail,
+          visitorName: attendeeName,
+          start: event.start.dateTime || slotStart.toISOString(),
+          end: event.end.dateTime || resolvedEnd.toISOString(),
+          timezone: event.start.timeZone || timezone,
+          eventLink: event.htmlLink || null,
+        });
+      }
+
       return JSON.stringify({
         success: true,
-        message: `Here is the booking link: ${url}`,
-        calendlyUrl: url,
-        reason: toolInput.reason,
+        action: "booked",
+        eventId: event.id,
+        htmlLink: event.htmlLink || null,
+        start: event.start.dateTime || slotStart.toISOString(),
+        end: event.end.dateTime || resolvedEnd.toISOString(),
+        attendeeEmail,
+        attendeeName,
+        message: `The appointment is confirmed for ${new Intl.DateTimeFormat("en-US", {
+          dateStyle: "full",
+          timeStyle: "short",
+          timeZone: event.start.timeZone || timezone,
+        }).format(slotStart)}.`,
       });
     }
 

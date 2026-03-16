@@ -24,9 +24,9 @@ const actionTypes = [
     type: "BOOK_APPOINTMENT",
     label: "Appointment Booking",
     icon: "\u{1F4C5}",
-    description: "Book appointments via Calendly/Cal.com",
+    description: "Book appointments via Google Calendar or a fallback booking link",
     configFields: [
-      { key: "calendlyUrl", label: "Calendly or Cal.com URL", placeholder: "https://calendly.com/your-link" },
+      { key: "calendlyUrl", label: "Fallback Calendly or Cal.com URL", placeholder: "https://calendly.com/your-link" },
     ],
   },
   {
