@@ -21,6 +21,7 @@ import {
   ChevronsRight,
   Users,
   MessageCircle,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -78,7 +79,7 @@ const allModules = [
     icon: Globe,
     color: "text-muted-foreground",
     activeColor: "text-kiln-blue",
-    badge: "Soon" as string | null,
+    badge: "Q3 2026" as string | null,
     minAgents: 0,
   },
   {
@@ -87,7 +88,7 @@ const allModules = [
     icon: Zap,
     color: "text-muted-foreground",
     activeColor: "text-kiln-green",
-    badge: "Soon" as string | null,
+    badge: "Q4 2026" as string | null,
     minAgents: 0,
   },
 ];
@@ -316,6 +317,23 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               <MessageCircle className="h-[18px] w-[18px] shrink-0" />
               <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>Community</span>
             </a>
+          </NavTooltip>
+
+          {/* Help Center */}
+          <NavTooltip label="Help" show={isCollapsed}>
+            <Link
+              href="/help"
+              target="_blank"
+              onClick={onClose}
+              className={cn(
+                "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-150",
+                isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2.5",
+                "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+              )}
+            >
+              <HelpCircle className="h-[18px] w-[18px] shrink-0" />
+              <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>Help</span>
+            </Link>
           </NavTooltip>
 
           {/* Settings */}

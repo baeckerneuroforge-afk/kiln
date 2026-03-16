@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { decrypt } from "@/lib/encryption";
 import { deductCredits } from "@/lib/credits";
+import { validateUrl } from "@/lib/url-validation";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import crypto from "crypto";
@@ -71,8 +73,11 @@ async function handleWebhookRequest(
 
     // IMMEDIATE mode: return instantly, process in background
     if (webhook.responseMode === "IMMEDIATE") {
-      // Fire-and-forget processing
-      processWebhookPayload(webhook, payload, startTime).catch(() => {});
+      waitUntil(
+        processWebhookPayload(webhook, payload, startTime).catch((err) => {
+          console.error("Immediate webhook processing failed:", err);
+        })
+      );
       return Response.json({ received: true, webhookId: webhook.id });
     }
 
@@ -247,22 +252,30 @@ async function processWebhookPayload(webhook: any, payload: unknown, startTime: 
     }
   }
 
-  // Deduct credits (fire-and-forget)
-  deductCredits(agent.userId, selectedModel, "WEBHOOK", agent.id).catch(() => {});
+  // Deduct credits (non-blocking)
+  waitUntil(
+    deductCredits(agent.userId, selectedModel, "WEBHOOK", agent.id).catch((err) => {
+      console.error("Agent webhook credit deduction failed:", err);
+    })
+  );
 
   const duration = Date.now() - startTime;
 
   // Log execution
-  prisma.webhookExecution.create({
-    data: {
-      webhookId: webhook.id,
-      incomingPayload: payload as object,
-      agentResponse: responseText.slice(0, 5000),
-      actionsExecuted,
-      duration,
-      statusCode: 200,
-    },
-  }).catch(() => {});
+  waitUntil(
+    prisma.webhookExecution.create({
+      data: {
+        webhookId: webhook.id,
+        incomingPayload: payload as object,
+        agentResponse: responseText.slice(0, 5000),
+        actionsExecuted,
+        duration,
+        statusCode: 200,
+      },
+    }).catch((err) => {
+      console.error("Agent webhook execution log failed:", err);
+    })
+  );
 
   return { response: responseText, actionsExecuted, duration, statusCode: 200 };
 }
@@ -281,6 +294,10 @@ async function executeToolForWebhook(toolName: string, args: Record<string, unkn
       url = url.replaceAll(`{{${key}}}`, encodeURIComponent(String(value)));
       body = body.replaceAll(`{{${key}}}`, String(value));
     }
+
+    // SSRF protection
+    const ctUrlCheck = await validateUrl(url);
+    if (!ctUrlCheck.safe) return { success: false, error: ctUrlCheck.error };
 
     try {
       const resp = await fetch(url, {
@@ -310,6 +327,10 @@ async function executeToolForWebhook(toolName: string, args: Record<string, unkn
       body = body.replaceAll(`{{${key}}}`, String(value));
     }
 
+    // SSRF protection
+    const httpUrlCheck = await validateUrl(url);
+    if (!httpUrlCheck.safe) return { success: false, error: httpUrlCheck.error };
+
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (config.headers) {
@@ -333,9 +354,13 @@ async function executeToolForWebhook(toolName: string, args: Record<string, unkn
   if (toolName === "collect_email") {
     const email = args.email as string;
     if (email) {
-      prisma.lead.create({
-        data: { agentId: agent.id, email, name: (args.name as string) || null, context: "Collected via webhook trigger", score: null },
-      }).catch(() => {});
+      waitUntil(
+        prisma.lead.create({
+          data: { agentId: agent.id, email, name: (args.name as string) || null, context: "Collected via webhook trigger", score: null },
+        }).catch((err) => {
+          console.error("Webhook lead capture failed:", err);
+        })
+      );
     }
     return { success: true, message: "Email collected" };
   }
@@ -345,9 +370,13 @@ async function executeToolForWebhook(toolName: string, args: Record<string, unkn
     const score = args.score as number;
     const email = args.email as string;
     if (email) {
-      prisma.lead.create({
-        data: { agentId: agent.id, email, score, context: (args.reasoning as string) || null },
-      }).catch(() => {});
+      waitUntil(
+        prisma.lead.create({
+          data: { agentId: agent.id, email, score, context: (args.reasoning as string) || null },
+        }).catch((err) => {
+          console.error("Webhook lead score save failed:", err);
+        })
+      );
     }
     return { success: true, score, reasoning: args.reasoning };
   }

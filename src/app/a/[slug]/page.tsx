@@ -146,6 +146,7 @@ export default async function PublicAgentPage({ params }: Props) {
             logoUrl={whiteLabel.logo || null}
             showPoweredBy={agent.showPoweredBy}
             imageAnalysisEnabled={agent.imageAnalysisEnabled}
+            customCss={whiteLabel.customCss || null}
           />
         </div>
       </div>

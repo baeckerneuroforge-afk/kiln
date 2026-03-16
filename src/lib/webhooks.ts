@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 
@@ -86,6 +87,14 @@ async function deliverWebhook(
     }
   }
 
+  if (!success) {
+    Sentry.captureMessage("Webhook delivery failed", {
+      level: "warning",
+      tags: { component: "webhook-delivery", webhookId },
+      extra: { url, event: payload.event, error, statusCode },
+    });
+  }
+
   const responseTime = Date.now() - start;
 
   // Delivery Log speichern
@@ -98,16 +107,17 @@ async function deliverWebhook(
       success,
       error,
     },
-  }).catch(() => {});
+  }).catch((err) => {
+    console.error("Webhook delivery log failed:", err);
+  });
 }
 
-// Fire-and-forget: Events an alle matching Webhooks senden
-export function fireWebhookEvent(
+export async function fireWebhookEvent(
   userId: string,
   event: WebhookEvent,
   agentId: string | undefined,
   data: Record<string, unknown>
-): void {
+): Promise<void> {
   const payload: WebhookPayload = {
     event,
     timestamp: new Date().toISOString(),
@@ -115,23 +125,26 @@ export function fireWebhookEvent(
     data,
   };
 
-  // Asynchron — blockiert nicht den Hauptfluss
-  prisma.webhookEndpoint
-    .findMany({
+  try {
+    const webhooks = await prisma.webhookEndpoint.findMany({
       where: {
         userId,
         active: true,
       },
-    })
-    .then((webhooks) => {
-      for (const wh of webhooks) {
-        const events = wh.events as string[];
-        if (events.includes(event)) {
-          deliverWebhook(wh.id, wh.url, wh.secret, payload).catch(() => {});
-        }
-      }
-    })
-    .catch(() => {});
+    });
+
+    await Promise.allSettled(
+      webhooks
+        .filter((wh) => (wh.events as string[]).includes(event))
+        .map((wh) =>
+          deliverWebhook(wh.id, wh.url, wh.secret, payload).catch((err) => {
+            console.error("Webhook delivery failed:", err);
+          })
+        )
+    );
+  } catch (err) {
+    console.error("Webhook dispatch failed:", err);
+  }
 }
 
 // Direkt-Zustellung für Test-Button
@@ -187,7 +200,9 @@ export async function sendTestWebhook(
       success,
       error,
     },
-  }).catch(() => {});
+  }).catch((err) => {
+    console.error("Test webhook log failed:", err);
+  });
 
   return { success, statusCode, error };
 }

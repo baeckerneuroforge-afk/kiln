@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -164,7 +165,11 @@ export async function POST(
 
       // Deduct embedding credits (1 per 10 chunks, fire-and-forget)
       if (userId) {
-        deductEmbeddingCredits(userId, chunks.length, params.id).catch(() => {});
+        waitUntil(
+          deductEmbeddingCredits(userId, chunks.length, params.id).catch((err) => {
+            console.error("Knowledge embedding credit deduction failed:", err);
+          })
+        );
       }
 
       return Response.json({

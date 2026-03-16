@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
@@ -240,7 +241,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // Deduct credits (fire-and-forget)
     const usedModel = modelProvider === "ANTHROPIC" ? selectedModel : "claude-sonnet-4-20250514";
-    deductCredits(agent.userId, usedModel, "WEBHOOK", agent.id, conversation.id).catch(() => {});
+    waitUntil(
+      deductCredits(agent.userId, usedModel, "WEBHOOK", agent.id, conversation.id).catch((err) => {
+        console.error("Telegram webhook credit deduction failed:", err);
+      })
+    );
 
     // Send response to Telegram
     await sendTelegramMessage(botToken, chatId, assistantText);

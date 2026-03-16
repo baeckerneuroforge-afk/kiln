@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { fireWebhookEvent } from "@/lib/webhooks";
@@ -85,14 +86,18 @@ export async function PATCH(
     });
     const nextVersion = (lastVersion?.versionNumber || 0) + 1;
 
-    // Version speichern (fire-and-forget für Performance)
-    prisma.agentVersion.create({
-      data: {
-        agentId: params.id,
-        versionNumber: nextVersion,
-        configSnapshot,
-      },
-    }).catch(() => {});
+    // Version speichern (non-blocking für Performance)
+    waitUntil(
+      prisma.agentVersion.create({
+        data: {
+          agentId: params.id,
+          versionNumber: nextVersion,
+          configSnapshot,
+        },
+      }).catch((err) => {
+        console.error("Agent version snapshot failed:", err);
+      })
+    );
 
     const body = await request.json();
     const agent = await prisma.agent.update({
@@ -101,11 +106,15 @@ export async function PATCH(
     });
 
     // Webhook: agent.updated
-    fireWebhookEvent(userId, "agent.updated", params.id, {
-      agentName: agent.name,
-      status: agent.status,
-      changedFields: Object.keys(body),
-    });
+    waitUntil(
+      fireWebhookEvent(userId, "agent.updated", params.id, {
+        agentName: agent.name,
+        status: agent.status,
+        changedFields: Object.keys(body),
+      }).catch((err) => {
+        console.error("Agent updated webhook dispatch failed:", err);
+      })
+    );
 
     return Response.json(agent);
   } catch (err) {

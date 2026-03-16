@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { authenticateApiKey } from "@/lib/api-auth";
@@ -34,6 +35,7 @@ export async function POST(
         { status: 401, headers: corsHeaders }
       );
     }
+    waitUntil(authResult.touchLastUsed);
 
     // Rate Limiting
     const rateCheck = checkRateLimit(authResult.keyId);
@@ -204,7 +206,11 @@ export async function POST(
         data: { conversationId: conversation.id, role: "ASSISTANT", content: responseText },
       });
       // Deduct credits (fire-and-forget)
-      deductCredits(agent.userId, selectedModel, "CHAT", params.id, conversation.id).catch(() => {});
+      waitUntil(
+        deductCredits(agent.userId, selectedModel, "CHAT", params.id, conversation.id).catch((err) => {
+          console.error("Public API credit deduction failed:", err);
+        })
+      );
     }
 
     return Response.json(

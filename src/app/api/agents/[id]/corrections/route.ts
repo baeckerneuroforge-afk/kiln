@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { chunkText, generateEmbeddings, storeChunks } from "@/lib/rag";
@@ -62,7 +63,11 @@ export async function POST(
 
       // Deduct embedding credits (fire-and-forget)
       if (userId) {
-        deductEmbeddingCredits(userId, chunks.length, params.id).catch(() => {});
+        waitUntil(
+          deductEmbeddingCredits(userId, chunks.length, params.id).catch((err) => {
+            console.error("Correction embedding credit deduction failed:", err);
+          })
+        );
       }
 
       return Response.json({

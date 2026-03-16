@@ -141,7 +141,6 @@ export default function AgentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("config");
   const [saving, setSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [showPromptEditor, setShowPromptEditor] = useState(false);
 
   // Editierbare Felder
@@ -283,12 +282,24 @@ export default function AgentDetailPage() {
     }
   }
 
+  const [copiedWidget, setCopiedWidget] = useState(false);
+  const [copiedIframe, setCopiedIframe] = useState(false);
+
+  function copyWidgetCode() {
+    if (!agent) return;
+    const host = typeof window !== "undefined" ? window.location.origin : "https://kilnbase.com";
+    const code = `<script src="${host}/api/embed/widget.js" data-agent-id="${agent.id}" async></script>`;
+    navigator.clipboard.writeText(code);
+    setCopiedWidget(true);
+    setTimeout(() => setCopiedWidget(false), 2000);
+  }
+
   function copyEmbedCode() {
     if (!agent) return;
-    const code = `<script src="${window.location.origin}/embed/${agent.slug}.js" async></script>`;
+    const code = `<iframe src="${window.location.origin}/embed/${agent.slug}" width="400" height="600" style="border:none;border-radius:16px" allow="clipboard-write"></iframe>`;
     navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedIframe(true);
+    setTimeout(() => setCopiedIframe(false), 2000);
   }
 
   async function handleClone() {
@@ -1234,18 +1245,24 @@ export default function AgentDetailPage() {
 
               <Separator />
 
-              {/* Embed Code */}
+              {/* Chat Bubble Widget — Primary */}
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">
-                  Embed Code
-                </label>
+                <div className="mb-1.5 flex items-center gap-2">
+                  <label className="block text-sm font-medium text-foreground">
+                    Chat Bubble Widget
+                  </label>
+                  <span className="rounded-full bg-kiln-green/10 px-2 py-0.5 text-[10px] font-semibold text-kiln-green">
+                    Recommended
+                  </span>
+                </div>
                 <p className="mb-3 text-xs text-muted-foreground">
-                  Add this code to your website to embed the chat widget.
+                  Paste this single line into your website. A floating chat bubble appears in the bottom-right corner — click to open, Escape to close. Fully responsive on mobile.
                 </p>
                 <div className="relative">
                   <pre className="rounded-lg border border-border bg-card p-4 font-mono text-xs text-foreground overflow-x-auto">
 {`<script
-  src="${typeof window !== "undefined" ? window.location.origin : ""}/embed/${agent.slug}.js"
+  src="${typeof window !== "undefined" ? window.location.origin : "https://kilnbase.com"}/api/embed/widget.js"
+  data-agent-id="${agent.id}"
   async
 ></script>`}
                   </pre>
@@ -1253,14 +1270,62 @@ export default function AgentDetailPage() {
                     size="sm"
                     variant="outline"
                     className="absolute right-2 top-2"
-                    onClick={copyEmbedCode}
+                    onClick={copyWidgetCode}
                   >
-                    {copied ? (
+                    {copiedWidget ? (
                       <Check className="mr-1.5 h-3 w-3 text-kiln-green" />
                     ) : (
                       <Copy className="mr-1.5 h-3 w-3" />
                     )}
-                    {copied ? "Copied" : "Copy"}
+                    {copiedWidget ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+                <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
+                  <p className="mb-2 text-xs font-medium text-foreground">Optional attributes:</p>
+                  <div className="space-y-1 font-mono text-[11px] text-muted-foreground">
+                    <p><span className="text-kiln-orange">data-position</span>=&quot;bottom-left&quot; — Place bubble on the left</p>
+                    <p><span className="text-kiln-orange">data-greeting</span>=&quot;Hi! Need help?&quot; — Show a greeting tooltip</p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* iframe Embed — Advanced */}
+              <div>
+                <div className="mb-1.5 flex items-center gap-2">
+                  <label className="block text-sm font-medium text-foreground">
+                    iframe Embed
+                  </label>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                    Advanced
+                  </span>
+                </div>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Embed the chat directly into your page layout. Use this if you want full control over sizing and placement.
+                </p>
+                <div className="relative">
+                  <pre className="rounded-lg border border-border bg-card p-4 font-mono text-xs text-foreground overflow-x-auto">
+{`<iframe
+  src="${typeof window !== "undefined" ? window.location.origin : "https://kilnbase.com"}/embed/${agent.slug}"
+  width="400"
+  height="600"
+  style="border:none;border-radius:16px"
+  allow="clipboard-write"
+></iframe>`}
+                  </pre>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="absolute right-2 top-2"
+                    onClick={copyEmbedCode}
+                  >
+                    {copiedIframe ? (
+                      <Check className="mr-1.5 h-3 w-3 text-kiln-green" />
+                    ) : (
+                      <Copy className="mr-1.5 h-3 w-3" />
+                    )}
+                    {copiedIframe ? "Copied" : "Copy"}
                   </Button>
                 </div>
               </div>
@@ -1463,7 +1528,7 @@ export default function AgentDetailPage() {
                   onChange={(e) => setPublishCategory(e.target.value)}
                   className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
                 >
-                  {["Business", "Marketing", "Support", "Sales", "Health", "Education", "Real Estate", "Trades", "Restaurant", "Other"].map((c) => (
+                  {["Business", "Marketing", "Support", "Sales", "Health", "Education", "Operations", "Real Estate", "Trades", "Restaurant", "Other"].map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>

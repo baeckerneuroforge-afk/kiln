@@ -15,7 +15,7 @@ export function generateApiKey(): string {
 // API Key aus Authorization Header validieren → userId zurückgeben
 export async function authenticateApiKey(
   authHeader: string | null
-): Promise<{ userId: string; keyId: string } | null> {
+): Promise<{ userId: string; keyId: string; touchLastUsed: Promise<void> } | null> {
   if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
 
   const key = authHeader.slice(7).trim();
@@ -29,11 +29,12 @@ export async function authenticateApiKey(
 
   if (!apiKey) return null;
 
-  // lastUsed aktualisieren (non-blocking)
-  prisma.apiAccessKey.update({
+  const touchLastUsed = prisma.apiAccessKey.update({
     where: { id: apiKey.id },
     data: { lastUsed: new Date() },
-  }).catch(() => {});
+  }).then(() => undefined).catch((err) => {
+    console.error("API key lastUsed update failed:", err);
+  });
 
-  return { userId: apiKey.userId, keyId: apiKey.id };
+  return { userId: apiKey.userId, keyId: apiKey.id, touchLastUsed };
 }

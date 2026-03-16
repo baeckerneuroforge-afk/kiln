@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import Anthropic from "@anthropic-ai/sdk";
@@ -161,7 +162,11 @@ export async function POST(
           .join("\n");
 
         // Deduct credits per test case (fire-and-forget)
-        deductCredits(agent.userId, model, "CHAT", params.id).catch(() => {});
+        waitUntil(
+          deductCredits(agent.userId, model, "CHAT", params.id).catch((err) => {
+            console.error("Agent test credit deduction failed:", err);
+          })
+        );
 
         // Keywords prüfen (case-insensitive)
         const keywords = tc.expectedKeywords as string[];

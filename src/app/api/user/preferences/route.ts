@@ -1,6 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
+const ALLOWED_FIELDS = [
+  "advancedMode",
+  "onboardingCompleted",
+  "emailNotifications",
+];
+
 // GET: User-Preferences laden
 export async function GET() {
   try {
@@ -11,12 +17,13 @@ export async function GET() {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { advancedMode: true, onboardingCompleted: true },
+      select: { advancedMode: true, onboardingCompleted: true, emailNotifications: true },
     });
 
     return Response.json({
       advancedMode: user?.advancedMode ?? false,
       onboardingCompleted: user?.onboardingCompleted ?? false,
+      emailNotifications: user?.emailNotifications ?? true,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
@@ -33,11 +40,15 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { advancedMode, onboardingCompleted } = body;
+    const sanitizedData = Object.fromEntries(
+      Object.entries(body).filter(([key]) => ALLOWED_FIELDS.includes(key))
+    );
+    const { advancedMode, onboardingCompleted, emailNotifications } = sanitizedData;
 
     const updateData: Record<string, boolean> = {};
     if (typeof advancedMode === "boolean") updateData.advancedMode = advancedMode;
     if (typeof onboardingCompleted === "boolean") updateData.onboardingCompleted = onboardingCompleted;
+    if (typeof emailNotifications === "boolean") updateData.emailNotifications = emailNotifications;
 
     if (Object.keys(updateData).length === 0) {
       return Response.json({ error: "No valid fields" }, { status: 400 });
@@ -52,6 +63,7 @@ export async function PATCH(request: Request) {
     return Response.json({
       advancedMode: updated.advancedMode,
       onboardingCompleted: updated.onboardingCompleted,
+      emailNotifications: updated.emailNotifications,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";

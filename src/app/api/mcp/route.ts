@@ -2,6 +2,7 @@
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
+import { waitUntil } from "@vercel/functions";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
@@ -709,18 +710,26 @@ function createMcpServer(userId: string) {
         results.push({ name: tc.name, result: pass ? "PASS" : "FAIL", matchedKeywords: matched, missedKeywords: missed });
 
         // Update test case with result
-        prisma.agentTestCase.update({
-          where: { id: tc.id },
-          data: { lastResult: pass ? "PASS" : "FAIL", lastResponse: responseText.slice(0, 2000), lastRunAt: new Date() },
-        }).catch(() => {});
+        waitUntil(
+          prisma.agentTestCase.update({
+            where: { id: tc.id },
+            data: { lastResult: pass ? "PASS" : "FAIL", lastResponse: responseText.slice(0, 2000), lastRunAt: new Date() },
+          }).catch((err) => {
+            console.error("MCP test case result update failed:", err);
+          })
+        );
       }
 
       const score = testCases.length > 0 ? passed / testCases.length : 0;
 
       // Save test run
-      prisma.agentTestRun.create({
-        data: { agentId, totalTests: testCases.length, passed, failed: testCases.length - passed, score },
-      }).catch(() => {});
+      waitUntil(
+        prisma.agentTestRun.create({
+          data: { agentId, totalTests: testCases.length, passed, failed: testCases.length - passed, score },
+        }).catch((err) => {
+          console.error("MCP test run save failed:", err);
+        })
+      );
 
       return ok({
         agentId, totalTests: testCases.length, passed, failed: testCases.length - passed,
@@ -1253,10 +1262,14 @@ function createMcpServer(userId: string) {
         },
       });
 
-      prisma.agent.update({
-        where: { id: agentId },
-        data: { lastRunAt: new Date(), lastRunResult: { runId: run.id, status: "SUCCESS", duration } },
-      }).catch(() => {});
+      waitUntil(
+        prisma.agent.update({
+          where: { id: agentId },
+          data: { lastRunAt: new Date(), lastRunResult: { runId: run.id, status: "SUCCESS", duration } },
+        }).catch((err) => {
+          console.error("MCP agent run metadata update failed:", err);
+        })
+      );
 
       return ok({
         runId: run.id, status: "SUCCESS", duration,
@@ -1316,6 +1329,7 @@ async function handleMcpRequest(req: Request): Promise<Response> {
         { status: 401 }
       );
     }
+    waitUntil(authResult.touchLastUsed);
 
     // Rate limit
     const rateCheck = checkRateLimit(authResult.keyId);

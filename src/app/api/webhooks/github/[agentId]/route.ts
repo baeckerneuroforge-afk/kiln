@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
@@ -222,7 +223,11 @@ Format your response in GitHub Markdown. Be concise and actionable.${ragContext}
     });
 
     // Deduct credits (fire-and-forget)
-    deductCredits(agent.userId, model, "WEBHOOK", agent.id, conversation.id).catch(() => {});
+    waitUntil(
+      deductCredits(agent.userId, model, "WEBHOOK", agent.id, conversation.id).catch((err) => {
+        console.error("GitHub webhook credit deduction failed:", err);
+      })
+    );
 
     // Post comment back to GitHub if we have a reply URL and a token
     if (parsed.replyUrl && githubToken && assistantText) {

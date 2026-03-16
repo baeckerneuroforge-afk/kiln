@@ -70,6 +70,7 @@ export default async function CustomDomainAgentPage({ searchParams }: Props) {
             primaryColor={primaryColor}
             logoUrl={whiteLabel.logo || null}
             showPoweredBy={agent.showPoweredBy}
+            customCss={whiteLabel.customCss || null}
           />
         </div>
       </div>

@@ -45,6 +45,7 @@ export default async function EmbedPage({ params }: Props) {
       logoUrl={whiteLabel.logo || null}
       showPoweredBy={agent.showPoweredBy}
       imageAnalysisEnabled={agent.imageAnalysisEnabled}
+      customCss={whiteLabel.customCss || null}
     />
   );
 }

@@ -168,16 +168,29 @@ export async function deductCredits(
   const newBalance = Math.max(0, updated.aiCreditsBalance);
   const totalCredits = updated.aiCreditsMonthly || getPlanCredits(updated.plan, updated.creditTier);
 
-  // Email notifications at thresholds (fire-and-forget)
+  const notificationTasks: Promise<void>[] = [];
   if (totalCredits > 0) {
     const pct = newBalance / totalCredits;
     const prevPct = (newBalance + cost) / totalCredits;
 
     if (prevPct > 0.2 && pct <= 0.2 && newBalance > 0) {
-      sendCreditWarningEmail(updated.email, newBalance, totalCredits, "low").catch(() => {});
+      notificationTasks.push(
+        sendCreditWarningEmail(updated.email, newBalance, totalCredits, "low")
+      );
     }
     if (newBalance <= 0 && (newBalance + cost) > 0) {
-      sendCreditWarningEmail(updated.email, 0, totalCredits, "empty").catch(() => {});
+      notificationTasks.push(
+        sendCreditWarningEmail(updated.email, 0, totalCredits, "empty")
+      );
+    }
+  }
+
+  if (notificationTasks.length > 0) {
+    const results = await Promise.allSettled(notificationTasks);
+    for (const result of results) {
+      if (result.status === "rejected") {
+        console.error("Credit warning email failed:", result.reason);
+      }
     }
   }
 

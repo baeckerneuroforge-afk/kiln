@@ -1,29 +1,31 @@
-import { Globe, Lock } from "lucide-react";
+import { Globe, CalendarClock } from "lucide-react";
 
 export default function SitesPage() {
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="mb-8">
+      <div className="mb-8 flex items-center gap-3">
         <h1 className="font-serif text-3xl text-foreground">Site Builder</h1>
-        <p className="mt-2 text-muted-foreground">
-          Generate websites and landing pages with natural language.
-        </p>
+        <span className="rounded-full bg-kiln-blue/10 px-2.5 py-1 text-[11px] font-semibold text-kiln-blue">
+          Coming Q3 2026
+        </span>
       </div>
+      <p className="-mt-6 mb-8 text-muted-foreground">
+        Generate websites and landing pages with natural language.
+      </p>
 
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-kiln-blue/20 bg-card/50 py-16">
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-kiln-blue/10">
           <Globe className="h-8 w-8 text-kiln-blue" />
         </div>
         <h2 className="mb-2 text-lg font-semibold text-foreground">
-          Coming Soon
+          Coming Q3 2026
         </h2>
         <p className="mb-4 max-w-sm text-center text-sm text-muted-foreground">
-          Site Builder will be available in Phase 2. Describe your website
-          — KILN builds it.
+          Describe your website in natural language — KILN designs, builds, and hosts it with integrated AI agents.
         </p>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Lock className="h-4 w-4" />
-          Phase 2
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <CalendarClock className="h-3.5 w-3.5" />
+          Expected July – September 2026
         </div>
       </div>
     </div>

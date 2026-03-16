@@ -1,5 +1,6 @@
 import { Bot, Globe, Zap, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { GettingStartedBanner } from "@/components/getting-started-banner";
 
 const modules = [
   {
@@ -37,6 +38,9 @@ const modules = [
 export default function DashboardPage() {
   return (
     <div className="mx-auto max-w-5xl">
+      {/* Getting Started Banner (shows only for new users with 0 agents) */}
+      <GettingStartedBanner />
+
       {/* Header */}
       <div className="mb-8">
         <h1 className="font-serif text-3xl text-foreground">

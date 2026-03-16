@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { authenticateApiKey } from "@/lib/api-auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
         { status: 401, headers: corsHeaders }
       );
     }
+    waitUntil(authResult.touchLastUsed);
 
     // Rate Limiting
     const rateCheck = checkRateLimit(authResult.keyId);

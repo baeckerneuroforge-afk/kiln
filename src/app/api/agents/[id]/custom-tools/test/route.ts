@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { safeFetch } from "@/lib/url-validation";
 
 // POST: Custom Tool testen — macht den HTTP-Request und gibt die Antwort zurück
 export async function POST(
@@ -38,12 +39,7 @@ export async function POST(
       fetchOptions.body = typeof body === "string" ? body : JSON.stringify(body);
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    fetchOptions.signal = controller.signal;
-
-    const response = await fetch(url, fetchOptions);
-    clearTimeout(timeout);
+    const response = await safeFetch(url, fetchOptions);
 
     const contentType = response.headers.get("content-type") || "";
     let responseData;

@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getClaudeClient } from "@/lib/ai";
@@ -78,7 +79,11 @@ Respond ONLY with a valid JSON array, no other text.`,
     });
 
     // Deduct credits for team task decomposition
-    deductCredits(userId, "claude-sonnet-4-20250514", "TEAM_TASK").catch(() => {});
+    waitUntil(
+      deductCredits(userId, "claude-sonnet-4-20250514", "TEAM_TASK").catch((err) => {
+        console.error("Team execution credit deduction failed:", err);
+      })
+    );
 
     // Parse Claude's response
     const textBlock = response.content.find((block) => block.type === "text");

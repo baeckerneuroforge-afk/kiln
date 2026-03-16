@@ -1,4 +1,6 @@
 import { NextRequest } from "next/server";
+import { waitUntil } from "@vercel/functions";
+import * as Sentry from "@sentry/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
@@ -8,6 +10,8 @@ import { searchRelevantChunks } from "@/lib/rag";
 import { decrypt } from "@/lib/encryption";
 import { checkCredits, deductCredits } from "@/lib/credits";
 import { Prisma } from "@prisma/client";
+import { safeEval } from "@/lib/safe-eval";
+import { validateUrl } from "@/lib/url-validation";
 
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
@@ -102,13 +106,18 @@ export async function POST(
 
       // Transform input via JS code
       if (preProcessConfig.code?.trim()) {
-        try {
-          const fn = new Function("input", `"use strict";\n${preProcessConfig.code}`);
-          const transformed = fn(input);
-          if (transformed !== undefined) input = transformed;
-        } catch (err) {
-          // Log transform error but continue with original input
-          console.error("Pre-process transform error:", err);
+        const evalResult = await safeEval({
+          args: ["input"],
+          values: [input],
+          code: preProcessConfig.code,
+          userId,
+          agentId: params.id,
+          label: "pre-process",
+        });
+        if (evalResult.success && evalResult.result !== undefined && evalResult.result !== null) {
+          input = evalResult.result as string | object;
+        } else if (!evalResult.success) {
+          console.error("Pre-process transform error:", evalResult.error);
         }
       }
     }
@@ -397,15 +406,19 @@ export async function POST(
     if (postProcessConfig?.enabled) {
       // Transform output via JS code
       if (postProcessConfig.code?.trim()) {
-        try {
-          const fn = new Function("output", "input", `"use strict";\n${postProcessConfig.code}`);
-          const transformed = fn(responseText, input);
-          if (transformed !== undefined) {
-            postProcessedOutput = transformed;
-            responseText = typeof transformed === "string" ? transformed : JSON.stringify(transformed);
-          }
-        } catch (err) {
-          console.error("Post-process transform error:", err);
+        const evalResult = await safeEval({
+          args: ["output", "input"],
+          values: [responseText, input],
+          code: postProcessConfig.code,
+          userId,
+          agentId: params.id,
+          label: "post-process",
+        });
+        if (evalResult.success && evalResult.result !== undefined) {
+          postProcessedOutput = evalResult.result;
+          responseText = typeof evalResult.result === "string" ? evalResult.result : JSON.stringify(evalResult.result);
+        } else if (!evalResult.success) {
+          console.error("Post-process transform error:", evalResult.error);
         }
       }
 
@@ -413,16 +426,21 @@ export async function POST(
       if (postProcessConfig.branches?.length) {
         for (const branch of postProcessConfig.branches) {
           if (branch.condition.trim()) {
-            try {
-              const condFn = new Function("output", "input", `"use strict";\nreturn (${branch.condition});`);
-              if (condFn(postProcessedOutput, input)) {
-                branchOutputActions.push({
-                  type: branch.outputType,
-                  config: branch.outputConfig,
-                  name: branch.name,
-                });
-              }
-            } catch { /* skip broken condition */ }
+            const condResult = await safeEval<boolean>({
+              args: ["output", "input"],
+              values: [postProcessedOutput, input],
+              code: `return (${branch.condition});`,
+              userId,
+              agentId: params.id,
+              label: "branch-condition",
+            });
+            if (condResult.success && condResult.result) {
+              branchOutputActions.push({
+                type: branch.outputType,
+                config: branch.outputConfig,
+                name: branch.name,
+              });
+            }
           } else {
             // No condition = always match (default/fallback branch)
             branchOutputActions.push({
@@ -473,6 +491,12 @@ export async function POST(
       case "HTTP_REQUEST": {
         const url = outputConfig.url;
         if (url) {
+          // SSRF protection
+          const urlCheck = await validateUrl(url);
+          if (!urlCheck.safe) {
+            outputActionResult.httpError = urlCheck.error || "URL blocked for security reasons";
+            break;
+          }
           try {
             const headers: Record<string, string> = { "Content-Type": "application/json" };
             if (outputConfig.headers) {
@@ -648,23 +672,31 @@ export async function POST(
     });
 
     // 12. Update agent.lastRunAt and lastRunResult
-    prisma.agent.update({
-      where: { id: agent.id },
-      data: {
-        lastRunAt: new Date(),
-        lastRunResult: {
-          runId: run.id,
-          status: "SUCCESS",
-          duration,
-          outputPreview: responseText.slice(0, 500),
-          actionsExecuted,
+    waitUntil(
+      prisma.agent.update({
+        where: { id: agent.id },
+        data: {
+          lastRunAt: new Date(),
+          lastRunResult: {
+            runId: run.id,
+            status: "SUCCESS",
+            duration,
+            outputPreview: responseText.slice(0, 500),
+            actionsExecuted,
+          },
         },
-      },
-    }).catch(() => {});
+      }).catch((err) => {
+        console.error("Task run agent metadata update failed:", err);
+      })
+    );
 
     // 13. Deduct credits
     if (!creditCheck.byokActive) {
-      deductCredits(userId, selectedModel, "TASK_RUN", agent.id).catch(() => {});
+      waitUntil(
+        deductCredits(userId, selectedModel, "TASK_RUN", agent.id).catch((err) => {
+          Sentry.captureException(err, { tags: { component: "credit-deduction", agentId: agent.id }, extra: { userId, model: selectedModel } });
+        })
+      );
     }
 
     // 14. Return result
@@ -678,6 +710,9 @@ export async function POST(
     });
 
   } catch (err) {
+    Sentry.captureException(err, {
+      tags: { component: "task-run", agentId: params.id },
+    });
     const duration = Date.now() - startTime;
     const message = err instanceof Error ? err.message : "Server error";
 
@@ -764,6 +799,10 @@ async function executeTool(
       body = body.replaceAll(`{{${key}}}`, String(value));
     }
 
+    // SSRF protection
+    const ctUrlCheck = await validateUrl(url);
+    if (!ctUrlCheck.safe) return { success: false, error: ctUrlCheck.error };
+
     try {
       const resp = await fetch(url, {
         method: ct.method,
@@ -792,6 +831,10 @@ async function executeTool(
       body = body.replaceAll(`{{${key}}}`, String(value));
     }
 
+    // SSRF protection
+    const httpUrlCheck = await validateUrl(url);
+    if (!httpUrlCheck.safe) return { success: false, error: httpUrlCheck.error };
+
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (config.headers) {
@@ -817,6 +860,10 @@ async function executeTool(
     if (!action?.config) return { error: "FIRE_WEBHOOK not configured" };
     const config = action.config as Record<string, string>;
 
+    // SSRF protection
+    const whUrlCheck = await validateUrl(config.url);
+    if (!whUrlCheck.safe) return { success: false, error: whUrlCheck.error };
+
     try {
       const resp = await fetch(config.url, {
         method: "POST",
@@ -839,9 +886,13 @@ async function executeTool(
   if (toolName === "collect_email") {
     const email = args.email as string;
     if (email) {
-      prisma.lead.create({
-        data: { agentId: agent.id, email, name: (args.name as string) || null, context: "Collected via task run", score: null },
-      }).catch(() => {});
+      waitUntil(
+        prisma.lead.create({
+          data: { agentId: agent.id, email, name: (args.name as string) || null, context: "Collected via task run", score: null },
+        }).catch((err) => {
+          console.error("Task run lead capture failed:", err);
+        })
+      );
     }
     return { success: true, message: "Email collected" };
   }
@@ -851,9 +902,13 @@ async function executeTool(
     const score = args.score as number;
     const email = args.email as string;
     if (email) {
-      prisma.lead.create({
-        data: { agentId: agent.id, email, score, context: (args.reasoning as string) || null },
-      }).catch(() => {});
+      waitUntil(
+        prisma.lead.create({
+          data: { agentId: agent.id, email, score, context: (args.reasoning as string) || null },
+        }).catch((err) => {
+          console.error("Task run lead scoring save failed:", err);
+        })
+      );
     }
     return { success: true, score, reasoning: args.reasoning };
   }

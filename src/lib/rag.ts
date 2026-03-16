@@ -114,10 +114,11 @@ export async function searchRelevantChunks(
   }));
 }
 
-// Fetch URL content
+// Fetch URL content (with SSRF protection)
 export async function fetchUrlContent(url: string): Promise<string> {
-  // Viele Websites blockieren Bot-User-Agents → Browser-UA verwenden
-  const response = await fetch(url, {
+  const { safeFetch, readResponseWithLimit } = await import("@/lib/url-validation");
+
+  const response = await safeFetch(url, {
     headers: {
       "User-Agent": "Mozilla/5.0 (compatible; KILN/1.0; +https://kiln.ai)",
       "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -130,7 +131,7 @@ export async function fetchUrlContent(url: string): Promise<string> {
     throw new Error(`Could not fetch URL (HTTP ${response.status}). Make sure the URL is publicly accessible.`);
   }
 
-  const html = await response.text();
+  const html = await readResponseWithLimit(response);
 
   if (!html || html.length < 50) {
     throw new Error("The URL returned empty or very little content.");

@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
@@ -158,7 +159,11 @@ export async function GET(request: NextRequest) {
       }
 
       // Deduct credits (fire-and-forget)
-      deductCredits(agent.userId, selectedModel, "SCHEDULED", agent.id).catch(() => {});
+      waitUntil(
+        deductCredits(agent.userId, selectedModel, "SCHEDULED", agent.id).catch((err) => {
+          console.error("Automation credit deduction failed:", err);
+        })
+      );
 
       // Ergebnis speichern
       await prisma.automationRule.update({
@@ -215,13 +220,17 @@ export async function GET(request: NextRequest) {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Unknown error";
 
-      await prisma.automationRule.update({
-        where: { id: automation.id },
-        data: {
-          lastRunAt: new Date(),
-          lastRunResult: `ERROR: ${errorMsg}`,
-        },
-      }).catch(() => {});
+      waitUntil(
+        prisma.automationRule.update({
+          where: { id: automation.id },
+          data: {
+            lastRunAt: new Date(),
+            lastRunResult: `ERROR: ${errorMsg}`,
+          },
+        }).catch((err) => {
+          console.error("Automation error status update failed:", err);
+        })
+      );
 
       results.push({ id: automation.id, name: automation.name, status: "error", error: errorMsg });
     }

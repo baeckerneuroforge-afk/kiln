@@ -1,4 +1,6 @@
 import { NextRequest } from "next/server";
+import { waitUntil } from "@vercel/functions";
+import * as Sentry from "@sentry/nextjs";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP, type ProviderKey } from "@/lib/ai";
@@ -7,7 +9,23 @@ import { searchRelevantChunks } from "@/lib/rag";
 import { checkCredits, deductCredits } from "@/lib/credits";
 import { decrypt } from "@/lib/encryption";
 import { fireWebhookEvent } from "@/lib/webhooks";
+import { sendNewLeadEmail } from "@/lib/email-notifications";
+import { safeEval } from "@/lib/safe-eval";
+import { validateUrl } from "@/lib/url-validation";
 import crypto from "crypto";
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
+const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
+const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+const rateLimiter =
+  upstashUrl && upstashToken
+    ? new Ratelimit({
+        redis: new Redis({ url: upstashUrl, token: upstashToken }),
+        limiter: Ratelimit.slidingWindow(20, "1 h"),
+      })
+    : null;
 
 // Textinhalt aus einer Nachricht extrahieren (string oder multimodales content-array)
 function extractTextContent(content: unknown): string {
@@ -299,6 +317,12 @@ async function executeTool(
         body = body.replaceAll(placeholder, String(value));
       }
 
+      // SSRF protection
+      const urlCheck = await validateUrl(url);
+      if (!urlCheck.safe) {
+        return JSON.stringify({ success: false, message: urlCheck.error });
+      }
+
       const fetchOptions: RequestInit = {
         method: ct.method || "GET",
         headers: {
@@ -439,16 +463,19 @@ async function executeTool(
           collectedEmail: null as string | null,
         };
 
-        // Sandboxed execution via Function constructor mit Timeout
-        const fn = new Function("context", `"use strict";\n${config.code}`);
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Custom code execution timed out (5s)")), 5000)
-        );
-        const result = await Promise.race([
-          Promise.resolve(fn(context)),
-          timeoutPromise,
-        ]);
+        const evalResult = await safeEval<{ response?: string; data?: unknown }>({
+          args: ["context"],
+          values: [context],
+          code: config.code,
+          agentId,
+          label: "chat-custom-code",
+        });
 
+        if (!evalResult.success) {
+          return JSON.stringify({ success: false, message: evalResult.error });
+        }
+
+        const result = evalResult.result;
         if (!result || typeof result.response !== "string") {
           return JSON.stringify({
             success: false,
@@ -481,6 +508,12 @@ async function executeTool(
           const ph = `{{${key}}}`;
           url = url.replaceAll(ph, encodeURIComponent(String(value)));
           body = body.replaceAll(ph, String(value));
+        }
+
+        // SSRF protection
+        const urlCheck = await validateUrl(url);
+        if (!urlCheck.safe) {
+          return JSON.stringify({ success: false, message: urlCheck.error });
         }
 
         const method = (config.method || "GET").toUpperCase();
@@ -744,6 +777,17 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anonymous";
+    if (rateLimiter) {
+      const { success } = await rateLimiter.limit(`embed-chat:${ip}`);
+      if (!success) {
+        return Response.json(
+          { error: "Rate limit exceeded. Please try again later." },
+          { status: 429, headers: corsHeaders }
+        );
+      }
+    }
+
     const body = await request.json();
     const { messages, sessionId: clientSessionId, channel, debug } = body;
 
@@ -817,11 +861,25 @@ export async function POST(
       });
 
       // Webhook: conversation.started
-      fireWebhookEvent(agent.userId, "conversation.started", params.id, {
-        conversationId: conversation.id,
-        sessionId,
-        channel: channel || "WEB",
-      });
+      waitUntil(
+        fireWebhookEvent(agent.userId, "conversation.started", params.id, {
+          conversationId: conversation.id,
+          sessionId,
+          channel: channel || "WEB",
+        }).catch((err) => {
+          console.error("Conversation started webhook dispatch failed:", err);
+        })
+      );
+
+      // Email notification: new lead (fire-and-forget, don't block response)
+      const firstMsg = extractTextContent(messages[messages.length - 1]?.content || "");
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
+      const convUrl = `${appUrl}/dashboard/agents/${params.id}?tab=logs`;
+      waitUntil(
+        sendNewLeadEmail(agent.userId, agent.name, firstMsg, convUrl).catch((err) => {
+          console.error("New lead email notification failed:", err);
+        })
+      );
     }
 
     // Letzte User-Nachricht speichern
@@ -1121,11 +1179,15 @@ export async function POST(
                     where: { id: conversationId },
                     data: { leadScore: score, visitorEmail: (toolInput.email as string) || undefined },
                   });
-                  fireWebhookEvent(agent.userId, "lead.scored", params.id, {
-                    conversationId,
-                    score,
-                    email: toolInput.email || null,
-                  });
+                  waitUntil(
+                    fireWebhookEvent(agent.userId, "lead.scored", params.id, {
+                      conversationId,
+                      score,
+                      email: toolInput.email || null,
+                    }).catch((err) => {
+                      console.error("Lead scored webhook dispatch failed:", err);
+                    })
+                  );
                 }
                 if (fnCall.function.name === "collect_email") {
                   await prisma.conversation.update({
@@ -1134,11 +1196,15 @@ export async function POST(
                   });
                 }
 
-                fireWebhookEvent(agent.userId, "action.executed", params.id, {
-                  conversationId,
-                  action: fnCall.function.name,
-                  input: toolInput,
-                });
+                waitUntil(
+                  fireWebhookEvent(agent.userId, "action.executed", params.id, {
+                    conversationId,
+                    action: fnCall.function.name,
+                    input: toolInput,
+                  }).catch((err) => {
+                    console.error("Action executed webhook dispatch failed:", err);
+                  })
+                );
               }
             }
           }
@@ -1227,11 +1293,15 @@ export async function POST(
                       visitorEmail: (input.email as string) || undefined,
                     },
                   });
-                  fireWebhookEvent(agent.userId, "lead.scored", params.id, {
-                    conversationId,
-                    score,
-                    email: input.email || null,
-                  });
+                  waitUntil(
+                    fireWebhookEvent(agent.userId, "lead.scored", params.id, {
+                      conversationId,
+                      score,
+                      email: input.email || null,
+                    }).catch((err) => {
+                      console.error("Lead scored webhook dispatch failed:", err);
+                    })
+                  );
                 }
 
                 // E-Mail auf Conversation speichern
@@ -1247,11 +1317,15 @@ export async function POST(
                 }
 
                 // Webhook: action.executed
-                fireWebhookEvent(agent.userId, "action.executed", params.id, {
-                  conversationId,
-                  action: block.name,
-                  input: block.input,
-                });
+                waitUntil(
+                  fireWebhookEvent(agent.userId, "action.executed", params.id, {
+                    conversationId,
+                    action: block.name,
+                    input: block.input,
+                  }).catch((err) => {
+                    console.error("Action executed webhook dispatch failed:", err);
+                  })
+                );
               }
             }
 
@@ -1278,7 +1352,11 @@ export async function POST(
 
           // Deduct AI credits (skip if BYOK)
           if (!creditCheck.byokActive && creditCheck.cost > 0) {
-            deductCredits(agent.userId, selectedModel, "CHAT", params.id, conversationId).catch(() => {});
+            waitUntil(
+              deductCredits(agent.userId, selectedModel, "CHAT", params.id, conversationId).catch((err) => {
+                Sentry.captureException(err, { tags: { component: "credit-deduction", agentId: params.id }, extra: { userId: agent.userId, model: selectedModel } });
+              })
+            );
           }
 
           // Conversation-Metadaten aktualisieren
@@ -1288,12 +1366,16 @@ export async function POST(
           });
 
           // Webhook: conversation.ended
-          fireWebhookEvent(agent.userId, "conversation.ended", params.id, {
-            conversationId,
-            sessionId,
-            actionsUsed,
-            responseLength: fullAssistantText.length,
-          });
+          waitUntil(
+            fireWebhookEvent(agent.userId, "conversation.ended", params.id, {
+              conversationId,
+              sessionId,
+              actionsUsed,
+              responseLength: fullAssistantText.length,
+            }).catch((err) => {
+              console.error("Conversation ended webhook dispatch failed:", err);
+            })
+          );
 
           // Orchestration: Check handoff rules after response (Anthropic only)
           if (fullAssistantText && anthropicClient && isAnthropic) {
@@ -1330,13 +1412,17 @@ export async function POST(
               .filter((m) => typeof m.content === "string")
               .map((m) => ({ role: m.role as string, content: m.content as string }));
 
-            extractAndSaveMemories(
-              params.id,
-              sessionHash,
-              allMessages,
-              anthropicClient,
-              selectedModel.startsWith("claude") ? selectedModel : "claude-sonnet-4-20250514"
-            ).catch(() => {});
+            waitUntil(
+              extractAndSaveMemories(
+                params.id,
+                sessionHash,
+                allMessages,
+                anthropicClient,
+                selectedModel.startsWith("claude") ? selectedModel : "claude-sonnet-4-20250514"
+              ).catch((err) => {
+                console.error("Memory extraction failed:", err);
+              })
+            );
           }
 
           // Session-ID an Client senden
@@ -1372,6 +1458,10 @@ export async function POST(
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         } catch (err) {
+          Sentry.captureException(err, {
+            tags: { component: "chat-stream", agentId: params.id },
+            extra: { model: selectedModel, provider: modelProvider },
+          });
           // Auch bei Fehler: Teil-Antwort speichern
           if (fullAssistantText) {
             await prisma.message.create({
@@ -1404,6 +1494,9 @@ export async function POST(
       },
     });
   } catch (err) {
+    Sentry.captureException(err, {
+      tags: { component: "chat-endpoint", agentId: params.id },
+    });
     const message = err instanceof Error ? err.message : "Server error";
     return Response.json(
       { error: message },

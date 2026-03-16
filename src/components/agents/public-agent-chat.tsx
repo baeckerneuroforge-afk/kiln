@@ -21,6 +21,7 @@ interface PublicAgentChatProps {
   logoUrl?: string | null;
   showPoweredBy: boolean;
   imageAnalysisEnabled?: boolean;
+  customCss?: string | null;
 }
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -35,6 +36,7 @@ export function PublicAgentChat({
   logoUrl,
   showPoweredBy,
   imageAnalysisEnabled = false,
+  customCss,
 }: PublicAgentChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(
     welcomeMessage
@@ -181,6 +183,9 @@ export function PublicAgentChat({
       className="flex h-[600px] flex-col overflow-hidden rounded-2xl border shadow-2xl"
       style={{ borderColor: `${primaryColor}20`, backgroundColor: "#1C1917" }}
     >
+      {/* White-label custom CSS */}
+      {customCss && <style dangerouslySetInnerHTML={{ __html: customCss }} />}
+
       {/* Header */}
       <div
         className="flex items-center gap-3 px-5 py-4"

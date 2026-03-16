@@ -1,3 +1,5 @@
+import { withSentryConfig } from "@sentry/nextjs";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async headers() {
@@ -21,4 +23,14 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+// Only wrap with Sentry if DSN is configured
+const hasSentry = !!process.env.SENTRY_DSN || !!process.env.NEXT_PUBLIC_SENTRY_DSN;
+
+export default hasSentry
+  ? withSentryConfig(nextConfig, {
+      silent: true,
+      hideSourceMaps: true,
+      disableServerWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
+      disableClientWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
+    })
+  : nextConfig;
