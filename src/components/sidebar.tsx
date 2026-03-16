@@ -22,6 +22,7 @@ import {
   ChevronsRight,
   Users,
   MessageCircle,
+  MessageSquare,
   HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,14 @@ const allModules = [
     color: "text-muted-foreground",
     activeColor: "text-kiln-orange",
     badge: null as string | null,
+    minAgents: 0,
+  },
+  {
+    name: "Conversations",
+    href: "/dashboard/conversations",
+    icon: MessageSquare,
+    color: "text-muted-foreground",
+    activeColor: "text-kiln-orange",
     minAgents: 0,
   },
   {

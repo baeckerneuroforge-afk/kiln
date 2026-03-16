@@ -416,7 +416,7 @@ export default function OperationsPage() {
             >
               <div>
                 <p className="text-sm font-medium text-foreground">View all conversations</p>
-                <p className="mt-1 text-xs text-muted-foreground">Open AI Agent Studio and inspect agent logs.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Open the global conversation inbox across all agents.</p>
               </div>
               <ArrowRight className="h-4 w-4 text-muted-foreground" />
             </Link>

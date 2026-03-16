@@ -35,6 +35,23 @@ interface EmailStatus {
   createdAt?: string;
 }
 
+interface SlackStatus {
+  connected: boolean;
+  slackConnected?: boolean;
+  isActive?: boolean;
+  channelName?: string | null;
+  teamName?: string | null;
+  channels?: { id: string; name: string; isMember: boolean; isPrivate: boolean }[];
+  createdAt?: string;
+}
+
+interface SlackChannelOption {
+  id: string;
+  name: string;
+  isMember: boolean;
+  isPrivate: boolean;
+}
+
 const channels = [
   {
     id: "web",
@@ -82,7 +99,6 @@ const channels = [
     color: "text-purple-400",
     bg: "bg-purple-500/10",
     border: "border-purple-500/20",
-    comingSoon: true,
   },
 ];
 
@@ -119,6 +135,17 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
   const [emailError, setEmailError] = useState("");
   const [copied, setCopied] = useState(false);
 
+  // Slack state
+  const [slackStatus, setSlackStatus] = useState<SlackStatus>({ connected: false });
+  const [slackLoading, setSlackLoading] = useState(true);
+  const [slackChannels, setSlackChannels] = useState<SlackChannelOption[]>([]);
+  const [selectedSlackChannel, setSelectedSlackChannel] = useState("");
+  const [slackConnecting, setSlackConnecting] = useState(false);
+  const [slackDisconnecting, setSlackDisconnecting] = useState(false);
+  const [showSlackSetup, setShowSlackSetup] = useState(false);
+  const [slackError, setSlackError] = useState("");
+  const [loadingChannels, setLoadingChannels] = useState(false);
+
   const loadTelegramStatus = useCallback(async () => {
     try {
       const res = await fetch(`/api/agents/${agentId}/channels/telegram`);
@@ -145,7 +172,20 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
     }
   }, [agentId]);
 
-  useEffect(() => { loadTelegramStatus(); loadEmailStatus(); }, [loadTelegramStatus, loadEmailStatus]);
+  const loadSlackStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/slack`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setSlackStatus(data);
+    } catch {
+      // Not connected
+    } finally {
+      setSlackLoading(false);
+    }
+  }, [agentId]);
+
+  useEffect(() => { loadTelegramStatus(); loadEmailStatus(); loadSlackStatus(); }, [loadTelegramStatus, loadEmailStatus, loadSlackStatus]);
 
   // Telegram handlers
   const connectTelegram = async () => {
@@ -240,6 +280,73 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
     }
   };
 
+  // Slack handlers
+  const startSlackOAuth = () => {
+    const appUrl = window.location.origin;
+    window.location.href = `${appUrl}/api/integrations/slack/auth?agentId=${agentId}`;
+  };
+
+  const loadSlackChannels = async () => {
+    setLoadingChannels(true);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/slack?listChannels=true`);
+      const data = await res.json();
+      if (data.channels) {
+        setSlackChannels(data.channels);
+      }
+    } catch {
+      setSlackError("Failed to load channels");
+    } finally {
+      setLoadingChannels(false);
+    }
+  };
+
+  const connectSlackChannel = async () => {
+    if (!selectedSlackChannel) return;
+    setSlackConnecting(true);
+    setSlackError("");
+
+    const channel = slackChannels.find((c) => c.id === selectedSlackChannel);
+    if (!channel) return;
+
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/slack`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelId: channel.id, channelName: channel.name }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setSlackError(data.error);
+        return;
+      }
+      toast("Slack channel connected!");
+      setSlackStatus({ connected: true, slackConnected: true, isActive: true, channelName: data.channelName, teamName: data.teamName });
+      setSelectedSlackChannel("");
+      setShowSlackSetup(false);
+    } catch {
+      setSlackError("Failed to connect. Please try again.");
+    } finally {
+      setSlackConnecting(false);
+    }
+  };
+
+  const disconnectSlack = async () => {
+    setSlackDisconnecting(true);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/slack`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast("Slack channel disconnected");
+      setSlackStatus((prev) => ({ ...prev, connected: false }));
+      setShowSlackSetup(false);
+    } catch {
+      toast("Failed to disconnect", "error");
+    } finally {
+      setSlackDisconnecting(false);
+    }
+  };
+
   const copyEmail = async () => {
     const email = emailStatus.agentEmail;
     if (!email) return;
@@ -263,6 +370,7 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
         {channels.map((ch) => {
           const isTelegram = ch.id === "telegram";
           const isEmail = ch.id === "email";
+          const isSlack = ch.id === "slack";
           return (
             <div key={ch.id} className="rounded-xl border border-border bg-card">
               {/* Channel card header */}
@@ -334,6 +442,32 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                   )}
 
                   {isEmail && emailLoading && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+
+                  {/* Slack status */}
+                  {isSlack && !slackLoading && slackStatus.connected && (
+                    <span className="flex items-center gap-1.5 rounded-full bg-kiln-green/10 px-3 py-1 text-[10px] font-semibold text-kiln-green">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Connected
+                    </span>
+                  )}
+
+                  {isSlack && !slackLoading && !slackStatus.connected && (
+                    <button
+                      onClick={() => {
+                        setShowSlackSetup(!showSlackSetup);
+                        if (!showSlackSetup && slackStatus.slackConnected && slackChannels.length === 0) {
+                          loadSlackChannels();
+                        }
+                      }}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                    >
+                      Set Up
+                    </button>
+                  )}
+
+                  {isSlack && slackLoading && (
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   )}
 
@@ -527,6 +661,118 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                       Enable Email
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Slack: Connected details */}
+              {isSlack && slackStatus.connected && (
+                <div className="border-t border-border px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">#{slackStatus.channelName}</span>
+                        {slackStatus.teamName && (
+                          <span className="ml-1.5 text-muted-foreground/60">in {slackStatus.teamName}</span>
+                        )}
+                      </span>
+                    </div>
+                    <button
+                      onClick={disconnectSlack}
+                      disabled={slackDisconnecting}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                    >
+                      {slackDisconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      Disconnect
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Slack: Setup form */}
+              {isSlack && showSlackSetup && !slackStatus.connected && (
+                <div className="border-t border-border p-4">
+                  {!slackStatus.slackConnected ? (
+                    // Step 1: Connect Slack workspace via OAuth
+                    <div>
+                      <div className="mb-4 rounded-lg border border-purple-500/20 bg-purple-500/5 p-3">
+                        <p className="text-xs font-medium text-purple-400 mb-2">Setup Instructions</p>
+                        <ol className="space-y-1.5 text-[11px] text-muted-foreground list-decimal list-inside">
+                          <li>Click <span className="font-medium text-foreground">Connect Slack</span> below</li>
+                          <li>Authorize KILN in your Slack workspace</li>
+                          <li>Select a channel for your agent to respond in</li>
+                          <li>Messages in that channel will get AI responses</li>
+                        </ol>
+                      </div>
+
+                      <button
+                        onClick={startSlackOAuth}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-purple-500 px-4 py-2.5 text-xs font-medium text-white transition-colors hover:bg-purple-500/90"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        Connect Slack Workspace
+                      </button>
+
+                      <button
+                        onClick={() => { setShowSlackSetup(false); setSlackError(""); }}
+                        className="mt-2 w-full rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    // Step 2: Select channel (Slack already connected)
+                    <div>
+                      <div className="mb-3 rounded-lg bg-purple-500/5 border border-purple-500/20 px-3 py-2">
+                        <span className="text-[10px] text-muted-foreground">Connected to</span>
+                        <p className="text-sm font-medium text-foreground">{slackStatus.teamName}</p>
+                      </div>
+
+                      <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Select Channel</label>
+                      {loadingChannels ? (
+                        <div className="flex items-center gap-2 py-4 text-xs text-muted-foreground">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Loading channels...
+                        </div>
+                      ) : (
+                        <select
+                          value={selectedSlackChannel}
+                          onChange={(e) => { setSelectedSlackChannel(e.target.value); setSlackError(""); }}
+                          className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/20"
+                        >
+                          <option value="">Choose a channel...</option>
+                          {slackChannels.map((ch2) => (
+                            <option key={ch2.id} value={ch2.id}>
+                              #{ch2.name} {ch2.isPrivate ? "(private)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+
+                      {slackError && (
+                        <div className="mb-2 flex items-center gap-1.5 text-xs text-red-400">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                          {slackError}
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setShowSlackSetup(false); setSlackError(""); setSelectedSlackChannel(""); }}
+                          className="flex-1 rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={connectSlackChannel}
+                          disabled={slackConnecting || !selectedSlackChannel}
+                          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-purple-500 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-purple-500/90 disabled:opacity-50"
+                        >
+                          {slackConnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquare className="h-3.5 w-3.5" />}
+                          Connect Channel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

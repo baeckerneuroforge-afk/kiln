@@ -464,7 +464,7 @@ export async function GET() {
       teams,
       quickLinks: {
         createAgentHref: "/dashboard/agents/new",
-        conversationsHref: "/dashboard/agents",
+        conversationsHref: "/dashboard/conversations",
       },
     });
   } catch (error) {
