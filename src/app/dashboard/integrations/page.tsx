@@ -577,6 +577,16 @@ export default function IntegrationsPage() {
                     <Plug className="h-2.5 w-2.5" />
                     Connect
                   </button>
+                ) : item.provider === "slack" ? (
+                  <button
+                    onClick={() => {
+                      window.location.href = `/api/integrations/slack/auth`;
+                    }}
+                    className="flex items-center gap-1 rounded-full bg-kiln-orange/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-orange transition-colors hover:bg-kiln-orange/20"
+                  >
+                    <Plug className="h-2.5 w-2.5" />
+                    Connect
+                  </button>
                 ) : (
                   <span className="flex items-center gap-1 rounded-full bg-kiln-blue/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-blue">
                     <Clock className="h-2.5 w-2.5" />
@@ -596,7 +606,18 @@ export default function IntegrationsPage() {
                   Connect Repository
                 </button>
               )}
-              {!isConnected && item.provider !== "github" && (
+              {!isConnected && item.provider === "slack" && (
+                <button
+                  onClick={() => {
+                    window.location.href = `/api/integrations/slack/auth`;
+                  }}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-purple-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-purple-500/90"
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  Connect Workspace
+                </button>
+              )}
+              {!isConnected && item.provider !== "github" && item.provider !== "slack" && (
                 isSubmitted ? (
                   <div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-kiln-green/30 bg-kiln-green/5 px-3 py-2 text-xs font-medium text-kiln-green">
                     <Bell className="h-3.5 w-3.5" />
