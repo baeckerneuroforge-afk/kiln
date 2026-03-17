@@ -19,6 +19,8 @@ import {
   Database,
   Search,
   BarChart3,
+  CreditCard,
+  Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/toast";
@@ -123,6 +125,44 @@ interface HubSpotStatus {
   lastSyncAt?: string | null;
 }
 
+interface StripeStatus {
+  connected: boolean;
+  isActive?: boolean;
+  accountId?: string | null;
+  accountLabel?: string | null;
+  recentChargeCount?: number;
+  lastChargeAt?: string | null;
+  createdAt?: string;
+}
+
+interface AirtableStatus {
+  connected: boolean;
+  isActive?: boolean;
+  baseId?: string | null;
+  tableName?: string | null;
+  sampleFieldNames?: string[];
+  previewCount?: number;
+  createdAt?: string;
+}
+
+interface CalendlyEventTypeOption {
+  uri: string;
+  name: string;
+  active: boolean;
+  schedulingUrl?: string | null;
+  slug?: string | null;
+}
+
+interface CalendlyStatus {
+  connected: boolean;
+  isActive?: boolean;
+  userName?: string | null;
+  webhookUrl?: string | null;
+  eventTypes: CalendlyEventTypeOption[];
+  lastEventAt?: string | null;
+  createdAt?: string;
+}
+
 const channels = [
   {
     id: "web",
@@ -169,6 +209,33 @@ const channels = [
     color: "text-purple-400",
     bg: "bg-purple-500/10",
     border: "border-purple-500/20",
+  },
+  {
+    id: "stripe",
+    name: "Stripe",
+    description: "Create payment links, invoices, and check payment status",
+    icon: CreditCard,
+    color: "text-violet-400",
+    bg: "bg-violet-500/10",
+    border: "border-violet-500/20",
+  },
+  {
+    id: "airtable",
+    name: "Airtable",
+    description: "Sync captured leads into an Airtable base and table",
+    icon: Database,
+    color: "text-teal-400",
+    bg: "bg-teal-500/10",
+    border: "border-teal-500/20",
+  },
+  {
+    id: "calendly",
+    name: "Calendly",
+    description: "Subscribe to booking events and capture appointment leads",
+    icon: Calendar,
+    color: "text-blue-400",
+    bg: "bg-blue-500/10",
+    border: "border-blue-500/20",
   },
   {
     id: "notion",
@@ -235,6 +302,39 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
   const [showSlackSetup, setShowSlackSetup] = useState(false);
   const [slackError, setSlackError] = useState("");
   const [loadingChannels, setLoadingChannels] = useState(false);
+
+  // Stripe state
+  const [stripeStatus, setStripeStatus] = useState<StripeStatus>({ connected: false });
+  const [stripeLoading, setStripeLoading] = useState(true);
+  const [stripeSecretKey, setStripeSecretKey] = useState("");
+  const [stripeConnecting, setStripeConnecting] = useState(false);
+  const [stripeDisconnecting, setStripeDisconnecting] = useState(false);
+  const [showStripeSetup, setShowStripeSetup] = useState(false);
+  const [stripeError, setStripeError] = useState("");
+
+  // Airtable state
+  const [airtableStatus, setAirtableStatus] = useState<AirtableStatus>({ connected: false });
+  const [airtableLoading, setAirtableLoading] = useState(true);
+  const [airtableToken, setAirtableToken] = useState("");
+  const [airtableBaseId, setAirtableBaseId] = useState("");
+  const [airtableTableName, setAirtableTableName] = useState("");
+  const [airtableConnecting, setAirtableConnecting] = useState(false);
+  const [airtableDisconnecting, setAirtableDisconnecting] = useState(false);
+  const [showAirtableSetup, setShowAirtableSetup] = useState(false);
+  const [airtableError, setAirtableError] = useState("");
+
+  // Calendly state
+  const [calendlyStatus, setCalendlyStatus] = useState<CalendlyStatus>({
+    connected: false,
+    eventTypes: [],
+  });
+  const [calendlyLoading, setCalendlyLoading] = useState(true);
+  const [calendlyToken, setCalendlyToken] = useState("");
+  const [calendlyConnecting, setCalendlyConnecting] = useState(false);
+  const [calendlyDisconnecting, setCalendlyDisconnecting] = useState(false);
+  const [showCalendlySetup, setShowCalendlySetup] = useState(false);
+  const [calendlyError, setCalendlyError] = useState("");
+  const [calendlyWebhookCopied, setCalendlyWebhookCopied] = useState(false);
 
   // Notion state
   const [notionStatus, setNotionStatus] = useState<NotionStatus>({ connected: false });
@@ -317,6 +417,61 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
     }
   }, [agentId]);
 
+  const loadStripeStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/stripe`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setStripeStatus(data);
+    } catch {
+      // Not connected
+    } finally {
+      setStripeLoading(false);
+    }
+  }, [agentId]);
+
+  const loadAirtableStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/airtable`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setAirtableStatus({
+        connected: Boolean(data.connected),
+        isActive: data.isActive,
+        baseId: data.baseId || null,
+        tableName: data.tableName || null,
+        sampleFieldNames: data.sampleFieldNames || [],
+        previewCount: data.previewCount ?? 0,
+        createdAt: data.createdAt,
+      });
+    } catch {
+      // Not connected
+    } finally {
+      setAirtableLoading(false);
+    }
+  }, [agentId]);
+
+  const loadCalendlyStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/calendly`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setCalendlyStatus({
+        connected: Boolean(data.connected),
+        isActive: data.isActive,
+        userName: data.userName || null,
+        webhookUrl: data.webhookUrl || null,
+        eventTypes: data.eventTypes || [],
+        lastEventAt: data.lastEventAt || null,
+        createdAt: data.createdAt,
+      });
+    } catch {
+      // Not connected
+    } finally {
+      setCalendlyLoading(false);
+    }
+  }, [agentId]);
+
   const loadNotionStatus = useCallback(async () => {
     try {
       const res = await fetch(`/api/agents/${agentId}/integrations/notion`);
@@ -376,7 +531,27 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
     }
   }, [agentId]);
 
-  useEffect(() => { loadTelegramStatus(); loadEmailStatus(); loadSlackStatus(); loadNotionStatus(); loadWhatsappStatus(); loadHubspotStatus(); }, [loadTelegramStatus, loadEmailStatus, loadSlackStatus, loadNotionStatus, loadWhatsappStatus, loadHubspotStatus]);
+  useEffect(() => {
+    loadTelegramStatus();
+    loadEmailStatus();
+    loadSlackStatus();
+    loadStripeStatus();
+    loadAirtableStatus();
+    loadCalendlyStatus();
+    loadNotionStatus();
+    loadWhatsappStatus();
+    loadHubspotStatus();
+  }, [
+    loadTelegramStatus,
+    loadEmailStatus,
+    loadSlackStatus,
+    loadStripeStatus,
+    loadAirtableStatus,
+    loadCalendlyStatus,
+    loadNotionStatus,
+    loadWhatsappStatus,
+    loadHubspotStatus,
+  ]);
 
   useEffect(() => {
     const selectedPipeline = hubspotStatus.pipelines.find(
@@ -676,6 +851,185 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
     }
   };
 
+  const connectStripe = async () => {
+    if (!stripeSecretKey.trim()) return;
+    setStripeConnecting(true);
+    setStripeError("");
+
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/stripe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secretKey: stripeSecretKey.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setStripeError(data.error || "Failed to connect Stripe");
+        return;
+      }
+
+      toast("Stripe connected!");
+      setStripeStatus({
+        connected: true,
+        isActive: true,
+        accountId: data.accountId || null,
+        accountLabel: data.accountLabel || null,
+        recentChargeCount: data.recentChargeCount ?? 0,
+        lastChargeAt: data.lastChargeAt || null,
+      });
+      setStripeSecretKey("");
+      setShowStripeSetup(false);
+    } catch {
+      setStripeError("Failed to connect Stripe");
+    } finally {
+      setStripeConnecting(false);
+    }
+  };
+
+  const disconnectStripe = async () => {
+    setStripeDisconnecting(true);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/stripe`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast("Stripe disconnected");
+      setStripeStatus({ connected: false });
+      setShowStripeSetup(false);
+    } catch {
+      toast("Failed to disconnect", "error");
+    } finally {
+      setStripeDisconnecting(false);
+    }
+  };
+
+  const connectAirtable = async () => {
+    if (!airtableToken.trim() || !airtableBaseId.trim() || !airtableTableName.trim()) return;
+    setAirtableConnecting(true);
+    setAirtableError("");
+
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/airtable`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personalAccessToken: airtableToken.trim(),
+          baseId: airtableBaseId.trim(),
+          tableName: airtableTableName.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setAirtableError(data.error || "Failed to connect Airtable");
+        return;
+      }
+
+      toast("Airtable connected!");
+      setAirtableStatus({
+        connected: true,
+        isActive: true,
+        baseId: data.baseId || airtableBaseId.trim(),
+        tableName: data.tableName || airtableTableName.trim(),
+        sampleFieldNames: data.sampleFieldNames || [],
+        previewCount: data.previewCount ?? 0,
+      });
+      setAirtableToken("");
+      setAirtableBaseId("");
+      setAirtableTableName("");
+      setShowAirtableSetup(false);
+    } catch {
+      setAirtableError("Failed to connect Airtable");
+    } finally {
+      setAirtableConnecting(false);
+    }
+  };
+
+  const disconnectAirtable = async () => {
+    setAirtableDisconnecting(true);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/airtable`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast("Airtable disconnected");
+      setAirtableStatus({ connected: false });
+      setShowAirtableSetup(false);
+    } catch {
+      toast("Failed to disconnect", "error");
+    } finally {
+      setAirtableDisconnecting(false);
+    }
+  };
+
+  const connectCalendly = async () => {
+    if (!calendlyToken.trim()) return;
+    setCalendlyConnecting(true);
+    setCalendlyError("");
+
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/calendly`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personalAccessToken: calendlyToken.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setCalendlyError(data.error || "Failed to connect Calendly");
+        return;
+      }
+
+      toast("Calendly connected!");
+      setCalendlyStatus({
+        connected: true,
+        isActive: true,
+        userName: data.userName || null,
+        webhookUrl: data.webhookUrl || null,
+        eventTypes: data.eventTypes || [],
+      });
+      setCalendlyToken("");
+      setShowCalendlySetup(false);
+    } catch {
+      setCalendlyError("Failed to connect Calendly");
+    } finally {
+      setCalendlyConnecting(false);
+    }
+  };
+
+  const disconnectCalendly = async () => {
+    setCalendlyDisconnecting(true);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/calendly`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast("Calendly disconnected");
+      setCalendlyStatus({ connected: false, eventTypes: [] });
+      setShowCalendlySetup(false);
+    } catch {
+      toast("Failed to disconnect", "error");
+    } finally {
+      setCalendlyDisconnecting(false);
+    }
+  };
+
+  const copyCalendlyWebhookUrl = async () => {
+    const url = calendlyStatus.webhookUrl;
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCalendlyWebhookCopied(true);
+      toast("Webhook URL copied!");
+      setTimeout(() => setCalendlyWebhookCopied(false), 2000);
+    } catch {
+      toast("Failed to copy", "error");
+    }
+  };
+
   const startHubspotOAuth = () => {
     window.location.href = `${window.location.origin}/api/integrations/hubspot/auth?agentId=${agentId}`;
   };
@@ -838,6 +1192,9 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
           const isTelegram = ch.id === "telegram";
           const isEmail = ch.id === "email";
           const isSlack = ch.id === "slack";
+          const isStripe = ch.id === "stripe";
+          const isAirtable = ch.id === "airtable";
+          const isCalendly = ch.id === "calendly";
           const isWhatsApp = ch.id === "whatsapp";
           const isNotion = ch.id === "notion";
           const isHubSpot = ch.id === "hubspot";
@@ -933,6 +1290,69 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                   )}
 
                   {isSlack && slackLoading && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+
+                  {/* Stripe status */}
+                  {isStripe && !stripeLoading && stripeStatus.connected && (
+                    <span className="flex items-center gap-1.5 rounded-full bg-kiln-green/10 px-3 py-1 text-[10px] font-semibold text-kiln-green">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Connected
+                    </span>
+                  )}
+
+                  {isStripe && !stripeLoading && !stripeStatus.connected && (
+                    <button
+                      onClick={() => setShowStripeSetup(!showStripeSetup)}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                    >
+                      Configure
+                    </button>
+                  )}
+
+                  {isStripe && stripeLoading && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+
+                  {/* Airtable status */}
+                  {isAirtable && !airtableLoading && airtableStatus.connected && (
+                    <span className="flex items-center gap-1.5 rounded-full bg-kiln-green/10 px-3 py-1 text-[10px] font-semibold text-kiln-green">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Connected
+                    </span>
+                  )}
+
+                  {isAirtable && !airtableLoading && !airtableStatus.connected && (
+                    <button
+                      onClick={() => setShowAirtableSetup(!showAirtableSetup)}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                    >
+                      Configure
+                    </button>
+                  )}
+
+                  {isAirtable && airtableLoading && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+
+                  {/* Calendly status */}
+                  {isCalendly && !calendlyLoading && calendlyStatus.connected && (
+                    <span className="flex items-center gap-1.5 rounded-full bg-kiln-green/10 px-3 py-1 text-[10px] font-semibold text-kiln-green">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Connected
+                    </span>
+                  )}
+
+                  {isCalendly && !calendlyLoading && !calendlyStatus.connected && (
+                    <button
+                      onClick={() => setShowCalendlySetup(!showCalendlySetup)}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                    >
+                      Configure
+                    </button>
+                  )}
+
+                  {isCalendly && calendlyLoading && (
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   )}
 
@@ -1303,6 +1723,391 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Stripe: Connected details */}
+              {isStripe && stripeStatus.connected && (
+                <div className="border-t border-border px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          {stripeStatus.accountLabel || stripeStatus.accountId || "Stripe account"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+                        {typeof stripeStatus.recentChargeCount === "number" && (
+                          <span>{stripeStatus.recentChargeCount} recent charge{stripeStatus.recentChargeCount !== 1 ? "s" : ""}</span>
+                        )}
+                        {stripeStatus.lastChargeAt && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Last charge {timeAgo(stripeStatus.lastChargeAt)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={disconnectStripe}
+                      disabled={stripeDisconnecting}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                    >
+                      {stripeDisconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      Disconnect
+                    </button>
+                  </div>
+
+                  <div className="mt-3 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
+                    <p className="text-[11px] text-muted-foreground">
+                      Your agent can now create payment links, check payment status, list recent charges, and create invoices using your Stripe account.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Stripe: Setup form */}
+              {isStripe && showStripeSetup && !stripeStatus.connected && (
+                <div className="border-t border-border p-4">
+                  <div className="mb-4 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
+                    <p className="mb-2 text-xs font-medium text-violet-400">Setup Instructions</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Enter your Stripe Secret Key to let your agent create payment links and check payment status. Find your key at{" "}
+                      <a
+                        href="https://dashboard.stripe.com/apikeys"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-foreground underline decoration-violet-500/50 underline-offset-2"
+                      >
+                        dashboard.stripe.com/apikeys
+                      </a>
+                    </p>
+                  </div>
+
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    Stripe Secret Key
+                  </label>
+                  <input
+                    type="password"
+                    value={stripeSecretKey}
+                    onChange={(e) => {
+                      setStripeSecretKey(e.target.value);
+                      setStripeError("");
+                    }}
+                    placeholder="sk_live_..."
+                    className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500/20"
+                  />
+
+                  <p className="mb-2 text-[10px] text-muted-foreground">
+                    This is your business&apos;s Stripe key. It is stored encrypted and used only for this agent.
+                  </p>
+
+                  {stripeError && (
+                    <div className="mb-2 flex items-center gap-1.5 text-xs text-red-400">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      {stripeError}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setShowStripeSetup(false);
+                        setStripeError("");
+                        setStripeSecretKey("");
+                      }}
+                      className="flex-1 rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={connectStripe}
+                      disabled={stripeConnecting || !stripeSecretKey.trim()}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-violet-500 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-violet-500/90 disabled:opacity-50"
+                    >
+                      {stripeConnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
+                      Connect
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Airtable: Connected details */}
+              {isAirtable && airtableStatus.connected && (
+                <div className="border-t border-border px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground">
+                        Base <span className="font-medium text-foreground">{airtableStatus.baseId || "Connected"}</span>
+                        {airtableStatus.tableName && (
+                          <span className="ml-2">
+                            Table <span className="font-medium text-foreground">{airtableStatus.tableName}</span>
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+                        {typeof airtableStatus.previewCount === "number" && (
+                          <span>{airtableStatus.previewCount} record preview</span>
+                        )}
+                        {airtableStatus.sampleFieldNames && airtableStatus.sampleFieldNames.length > 0 && (
+                          <span>{airtableStatus.sampleFieldNames.length} detected field{airtableStatus.sampleFieldNames.length !== 1 ? "s" : ""}</span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={disconnectAirtable}
+                      disabled={airtableDisconnecting}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                    >
+                      {airtableDisconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      Disconnect
+                    </button>
+                  </div>
+
+                  {airtableStatus.sampleFieldNames && airtableStatus.sampleFieldNames.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Detected Fields
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {airtableStatus.sampleFieldNames.slice(0, 6).map((fieldName) => (
+                          <span key={fieldName} className="rounded bg-muted px-2 py-0.5 text-[10px] text-foreground">
+                            {fieldName}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Airtable: Setup form */}
+              {isAirtable && showAirtableSetup && !airtableStatus.connected && (
+                <div className="border-t border-border p-4">
+                  <div className="mb-4 rounded-lg border border-teal-500/20 bg-teal-500/5 p-3">
+                    <p className="mb-2 text-xs font-medium text-teal-400">Setup Instructions</p>
+                    <ol className="list-inside list-decimal space-y-1.5 text-[11px] text-muted-foreground">
+                      <li>Go to airtable.com/create/tokens</li>
+                      <li>Create a token with <span className="font-medium text-foreground">data.records:read</span> and <span className="font-medium text-foreground">data.records:write</span> scopes</li>
+                      <li>Find your Base ID in the Airtable URL</li>
+                    </ol>
+                  </div>
+
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    Personal Access Token
+                  </label>
+                  <input
+                    type="password"
+                    value={airtableToken}
+                    onChange={(e) => {
+                      setAirtableToken(e.target.value);
+                      setAirtableError("");
+                    }}
+                    placeholder="pat..."
+                    className="mb-3 w-full rounded-lg border border-border bg-background px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500/20"
+                  />
+
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    Base ID
+                  </label>
+                  <input
+                    type="text"
+                    value={airtableBaseId}
+                    onChange={(e) => {
+                      setAirtableBaseId(e.target.value);
+                      setAirtableError("");
+                    }}
+                    placeholder="appXXXXXXXXXXXXXX"
+                    className="mb-3 w-full rounded-lg border border-border bg-background px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500/20"
+                  />
+
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    Table Name
+                  </label>
+                  <input
+                    type="text"
+                    value={airtableTableName}
+                    onChange={(e) => {
+                      setAirtableTableName(e.target.value);
+                      setAirtableError("");
+                    }}
+                    placeholder="Leads"
+                    className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500/20"
+                  />
+
+                  <p className="mb-2 text-[10px] text-muted-foreground">
+                    KILN will create lead records in this table whenever your agent captures an email.
+                  </p>
+
+                  {airtableError && (
+                    <div className="mb-2 flex items-center gap-1.5 text-xs text-red-400">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      {airtableError}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setShowAirtableSetup(false);
+                        setAirtableError("");
+                        setAirtableToken("");
+                        setAirtableBaseId("");
+                        setAirtableTableName("");
+                      }}
+                      className="flex-1 rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={connectAirtable}
+                      disabled={
+                        airtableConnecting ||
+                        !airtableToken.trim() ||
+                        !airtableBaseId.trim() ||
+                        !airtableTableName.trim()
+                      }
+                      className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-teal-500 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-teal-500/90 disabled:opacity-50"
+                    >
+                      {airtableConnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Database className="h-3.5 w-3.5" />}
+                      Connect
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Calendly: Connected details */}
+              {isCalendly && calendlyStatus.connected && (
+                <div className="border-t border-border px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <div className="text-xs text-muted-foreground">
+                        Connected as <span className="font-medium text-foreground">{calendlyStatus.userName || "Calendly User"}</span>
+                      </div>
+                      <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+                        <span>{calendlyStatus.eventTypes.length} event type{calendlyStatus.eventTypes.length !== 1 ? "s" : ""}</span>
+                        {calendlyStatus.lastEventAt && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Last booking event {timeAgo(calendlyStatus.lastEventAt)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={disconnectCalendly}
+                      disabled={calendlyDisconnecting}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                    >
+                      {calendlyDisconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      Disconnect
+                    </button>
+                  </div>
+
+                  {calendlyStatus.webhookUrl && (
+                    <div className="mt-3 flex items-center gap-4 text-[10px] text-muted-foreground">
+                      <button
+                        onClick={copyCalendlyWebhookUrl}
+                        className="flex items-center gap-1 hover:text-foreground"
+                      >
+                        {calendlyWebhookCopied ? (
+                          <CheckCircle2 className="h-3 w-3 text-kiln-green" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                        {calendlyWebhookCopied ? "Copied!" : "Copy Webhook URL"}
+                      </button>
+                    </div>
+                  )}
+
+                  {calendlyStatus.eventTypes.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Event Types
+                      </p>
+                      <div className="mt-2 space-y-2">
+                        {calendlyStatus.eventTypes.slice(0, 4).map((eventType) => (
+                          <div key={eventType.uri} className="flex items-center justify-between rounded-lg border border-border/60 bg-background/50 px-3 py-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-xs font-medium text-foreground">{eventType.name}</p>
+                              {eventType.slug && (
+                                <p className="truncate text-[10px] text-muted-foreground">{eventType.slug}</p>
+                              )}
+                            </div>
+                            {eventType.schedulingUrl && (
+                              <a
+                                href={eventType.schedulingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ml-3 shrink-0 text-[10px] font-medium text-blue-400 hover:underline"
+                              >
+                                Open
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Calendly: Setup form */}
+              {isCalendly && showCalendlySetup && !calendlyStatus.connected && (
+                <div className="border-t border-border p-4">
+                  <div className="mb-4 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+                    <p className="mb-2 text-xs font-medium text-blue-400">Setup Instructions</p>
+                    <ol className="list-inside list-decimal space-y-1.5 text-[11px] text-muted-foreground">
+                      <li>Go to calendly.com/integrations/api_webhooks</li>
+                      <li>Generate a Personal Access Token</li>
+                    </ol>
+                  </div>
+
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    Personal Access Token
+                  </label>
+                  <input
+                    type="password"
+                    value={calendlyToken}
+                    onChange={(e) => {
+                      setCalendlyToken(e.target.value);
+                      setCalendlyError("");
+                    }}
+                    placeholder="cal_live_..."
+                    className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/20"
+                  />
+
+                  <p className="mb-2 text-[10px] text-muted-foreground">
+                    KILN will subscribe this agent to Calendly booking events and log completed bookings as leads.
+                  </p>
+
+                  {calendlyError && (
+                    <div className="mb-2 flex items-center gap-1.5 text-xs text-red-400">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      {calendlyError}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setShowCalendlySetup(false);
+                        setCalendlyError("");
+                        setCalendlyToken("");
+                      }}
+                      className="flex-1 rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={connectCalendly}
+                      disabled={calendlyConnecting || !calendlyToken.trim()}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-500/90 disabled:opacity-50"
+                    >
+                      {calendlyConnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Calendar className="h-3.5 w-3.5" />}
+                      Connect
+                    </button>
+                  </div>
                 </div>
               )}
 

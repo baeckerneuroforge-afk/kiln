@@ -84,7 +84,7 @@ const integrationsCatalog = [
   { provider: "telegram", name: "Telegram", description: "Configure bot tokens manually per agent without OAuth", icon: Send, color: "bg-sky-500", accent: "border-t-sky-500", category: "Communication" },
   { provider: "notion", name: "Notion", description: "Read and write to Notion databases and pages", icon: FileText, color: "bg-neutral-400", accent: "border-t-neutral-400", category: "Productivity" },
   { provider: "calendly", name: "Calendly", description: "Manage scheduling links and appointments", icon: Calendar, color: "bg-blue-600", accent: "border-t-blue-600", category: "Scheduling" },
-  { provider: "stripe", name: "Stripe", description: "Process payments and manage subscriptions", icon: CreditCard, color: "bg-violet-600", accent: "border-t-violet-600", category: "Payments" },
+  { provider: "stripe", name: "Stripe", description: "Configure your own Stripe Secret Key per agent for payments and invoices", icon: CreditCard, color: "bg-violet-600", accent: "border-t-violet-600", category: "Payments" },
   { provider: "mailchimp", name: "Mailchimp", description: "Email marketing campaigns and audiences", icon: Mail, color: "bg-yellow-500", accent: "border-t-yellow-500", category: "Marketing" },
   { provider: "whatsapp-business", name: "WhatsApp Business", description: "Configure Meta API credentials manually per agent", icon: Phone, color: "bg-green-500", accent: "border-t-green-500", category: "Communication" },
   { provider: "shopify", name: "Shopify", description: "Manage products, orders, and customers", icon: ShoppingCart, color: "bg-green-600", accent: "border-t-green-600", category: "E-Commerce" },
@@ -108,6 +108,8 @@ function timeAgo(dateStr: string) {
 }
 
 /* ---------- Connect Modal ---------- */
+const WEBHOOK_ONLY_PROVIDERS = new Set(["zapier", "make"]);
+
 function ConnectModal({
   integration,
   onClose,
@@ -124,6 +126,8 @@ function ConnectModal({
   const [step, setStep] = useState(1);
 
   if (!integration) return null;
+
+  const isWebhookOnly = WEBHOOK_ONLY_PROVIDERS.has(integration.provider);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
@@ -147,77 +151,118 @@ function ConnectModal({
             </div>
           </div>
 
-          {/* Steps indicator */}
-          <div className="mb-5 flex items-center gap-2">
-            <div className={cn("flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold", step >= 1 ? "bg-kiln-orange text-white" : "bg-muted text-muted-foreground")}>1</div>
-            <div className={cn("h-px flex-1", step >= 2 ? "bg-kiln-orange" : "bg-border")} />
-            <div className={cn("flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold", step >= 2 ? "bg-kiln-orange text-white" : "bg-muted text-muted-foreground")}>2</div>
-          </div>
-
-          {step === 1 && (
-            <div className="space-y-4">
-              <div>
-                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <Shield className="h-3 w-3" />
-                  API Key
-                </label>
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder={`Enter your ${integration.name} API key...`}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/20"
-                />
-              </div>
-              <button
-                onClick={() => setStep(2)}
-                disabled={!apiKey}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-kiln-orange px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-kiln-orange/90 disabled:opacity-40"
-              >
-                Continue
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-
-          {step === 2 && (
+          {isWebhookOnly ? (
+            /* Webhook-only flow (Zapier, Make) */
             <div className="space-y-4">
               <div>
                 <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <ExternalLink className="h-3 w-3" />
-                  Webhook URL <span className="text-muted-foreground/50">(optional)</span>
+                  Webhook URL
                 </label>
                 <input
                   type="url"
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
-                  placeholder="https://..."
+                  placeholder={integration.provider === "zapier" ? "https://hooks.zapier.com/hooks/catch/..." : "https://hook.eu1.make.com/..."}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/20"
                 />
               </div>
-              <div className="rounded-lg border border-border bg-muted/30 p-3">
+              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5">
                 <p className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
                   <Shield className="h-3 w-3 text-kiln-green" />
-                  Your credentials are encrypted before storage
+                  Your webhook URL is encrypted before storage
+                </p>
+                <p className="text-[10px] text-muted-foreground/60">
+                  {integration.provider === "zapier"
+                    ? "Create a Zap with \"Webhooks by Zapier\" as the trigger, then paste the webhook URL here. KILN will send events (leads, appointments, etc.) to this URL."
+                    : "Create a Make scenario with \"Webhooks\" as the trigger module, then paste the webhook URL here. KILN will send events to this URL."}
                 </p>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setStep(1)}
-                  className="flex-1 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={() => onSave(integration.provider, integration.name, { apiKey, webhookUrl }, false)}
-                  disabled={saving}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-kiln-orange px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-kiln-orange/90 disabled:opacity-50"
-                >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plug className="h-4 w-4" />}
-                  Connect
-                </button>
-              </div>
+              <button
+                onClick={() => onSave(integration.provider, integration.name, { webhookUrl }, false)}
+                disabled={saving || !webhookUrl}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-kiln-orange px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-kiln-orange/90 disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plug className="h-4 w-4" />}
+                Connect
+              </button>
             </div>
+          ) : (
+            /* Standard API key + webhook flow */
+            <>
+              {/* Steps indicator */}
+              <div className="mb-5 flex items-center gap-2">
+                <div className={cn("flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold", step >= 1 ? "bg-kiln-orange text-white" : "bg-muted text-muted-foreground")}>1</div>
+                <div className={cn("h-px flex-1", step >= 2 ? "bg-kiln-orange" : "bg-border")} />
+                <div className={cn("flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold", step >= 2 ? "bg-kiln-orange text-white" : "bg-muted text-muted-foreground")}>2</div>
+              </div>
+
+              {step === 1 && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <Shield className="h-3 w-3" />
+                      API Key
+                    </label>
+                    <input
+                      type="password"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder={`Enter your ${integration.name} API key...`}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/20"
+                    />
+                  </div>
+                  <button
+                    onClick={() => setStep(2)}
+                    disabled={!apiKey}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-kiln-orange px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-kiln-orange/90 disabled:opacity-40"
+                  >
+                    Continue
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <ExternalLink className="h-3 w-3" />
+                      Webhook URL <span className="text-muted-foreground/50">(optional)</span>
+                    </label>
+                    <input
+                      type="url"
+                      value={webhookUrl}
+                      onChange={(e) => setWebhookUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/20"
+                    />
+                  </div>
+                  <div className="rounded-lg border border-border bg-muted/30 p-3">
+                    <p className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+                      <Shield className="h-3 w-3 text-kiln-green" />
+                      Your credentials are encrypted before storage
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setStep(1)}
+                      className="flex-1 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={() => onSave(integration.provider, integration.name, { apiKey, webhookUrl }, false)}
+                      disabled={saving}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-kiln-orange px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-kiln-orange/90 disabled:opacity-50"
+                    >
+                      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plug className="h-4 w-4" />}
+                      Connect
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -690,7 +735,7 @@ export default function IntegrationsPage() {
                     <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-kiln-green opacity-75" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-kiln-green" /></span>
                     Connected
                   </span>
-                ) : item.provider === "telegram" || item.provider === "whatsapp-business" ? (
+                ) : item.provider === "telegram" || item.provider === "whatsapp-business" || item.provider === "stripe" || item.provider === "airtable" || item.provider === "calendly" ? (
                   <button
                     onClick={() => {
                       window.location.href = "/dashboard/agents";
@@ -705,9 +750,12 @@ export default function IntegrationsPage() {
                     onClick={() => {
                       if (item.provider === "github") openGitHubModal();
                       else if (item.provider === "google_calendar") connectGoogleCalendar();
+                      else if (item.provider === "gmail") window.location.href = `/api/integrations/gmail/auth?redirectTo=/dashboard/integrations`;
+                      else if (item.provider === "google-sheets") window.location.href = `/api/integrations/google-sheets/auth?redirectTo=/dashboard/integrations`;
                       else if (item.provider === "hubspot") window.location.href = `/api/integrations/hubspot/auth?redirectTo=/dashboard/integrations`;
                       else if (item.provider === "slack") window.location.href = `/api/integrations/slack/auth`;
                       else if (item.provider === "notion") window.location.href = `/api/integrations/notion/auth`;
+                      else if (item.provider === "zapier" || item.provider === "make") setConnectingProvider(item);
                     }}
                     className="flex items-center gap-1 rounded-full bg-kiln-orange/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-orange transition-colors hover:bg-kiln-orange/20"
                   >
@@ -744,6 +792,28 @@ export default function IntegrationsPage() {
                   </button>
                 </>
               )}
+              {!isConnected && availabilityMap[item.provider]?.available !== false && item.provider === "gmail" && (
+                <button
+                  onClick={() => {
+                    window.location.href = `/api/integrations/gmail/auth?redirectTo=/dashboard/integrations`;
+                  }}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-red-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-red-500/90"
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                  Connect Gmail
+                </button>
+              )}
+              {!isConnected && availabilityMap[item.provider]?.available !== false && item.provider === "google-sheets" && (
+                <button
+                  onClick={() => {
+                    window.location.href = `/api/integrations/google-sheets/auth?redirectTo=/dashboard/integrations`;
+                  }}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-emerald-500/90"
+                >
+                  <Database className="h-3.5 w-3.5" />
+                  Connect Google Sheets
+                </button>
+              )}
               {!isConnected && availabilityMap[item.provider]?.available !== false && item.provider === "hubspot" && (
                 <button
                   onClick={() => {
@@ -777,14 +847,22 @@ export default function IntegrationsPage() {
                   Connect Notion
                 </button>
               )}
-              {!isConnected && (item.provider === "telegram" || item.provider === "whatsapp-business") && (
+              {!isConnected && (item.provider === "telegram" || item.provider === "whatsapp-business" || item.provider === "stripe" || item.provider === "airtable" || item.provider === "calendly") && (
                 <button
                   onClick={() => {
                     window.location.href = "/dashboard/agents";
                   }}
                   className={cn(
                     "mt-3 flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-white transition-colors",
-                    item.provider === "telegram" ? "bg-sky-500 hover:bg-sky-500/90" : "bg-green-500 hover:bg-green-500/90"
+                    item.provider === "telegram"
+                      ? "bg-sky-500 hover:bg-sky-500/90"
+                      : item.provider === "whatsapp-business"
+                        ? "bg-green-500 hover:bg-green-500/90"
+                        : item.provider === "airtable"
+                          ? "bg-teal-500 hover:bg-teal-500/90"
+                          : item.provider === "calendly"
+                            ? "bg-blue-500 hover:bg-blue-500/90"
+                            : "bg-violet-500 hover:bg-violet-500/90"
                   )}
                 >
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -794,7 +872,7 @@ export default function IntegrationsPage() {
               {!isConnected && availabilityMap[item.provider]?.note && availabilityMap[item.provider]?.available !== false && (
                 <p className="mt-2 text-[10px] text-muted-foreground/60">{availabilityMap[item.provider].note}</p>
               )}
-              {!isConnected && item.provider !== "telegram" && item.provider !== "whatsapp-business" && availabilityMap[item.provider]?.available === false && (
+              {!isConnected && item.provider !== "telegram" && item.provider !== "whatsapp-business" && item.provider !== "stripe" && item.provider !== "airtable" && item.provider !== "calendly" && availabilityMap[item.provider]?.available === false && (
                 isSubmitted ? (
                   <div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-kiln-green/30 bg-kiln-green/5 px-3 py-2 text-xs font-medium text-kiln-green">
                     <Bell className="h-3.5 w-3.5" />

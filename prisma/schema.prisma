@@ -616,6 +616,9 @@ enum ChannelType {
   WHATSAPP
   SLACK
   GITHUB
+  STRIPE
+  AIRTABLE
+  CALENDLY
 }
 
 // Team Members — access control for internal agents

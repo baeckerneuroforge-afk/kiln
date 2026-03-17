@@ -10,6 +10,7 @@ import { searchRelevantChunks } from "@/lib/rag";
 import { decrypt } from "@/lib/encryption";
 import { checkCredits, deductCredits } from "@/lib/credits";
 import { Prisma } from "@prisma/client";
+import { buildStripeTools } from "@/lib/integrations/agent-stripe";
 import { safeEval } from "@/lib/safe-eval";
 import { executeTaskTool, evalCondition, executeOutputAction, executeBranchOutputs } from "@/lib/services/task-service";
 import { emitEvent } from "@/lib/events";
@@ -40,6 +41,7 @@ export async function POST(
         knowledgeBases: { where: { embeddingStatus: "READY" } },
         actions: { where: { enabled: true } },
         customTools: { where: { enabled: true } },
+        channels: { where: { type: "STRIPE", isActive: true } },
       },
     });
 
@@ -262,6 +264,8 @@ export async function POST(
         input_schema: { type: "object" as const, properties: props, required: unique },
       });
     }
+
+    tools.push(...buildStripeTools(agent.channels.length > 0));
 
     // 9. Call LLM (non-streaming) with tool loop
     let responseText = "";

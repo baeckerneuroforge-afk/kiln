@@ -19,6 +19,7 @@ import { canCreateAgent } from "@/lib/plan-limits";
 import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
 import { searchRelevantChunks } from "@/lib/rag";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
+import { buildStripeTools } from "@/lib/integrations/agent-stripe";
 import { decrypt } from "@/lib/encryption";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
@@ -1506,6 +1507,7 @@ function createMcpServer(userId: string) {
           knowledgeBases: { where: { embeddingStatus: "READY" } },
           actions: { where: { enabled: true } },
           customTools: { where: { enabled: true } },
+          channels: { where: { type: "STRIPE", isActive: true } },
         },
       });
       if (!agent) return err("Agent not found or unauthorized.");
@@ -1616,6 +1618,8 @@ function createMcpServer(userId: string) {
         for (const n of unique) props[n] = { type: "string", description: `Value for ${n}` };
         tools.push({ name: `custom_tool_${ct.name}`, description: ct.description, input_schema: { type: "object" as const, properties: props, required: unique } });
       }
+
+      tools.push(...buildStripeTools(agent.channels.length > 0));
 
       let responseText = "";
       const actionsExecuted: string[] = [];

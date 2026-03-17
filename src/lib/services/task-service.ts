@@ -1,5 +1,7 @@
 import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/prisma";
+import { syncLeadToAirtableIfConfigured } from "@/lib/integrations/airtable";
+import { executeStripeTool, isStripeToolName } from "@/lib/integrations/agent-stripe";
 import { validateUrl } from "@/lib/url-validation";
 import { safeEval } from "@/lib/safe-eval";
 
@@ -12,6 +14,10 @@ export async function executeTaskTool(
   agent: any, // Prisma Agent with included relations
   taskInput: unknown
 ): Promise<unknown> {
+  if (isStripeToolName(toolName)) {
+    return executeStripeTool(toolName, args, agent.id);
+  }
+
   // Custom HTTP tools
   if (toolName.startsWith("custom_tool_")) {
     const name = toolName.replace("custom_tool_", "");
@@ -113,9 +119,17 @@ export async function executeTaskTool(
     const email = args.email as string;
     if (email) {
       waitUntil(
-        prisma.lead.create({
-          data: { agentId: agent.id, email, name: (args.name as string) || null, context: "Collected via task run", score: null },
-        }).catch((err) => {
+        Promise.all([
+          prisma.lead.create({
+            data: { agentId: agent.id, email, name: (args.name as string) || null, context: "Collected via task run", score: null },
+          }),
+          syncLeadToAirtableIfConfigured(agent.id, {
+            email,
+            name: (args.name as string) || null,
+            context: "Collected via task run",
+            sourceAgentName: typeof agent.name === "string" ? agent.name : null,
+          }),
+        ]).catch((err) => {
           console.error("Task run lead capture failed:", err);
         })
       );

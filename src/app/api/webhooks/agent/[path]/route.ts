@@ -5,6 +5,7 @@ import { searchRelevantChunks } from "@/lib/rag";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { decrypt } from "@/lib/encryption";
 import { deductCredits } from "@/lib/credits";
+import { syncLeadToAirtableIfConfigured } from "@/lib/integrations/airtable";
 import { validateUrl } from "@/lib/url-validation";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
@@ -355,9 +356,17 @@ async function executeToolForWebhook(toolName: string, args: Record<string, unkn
     const email = args.email as string;
     if (email) {
       waitUntil(
-        prisma.lead.create({
-          data: { agentId: agent.id, email, name: (args.name as string) || null, context: "Collected via webhook trigger", score: null },
-        }).catch((err) => {
+        Promise.all([
+          prisma.lead.create({
+            data: { agentId: agent.id, email, name: (args.name as string) || null, context: "Collected via webhook trigger", score: null },
+          }),
+          syncLeadToAirtableIfConfigured(agent.id, {
+            email,
+            name: (args.name as string) || null,
+            context: "Collected via webhook trigger",
+            sourceAgentName: typeof agent.name === "string" ? agent.name : null,
+          }),
+        ]).catch((err) => {
           console.error("Webhook lead capture failed:", err);
         })
       );

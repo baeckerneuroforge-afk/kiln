@@ -1,10 +1,17 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/prisma";
 import { sendAppointmentConfirmationEmails } from "@/lib/email-notifications";
 import {
   getGoogleCalendarIntegrationForAgent,
   type GoogleCalendarDateRange,
 } from "@/lib/integrations/google-calendar";
+import { syncLeadToAirtableIfConfigured } from "@/lib/integrations/airtable";
+import {
+  buildStripeTools as buildAgentStripeTools,
+  executeStripeTool,
+  isStripeToolName,
+} from "@/lib/integrations/agent-stripe";
 import { safeEval } from "@/lib/safe-eval";
 import { validateUrl } from "@/lib/url-validation";
 
@@ -101,7 +108,8 @@ function formatSlotList(slots: { label: string }[]) {
 // Tool definitions based on enabled actions + custom tools
 export function buildTools(
   actions: { type: string; enabled: boolean; config: unknown }[],
-  customTools: CustomToolDef[] = []
+  customTools: CustomToolDef[] = [],
+  stripeEnabled = false
 ): Anthropic.Tool[] {
   const tools: Anthropic.Tool[] = [];
 
@@ -321,6 +329,8 @@ export function buildTools(
     });
   }
 
+  tools.push(...buildAgentStripeTools(stripeEnabled));
+
   return tools;
 }
 
@@ -333,6 +343,11 @@ export async function executeChatTool(
   customTools: CustomToolDef[] = [],
   context: ChatToolExecutionContext = {}
 ): Promise<string> {
+  if (isStripeToolName(toolName)) {
+    const result = await executeStripeTool(toolName, toolInput, agentId);
+    return JSON.stringify(result);
+  }
+
   // Custom HTTP Tool?
   if (toolName.startsWith("custom_tool_")) {
     const ctName = toolName.replace("custom_tool_", "");
@@ -616,6 +631,17 @@ export async function executeChatTool(
           context: (toolInput.context as string) || null,
         },
       });
+
+      waitUntil(
+        syncLeadToAirtableIfConfigured(agentId, {
+          email,
+          name: (toolInput.name as string) || null,
+          context: (toolInput.context as string) || null,
+          sourceAgentName: context.agentName || null,
+        }).catch((error) => {
+          console.error("Airtable lead sync failed:", error);
+        })
+      );
 
       return JSON.stringify({
         success: true,

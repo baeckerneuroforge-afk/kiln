@@ -88,6 +88,7 @@ export async function POST(
         knowledgeBases: { where: { embeddingStatus: "READY" } },
         actions: true,
         customTools: { where: { enabled: true } },
+        channels: { where: { type: "STRIPE", isActive: true } },
       },
     });
 
@@ -291,7 +292,7 @@ export async function POST(
       }
     }
 
-    const tools = buildTools(agent.actions, agent.customTools);
+    const tools = buildTools(agent.actions, agent.customTools, agent.channels.length > 0);
 
     // Client erstellen: BYOK oder KILN's Key
     const isAnthropic = modelProvider === "ANTHROPIC";
