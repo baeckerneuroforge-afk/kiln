@@ -70,5 +70,36 @@ export function registerAgentTools(server, client) {
         id: z.string().describe("Agent ID"),
         status: z.enum(["LIVE", "DRAFT", "PAUSED"]).describe("Target status"),
     }, async (args) => client.callTool("kiln_deploy_agent", args));
+    // ── kiln_export_agent_config ──
+    server.tool("kiln_export_agent_config", "Export an agent's full configuration as JSON. Includes all settings, actions, prompt branches, custom tools, and task config. Does NOT include conversations, knowledge base content, or API keys.", {
+        id: z.string().describe("Agent ID to export"),
+    }, async (args) => client.callTool("kiln_export_agent_config", args));
+    // ── kiln_import_agent_config ──
+    server.tool("kiln_import_agent_config", "Create a new agent from a previously exported configuration JSON. Accepts the same format as kiln_export_agent_config output.", {
+        config: z.object({
+            name: z.string().describe("Agent name"),
+            systemPrompt: z.string().describe("System prompt"),
+            description: z.string().optional(),
+            agentMode: z.enum(["CHAT", "TASK"]).optional(),
+            personality: z.record(z.unknown()).optional(),
+            welcomeMessage: z.string().optional(),
+            suggestedQuestions: z.array(z.string()).optional(),
+            llmModel: z.string().optional(),
+            modelProvider: z.string().optional(),
+            memoryEnabled: z.boolean().optional(),
+            imageAnalysisEnabled: z.boolean().optional(),
+            showAiDisclaimer: z.boolean().optional(),
+            agentType: z.string().optional(),
+            whiteLabel: z.record(z.unknown()).optional(),
+            showPoweredBy: z.boolean().optional(),
+            promptBranches: z.array(z.record(z.unknown())).optional(),
+            actions: z.array(z.object({ type: z.string(), enabled: z.boolean(), config: z.record(z.unknown()).optional() })).optional(),
+            customTools: z.array(z.record(z.unknown())).optional(),
+            triggerType: z.string().optional(),
+            triggerConfig: z.record(z.unknown()).optional(),
+            outputType: z.string().optional(),
+            outputConfig: z.record(z.unknown()).optional(),
+        }).describe("Agent configuration object (from kiln_export_agent_config)"),
+    }, async (args) => client.callTool("kiln_import_agent_config", args));
 }
 //# sourceMappingURL=agents.js.map

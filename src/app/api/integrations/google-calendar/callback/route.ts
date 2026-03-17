@@ -5,13 +5,14 @@ import {
   GoogleCalendarIntegration,
   exchangeGoogleCalendarCode,
   getGoogleCalendarConnection,
+  getGoogleCalendarRedirectUri,
   type GoogleCalendarConnectionConfig,
 } from "@/lib/integrations/google-calendar";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com").replace(/\/+$/, "");
 
   try {
     const url = new URL(request.url);
@@ -25,6 +26,14 @@ export async function GET(request: Request) {
 
     if (!code || !stateParam) {
       return Response.redirect(`${appUrl}/dashboard/integrations?google_calendar_error=missing_code`);
+    }
+
+    if (`${url.origin}${url.pathname}` !== getGoogleCalendarRedirectUri()) {
+      console.warn(
+        "Google Calendar callback hit an unexpected redirect URI",
+        `${url.origin}${url.pathname}`,
+        getGoogleCalendarRedirectUri()
+      );
     }
 
     let state: { userId: string; redirectTo?: string };

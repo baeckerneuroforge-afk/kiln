@@ -8,7 +8,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "kiln-mcp": "./bin/kiln-mcp.js"
+    "kiln-mcp": "bin/kiln-mcp.js"
   },
   "files": [
     "dist",
@@ -35,20 +35,18 @@
   },
   "keywords": [
     "mcp",
-    "model-context-protocol",
-    "ai",
-    "agents",
-    "kiln",
-    "claude",
+    "ai-agents",
+    "claude-code",
     "cursor",
-    "llm"
+    "kiln",
+    "agent-builder"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/hephaistos-systems/kiln"
+    "url": "git+https://github.com/baeckerneuroforge-afk/kiln.git"
   },
   "homepage": "https://kilnbase.com",
   "bugs": {
-    "url": "https://github.com/hephaistos-systems/kiln/issues"
+    "url": "https://github.com/baeckerneuroforge-afk/kiln/issues"
   }
 }

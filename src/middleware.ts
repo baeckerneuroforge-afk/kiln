@@ -36,6 +36,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks/telegram/(.*)", // Telegram Bot Webhooks
   "/api/webhooks/email/(.*)",    // Email Inbound Webhooks
   "/api/webhooks/github/(.*)",   // GitHub Webhook Events
+  "/api/webhooks/slack/(.*)",    // Slack Event Subscriptions
   "/api/v1/(.*)",           // Public API (eigene Key-Auth)
   "/api/mcp(.*)",            // MCP Server (eigene Key-Auth)
   "/api/automations/run",   // Cron-Endpoint (eigene Secret-Auth)

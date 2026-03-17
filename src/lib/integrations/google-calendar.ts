@@ -81,9 +81,15 @@ function getOAuthCredentials() {
   return { clientId, clientSecret };
 }
 
+function getAppUrl() {
+  return (process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com").replace(/\/+$/, "");
+}
+
 export function getGoogleCalendarRedirectUri() {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
-  return `${appUrl}/api/integrations/google-calendar/callback`;
+  return (
+    process.env.GOOGLE_CALENDAR_REDIRECT_URI ||
+    `${getAppUrl()}/api/integrations/google-calendar/callback`
+  );
 }
 
 export function buildGoogleCalendarAuthUrl(state: string) {

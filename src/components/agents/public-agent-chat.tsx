@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Loader2, Bot, User, ImageIcon, X, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { sanitizeCss } from "@/lib/css-sanitizer";
 import { MarkdownMessage } from "./markdown-message";
 
 interface ChatMessage {
@@ -38,6 +39,7 @@ export function PublicAgentChat({
   imageAnalysisEnabled = false,
   customCss,
 }: PublicAgentChatProps) {
+  const sanitizedCustomCss = customCss ? sanitizeCss(customCss) : "";
   const [messages, setMessages] = useState<ChatMessage[]>(
     welcomeMessage
       ? [{ id: "welcome", role: "assistant", content: welcomeMessage }]
@@ -223,7 +225,7 @@ export function PublicAgentChat({
       style={{ borderColor: `${primaryColor}20`, backgroundColor: "#1C1917" }}
     >
       {/* White-label custom CSS */}
-      {customCss && <style dangerouslySetInnerHTML={{ __html: customCss }} />}
+      {sanitizedCustomCss && <style dangerouslySetInnerHTML={{ __html: sanitizedCustomCss }} />}
 
       {/* Header */}
       <div

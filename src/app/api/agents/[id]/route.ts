@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { fireWebhookEvent } from "@/lib/webhooks";
 import { emitEvent } from "@/lib/events";
+import { sanitizeCss } from "@/lib/css-sanitizer";
 
 // Load agent details
 export async function GET(
@@ -102,9 +103,21 @@ export async function PATCH(
     );
 
     const body = await request.json();
+    const sanitizedBody =
+      body?.whiteLabel &&
+      typeof body.whiteLabel === "object" &&
+      typeof (body.whiteLabel as Record<string, unknown>).customCss === "string"
+        ? {
+            ...body,
+            whiteLabel: {
+              ...(body.whiteLabel as Record<string, unknown>),
+              customCss: sanitizeCss((body.whiteLabel as Record<string, string>).customCss),
+            },
+          }
+        : body;
     const agent = await prisma.agent.update({
       where: { id: params.id },
-      data: body,
+      data: sanitizedBody,
     });
 
     // Webhook: agent.updated
@@ -112,7 +125,7 @@ export async function PATCH(
       fireWebhookEvent(userId, "agent.updated", params.id, {
         agentName: agent.name,
         status: agent.status,
-        changedFields: Object.keys(body),
+        changedFields: Object.keys(sanitizedBody),
       }).catch((err) => {
         console.error("Agent updated webhook dispatch failed:", err);
       })
@@ -121,7 +134,7 @@ export async function PATCH(
       emitEvent("agent.updated", userId, params.id, {
         agentName: agent.name,
         status: agent.status,
-        changedFields: Object.keys(body),
+        changedFields: Object.keys(sanitizedBody),
       })
     );
 
