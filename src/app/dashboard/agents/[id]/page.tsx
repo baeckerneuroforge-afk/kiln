@@ -574,23 +574,20 @@ export default function AgentDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 flex items-center gap-0.5 overflow-x-auto border-b border-border scrollbar-none">
+      <div className="mb-6 flex items-center gap-0.5 overflow-x-auto rounded-xl bg-white/[0.03] border border-white/[0.06] p-1 scrollbar-none">
         {baseTabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "relative flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium transition-all duration-150",
+              "relative flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
               activeTab === tab.id
-                ? "text-foreground"
-                : "text-muted-foreground hover:text-foreground"
+                ? "bg-white/[0.08] text-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
             )}
           >
             <tab.icon className={cn("h-4 w-4", activeTab === tab.id && "text-kiln-orange")} />
             <span className="hidden sm:inline">{tab.label}</span>
-            {activeTab === tab.id && (
-              <div className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-kiln-orange" />
-            )}
           </button>
         ))}
 
@@ -602,17 +599,14 @@ export default function AgentDetailPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "relative flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium transition-all duration-150",
+                  "relative flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
                   activeTab === tab.id
-                    ? "text-purple-400"
-                    : "text-muted-foreground hover:text-purple-300"
+                    ? "bg-white/[0.08] text-purple-400 shadow-sm"
+                    : "text-muted-foreground hover:bg-white/[0.04] hover:text-purple-300"
                 )}
               >
                 <tab.icon className={cn("h-4 w-4", activeTab === tab.id && "text-purple-400")} />
                 <span className="hidden sm:inline">{tab.label}</span>
-                {activeTab === tab.id && (
-                  <div className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-purple-500" />
-                )}
               </button>
             ))}
           </>

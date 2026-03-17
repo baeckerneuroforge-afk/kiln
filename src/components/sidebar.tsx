@@ -213,7 +213,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
         {/* Header: Logo + Collapse toggle + Close (mobile) */}
         <div className="flex items-center justify-between px-4 pt-5 pb-2">
           <Link href="/dashboard" className="flex items-center gap-2.5" onClick={onClose}>
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-kiln-orange to-kiln-ember shadow-sm">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-kiln-orange to-kiln-ember shadow-lg shadow-kiln-orange/20">
               <span className="font-serif text-lg font-bold text-white">K</span>
             </div>
             <span className={cn("font-serif text-xl text-foreground transition-opacity duration-200", isCollapsed && "lg:hidden")}>
@@ -263,20 +263,24 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
 
             return (
               <NavTooltip key={item.href} label={item.name} show={isCollapsed}>
+                {/* Separator before future modules */}
+                {item.href === "/dashboard/sites" && (
+                  <Separator className={cn("my-2", isCollapsed ? "lg:mx-0" : "")} />
+                )}
                 <Link
                   href={item.href}
                   onClick={onClose}
                   className={cn(
-                    "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-150",
+                    "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
                     isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2.5",
                     isActive
-                      ? "bg-sidebar-accent text-foreground"
-                      : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+                      ? "bg-sidebar-accent/80 backdrop-blur-sm text-foreground"
+                      : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
                   )}
                 >
                   {/* Active indicator */}
                   {isActive && (
-                    <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-kiln-orange" />
+                    <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-kiln-orange to-kiln-ember" />
                   )}
                   <item.icon
                     className={cn(
@@ -297,22 +301,22 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
         </nav>
 
         {/* Bottom Section */}
-        <div className={cn("flex flex-col gap-1 pb-2", isCollapsed ? "lg:px-1.5" : "px-3")}>
+        <div className={cn("flex flex-col gap-1 pb-2 border-t border-white/[0.06] pt-2", isCollapsed ? "lg:px-1.5" : "px-3")}>
           {/* Marketplace */}
           <NavTooltip label="Marketplace" show={isCollapsed}>
             <Link
               href="/marketplace"
               onClick={onClose}
               className={cn(
-                "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-150",
+                "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
                 isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2.5",
                 pathname === "/marketplace"
-                  ? "bg-sidebar-accent text-foreground"
-                  : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+                  ? "bg-sidebar-accent/80 backdrop-blur-sm text-foreground"
+                  : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
               )}
             >
               {pathname === "/marketplace" && (
-                <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-kiln-orange" />
+                <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-kiln-orange to-kiln-ember" />
               )}
               <Store className="h-[18px] w-[18px] shrink-0" />
               <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>Marketplace</span>
@@ -327,9 +331,9 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               rel="noopener noreferrer"
               onClick={onClose}
               className={cn(
-                "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-150",
+                "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
                 isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2.5",
-                "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+                "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
               )}
             >
               <MessageCircle className="h-[18px] w-[18px] shrink-0" />
@@ -344,9 +348,9 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               target="_blank"
               onClick={onClose}
               className={cn(
-                "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-150",
+                "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
                 isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2.5",
-                "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+                "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
               )}
             >
               <HelpCircle className="h-[18px] w-[18px] shrink-0" />
@@ -360,15 +364,15 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               href="/dashboard/settings"
               onClick={onClose}
               className={cn(
-                "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-150",
+                "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
                 isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2.5",
                 pathname.startsWith("/dashboard/settings")
-                  ? "bg-sidebar-accent text-foreground"
-                  : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+                  ? "bg-sidebar-accent/80 backdrop-blur-sm text-foreground"
+                  : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
               )}
             >
               {pathname.startsWith("/dashboard/settings") && (
-                <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-kiln-orange" />
+                <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-kiln-orange to-kiln-ember" />
               )}
               <Settings className="h-[18px] w-[18px] shrink-0" />
               <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>Settings</span>
@@ -380,11 +384,11 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
             <button
               onClick={() => setAdvancedMode(!advancedMode)}
               className={cn(
-                "flex items-center rounded-lg text-sm font-medium transition-all duration-150 w-full",
+                "flex items-center rounded-lg text-sm font-medium transition-all duration-200 w-full",
                 isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2.5",
                 advancedMode
                   ? "bg-purple-500/10 text-purple-400"
-                  : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+                  : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
               )}
             >
               <Bolt className={cn("h-[18px] w-[18px] shrink-0", advancedMode && "text-purple-400")} />
@@ -414,7 +418,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className={cn(
-                  "flex w-full items-center rounded-lg transition-colors hover:bg-sidebar-accent/60",
+                  "flex w-full items-center rounded-lg transition-colors hover:bg-white/[0.04]",
                   isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-3 gap-3" : "gap-3 px-3 py-3"
                 )}
               >

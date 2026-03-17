@@ -643,16 +643,16 @@ function SettingsContent() {
       )}
 
       {/* Tab Bar */}
-      <div className="mb-6 flex items-center gap-0.5 overflow-x-auto border-b border-border scrollbar-none">
+      <div className="mb-6 flex items-center gap-0.5 overflow-x-auto rounded-xl bg-white/[0.03] border border-white/[0.06] p-1 scrollbar-none">
         {settingsTabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "relative flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium transition-all duration-150",
+              "flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
               activeTab === tab.id
-                ? "text-foreground"
-                : "text-muted-foreground hover:text-foreground",
+                ? "bg-white/[0.08] text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04]",
               tab.id === "danger" && activeTab === tab.id && "text-red-400",
               tab.id === "danger" && activeTab !== tab.id && "text-muted-foreground hover:text-red-400"
             )}
@@ -663,12 +663,6 @@ function SettingsContent() {
               activeTab === tab.id && tab.id === "danger" && "text-red-400",
             )} />
             <span className="hidden sm:inline">{tab.label}</span>
-            {activeTab === tab.id && (
-              <div className={cn(
-                "absolute bottom-0 left-2 right-2 h-0.5 rounded-full",
-                tab.id === "danger" ? "bg-red-500" : "bg-kiln-orange"
-              )} />
-            )}
           </button>
         ))}
       </div>
