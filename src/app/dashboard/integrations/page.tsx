@@ -15,6 +15,7 @@ import {
   Calendar,
   Mail,
   MessageSquare,
+  Send,
   FileText,
   CreditCard,
   ShoppingCart,
@@ -80,11 +81,12 @@ const integrationsCatalog = [
   { provider: "gmail", name: "Gmail", description: "Send and receive emails from your agents", icon: Mail, color: "bg-red-500", accent: "border-t-red-500", category: "Communication" },
   { provider: "hubspot", name: "HubSpot", description: "CRM contacts, deals, and pipeline management", icon: BarChart3, color: "bg-orange-500", accent: "border-t-orange-500", category: "CRM" },
   { provider: "slack", name: "Slack", description: "Send messages and notifications to channels", icon: MessageSquare, color: "bg-purple-500", accent: "border-t-purple-500", category: "Communication" },
+  { provider: "telegram", name: "Telegram", description: "Configure bot tokens manually per agent without OAuth", icon: Send, color: "bg-sky-500", accent: "border-t-sky-500", category: "Communication" },
   { provider: "notion", name: "Notion", description: "Read and write to Notion databases and pages", icon: FileText, color: "bg-neutral-400", accent: "border-t-neutral-400", category: "Productivity" },
   { provider: "calendly", name: "Calendly", description: "Manage scheduling links and appointments", icon: Calendar, color: "bg-blue-600", accent: "border-t-blue-600", category: "Scheduling" },
   { provider: "stripe", name: "Stripe", description: "Process payments and manage subscriptions", icon: CreditCard, color: "bg-violet-600", accent: "border-t-violet-600", category: "Payments" },
   { provider: "mailchimp", name: "Mailchimp", description: "Email marketing campaigns and audiences", icon: Mail, color: "bg-yellow-500", accent: "border-t-yellow-500", category: "Marketing" },
-  { provider: "whatsapp-business", name: "WhatsApp Business", description: "Engage customers via WhatsApp messaging", icon: Phone, color: "bg-green-500", accent: "border-t-green-500", category: "Communication" },
+  { provider: "whatsapp-business", name: "WhatsApp Business", description: "Configure Meta API credentials manually per agent", icon: Phone, color: "bg-green-500", accent: "border-t-green-500", category: "Communication" },
   { provider: "shopify", name: "Shopify", description: "Manage products, orders, and customers", icon: ShoppingCart, color: "bg-green-600", accent: "border-t-green-600", category: "E-Commerce" },
   { provider: "salesforce", name: "Salesforce", description: "Enterprise CRM and sales automation", icon: BarChart3, color: "bg-sky-500", accent: "border-t-sky-500", category: "CRM" },
   { provider: "airtable", name: "Airtable", description: "Database and spreadsheet hybrid workspace", icon: Database, color: "bg-teal-500", accent: "border-t-teal-500", category: "Productivity" },
@@ -320,12 +322,14 @@ export default function IntegrationsPage() {
   const [ghAgents, setGhAgents] = useState<{ id: string; name: string }[]>([]);
   const [ghSaving, setGhSaving] = useState(false);
   const [savingGoogleCalendar, setSavingGoogleCalendar] = useState(false);
+  const [availabilityMap, setAvailabilityMap] = useState<Record<string, { available: boolean; note?: string }>>({});
 
   const loadData = useCallback(async () => {
     try {
-      const [connectionsRes, googleCalendarRes] = await Promise.all([
+      const [connectionsRes, googleCalendarRes, availabilityRes] = await Promise.all([
         fetch("/api/integrations"),
         fetch("/api/integrations/google-calendar"),
+        fetch("/api/integrations/availability"),
       ]);
 
       const data = await connectionsRes.json();
@@ -337,6 +341,15 @@ export default function IntegrationsPage() {
         setGoogleCalendar(googleData);
       } else {
         setGoogleCalendar(null);
+      }
+
+      if (availabilityRes.ok) {
+        const availData = await availabilityRes.json();
+        const map: Record<string, { available: boolean; note?: string }> = {};
+        for (const item of availData.availability || []) {
+          map[item.provider] = { available: item.available, note: item.note };
+        }
+        setAvailabilityMap(map);
       }
     } catch {
       toast("Failed to load integrations", "error");
@@ -677,46 +690,24 @@ export default function IntegrationsPage() {
                     <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-kiln-green opacity-75" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-kiln-green" /></span>
                     Connected
                   </span>
-                ) : item.provider === "github" ? (
-                  <button
-                    onClick={() => openGitHubModal()}
-                    className="flex items-center gap-1 rounded-full bg-kiln-orange/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-orange transition-colors hover:bg-kiln-orange/20"
-                  >
-                    <Plug className="h-2.5 w-2.5" />
-                    Connect
-                  </button>
-                ) : item.provider === "google_calendar" ? (
-                  <button
-                    onClick={connectGoogleCalendar}
-                    className="flex items-center gap-1 rounded-full bg-kiln-orange/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-orange transition-colors hover:bg-kiln-orange/20"
-                  >
-                    <Plug className="h-2.5 w-2.5" />
-                    Connect
-                  </button>
-                ) : item.provider === "hubspot" ? (
+                ) : item.provider === "telegram" || item.provider === "whatsapp-business" ? (
                   <button
                     onClick={() => {
-                      window.location.href = `/api/integrations/hubspot/auth?redirectTo=/dashboard/integrations`;
+                      window.location.href = "/dashboard/agents";
                     }}
                     className="flex items-center gap-1 rounded-full bg-kiln-orange/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-orange transition-colors hover:bg-kiln-orange/20"
                   >
-                    <Plug className="h-2.5 w-2.5" />
-                    Connect
+                    <ArrowRight className="h-2.5 w-2.5" />
+                    Configure
                   </button>
-                ) : item.provider === "slack" ? (
+                ) : availabilityMap[item.provider]?.available !== false ? (
                   <button
                     onClick={() => {
-                      window.location.href = `/api/integrations/slack/auth`;
-                    }}
-                    className="flex items-center gap-1 rounded-full bg-kiln-orange/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-orange transition-colors hover:bg-kiln-orange/20"
-                  >
-                    <Plug className="h-2.5 w-2.5" />
-                    Connect
-                  </button>
-                ) : item.provider === "notion" ? (
-                  <button
-                    onClick={() => {
-                      window.location.href = `/api/integrations/notion/auth`;
+                      if (item.provider === "github") openGitHubModal();
+                      else if (item.provider === "google_calendar") connectGoogleCalendar();
+                      else if (item.provider === "hubspot") window.location.href = `/api/integrations/hubspot/auth?redirectTo=/dashboard/integrations`;
+                      else if (item.provider === "slack") window.location.href = `/api/integrations/slack/auth`;
+                      else if (item.provider === "notion") window.location.href = `/api/integrations/notion/auth`;
                     }}
                     className="flex items-center gap-1 rounded-full bg-kiln-orange/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-orange transition-colors hover:bg-kiln-orange/20"
                   >
@@ -733,7 +724,7 @@ export default function IntegrationsPage() {
               <p className="text-sm font-semibold text-foreground">{item.name}</p>
               <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.description}</p>
               <span className="mt-2 inline-block rounded-full bg-muted px-2 py-0.5 text-[9px] font-medium text-muted-foreground">{item.category}</span>
-              {!isConnected && item.provider === "github" && (
+              {!isConnected && availabilityMap[item.provider]?.available !== false && item.provider === "github" && (
                 <button
                   onClick={() => openGitHubModal()}
                   className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-kiln-orange px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-kiln-orange/90"
@@ -742,16 +733,18 @@ export default function IntegrationsPage() {
                   Connect Repository
                 </button>
               )}
-              {!isConnected && item.provider === "google_calendar" && (
-                <button
-                  onClick={connectGoogleCalendar}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-500/90"
-                >
-                  <Calendar className="h-3.5 w-3.5" />
-                  Connect Google Calendar
-                </button>
+              {!isConnected && availabilityMap[item.provider]?.available !== false && item.provider === "google_calendar" && (
+                <>
+                  <button
+                    onClick={connectGoogleCalendar}
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-500/90"
+                  >
+                    <Calendar className="h-3.5 w-3.5" />
+                    Connect Google Calendar
+                  </button>
+                </>
               )}
-              {!isConnected && item.provider === "hubspot" && (
+              {!isConnected && availabilityMap[item.provider]?.available !== false && item.provider === "hubspot" && (
                 <button
                   onClick={() => {
                     window.location.href = `/api/integrations/hubspot/auth?redirectTo=/dashboard/integrations`;
@@ -762,7 +755,7 @@ export default function IntegrationsPage() {
                   Connect HubSpot
                 </button>
               )}
-              {!isConnected && item.provider === "slack" && (
+              {!isConnected && availabilityMap[item.provider]?.available !== false && item.provider === "slack" && (
                 <button
                   onClick={() => {
                     window.location.href = `/api/integrations/slack/auth`;
@@ -773,7 +766,7 @@ export default function IntegrationsPage() {
                   Connect Workspace
                 </button>
               )}
-              {!isConnected && item.provider === "notion" && (
+              {!isConnected && availabilityMap[item.provider]?.available !== false && item.provider === "notion" && (
                 <button
                   onClick={() => {
                     window.location.href = `/api/integrations/notion/auth`;
@@ -784,7 +777,24 @@ export default function IntegrationsPage() {
                   Connect Notion
                 </button>
               )}
-              {!isConnected && item.provider !== "github" && item.provider !== "slack" && item.provider !== "google_calendar" && item.provider !== "hubspot" && item.provider !== "notion" && (
+              {!isConnected && (item.provider === "telegram" || item.provider === "whatsapp-business") && (
+                <button
+                  onClick={() => {
+                    window.location.href = "/dashboard/agents";
+                  }}
+                  className={cn(
+                    "mt-3 flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-white transition-colors",
+                    item.provider === "telegram" ? "bg-sky-500 hover:bg-sky-500/90" : "bg-green-500 hover:bg-green-500/90"
+                  )}
+                >
+                  <ArrowRight className="h-3.5 w-3.5" />
+                  Configure in Agent
+                </button>
+              )}
+              {!isConnected && availabilityMap[item.provider]?.note && availabilityMap[item.provider]?.available !== false && (
+                <p className="mt-2 text-[10px] text-muted-foreground/60">{availabilityMap[item.provider].note}</p>
+              )}
+              {!isConnected && item.provider !== "telegram" && item.provider !== "whatsapp-business" && availabilityMap[item.provider]?.available === false && (
                 isSubmitted ? (
                   <div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-kiln-green/30 bg-kiln-green/5 px-3 py-2 text-xs font-medium text-kiln-green">
                     <Bell className="h-3.5 w-3.5" />

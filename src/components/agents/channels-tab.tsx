@@ -190,6 +190,8 @@ const channels = [
   },
 ];
 
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com").replace(/\/+$/, "");
+
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -269,6 +271,7 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
   const [whatsappLoading, setWhatsappLoading] = useState(true);
   const [waPhoneNumberId, setWaPhoneNumberId] = useState("");
   const [waAccessToken, setWaAccessToken] = useState("");
+  const [waVerifyToken, setWaVerifyToken] = useState("");
   const [whatsappConnecting, setWhatsappConnecting] = useState(false);
   const [whatsappDisconnecting, setWhatsappDisconnecting] = useState(false);
   const [showWhatsappSetup, setShowWhatsappSetup] = useState(false);
@@ -741,7 +744,7 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
 
   // WhatsApp handlers
   const connectWhatsapp = async () => {
-    if (!waPhoneNumberId.trim() || !waAccessToken.trim()) return;
+    if (!waPhoneNumberId.trim() || !waAccessToken.trim() || !waVerifyToken.trim()) return;
     setWhatsappConnecting(true);
     setWhatsappError("");
 
@@ -752,6 +755,7 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
         body: JSON.stringify({
           phoneNumberId: waPhoneNumberId.trim(),
           accessToken: waAccessToken.trim(),
+          verifyToken: waVerifyToken.trim(),
         }),
       });
       const data = await res.json();
@@ -768,6 +772,7 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
       });
       setWaPhoneNumberId("");
       setWaAccessToken("");
+      setWaVerifyToken("");
       setShowWhatsappSetup(false);
     } catch {
       setWhatsappError("Failed to connect. Please try again.");
@@ -876,7 +881,7 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                       onClick={() => setShowSetup(!showSetup)}
                       className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                     >
-                      Set Up
+                      Configure
                     </button>
                   )}
 
@@ -944,7 +949,7 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                       onClick={() => setShowWhatsappSetup(!showWhatsappSetup)}
                       className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
                     >
-                      Set Up
+                      Configure
                     </button>
                   )}
 
@@ -1038,10 +1043,9 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                   <div className="mb-4 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
                     <p className="text-xs font-medium text-blue-400 mb-2">Setup Instructions</p>
                     <ol className="space-y-1.5 text-[11px] text-muted-foreground list-decimal list-inside">
-                      <li>Open Telegram and search for <span className="font-medium text-foreground">@BotFather</span></li>
-                      <li>Send <code className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">/newbot</code> and follow the prompts</li>
-                      <li>Copy the <span className="font-medium text-foreground">Bot Token</span> BotFather gives you</li>
-                      <li>Paste it below and click Connect</li>
+                      <li>Open Telegram, message <span className="font-medium text-foreground">@BotFather</span></li>
+                      <li>Send <code className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">/newbot</code></li>
+                      <li>Copy the token and paste it here</li>
                     </ol>
                   </div>
 
@@ -1359,17 +1363,14 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                   <div className="mb-4 rounded-lg border border-green-500/20 bg-green-500/5 p-3">
                     <p className="text-xs font-medium text-green-400 mb-2">Setup Instructions</p>
                     <ol className="space-y-1.5 text-[11px] text-muted-foreground list-decimal list-inside">
-                      <li>Create a <span className="font-medium text-foreground">Meta Business Account</span> at <a href="https://business.facebook.com" target="_blank" rel="noopener noreferrer" className="text-green-400 hover:underline">business.facebook.com</a></li>
-                      <li>Go to <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" className="text-green-400 hover:underline">developers.facebook.com</a> and set up the <span className="font-medium text-foreground">WhatsApp Business API</span></li>
-                      <li>Copy your <span className="font-medium text-foreground">Phone Number ID</span> and a permanent <span className="font-medium text-foreground">Access Token</span></li>
-                      <li>Paste them below and click Connect</li>
-                      <li>In Meta Developer Portal, set your webhook URL to:<br />
+                      <li>Create a <span className="font-medium text-foreground">Meta Business Account</span></li>
+                      <li>Set up the <span className="font-medium text-foreground">WhatsApp Business API</span></li>
+                      <li>Enter credentials below</li>
+                      <li>Set webhook URL to:<br />
                         <code className="mt-1 inline-block rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground">
-                          {`${typeof window !== "undefined" ? window.location.origin : "https://kilnbase.com"}/api/webhooks/whatsapp/${agentId}`}
+                          {`${APP_URL}/api/webhooks/whatsapp/${agentId}`}
                         </code>
                       </li>
-                      <li>Set the <span className="font-medium text-foreground">Verify Token</span> to the same value as your <code className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">WHATSAPP_VERIFY_TOKEN</code> env variable</li>
-                      <li>Subscribe to the <span className="font-medium text-foreground">messages</span> webhook field</li>
                     </ol>
                   </div>
 
@@ -1382,7 +1383,7 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                     className="mb-3 w-full rounded-lg border border-border bg-background px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500/20"
                   />
 
-                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Permanent Access Token</label>
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Access Token</label>
                   <input
                     type="password"
                     value={waAccessToken}
@@ -1390,6 +1391,19 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                     placeholder="EAAxxxxxxx..."
                     className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500/20"
                   />
+
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Verify Token</label>
+                  <input
+                    type="text"
+                    value={waVerifyToken}
+                    onChange={(e) => { setWaVerifyToken(e.target.value); setWhatsappError(""); }}
+                    placeholder="kiln-whatsapp-verify-token"
+                    className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500/20"
+                  />
+
+                  <p className="mb-2 text-[10px] text-muted-foreground">
+                    Use the same verify token value inside Meta when configuring the webhook challenge for this agent.
+                  </p>
 
                   {whatsappError && (
                     <div className="mb-2 flex items-center gap-1.5 text-xs text-red-400">
@@ -1400,14 +1414,14 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
 
                   <div className="flex gap-2">
                     <button
-                      onClick={() => { setShowWhatsappSetup(false); setWhatsappError(""); setWaPhoneNumberId(""); setWaAccessToken(""); }}
+                      onClick={() => { setShowWhatsappSetup(false); setWhatsappError(""); setWaPhoneNumberId(""); setWaAccessToken(""); setWaVerifyToken(""); }}
                       className="flex-1 rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={connectWhatsapp}
-                      disabled={whatsappConnecting || !waPhoneNumberId.trim() || !waAccessToken.trim()}
+                      disabled={whatsappConnecting || !waPhoneNumberId.trim() || !waAccessToken.trim() || !waVerifyToken.trim()}
                       className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-green-500/90 disabled:opacity-50"
                     >
                       {whatsappConnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Phone className="h-3.5 w-3.5" />}

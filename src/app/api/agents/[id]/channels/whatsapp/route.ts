@@ -15,13 +15,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const { id: agentId } = await params;
-    const { phoneNumberId, accessToken } = await req.json();
+    const { phoneNumberId, accessToken, verifyToken } = await req.json();
 
     if (!phoneNumberId || typeof phoneNumberId !== "string") {
       return Response.json({ error: "Phone Number ID is required" }, { status: 400 });
     }
     if (!accessToken || typeof accessToken !== "string") {
       return Response.json({ error: "Access Token is required" }, { status: 400 });
+    }
+    if (!verifyToken || typeof verifyToken !== "string") {
+      return Response.json({ error: "Verify Token is required" }, { status: 400 });
     }
 
     // Verify agent ownership
@@ -44,6 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const configData = {
       phoneNumberId,
       accessToken,
+      verifyToken,
       displayNumber: verification.displayNumber,
     };
 

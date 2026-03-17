@@ -19,13 +19,32 @@ function hashSession(sessionId: string): string {
 }
 
 // GET: Webhook verification (Meta sends a challenge on setup)
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ agentId: string }> }
+) {
   const searchParams = request.nextUrl.searchParams;
   const mode = searchParams.get("hub.mode");
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
-  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
+  const { agentId } = await params;
+  const channel = await prisma.agentChannel.findUnique({
+    where: { agentId_type: { agentId, type: "WHATSAPP" } },
+    select: { config: true },
+  }).catch(() => null);
+
+  let verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
+  if (channel) {
+    try {
+      const config = JSON.parse(decrypt(channel.config)) as { verifyToken?: string };
+      if (config.verifyToken) {
+        verifyToken = config.verifyToken;
+      }
+    } catch {
+      // Fall back to env token for legacy configs
+    }
+  }
 
   if (mode === "subscribe" && token === verifyToken) {
     console.log("WhatsApp webhook verified");

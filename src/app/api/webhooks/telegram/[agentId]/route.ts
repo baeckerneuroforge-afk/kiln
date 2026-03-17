@@ -10,6 +10,14 @@ import crypto from "crypto";
 
 const TELEGRAM_API = "https://api.telegram.org";
 
+function parseTelegramConfig(config: string): { botToken: string } {
+  try {
+    return JSON.parse(decrypt(config)) as { botToken: string };
+  } catch {
+    return JSON.parse(config) as { botToken: string };
+  }
+}
+
 function hashSession(sessionId: string): string {
   return crypto.createHash("sha256").update(sessionId).digest("hex").slice(0, 32);
 }
@@ -68,7 +76,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return Response.json({ ok: true }); // Silently ignore if channel is disabled
     }
 
-    const config = JSON.parse(channel.config) as { botToken: string };
+    const config = parseTelegramConfig(channel.config);
     const botToken = config.botToken;
 
     // Load agent with actions & knowledge

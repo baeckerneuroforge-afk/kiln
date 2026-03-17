@@ -1,11 +1,20 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { decrypt, encrypt } from "@/lib/encryption";
 import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
 const TELEGRAM_API = "https://api.telegram.org";
-const WEBHOOK_BASE = process.env.NEXT_PUBLIC_APP_URL || "https://kiln-topaz.vercel.app";
+const WEBHOOK_BASE = (process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com").replace(/\/+$/, "");
+
+function parseTelegramConfig(config: string): { botToken: string; botUsername?: string | null } {
+  try {
+    return JSON.parse(decrypt(config)) as { botToken: string; botUsername?: string | null };
+  } catch {
+    return JSON.parse(config) as { botToken: string; botUsername?: string | null };
+  }
+}
 
 // POST: Connect Telegram bot — saves token and registers webhook
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -50,11 +59,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       create: {
         agentId,
         type: "TELEGRAM",
-        config: JSON.stringify({ botToken, botUsername }),
+        config: encrypt(JSON.stringify({ botToken, botUsername })),
         isActive: true,
       },
       update: {
-        config: JSON.stringify({ botToken, botUsername }),
+        config: encrypt(JSON.stringify({ botToken, botUsername })),
         isActive: true,
       },
     });
@@ -88,7 +97,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     if (channel) {
       // Remove webhook from Telegram
       try {
-        const config = JSON.parse(channel.config) as { botToken: string };
+        const config = parseTelegramConfig(channel.config);
         await fetch(`${TELEGRAM_API}/bot${config.botToken}/deleteWebhook`);
       } catch {
         // Best-effort cleanup
@@ -123,7 +132,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       return Response.json({ connected: false });
     }
 
-    const config = JSON.parse(channel.config) as { botUsername?: string };
+    const config = parseTelegramConfig(channel.config);
     return Response.json({
       connected: true,
       isActive: channel.isActive,
