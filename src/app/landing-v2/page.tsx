@@ -331,6 +331,7 @@ export default function LandingPageV2() {
   const [chatOpen, setChatOpen] = useState(false);
   const [mcpCopied, setMcpCopied] = useState(false);
   const [audienceTab, setAudienceTab] = useState<"business" | "agency" | "developer">("business");
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -545,6 +546,20 @@ export default function LandingPageV2() {
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
 
+            <button
+              onClick={() => {
+                const el = document.getElementById("demo-video");
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                if (videoRef.current?.paused) videoRef.current.play();
+              }}
+              className="flex items-center gap-2 rounded-xl border border-white/10 px-6 py-4 text-sm font-medium text-neutral-300 transition-all hover:bg-white/[0.06] hover:border-white/20"
+            >
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
+                <span className="ml-0.5 border-y-[5px] border-l-[8px] border-y-transparent border-l-white" />
+              </span>
+              Watch Demo
+            </button>
+
             {submitted === "hero" ? (
               <div className="flex items-center gap-2 rounded-xl border border-white/10 px-6 py-4 text-sm text-[#22C55E]">
                 <Check className="h-4 w-4" />
@@ -583,13 +598,14 @@ export default function LandingPageV2() {
             Free plan included &middot; No credit card required &middot; EU-hosted
           </motion.p>
 
-          {/* Dashboard Mockup with parallax */}
+          {/* Product Demo Video */}
           <FloatingElement intensity={10} className="mx-auto mt-20 max-w-5xl">
             <motion.div
               initial={{ opacity: 0, y: 40, rotateX: 8 }}
               animate={{ opacity: 1, y: 0, rotateX: 0 }}
               transition={{ delay: 1.2, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
               style={{ perspective: "1200px" }}
+              id="demo-video"
             >
               <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#141211] shadow-2xl shadow-black/60">
                 {/* Window chrome */}
@@ -598,66 +614,21 @@ export default function LandingPageV2() {
                   <div className="h-3 w-3 rounded-full bg-[#FEBC2E]" />
                   <div className="h-3 w-3 rounded-full bg-[#28C840]" />
                   <div className="ml-4 flex h-6 flex-1 items-center justify-center rounded-md bg-white/[0.04]">
-                    <span className="text-[10px] text-neutral-600">kiln-topaz.vercel.app/dashboard</span>
+                    <span className="text-[10px] text-neutral-600">kilnbase.com</span>
                   </div>
                 </div>
-                <div className="flex">
-                  {/* Sidebar */}
-                  <div className="hidden w-14 shrink-0 border-r border-white/[0.06] bg-[#0F0E0D] p-2 sm:flex sm:flex-col sm:items-center sm:gap-3 sm:pt-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg font-serif text-xs font-bold text-white" style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}>K</div>
-                    <div className="mt-4 flex flex-col items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F97316]/10"><Bot className="h-4 w-4 text-[#F97316]" /></div>
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.04]"><Globe className="h-4 w-4 text-neutral-500" /></div>
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.04]"><Zap className="h-4 w-4 text-neutral-500" /></div>
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.04]"><BarChart3 className="h-4 w-4 text-neutral-500" /></div>
-                    </div>
-                  </div>
-                  {/* Content */}
-                  <div className="flex-1 p-6">
-                    <div className="mb-4 flex items-center justify-between">
-                      <div>
-                        <div className="font-serif text-lg text-white">AI Agent Studio</div>
-                        <div className="text-xs text-neutral-500">3 Agents &middot; 231 Conversations this month</div>
-                      </div>
-                      <div className="rounded-lg px-3 py-1.5 text-xs font-medium text-white" style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}>+ New Agent</div>
-                    </div>
-                    <div className="mb-4 grid grid-cols-3 gap-3">
-                      {[
-                        { label: "Total Chats", value: "1,284", change: "+18%" },
-                        { label: "Leads Captured", value: "89", change: "+12%" },
-                        { label: "Est. Revenue", value: "€4,250", change: "+24%" },
-                      ].map((s) => (
-                        <div key={s.label} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
-                          <div className="text-[10px] text-neutral-500">{s.label}</div>
-                          <div className="mt-1 flex items-baseline gap-1.5">
-                            <span className="text-sm font-semibold text-white">{s.value}</span>
-                            <span className="text-[10px] text-[#22C55E]">{s.change}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                      {[
-                        { name: "Coaching Assistant", status: "Live", color: "#22C55E", chats: 142, leads: 34 },
-                        { name: "Dental Practice Agent", status: "Live", color: "#22C55E", chats: 89, leads: 21 },
-                        { name: "Support Agent", status: "Draft", color: "#A8A29E", chats: 0, leads: 0 },
-                      ].map((a) => (
-                        <div key={a.name} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
-                          <div className="mb-2 flex items-center justify-between">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#F97316]/10"><Bot className="h-3.5 w-3.5 text-[#F97316]" /></div>
-                            <span className="flex items-center gap-1 text-[10px]" style={{ color: a.color }}>
-                              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: a.color }} />{a.status}
-                            </span>
-                          </div>
-                          <div className="text-xs font-medium text-white">{a.name}</div>
-                          <div className="mt-1 flex items-center gap-3 text-[10px] text-neutral-500">
-                            <span>{a.chats} chats</span><span>{a.leads} leads</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                {/* Video */}
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="w-full"
+                  style={{ display: "block", aspectRatio: "16/9", objectFit: "cover", backgroundColor: "#0a0a0a" }}
+                >
+                  <source src="/kiln-demo.mp4" type="video/mp4" />
+                </video>
               </div>
             </motion.div>
           </FloatingElement>
