@@ -12,6 +12,11 @@ import { fireWebhookEvent } from "@/lib/webhooks";
 import { emitEvent } from "@/lib/events";
 import { sendNewLeadEmail, sendHandoffEmail } from "@/lib/email-notifications";
 import { exportLeadToNotion } from "@/lib/services/notion-lead-export";
+import {
+  logConversationToHubSpot,
+  syncAppointmentDealToHubSpot,
+  syncLeadToHubSpot,
+} from "@/lib/services/hubspot-sync";
 import crypto from "crypto";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
@@ -514,6 +519,14 @@ export async function POST(
                       conversationId,
                     })
                   );
+                  waitUntil(
+                    syncLeadToHubSpot({
+                      agentId: params.id,
+                      email: (toolInput.email as string) || "",
+                      name: (toolInput.name as string) || undefined,
+                      conversationId,
+                    })
+                  );
                 }
                 if (fnCall.function.name === "book_appointment" && parsedToolResult?.action === "booked") {
                   waitUntil(
@@ -524,6 +537,25 @@ export async function POST(
                       start: parsedToolResult.start || null,
                       end: parsedToolResult.end || null,
                       attendeeEmail: parsedToolResult.attendeeEmail || null,
+                    })
+                  );
+                  waitUntil(
+                    syncAppointmentDealToHubSpot({
+                      agentId: params.id,
+                      email:
+                        (parsedToolResult.attendeeEmail as string) ||
+                        (toolInput.attendeeEmail as string) ||
+                        "",
+                      name:
+                        (parsedToolResult.attendeeName as string) ||
+                        (toolInput.attendeeName as string) ||
+                        undefined,
+                      conversationId,
+                      start:
+                        (parsedToolResult.start as string) ||
+                        (toolInput.slotStart as string) ||
+                        null,
+                      reason: (toolInput.reason as string) || null,
                     })
                   );
                 }
@@ -697,8 +729,17 @@ export async function POST(
                       conversationId,
                     })
                   );
+                  waitUntil(
+                    syncLeadToHubSpot({
+                      agentId: params.id,
+                      email: (input.email as string) || "",
+                      name: (input.name as string) || undefined,
+                      conversationId,
+                    })
+                  );
                 }
                 if (block.name === "book_appointment" && parsedToolResult?.action === "booked") {
+                  const input = block.input as Record<string, unknown>;
                   waitUntil(
                     emitEvent("appointment.booked", agent.userId, params.id, {
                       conversationId,
@@ -707,6 +748,25 @@ export async function POST(
                       start: parsedToolResult.start || null,
                       end: parsedToolResult.end || null,
                       attendeeEmail: parsedToolResult.attendeeEmail || null,
+                    })
+                  );
+                  waitUntil(
+                    syncAppointmentDealToHubSpot({
+                      agentId: params.id,
+                      email:
+                        (parsedToolResult.attendeeEmail as string) ||
+                        (input.attendeeEmail as string) ||
+                        "",
+                      name:
+                        (parsedToolResult.attendeeName as string) ||
+                        (input.attendeeName as string) ||
+                        undefined,
+                      conversationId,
+                      start:
+                        (parsedToolResult.start as string) ||
+                        (input.slotStart as string) ||
+                        null,
+                      reason: (input.reason as string) || null,
                     })
                   );
                 }
@@ -812,6 +872,12 @@ export async function POST(
               sessionId,
               actionsUsed,
               responseLength: fullAssistantText.length,
+            })
+          );
+          waitUntil(
+            logConversationToHubSpot({
+              agentId: params.id,
+              conversationId,
             })
           );
 

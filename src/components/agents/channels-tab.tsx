@@ -18,6 +18,7 @@ import {
   RefreshCw,
   Database,
   Search,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/toast";
@@ -56,6 +57,16 @@ interface SlackChannelOption {
   isPrivate: boolean;
 }
 
+interface WhatsAppStatus {
+  connected: boolean;
+  isActive?: boolean;
+  displayNumber?: string | null;
+  webhookUrl?: string | null;
+  lastMessageAt?: string | null;
+  totalConversations?: number;
+  createdAt?: string;
+}
+
 interface NotionStatus {
   connected: boolean;
   notionConnected?: boolean;
@@ -75,6 +86,41 @@ interface NotionSearchResult {
   title: string;
   url?: string;
   icon?: string | null;
+}
+
+interface HubSpotPipelineStage {
+  id: string;
+  label: string;
+}
+
+interface HubSpotPipeline {
+  id: string;
+  label: string;
+  stages: HubSpotPipelineStage[];
+}
+
+interface HubSpotRecentSync {
+  id: string;
+  type: "contact" | "deal" | "note";
+  label: string;
+  contactEmail?: string | null;
+  contactName?: string | null;
+  at: string;
+  status: "success" | "error";
+  error?: string | null;
+}
+
+interface HubSpotStatus {
+  connected: boolean;
+  hubspotConnected?: boolean;
+  name?: string | null;
+  accountLabel?: string | null;
+  autoSyncEnabled?: boolean;
+  selectedPipelineId?: string | null;
+  selectedStageId?: string | null;
+  pipelines: HubSpotPipeline[];
+  recentSyncs: HubSpotRecentSync[];
+  lastSyncAt?: string | null;
 }
 
 const channels = [
@@ -114,7 +160,6 @@ const channels = [
     color: "text-green-400",
     bg: "bg-green-500/10",
     border: "border-green-500/20",
-    comingSoon: true,
   },
   {
     id: "slack",
@@ -133,6 +178,15 @@ const channels = [
     color: "text-neutral-300",
     bg: "bg-neutral-500/10",
     border: "border-neutral-500/20",
+  },
+  {
+    id: "hubspot",
+    name: "HubSpot",
+    description: "Sync leads, deals, and conversation notes to your CRM",
+    icon: BarChart3,
+    color: "text-orange-400",
+    bg: "bg-orange-500/10",
+    border: "border-orange-500/20",
   },
 ];
 
@@ -195,6 +249,32 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
   const [notionSyncing, setNotionSyncing] = useState(false);
   const [notionDisconnecting, setNotionDisconnecting] = useState(false);
 
+  // HubSpot state
+  const [hubspotStatus, setHubspotStatus] = useState<HubSpotStatus>({
+    connected: false,
+    pipelines: [],
+    recentSyncs: [],
+  });
+  const [hubspotLoading, setHubspotLoading] = useState(true);
+  const [showHubspotSetup, setShowHubspotSetup] = useState(false);
+  const [hubspotError, setHubspotError] = useState("");
+  const [hubspotSaving, setHubspotSaving] = useState(false);
+  const [hubspotDisconnecting, setHubspotDisconnecting] = useState(false);
+  const [hubspotAutoSync, setHubspotAutoSync] = useState(true);
+  const [hubspotPipelineId, setHubspotPipelineId] = useState("");
+  const [hubspotStageId, setHubspotStageId] = useState("");
+
+  // WhatsApp state
+  const [whatsappStatus, setWhatsappStatus] = useState<WhatsAppStatus>({ connected: false });
+  const [whatsappLoading, setWhatsappLoading] = useState(true);
+  const [waPhoneNumberId, setWaPhoneNumberId] = useState("");
+  const [waAccessToken, setWaAccessToken] = useState("");
+  const [whatsappConnecting, setWhatsappConnecting] = useState(false);
+  const [whatsappDisconnecting, setWhatsappDisconnecting] = useState(false);
+  const [showWhatsappSetup, setShowWhatsappSetup] = useState(false);
+  const [whatsappError, setWhatsappError] = useState("");
+  const [waWebhookCopied, setWaWebhookCopied] = useState(false);
+
   const loadTelegramStatus = useCallback(async () => {
     try {
       const res = await fetch(`/api/agents/${agentId}/channels/telegram`);
@@ -249,7 +329,65 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
     }
   }, [agentId]);
 
-  useEffect(() => { loadTelegramStatus(); loadEmailStatus(); loadSlackStatus(); loadNotionStatus(); }, [loadTelegramStatus, loadEmailStatus, loadSlackStatus, loadNotionStatus]);
+  const loadWhatsappStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/whatsapp`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setWhatsappStatus(data);
+    } catch {
+      // Not connected
+    } finally {
+      setWhatsappLoading(false);
+    }
+  }, [agentId]);
+
+  const loadHubspotStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/hubspot`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setHubspotStatus({
+        connected: Boolean(data.connected),
+        hubspotConnected: Boolean(data.hubspotConnected),
+        name: data.name || null,
+        accountLabel: data.accountLabel || null,
+        autoSyncEnabled: data.autoSyncEnabled ?? true,
+        selectedPipelineId: data.selectedPipelineId || null,
+        selectedStageId: data.selectedStageId || null,
+        pipelines: data.pipelines || [],
+        recentSyncs: data.recentSyncs || [],
+        lastSyncAt: data.lastSyncAt || null,
+      });
+      setHubspotAutoSync(data.autoSyncEnabled ?? true);
+      setHubspotPipelineId(data.selectedPipelineId || data.pipelines?.[0]?.id || "");
+      setHubspotStageId(
+        data.selectedStageId ||
+          data.pipelines?.[0]?.stages?.[0]?.id ||
+          ""
+      );
+    } catch {
+      // Not connected
+    } finally {
+      setHubspotLoading(false);
+    }
+  }, [agentId]);
+
+  useEffect(() => { loadTelegramStatus(); loadEmailStatus(); loadSlackStatus(); loadNotionStatus(); loadWhatsappStatus(); loadHubspotStatus(); }, [loadTelegramStatus, loadEmailStatus, loadSlackStatus, loadNotionStatus, loadWhatsappStatus, loadHubspotStatus]);
+
+  useEffect(() => {
+    const selectedPipeline = hubspotStatus.pipelines.find(
+      (pipeline) => pipeline.id === hubspotPipelineId
+    );
+    if (!selectedPipeline) return;
+
+    const stageExists = selectedPipeline.stages.some(
+      (stage) => stage.id === hubspotStageId
+    );
+    if (!stageExists) {
+      setHubspotStageId(selectedPipeline.stages[0]?.id || "");
+    }
+  }, [hubspotPipelineId, hubspotStageId, hubspotStatus.pipelines]);
 
   // Telegram handlers
   const connectTelegram = async () => {
@@ -535,6 +673,138 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
     }
   };
 
+  const startHubspotOAuth = () => {
+    window.location.href = `${window.location.origin}/api/integrations/hubspot/auth?agentId=${agentId}`;
+  };
+
+  const saveHubspotConfig = async () => {
+    setHubspotSaving(true);
+    setHubspotError("");
+
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/hubspot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          autoSyncEnabled: hubspotAutoSync,
+          pipelineId: hubspotPipelineId || null,
+          stageId: hubspotStageId || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setHubspotError(data.error || "Failed to save HubSpot configuration");
+        return;
+      }
+
+      toast("HubSpot sync configured");
+      setHubspotStatus((prev) => ({
+        ...prev,
+        connected: true,
+        hubspotConnected: true,
+        autoSyncEnabled: data.autoSyncEnabled ?? hubspotAutoSync,
+        selectedPipelineId: data.selectedPipelineId || hubspotPipelineId || null,
+        selectedStageId: data.selectedStageId || hubspotStageId || null,
+        pipelines: data.pipelines || prev.pipelines,
+        recentSyncs: data.recentSyncs || prev.recentSyncs,
+        lastSyncAt: data.lastSyncAt || prev.lastSyncAt || null,
+      }));
+      setShowHubspotSetup(false);
+    } catch {
+      setHubspotError("Failed to save HubSpot configuration");
+    } finally {
+      setHubspotSaving(false);
+    }
+  };
+
+  const disconnectHubspot = async () => {
+    setHubspotDisconnecting(true);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/hubspot`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast("HubSpot disconnected from this agent");
+      setHubspotStatus((prev) => ({
+        ...prev,
+        connected: false,
+        recentSyncs: [],
+      }));
+      setShowHubspotSetup(false);
+    } catch {
+      toast("Failed to disconnect", "error");
+    } finally {
+      setHubspotDisconnecting(false);
+    }
+  };
+
+  // WhatsApp handlers
+  const connectWhatsapp = async () => {
+    if (!waPhoneNumberId.trim() || !waAccessToken.trim()) return;
+    setWhatsappConnecting(true);
+    setWhatsappError("");
+
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/whatsapp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phoneNumberId: waPhoneNumberId.trim(),
+          accessToken: waAccessToken.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setWhatsappError(data.error);
+        return;
+      }
+      toast("WhatsApp connected!");
+      setWhatsappStatus({
+        connected: true,
+        isActive: true,
+        displayNumber: data.displayNumber,
+        webhookUrl: data.webhookUrl,
+      });
+      setWaPhoneNumberId("");
+      setWaAccessToken("");
+      setShowWhatsappSetup(false);
+    } catch {
+      setWhatsappError("Failed to connect. Please try again.");
+    } finally {
+      setWhatsappConnecting(false);
+    }
+  };
+
+  const disconnectWhatsapp = async () => {
+    setWhatsappDisconnecting(true);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/channels/whatsapp`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast("WhatsApp disconnected");
+      setWhatsappStatus({ connected: false });
+      setShowWhatsappSetup(false);
+    } catch {
+      toast("Failed to disconnect", "error");
+    } finally {
+      setWhatsappDisconnecting(false);
+    }
+  };
+
+  const copyWebhookUrl = async () => {
+    const url = whatsappStatus.webhookUrl;
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setWaWebhookCopied(true);
+      toast("Webhook URL copied!");
+      setTimeout(() => setWaWebhookCopied(false), 2000);
+    } catch {
+      toast("Failed to copy", "error");
+    }
+  };
+
   const copyEmail = async () => {
     const email = emailStatus.agentEmail;
     if (!email) return;
@@ -548,6 +818,10 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
     }
   };
 
+  const selectedHubspotPipeline = hubspotStatus.pipelines.find(
+    (pipeline) => pipeline.id === hubspotPipelineId
+  );
+
   return (
     <div>
       <p className="mb-5 text-xs text-muted-foreground">
@@ -559,7 +833,9 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
           const isTelegram = ch.id === "telegram";
           const isEmail = ch.id === "email";
           const isSlack = ch.id === "slack";
+          const isWhatsApp = ch.id === "whatsapp";
           const isNotion = ch.id === "notion";
+          const isHubSpot = ch.id === "hubspot";
           return (
             <div key={ch.id} className="rounded-xl border border-border bg-card">
               {/* Channel card header */}
@@ -571,11 +847,6 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold text-foreground">{ch.name}</p>
-                    {ch.comingSoon && (
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[9px] font-medium text-muted-foreground">
-                        Coming Soon
-                      </span>
-                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">{ch.description}</p>
                 </div>
@@ -600,7 +871,7 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                     </span>
                   )}
 
-                  {isTelegram && !telegramLoading && !telegramStatus.connected && !ch.comingSoon && (
+                  {isTelegram && !telegramLoading && !telegramStatus.connected && (
                     <button
                       onClick={() => setShowSetup(!showSetup)}
                       className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
@@ -660,6 +931,27 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   )}
 
+                  {/* WhatsApp status */}
+                  {isWhatsApp && !whatsappLoading && whatsappStatus.connected && (
+                    <span className="flex items-center gap-1.5 rounded-full bg-kiln-green/10 px-3 py-1 text-[10px] font-semibold text-kiln-green">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Connected
+                    </span>
+                  )}
+
+                  {isWhatsApp && !whatsappLoading && !whatsappStatus.connected && (
+                    <button
+                      onClick={() => setShowWhatsappSetup(!showWhatsappSetup)}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                    >
+                      Set Up
+                    </button>
+                  )}
+
+                  {isWhatsApp && whatsappLoading && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+
                   {/* Notion status */}
                   {isNotion && !notionLoading && notionStatus.connected && (
                     <span className="flex items-center gap-1.5 rounded-full bg-kiln-green/10 px-3 py-1 text-[10px] font-semibold text-kiln-green">
@@ -687,9 +979,27 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   )}
 
-                  {ch.comingSoon && (
-                    <span className="text-[10px] text-muted-foreground">—</span>
+                  {/* HubSpot status */}
+                  {isHubSpot && !hubspotLoading && hubspotStatus.connected && (
+                    <span className="flex items-center gap-1.5 rounded-full bg-kiln-green/10 px-3 py-1 text-[10px] font-semibold text-kiln-green">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Connected
+                    </span>
                   )}
+
+                  {isHubSpot && !hubspotLoading && !hubspotStatus.connected && (
+                    <button
+                      onClick={() => setShowHubspotSetup(!showHubspotSetup)}
+                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                    >
+                      Set Up
+                    </button>
+                  )}
+
+                  {isHubSpot && hubspotLoading && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+
                 </div>
               </div>
 
@@ -992,6 +1302,121 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                 </div>
               )}
 
+              {/* WhatsApp: Connected details */}
+              {isWhatsApp && whatsappStatus.connected && (
+                <div className="border-t border-border px-4 py-3">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground">
+                          Phone: <span className="font-medium text-foreground">{whatsappStatus.displayNumber || "Connected"}</span>
+                        </span>
+                        {whatsappStatus.totalConversations != null && whatsappStatus.totalConversations > 0 && (
+                          <span className="text-[10px] text-muted-foreground">
+                            {whatsappStatus.totalConversations} conversation{whatsappStatus.totalConversations !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={disconnectWhatsapp}
+                        disabled={whatsappDisconnecting}
+                        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                      >
+                        {whatsappDisconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        Disconnect
+                      </button>
+                    </div>
+
+                    {/* Webhook URL + stats */}
+                    <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+                      {whatsappStatus.webhookUrl && (
+                        <button
+                          onClick={copyWebhookUrl}
+                          className="flex items-center gap-1 hover:text-foreground"
+                        >
+                          {waWebhookCopied ? (
+                            <CheckCircle2 className="h-3 w-3 text-kiln-green" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                          {waWebhookCopied ? "Copied!" : "Copy Webhook URL"}
+                        </button>
+                      )}
+                      {whatsappStatus.lastMessageAt && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Last message {timeAgo(whatsappStatus.lastMessageAt)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* WhatsApp: Setup form */}
+              {isWhatsApp && showWhatsappSetup && !whatsappStatus.connected && (
+                <div className="border-t border-border p-4">
+                  <div className="mb-4 rounded-lg border border-green-500/20 bg-green-500/5 p-3">
+                    <p className="text-xs font-medium text-green-400 mb-2">Setup Instructions</p>
+                    <ol className="space-y-1.5 text-[11px] text-muted-foreground list-decimal list-inside">
+                      <li>Create a <span className="font-medium text-foreground">Meta Business Account</span> at <a href="https://business.facebook.com" target="_blank" rel="noopener noreferrer" className="text-green-400 hover:underline">business.facebook.com</a></li>
+                      <li>Go to <a href="https://developers.facebook.com" target="_blank" rel="noopener noreferrer" className="text-green-400 hover:underline">developers.facebook.com</a> and set up the <span className="font-medium text-foreground">WhatsApp Business API</span></li>
+                      <li>Copy your <span className="font-medium text-foreground">Phone Number ID</span> and a permanent <span className="font-medium text-foreground">Access Token</span></li>
+                      <li>Paste them below and click Connect</li>
+                      <li>In Meta Developer Portal, set your webhook URL to:<br />
+                        <code className="mt-1 inline-block rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground">
+                          {`${typeof window !== "undefined" ? window.location.origin : "https://kilnbase.com"}/api/webhooks/whatsapp/${agentId}`}
+                        </code>
+                      </li>
+                      <li>Set the <span className="font-medium text-foreground">Verify Token</span> to the same value as your <code className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">WHATSAPP_VERIFY_TOKEN</code> env variable</li>
+                      <li>Subscribe to the <span className="font-medium text-foreground">messages</span> webhook field</li>
+                    </ol>
+                  </div>
+
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Phone Number ID</label>
+                  <input
+                    type="text"
+                    value={waPhoneNumberId}
+                    onChange={(e) => { setWaPhoneNumberId(e.target.value); setWhatsappError(""); }}
+                    placeholder="123456789012345"
+                    className="mb-3 w-full rounded-lg border border-border bg-background px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500/20"
+                  />
+
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Permanent Access Token</label>
+                  <input
+                    type="password"
+                    value={waAccessToken}
+                    onChange={(e) => { setWaAccessToken(e.target.value); setWhatsappError(""); }}
+                    placeholder="EAAxxxxxxx..."
+                    className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500/20"
+                  />
+
+                  {whatsappError && (
+                    <div className="mb-2 flex items-center gap-1.5 text-xs text-red-400">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      {whatsappError}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setShowWhatsappSetup(false); setWhatsappError(""); setWaPhoneNumberId(""); setWaAccessToken(""); }}
+                      className="flex-1 rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={connectWhatsapp}
+                      disabled={whatsappConnecting || !waPhoneNumberId.trim() || !waAccessToken.trim()}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-green-500/90 disabled:opacity-50"
+                    >
+                      {whatsappConnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Phone className="h-3.5 w-3.5" />}
+                      Connect
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Notion: Connected details */}
               {isNotion && notionStatus.connected && (
                 <div className="border-t border-border px-4 py-3">
@@ -1256,6 +1681,277 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                   <p className="text-[10px] text-muted-foreground">
                     Configure in the <span className="font-medium text-foreground">Embed Code</span> tab
                   </p>
+                </div>
+              )}
+
+              {/* HubSpot: Connected details */}
+              {isHubSpot && hubspotStatus.connected && (
+                <div className="border-t border-border px-4 py-3">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">
+                        {hubspotStatus.accountLabel || hubspotStatus.name || "HubSpot"}
+                      </span>
+                      {hubspotStatus.lastSyncAt && (
+                        <span className="ml-2 text-muted-foreground/60">
+                          <Clock className="mr-0.5 inline h-3 w-3" />
+                          Last sync {timeAgo(hubspotStatus.lastSyncAt)}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={disconnectHubspot}
+                      disabled={hubspotDisconnecting}
+                      className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                    >
+                      {hubspotDisconnecting ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" />
+                      )}
+                      Disconnect
+                    </button>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-lg border border-border/60 bg-background/50 p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                          Auto Sync
+                        </span>
+                        <button onClick={() => setHubspotAutoSync((prev) => !prev)}>
+                          <div className={cn("relative h-5 w-9 rounded-full transition-colors duration-200", hubspotAutoSync ? "bg-kiln-green" : "bg-muted")}>
+                            <div className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200", hubspotAutoSync ? "translate-x-4" : "translate-x-0.5")} />
+                          </div>
+                        </button>
+                      </div>
+                      <p className="mt-2 text-[11px] text-muted-foreground">
+                        Sync captured leads, booked meetings, and conversation notes automatically.
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg border border-border/60 bg-background/50 p-3">
+                      <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Deal Pipeline
+                      </label>
+                      <select
+                        value={hubspotPipelineId}
+                        onChange={(e) => setHubspotPipelineId(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400/20"
+                      >
+                        {hubspotStatus.pipelines.length === 0 && (
+                          <option value="">No pipelines available</option>
+                        )}
+                        {hubspotStatus.pipelines.map((pipeline) => (
+                          <option key={pipeline.id} value={pipeline.id}>
+                            {pipeline.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="rounded-lg border border-border/60 bg-background/50 p-3">
+                      <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        Deal Stage
+                      </label>
+                      <select
+                        value={hubspotStageId}
+                        onChange={(e) => setHubspotStageId(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400/20"
+                      >
+                        {(selectedHubspotPipeline?.stages || []).length === 0 && (
+                          <option value="">No stages available</option>
+                        )}
+                        {(selectedHubspotPipeline?.stages || []).map((stage) => (
+                          <option key={stage.id} value={stage.id}>
+                            {stage.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {hubspotError && (
+                    <div className="mt-3 flex items-center gap-1.5 text-xs text-red-400">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      {hubspotError}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={saveHubspotConfig}
+                    disabled={hubspotSaving}
+                    className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-orange-500/90 disabled:opacity-50"
+                  >
+                    {hubspotSaving ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <BarChart3 className="h-3.5 w-3.5" />
+                    )}
+                    Save HubSpot Settings
+                  </button>
+
+                  <div className="mt-4 border-t border-border/50 pt-3">
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Last Synced Contacts
+                    </p>
+                    {hubspotStatus.recentSyncs.length > 0 ? (
+                      <div className="mt-2 space-y-2">
+                        {hubspotStatus.recentSyncs.slice(0, 4).map((sync) => (
+                          <div
+                            key={sync.id}
+                            className="flex items-center justify-between rounded-lg border border-border/60 bg-background/50 px-3 py-2"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-xs font-medium text-foreground">
+                                {sync.contactName || sync.contactEmail || sync.label}
+                              </p>
+                              <p className="truncate text-[10px] text-muted-foreground">
+                                {sync.label}
+                                {sync.contactEmail ? ` · ${sync.contactEmail}` : ""}
+                              </p>
+                            </div>
+                            <div className="ml-3 shrink-0 text-right">
+                              <p className={cn("text-[10px] font-medium", sync.status === "success" ? "text-kiln-green" : "text-red-400")}>
+                                {sync.status === "success" ? "Synced" : "Error"}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {timeAgo(sync.at)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-[11px] text-muted-foreground">
+                        No HubSpot sync activity yet for this agent.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* HubSpot: Setup form */}
+              {isHubSpot && showHubspotSetup && !hubspotStatus.connected && (
+                <div className="border-t border-border p-4">
+                  {!hubspotStatus.hubspotConnected ? (
+                    <div>
+                      <div className="mb-4 rounded-lg border border-orange-500/20 bg-orange-500/5 p-3">
+                        <p className="mb-2 text-xs font-medium text-orange-400">
+                          Setup Instructions
+                        </p>
+                        <ol className="list-inside list-decimal space-y-1.5 text-[11px] text-muted-foreground">
+                          <li>Connect your HubSpot account via OAuth.</li>
+                          <li>Choose the deal pipeline and stage new meetings should use.</li>
+                          <li>Enable auto-sync so captured leads and notes land in HubSpot automatically.</li>
+                        </ol>
+                      </div>
+
+                      <button
+                        onClick={startHubspotOAuth}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-orange-500 px-4 py-2.5 text-xs font-medium text-white transition-colors hover:bg-orange-500/90"
+                      >
+                        <BarChart3 className="h-3.5 w-3.5" />
+                        Connect HubSpot
+                      </button>
+
+                      <button
+                        onClick={() => { setShowHubspotSetup(false); setHubspotError(""); }}
+                        className="mt-2 w-full rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 px-3 py-2">
+                        <span className="text-[10px] text-muted-foreground">Connected to</span>
+                        <p className="text-sm font-medium text-foreground">
+                          {hubspotStatus.accountLabel || hubspotStatus.name || "HubSpot"}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background/50 px-3 py-2.5">
+                        <div>
+                          <p className="text-xs font-medium text-foreground">Auto-sync</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            Create/update contacts, deals, and conversation notes automatically.
+                          </p>
+                        </div>
+                        <button onClick={() => setHubspotAutoSync((prev) => !prev)}>
+                          <div className={cn("relative h-5 w-9 rounded-full transition-colors duration-200", hubspotAutoSync ? "bg-kiln-green" : "bg-muted")}>
+                            <div className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200", hubspotAutoSync ? "translate-x-4" : "translate-x-0.5")} />
+                          </div>
+                        </button>
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div>
+                          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                            Deal Pipeline
+                          </label>
+                          <select
+                            value={hubspotPipelineId}
+                            onChange={(e) => setHubspotPipelineId(e.target.value)}
+                            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400/20"
+                          >
+                            {hubspotStatus.pipelines.length === 0 && (
+                              <option value="">No pipelines available</option>
+                            )}
+                            {hubspotStatus.pipelines.map((pipeline) => (
+                              <option key={pipeline.id} value={pipeline.id}>
+                                {pipeline.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                            Deal Stage
+                          </label>
+                          <select
+                            value={hubspotStageId}
+                            onChange={(e) => setHubspotStageId(e.target.value)}
+                            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-orange-400 focus:outline-none focus:ring-1 focus:ring-orange-400/20"
+                          >
+                            {(selectedHubspotPipeline?.stages || []).length === 0 && (
+                              <option value="">No stages available</option>
+                            )}
+                            {(selectedHubspotPipeline?.stages || []).map((stage) => (
+                              <option key={stage.id} value={stage.id}>
+                                {stage.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {hubspotError && (
+                        <div className="flex items-center gap-1.5 text-xs text-red-400">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                          {hubspotError}
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setShowHubspotSetup(false); setHubspotError(""); }}
+                          className="flex-1 rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={saveHubspotConfig}
+                          disabled={hubspotSaving}
+                          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-orange-500/90 disabled:opacity-50"
+                        >
+                          {hubspotSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BarChart3 className="h-3.5 w-3.5" />}
+                          Enable Sync
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { NextRequest } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 const TELEGRAM_API = "https://api.telegram.org";
 const WEBHOOK_BASE = process.env.NEXT_PUBLIC_APP_URL || "https://kiln-topaz.vercel.app";
 

@@ -22,6 +22,7 @@ const isPublicRoute = createRouteMatcher([
   "/dpa",
   "/services",
   "/help",
+  "/enterprise",
   "/sign-in/(.*)",
   "/sign-up/(.*)",
   "/api/webhook/(.*)",
@@ -39,6 +40,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/mcp(.*)",            // MCP Server (eigene Key-Auth)
   "/api/automations/run",   // Cron-Endpoint (eigene Secret-Auth)
   "/marketplace",            // Public Marketplace
+  "/landing-v2",             // Landing V2 Preview
 ]);
 
 export default clerkMiddleware(async (auth, request) => {

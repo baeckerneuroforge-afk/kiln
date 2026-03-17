@@ -1,62 +1,70 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { encrypt, decrypt } from "@/lib/encryption";
+import { verifyPhoneNumber } from "@/lib/integrations/whatsapp";
 import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const EMAIL_DOMAIN = "getkiln.com";
+const WEBHOOK_BASE = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
 
-// POST: Enable email channel — saves forwarding address config
+// POST: Connect WhatsApp Business — saves encrypted config
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
     if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const { id: agentId } = await params;
-    const { forwardingEmail } = await req.json();
+    const { phoneNumberId, accessToken } = await req.json();
+
+    if (!phoneNumberId || typeof phoneNumberId !== "string") {
+      return Response.json({ error: "Phone Number ID is required" }, { status: 400 });
+    }
+    if (!accessToken || typeof accessToken !== "string") {
+      return Response.json({ error: "Access Token is required" }, { status: 400 });
+    }
 
     // Verify agent ownership
     const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
     if (!agent) return Response.json({ error: "Agent not found" }, { status: 404 });
 
-    // Validate forwarding email (optional)
-    if (forwardingEmail && typeof forwardingEmail === "string") {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(forwardingEmail)) {
-        return Response.json({ error: "Invalid forwarding email address" }, { status: 400 });
-      }
+    // Validate phone number ID with Meta API
+    const verification = await verifyPhoneNumber(phoneNumberId, accessToken);
+    if (!verification.valid) {
+      return Response.json(
+        { error: verification.error || "Invalid Phone Number ID or Access Token. Please check your credentials." },
+        { status: 400 }
+      );
     }
 
-    const agentEmail = `${agent.slug}@${EMAIL_DOMAIN}`;
+    // Build webhook URL for setup instructions
+    const webhookUrl = `${WEBHOOK_BASE}/api/webhooks/whatsapp/${agentId}`;
 
-    // Save channel config (upsert)
+    // Encrypt and save channel config
+    const configData = {
+      phoneNumberId,
+      accessToken,
+      displayNumber: verification.displayNumber,
+    };
+
     const channel = await prisma.agentChannel.upsert({
-      where: { agentId_type: { agentId, type: "EMAIL" } },
+      where: { agentId_type: { agentId, type: "WHATSAPP" } },
       create: {
         agentId,
-        type: "EMAIL",
-        config: JSON.stringify({
-          agentEmail,
-          forwardingEmail: forwardingEmail || null,
-          dailyCount: 0,
-          dailyCountDate: new Date().toISOString().slice(0, 10),
-        }),
+        type: "WHATSAPP",
+        config: encrypt(JSON.stringify(configData)),
         isActive: true,
       },
       update: {
-        config: JSON.stringify({
-          agentEmail,
-          forwardingEmail: forwardingEmail || null,
-          dailyCount: 0,
-          dailyCountDate: new Date().toISOString().slice(0, 10),
-        }),
+        config: encrypt(JSON.stringify(configData)),
         isActive: true,
       },
     });
 
     return Response.json({
       success: true,
-      agentEmail,
+      displayNumber: verification.displayNumber,
+      webhookUrl,
       channelId: channel.id,
     });
   } catch (err) {
@@ -65,7 +73,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 }
 
-// DELETE: Disconnect email channel
+// DELETE: Disconnect WhatsApp channel
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
@@ -77,7 +85,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     if (!agent) return Response.json({ error: "Agent not found" }, { status: 404 });
 
     const channel = await prisma.agentChannel.findUnique({
-      where: { agentId_type: { agentId, type: "EMAIL" } },
+      where: { agentId_type: { agentId, type: "WHATSAPP" } },
     });
 
     if (channel) {
@@ -91,7 +99,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-// GET: Check email channel status
+// GET: Check WhatsApp channel status
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await auth();
@@ -103,40 +111,39 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!agent) return Response.json({ error: "Agent not found" }, { status: 404 });
 
     const channel = await prisma.agentChannel.findUnique({
-      where: { agentId_type: { agentId, type: "EMAIL" } },
+      where: { agentId_type: { agentId, type: "WHATSAPP" } },
     });
 
     if (!channel) {
-      return Response.json({
-        connected: false,
-        agentEmail: `${agent.slug}@${EMAIL_DOMAIN}`,
-      });
+      return Response.json({ connected: false });
     }
 
-    const config = JSON.parse(channel.config) as {
-      agentEmail?: string;
-      forwardingEmail?: string | null;
-      lastEmailAt?: string | null;
+    const config = JSON.parse(decrypt(channel.config)) as {
+      phoneNumberId?: string;
+      displayNumber?: string;
     };
 
-    // Count today's emails
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const emailsToday = await prisma.conversation.count({
-      where: {
-        agentId,
-        channel: "EMAIL",
-        createdAt: { gte: today },
-      },
+    // Get last message time from conversations
+    const lastConversation = await prisma.conversation.findFirst({
+      where: { agentId, channel: "WHATSAPP" },
+      orderBy: { updatedAt: "desc" },
+      select: { updatedAt: true },
     });
+
+    // Count total WhatsApp conversations
+    const totalConversations = await prisma.conversation.count({
+      where: { agentId, channel: "WHATSAPP" },
+    });
+
+    const webhookUrl = `${WEBHOOK_BASE}/api/webhooks/whatsapp/${agentId}`;
 
     return Response.json({
       connected: true,
       isActive: channel.isActive,
-      agentEmail: config.agentEmail || `${agent.slug}@${EMAIL_DOMAIN}`,
-      forwardingEmail: config.forwardingEmail || null,
-      lastEmailAt: config.lastEmailAt || null,
-      emailsToday,
+      displayNumber: config.displayNumber || config.phoneNumberId || null,
+      webhookUrl,
+      lastMessageAt: lastConversation?.updatedAt || null,
+      totalConversations,
       createdAt: channel.createdAt,
     });
   } catch (err) {

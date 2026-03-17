@@ -4,6 +4,8 @@ import { decrypt, encrypt } from "@/lib/encryption";
 import { NextRequest } from "next/server";
 import { listSlackChannels, joinSlackChannel } from "@/lib/integrations/slack";
 
+export const dynamic = "force-dynamic";
+
 // POST: Connect Slack channel to agent — stores channel config and joins the channel
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
