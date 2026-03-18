@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getClaudeClient } from "@/lib/ai";
 import { deductCredits } from "@/lib/credits";
+import { setExecutionContextMeta } from "@/lib/team-execution-metadata";
 import {
   executeTeamExecution,
   loadTeamExecutionRuntimeContext,
@@ -124,6 +125,8 @@ Respond ONLY with a valid JSON array, no other text.`,
     const validMemberIds = new Set(team.members.map((m) => m.id));
 
     // Create all tasks in the database
+    const executionContext = setExecutionContextMeta({}, { trigger: "manual" });
+
     const execution = await prisma.teamExecution.create({
       data: {
         teamId: params.id,
@@ -143,7 +146,7 @@ Respond ONLY with a valid JSON array, no other text.`,
               : null,
           taskIndex,
         })),
-        executionContext: {},
+        executionContext,
       },
     });
 
@@ -193,7 +196,7 @@ Respond ONLY with a valid JSON array, no other text.`,
           assignedToId: task.assignedToId,
           taskIndex,
         })),
-        executionContext: {},
+        executionContext,
       }).catch((error) => {
         console.error("Background team execution failed:", error);
       })

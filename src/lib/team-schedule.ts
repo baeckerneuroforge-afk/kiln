@@ -72,6 +72,7 @@ export function describeTeamSchedule(schedule: TeamScheduleConfig | null) {
 
   const [minute = "0", hour = "0", dayOfMonth = "*", month = "*", dayOfWeek = "*"] =
     schedule.cron.split(/\s+/);
+  const weekdayLabel = getWeekdayLabel(dayOfWeek);
 
   if (schedule.cron === "0 * * * *") {
     return "Runs every hour";
@@ -81,11 +82,25 @@ export function describeTeamSchedule(schedule: TeamScheduleConfig | null) {
     return `Runs daily at ${formatClock(hour, minute, schedule.timezone)}`;
   }
 
-  if (dayOfMonth === "*" && month === "*" && dayOfWeek === "1") {
-    return `Runs every Monday at ${formatClock(hour, minute, schedule.timezone)}`;
+  if (dayOfMonth === "*" && month === "*" && weekdayLabel) {
+    return `Runs every ${weekdayLabel} at ${formatClock(hour, minute, schedule.timezone)}`;
   }
 
   return `Runs on cron ${schedule.cron}`;
+}
+
+function getWeekdayLabel(dayOfWeek: string) {
+  const weekdays: Record<string, string> = {
+    "0": "Sunday",
+    "1": "Monday",
+    "2": "Tuesday",
+    "3": "Wednesday",
+    "4": "Thursday",
+    "5": "Friday",
+    "6": "Saturday",
+  };
+
+  return weekdays[dayOfWeek] || null;
 }
 
 function formatClock(hour: string, minute: string, timezone: string) {

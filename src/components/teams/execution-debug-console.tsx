@@ -76,12 +76,26 @@ function getSearchableText(step: ReplayStep) {
     step.output || "",
     formatJson(step.structuredOutput),
     step.error || "",
+    step.strategy,
+    step.fallbackEvent || "",
     step.routing.decision,
     step.routing.condition || "",
     step.routing.comparison || "",
   ]
     .join("\n")
     .toLowerCase();
+}
+
+function getStrategyLabel(strategy: ReplayStep["strategy"]) {
+  switch (strategy) {
+    case "fallback_agent":
+      return "Fallback agent";
+    case "fallback_model":
+      return "Fallback model";
+    case "primary":
+    default:
+      return "Primary";
+  }
 }
 
 function getStatusStyles(status: ReplayStep["status"]) {
@@ -247,6 +261,9 @@ export function ExecutionDebugConsole({
             <p className="mt-1 text-sm text-zinc-400">
               Inspect prompts, routing, transformations, and failure detail step by step.
             </p>
+            {data?.execution.trigger === "scheduled" ? (
+              <p className="mt-2 text-xs text-violet-300">Scheduled execution</p>
+            ) : null}
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -351,6 +368,7 @@ export function ExecutionDebugConsole({
                         <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-zinc-500">
                           <span>{formatDuration(step.metrics.responseTimeMs)}</span>
                           <span>{step.metrics.model || "Unknown model"}</span>
+                          <span>{getStrategyLabel(step.strategy)}</span>
                           {step.error ? (
                             <span className="text-red-300">Error captured</span>
                           ) : null}
@@ -376,6 +394,9 @@ export function ExecutionDebugConsole({
                   <span className="text-sm text-zinc-300">
                     {selectedStep.memberName} · Task {selectedStep.taskIndex + 1}
                   </span>
+                  <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold uppercase text-zinc-300">
+                    {getStrategyLabel(selectedStep.strategy)}
+                  </span>
                   <span className="text-xs text-zinc-500">
                     {formatDateTime(selectedStep.startedAt)}
                   </span>
@@ -383,6 +404,11 @@ export function ExecutionDebugConsole({
                 <p className="mt-3 text-sm text-zinc-400">
                   {selectedStep.taskTitle}
                 </p>
+                {selectedStep.fallbackEvent ? (
+                  <p className="mt-2 text-xs text-amber-300">
+                    {selectedStep.fallbackEvent}
+                  </p>
+                ) : null}
               </div>
 
               <div className="border-b border-white/10 px-5 py-3">
@@ -509,6 +535,19 @@ export function ExecutionDebugConsole({
 
                 {activeTab === "routing" ? (
                   <div className="space-y-4">
+                    <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                        Runtime Strategy
+                      </p>
+                      <p className="mt-3 text-sm text-zinc-100">
+                        {getStrategyLabel(selectedStep.strategy)}
+                      </p>
+                      {selectedStep.fallbackEvent ? (
+                        <p className="mt-2 text-xs text-amber-300">
+                          {selectedStep.fallbackEvent}
+                        </p>
+                      ) : null}
+                    </div>
                     <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
                       <div className="flex items-center gap-2">
                         <GitBranch className="h-4 w-4 text-orange-300" />

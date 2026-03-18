@@ -35,6 +35,7 @@ interface ExecutionSummary {
   id: string;
   status: string;
   goal: string | null;
+  trigger?: "manual" | "scheduled" | null;
   startedAt: string;
   completedAt: string | null;
   totalTasks: number;
@@ -49,6 +50,8 @@ interface ExecutionAttempt {
   id: string;
   attempt: number;
   status: string;
+  strategy: "primary" | "fallback_agent" | "fallback_model";
+  fallbackEvent?: string | null;
   input: unknown;
   output: string | null;
   structuredOutput?: unknown;
@@ -136,6 +139,18 @@ function previewValue(value: unknown) {
 function formatContextValue(value: unknown) {
   if (typeof value === "string") return value;
   return JSON.stringify(value);
+}
+
+function getStrategyLabel(strategy: ExecutionAttempt["strategy"]) {
+  switch (strategy) {
+    case "fallback_agent":
+      return "Fallback agent";
+    case "fallback_model":
+      return "Fallback model";
+    case "primary":
+    default:
+      return "Primary";
+  }
 }
 
 export function TeamExecutionsTab({
@@ -430,11 +445,19 @@ export function TeamExecutionsTab({
                       </p>
                       <p className="mt-1 text-xs text-zinc-500">{formatDateTime(execution.startedAt)}</p>
                     </div>
-                    <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase", statusStyles[execution.status] || statusStyles.PENDING)}>
-                      {execution.status}
-                    </span>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {execution.trigger === "scheduled" ? (
+                        <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-violet-300">
+                          Scheduled
+                        </span>
+                      ) : null}
+                      <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase", statusStyles[execution.status] || statusStyles.PENDING)}>
+                        {execution.status}
+                      </span>
+                    </div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-zinc-400">
+                    <span>{execution.trigger === "scheduled" ? "Cron run" : "Manual run"}</span>
                     <span>{execution.completedTasks}/{execution.totalTasks} done</span>
                     <span>{execution.failedTasks} failed</span>
                     <span>{formatDuration(execution.durationMs)}</span>
@@ -499,6 +522,11 @@ export function TeamExecutionsTab({
                     <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase", statusStyles[detail.execution.status] || statusStyles.PENDING)}>
                       {detail.execution.status}
                     </span>
+                    {detail.execution.trigger === "scheduled" ? (
+                      <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-violet-300">
+                        Scheduled
+                      </span>
+                    ) : null}
                     <p className="text-sm font-medium text-zinc-100">
                       Execution {detail.execution.id.slice(0, 8)}
                     </p>
@@ -507,6 +535,7 @@ export function TeamExecutionsTab({
                     {detail.execution.goal || "No goal captured for this execution."}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-3 text-xs text-zinc-500">
+                    <span>{detail.execution.trigger === "scheduled" ? "Triggered by cron schedule" : "Triggered manually"}</span>
                     <span>Started {formatDateTime(detail.execution.startedAt)}</span>
                     <span>Duration {formatDuration(detail.execution.durationMs)}</span>
                     <span>{detail.execution.completedTasks}/{detail.execution.totalTasks} completed</span>
@@ -689,7 +718,14 @@ export function TeamExecutionsTab({
                                       </pre>
                                     </div>
                                     {pAttempt && (
-                                      <p className="text-[9px] text-zinc-600 mt-1">{formatDuration(pAttempt.startedAt && pAttempt.completedAt ? new Date(pAttempt.completedAt).getTime() - new Date(pAttempt.startedAt).getTime() : null)}</p>
+                                      <div className="mt-1 space-y-1">
+                                        <p className="text-[9px] text-zinc-600">
+                                          {formatDuration(pAttempt.startedAt && pAttempt.completedAt ? new Date(pAttempt.completedAt).getTime() - new Date(pAttempt.startedAt).getTime() : null)}
+                                        </p>
+                                        {pAttempt.fallbackEvent ? (
+                                          <p className="text-[9px] text-amber-300">{pAttempt.fallbackEvent}</p>
+                                        ) : null}
+                                      </div>
                                     )}
                                   </div>
                                 );
@@ -795,20 +831,30 @@ export function TeamExecutionsTab({
                               key={attempt.id}
                               className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2"
                             >
-                              <div className="flex items-center gap-2 text-xs text-zinc-300">
-                                {attempt.status === "COMPLETED" ? (
-                                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
-                                ) : attempt.status === "FAILED" || attempt.status === "REJECTED" ? (
-                                  <XCircle className="h-3.5 w-3.5 text-red-400" />
-                                ) : attempt.status === "RUNNING" ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
-                                ) : attempt.status === "AWAITING_APPROVAL" ? (
-                                  <AlertCircle className="h-3.5 w-3.5 text-amber-300" />
-                                ) : (
-                                  <AlertTriangle className="h-3.5 w-3.5 text-zinc-500" />
-                                )}
-                                <span>Attempt {attempt.attempt}</span>
-                                {attempt.agent?.name && <span className="text-zinc-500">· {attempt.agent.name}</span>}
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-xs text-zinc-300">
+                                  {attempt.status === "COMPLETED" ? (
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
+                                  ) : attempt.status === "FAILED" || attempt.status === "REJECTED" ? (
+                                    <XCircle className="h-3.5 w-3.5 text-red-400" />
+                                  ) : attempt.status === "RUNNING" ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
+                                  ) : attempt.status === "AWAITING_APPROVAL" ? (
+                                    <AlertCircle className="h-3.5 w-3.5 text-amber-300" />
+                                  ) : (
+                                    <AlertTriangle className="h-3.5 w-3.5 text-zinc-500" />
+                                  )}
+                                  <span>Attempt {attempt.attempt}</span>
+                                  <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] uppercase text-zinc-400">
+                                    {getStrategyLabel(attempt.strategy)}
+                                  </span>
+                                  {attempt.agent?.name && <span className="text-zinc-500">· {attempt.agent.name}</span>}
+                                </div>
+                                {attempt.fallbackEvent ? (
+                                  <p className="text-[11px] text-amber-300">
+                                    {attempt.fallbackEvent}
+                                  </p>
+                                ) : null}
                               </div>
                               <div className="flex flex-wrap gap-3 text-[11px] text-zinc-500">
                                 <span>{attempt.status}</span>

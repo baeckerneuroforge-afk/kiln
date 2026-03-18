@@ -78,6 +78,18 @@ function toExecutionStatus(status: ReplayTaskStatus) {
   }
 }
 
+function getStrategyLabel(strategy: ReplayStep["strategy"]) {
+  switch (strategy) {
+    case "fallback_agent":
+      return "Fallback agent";
+    case "fallback_model":
+      return "Fallback model";
+    case "primary":
+    default:
+      return "Primary";
+  }
+}
+
 function buildReplayPhases(steps: ReplayStep[]): ReplayPhase[] {
   return steps.flatMap((step, stepIndex) => [
     {
@@ -250,6 +262,9 @@ export function ExecutionReplay({
             <p className="mt-1 text-sm text-zinc-400">
               Step through the execution exactly as the team advanced.
             </p>
+            {data?.execution.trigger === "scheduled" ? (
+              <p className="mt-2 text-xs text-violet-300">Scheduled execution</p>
+            ) : null}
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -285,6 +300,9 @@ export function ExecutionReplay({
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
                       {currentPhase?.type === "start" ? "Executing" : currentStep.status}
+                    </span>
+                    <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-300">
+                      {getStrategyLabel(currentStep.strategy)}
                     </span>
                     <span className="text-sm text-zinc-300">
                       {currentStep.memberName} · Task {currentStep.taskIndex + 1}
@@ -348,6 +366,11 @@ export function ExecutionReplay({
                   <p className="mt-1 text-sm text-zinc-400">
                     {currentStep.taskTitle}
                   </p>
+                  {currentStep.fallbackEvent ? (
+                    <p className="mt-2 text-xs text-amber-300">
+                      {currentStep.fallbackEvent}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="space-y-4 overflow-auto p-5">
@@ -385,6 +408,9 @@ export function ExecutionReplay({
                     </p>
                     <p className="mt-2 text-sm text-zinc-200">
                       {currentStep.routing.decision}
+                    </p>
+                    <p className="mt-2 text-xs text-zinc-500">
+                      Runtime: {getStrategyLabel(currentStep.strategy)}
                     </p>
                     {currentStep.routing.condition && (
                       <p className="mt-2 text-xs text-zinc-400">

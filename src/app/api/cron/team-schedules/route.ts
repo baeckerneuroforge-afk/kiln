@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { waitUntil } from "@vercel/functions";
+import { Prisma } from "@prisma/client";
 import { getClaudeClient } from "@/lib/ai";
 import { deductCredits } from "@/lib/credits";
 import { sendTeamScheduleCompletionEmail } from "@/lib/email-notifications";
@@ -250,7 +251,9 @@ export async function GET(request: NextRequest) {
 
     await prisma.agentTeam.update({
       where: { id: team.id },
-      data: { config: updatedConfig },
+      data: {
+        config: JSON.parse(JSON.stringify(updatedConfig)) as Prisma.InputJsonValue,
+      },
     });
 
     waitUntil(

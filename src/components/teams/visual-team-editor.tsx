@@ -27,6 +27,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
 import {
+  AlertTriangle,
   AlertCircle,
   BookOpen,
   Database,
@@ -64,6 +65,11 @@ interface TeamMember {
   id: string;
   agentId?: string | null;
   agent: TeamAgent | null;
+  fallbackAgentId?: string | null;
+  fallbackAgent?: TeamAgent | null;
+  fallbackModel?: string | null;
+  fallbackEnabled?: boolean;
+  maxRetries?: number;
   role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER" | "APPROVAL_GATE";
   level: number;
   responsibilities?: string;
@@ -340,6 +346,13 @@ type KnowledgeNodeData = {
   [key: string]: unknown;
 };
 
+type FallbackNodeData = {
+  label: string;
+  agentName: string;
+  llmModel?: string;
+  [key: string]: unknown;
+};
+
 function TeamKnowledgeNode({ data }: NodeProps<Node<KnowledgeNodeData>>) {
   return (
     <div className="rounded-2xl border-2 border-cyan-500/30 bg-zinc-900/95 backdrop-blur-md px-4 py-3 shadow-xl min-w-[180px] max-w-[200px]">
@@ -360,6 +373,37 @@ function TeamKnowledgeNode({ data }: NodeProps<Node<KnowledgeNodeData>>) {
       <p className="text-[11px] text-zinc-500 mt-0.5">
         {data.docCount} {data.docCount === 1 ? "Dokument" : "Dokumente"}
       </p>
+    </div>
+  );
+}
+
+function FallbackGhostNode({ data }: NodeProps<Node<FallbackNodeData>>) {
+  const model = typeof data.llmModel === "string" ? getModelDef(data.llmModel) : null;
+
+  return (
+    <div className="rounded-2xl border border-dashed border-orange-500/30 bg-zinc-900/90 px-4 py-3 shadow-lg min-w-[200px] max-w-[240px] opacity-95">
+      <Handle
+        type="target"
+        position={Position.Left}
+        isConnectable={false}
+        className="!bg-orange-400 !w-3 !h-3 !border-2 !border-zinc-800 !-left-1.5"
+      />
+      <div className="flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/15">
+          <AlertTriangle className="h-3.5 w-3.5 text-orange-300" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-orange-300">
+            Fallback
+          </p>
+          <p className="truncate text-sm font-semibold text-zinc-200">
+            {data.agentName}
+          </p>
+        </div>
+      </div>
+      {model ? (
+        <p className="mt-2 text-[11px] text-zinc-500">{model.shortLabel}</p>
+      ) : null}
     </div>
   );
 }
@@ -387,6 +431,7 @@ function AnimatedConnectionEdge({
   });
 
   const isExecuting = data?.executionActive as boolean;
+  const isFallback = data?.isFallback as boolean;
 
   return (
     <>
@@ -409,10 +454,20 @@ function AnimatedConnectionEdge({
         id={id}
         path={edgePath}
         style={{
-          stroke: isExecuting ? "#F97316" : selected ? "#F97316" : "#3f3f46",
-          strokeWidth: isExecuting ? 3 : 2,
-          strokeDasharray: isExecuting ? "8 4" : undefined,
-          animation: isExecuting ? "dashmove 0.5s linear infinite" : undefined,
+          stroke: isFallback
+            ? "#FB923C"
+            : isExecuting
+              ? "#F97316"
+              : selected
+                ? "#F97316"
+                : "#3f3f46",
+          strokeWidth: isFallback ? 2 : isExecuting ? 3 : 2,
+          strokeDasharray: isFallback ? "5 5" : isExecuting ? "8 4" : undefined,
+          animation: isFallback
+            ? undefined
+            : isExecuting
+              ? "dashmove 0.5s linear infinite"
+              : undefined,
         }}
         markerEnd={MarkerType.ArrowClosed}
       />
@@ -425,7 +480,9 @@ function AnimatedConnectionEdge({
               "absolute pointer-events-auto rounded-lg border px-2.5 py-1 text-[10px] font-medium transition-all cursor-pointer",
               selected
                 ? "bg-orange-500/10 border-orange-500/30 text-orange-400"
-                : "bg-zinc-900/90 border-zinc-700/50 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300"
+                : isFallback
+                  ? "bg-orange-500/10 border-orange-500/20 text-orange-300"
+                  : "bg-zinc-900/90 border-zinc-700/50 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300"
             )}
             style={{
               transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
@@ -443,7 +500,11 @@ function AnimatedConnectionEdge({
 }
 
 /* ========== Node & Edge types ========== */
-const nodeTypes = { visualAgent: VisualAgentNode, teamKnowledge: TeamKnowledgeNode };
+const nodeTypes = {
+  visualAgent: VisualAgentNode,
+  teamKnowledge: TeamKnowledgeNode,
+  fallbackGhost: FallbackGhostNode,
+};
 const edgeTypes = { animated: AnimatedConnectionEdge };
 
 /* ========== Helper: members to flow elements ========== */
@@ -454,6 +515,11 @@ function membersToFlowElements(
   teamKnowledgeCount?: number
 ) {
   const execMap = new Map(executionSteps?.map((s) => [s.memberId, s.status]) || []);
+  const teamMemberNodeIdsByAgentId = new Map(
+    members
+      .filter((member) => member.agent?.id)
+      .map((member) => [member.agent!.id, member.id])
+  );
   const getNodeName = (member: TeamMember) => {
     if (member.agent?.name) return member.agent.name;
     const config =
@@ -468,7 +534,7 @@ function membersToFlowElements(
         : "Unassigned";
   };
 
-  const nodes: Node<VisualNodeData>[] = members.map((m) => {
+  const nodes: Node[] = members.map((m) => {
     const schemaFields = (m.outputSchema as OutputSchemaField[] | null)?.map((s) => s.field) || [];
     const agentMode = m.role === "APPROVAL_GATE" ? "APPROVAL" : (m.agent?.agentMode || undefined);
 
@@ -519,17 +585,108 @@ function membersToFlowElements(
       };
     });
 
+  const fallbackGhostNodes = new Map<string, Node>();
+
+  members.forEach((member, index) => {
+    if (!member.fallbackEnabled) return;
+
+    const sourcePosition =
+      savedPositions?.[member.id] || { x: 0, y: index * 180 };
+
+    const addFallbackEdge = (targetId: string, label = "fallback") => {
+      edges.push({
+        id: `fallback-${member.id}-${targetId}`,
+        source: member.id,
+        target: targetId,
+        type: "animated",
+        animated: false,
+        selectable: false,
+        deletable: false,
+        data: {
+          label,
+          isFallback: true,
+          executionActive: false,
+        },
+        style: {
+          strokeDasharray: "5 5",
+          stroke: "#FB923C",
+          opacity: 0.9,
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: "#FB923C",
+          width: 14,
+          height: 14,
+        },
+      });
+    };
+
+    if (member.fallbackAgentId && member.fallbackAgent) {
+      const inTeamNodeId = teamMemberNodeIdsByAgentId.get(member.fallbackAgentId);
+      if (inTeamNodeId) {
+        addFallbackEdge(inTeamNodeId);
+      } else {
+        const ghostId = `__fallback__${member.id}__agent`;
+        if (!fallbackGhostNodes.has(ghostId)) {
+          fallbackGhostNodes.set(ghostId, {
+            id: ghostId,
+            type: "fallbackGhost",
+            position: savedPositions?.[ghostId] || {
+              x: sourcePosition.x + 340,
+              y: sourcePosition.y + 40,
+            },
+            data: {
+              label: "Fallback Agent",
+              agentName: member.fallbackAgent.name,
+              llmModel: member.fallbackAgent.llmModel,
+            },
+            draggable: false,
+            selectable: false,
+            deletable: false,
+          });
+        }
+        addFallbackEdge(ghostId);
+      }
+    }
+
+    if (member.fallbackModel && member.agent) {
+      const ghostId = `__fallback__${member.id}__model`;
+      if (!fallbackGhostNodes.has(ghostId)) {
+        fallbackGhostNodes.set(ghostId, {
+          id: ghostId,
+          type: "fallbackGhost",
+          position: savedPositions?.[ghostId] || {
+            x: sourcePosition.x + 340,
+            y: sourcePosition.y + 140,
+          },
+          data: {
+            label: "Fallback Model",
+            agentName: member.agent.name,
+            llmModel: member.fallbackModel,
+          },
+          draggable: false,
+          selectable: false,
+          deletable: false,
+        });
+      }
+      addFallbackEdge(ghostId, "fallback model");
+    }
+  });
+
+  nodes.push(...Array.from(fallbackGhostNodes.values()));
+
   // Add feedback loop edges (curved back arrows)
   members.forEach((m) => {
     const fl = m.feedbackLoop as { targetMemberId: string; maxIterations: number; qualityField: string; qualityThreshold: number } | null;
     if (!fl) return;
-    edges.push({
-      id: `loop-${m.id}-${fl.targetMemberId}`,
-      source: m.id,
-      target: fl.targetMemberId,
-      type: "animated",
-      animated: true,
-      data: {
+      edges.push({
+        id: `loop-${m.id}-${fl.targetMemberId}`,
+        source: m.id,
+        target: fl.targetMemberId,
+        type: "animated",
+        animated: true,
+        deletable: false,
+        data: {
         label: `Loop: ${fl.qualityField} < ${fl.qualityThreshold} (max ${fl.maxIterations}x)`,
         executionActive: false,
       },
@@ -563,6 +720,8 @@ function membersToFlowElements(
         target: m.id,
         type: "animated",
         animated: false,
+        selectable: false,
+        deletable: false,
         data: {},
         style: { strokeDasharray: "4 4", stroke: "#06B6D4", opacity: 0.35 },
         markerEnd: {
@@ -744,10 +903,14 @@ function VisualTeamEditorInner({
           type: "animated",
           animated: true,
         }}
-        onNodeClick={(_event, node) => onNodeClick(node.id)}
+        onNodeClick={(_event, node) => {
+          if (node.id.startsWith("__fallback__")) return;
+          onNodeClick(node.id);
+        }}
         deleteKeyCode={["Backspace", "Delete"]}
         onEdgesDelete={(deletedEdges) => {
           deletedEdges.forEach((e) => {
+            if (!e.id.startsWith("e-")) return;
             onConnectionDelete?.(e.source, e.target);
           });
         }}

@@ -49,6 +49,7 @@ interface Team {
   name: string;
   description: string | null;
   goal: string | null;
+  scheduleSummary?: string | null;
   status: "ACTIVE" | "PAUSED";
   members: TeamMember[];
   _count: { tasks: number };
@@ -1863,6 +1864,12 @@ export default function TeamsPage() {
                       <Users className="h-3 w-3" />
                       <span>{roleCounts(team.members)}</span>
                     </div>
+                    {team.scheduleSummary ? (
+                      <div className="flex items-center gap-1.5">
+                        <CalendarDays className="h-3 w-3" />
+                        <span>{team.scheduleSummary}</span>
+                      </div>
+                    ) : null}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
                         <Target className="h-3 w-3" />

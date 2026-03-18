@@ -17,6 +17,7 @@ import {
   Coins,
   Cpu,
   Loader2,
+  ShieldAlert,
   TrendingDown,
   Zap,
 } from "lucide-react";
@@ -43,6 +44,8 @@ interface CostData {
   costPerExecution: number;
   singleAgentEquivalent: number;
   savingsPercent: number;
+  fallbackCostThisMonth: number;
+  fallbackActivationsThisMonth: number;
   agentBreakdown: AgentCostBreakdown[];
   modelsUsed: { model: string; label: string; inputPer1M: number; outputPer1M: number }[];
 }
@@ -116,7 +119,7 @@ export function TeamCostDashboard({ teamId }: TeamCostDashboardProps) {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-start justify-between">
             <div>
@@ -171,6 +174,25 @@ export function TeamCostDashboard({ teamId }: TeamCostDashboardProps) {
             </div>
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10">
               <TrendingDown className="h-4.5 w-4.5 text-emerald-400" />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-amber-300/80">
+                Fallback Cost
+              </p>
+              <p className="mt-1.5 text-2xl font-semibold text-amber-300">
+                {formatCost(data.fallbackCostThisMonth)}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {data.fallbackActivationsThisMonth} activations this month
+              </p>
+            </div>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10">
+              <ShieldAlert className="h-4.5 w-4.5 text-amber-300" />
             </div>
           </div>
         </div>

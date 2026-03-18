@@ -18,6 +18,11 @@ import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
 import { TeamExecutionsTab } from "@/components/teams/executions-tab";
 import { TeamCostDashboard } from "@/components/teams/team-cost-dashboard";
+import {
+  TeamScheduleTab,
+  type TeamScheduleConfigValue,
+  type TeamSchedulePreviewValue,
+} from "@/components/teams/team-schedule-tab";
 import { VisualTeamEditor } from "@/components/teams/visual-team-editor";
 import { TeamKnowledgeTab } from "@/components/teams/team-knowledge-tab";
 import { cn } from "@/lib/utils";
@@ -46,6 +51,7 @@ import {
   Coins,
   AlertCircle,
   Database,
+  CalendarDays,
   LayoutGrid,
   List,
   BookOpen,
@@ -90,6 +96,11 @@ interface TeamMember {
   id: string;
   agentId?: string | null;
   agent: TeamAgent | null;
+  fallbackAgentId?: string | null;
+  fallbackAgent?: TeamAgent | null;
+  fallbackModel?: string | null;
+  fallbackEnabled?: boolean;
+  maxRetries?: number;
   role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER" | "APPROVAL_GATE";
   level: number;
   responsibilities?: string;
@@ -131,7 +142,11 @@ interface Team {
   name: string;
   description?: string;
   goal?: string;
-  config?: { nodePositions?: Record<string, { x: number; y: number }> } | null;
+  config?: {
+    nodePositions?: Record<string, { x: number; y: number }>;
+    schedule?: Partial<TeamScheduleConfigValue>;
+  } | null;
+  schedulePreview?: TeamSchedulePreviewValue | null;
   status: "ACTIVE" | "PAUSED";
   createdAt: string;
   updatedAt: string;
@@ -438,7 +453,7 @@ function buildHierarchyGraph(
 }
 
 /* ========== Tabs ========== */
-type TabKey = "hierarchy" | "tasks" | "activity" | "analytics" | "cost" | "knowledge" | "executions";
+type TabKey = "hierarchy" | "tasks" | "activity" | "analytics" | "cost" | "knowledge" | "executions" | "schedule";
 
 const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "hierarchy", label: "Hierarchy", icon: <Users className="h-4 w-4" /> },
@@ -448,6 +463,7 @@ const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "analytics", label: "Analytics", icon: <BarChart3 className="h-4 w-4" /> },
   { key: "cost", label: "Cost", icon: <Coins className="h-4 w-4" /> },
   { key: "executions", label: "Executions", icon: <Clock className="h-4 w-4" /> },
+  { key: "schedule", label: "Schedule", icon: <CalendarDays className="h-4 w-4" /> },
 ];
 
 /* ========== Edit Member Panel ========== */
@@ -461,6 +477,7 @@ interface EditMemberPanelProps {
 
 function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditMemberPanelProps) {
   const [agentData, setAgentData] = useState<TeamAgent | null>(null);
+  const [availableFallbackAgents, setAvailableFallbackAgents] = useState<TeamAgent[]>([]);
   const [loadingAgent, setLoadingAgent] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -490,6 +507,10 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
 
   // Execution mode
   const [executionMode, setExecutionMode] = useState<"sequential" | "parallel">("sequential");
+  const [fallbackAgentId, setFallbackAgentId] = useState("");
+  const [fallbackModel, setFallbackModel] = useState("");
+  const [fallbackEnabled, setFallbackEnabled] = useState(true);
+  const [maxRetries, setMaxRetries] = useState(2);
 
   // Feedback loop
   const [loopEnabled, setLoopEnabled] = useState(false);
@@ -515,6 +536,10 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
     setSchemaFields((member.outputSchema as OutputSchemaField[]) || []);
     setEnabledActions(member.enabledActions || []);
     setExecutionMode((member.executionMode as "sequential" | "parallel") || "sequential");
+    setFallbackAgentId(member.fallbackAgentId || "");
+    setFallbackModel(member.fallbackModel || "");
+    setFallbackEnabled(member.fallbackEnabled !== false);
+    setMaxRetries(typeof member.maxRetries === "number" ? member.maxRetries : 2);
     const fl = member.feedbackLoop;
     if (fl) {
       setLoopEnabled(true);
@@ -573,7 +598,28 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
       .finally(() => setLoadingAgent(false));
   }, [member]);
 
+  useEffect(() => {
+    if (!member) return;
+
+    fetch("/api/agents")
+      .then((response) => response.json())
+      .then((data: TeamAgent[] | { error?: string }) => {
+        const agents = Array.isArray(data) ? data : [];
+        setAvailableFallbackAgents(
+          agents.filter((agent) => agent.id !== member.agentId)
+        );
+      })
+      .catch(() => setAvailableFallbackAgents([]));
+  }, [member]);
+
   const availableModels = useMemo(() => getModelsForProvider(provider), [provider]);
+  const fallbackModelOptions = useMemo(
+    () =>
+      availableModels.filter(
+        (model) => !member?.agent?.llmModel || model.id !== member.agent.llmModel
+      ),
+    [availableModels, member?.agent?.llmModel]
+  );
 
   const handleProviderChange = (p: ProviderKey) => {
     setProvider(p);
@@ -612,6 +658,10 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
           outputSchema: schemaFields.length > 0 ? schemaFields : null,
           enabledActions,
           executionMode,
+          fallbackAgentId: fallbackEnabled ? fallbackAgentId || null : null,
+          fallbackModel: fallbackEnabled ? fallbackModel || null : null,
+          fallbackEnabled,
+          maxRetries,
           feedbackLoop: loopEnabled && loopTargetMemberId && loopQualityField
             ? { targetMemberId: loopTargetMemberId, maxIterations: loopMaxIterations, qualityField: loopQualityField, qualityThreshold: loopQualityThreshold }
             : null,
@@ -1100,6 +1150,102 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                     : "This agent runs sequentially in the execution order."}
                 </p>
               </div>
+
+              {role !== "APPROVAL_GATE" && (
+                <div className="space-y-3 border-t border-zinc-800 pt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-xs font-medium text-zinc-400">Fallback Runtime</label>
+                      <p className="mt-1 text-[10px] text-zinc-500">
+                        Retry the primary agent first, then switch to a fallback agent or cheaper model.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFallbackEnabled((value) => !value)}
+                      className={cn(
+                        "relative h-5 w-9 rounded-full transition-colors",
+                        fallbackEnabled ? "bg-orange-500" : "bg-zinc-700"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform",
+                          fallbackEnabled ? "left-4.5" : "left-0.5"
+                        )}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-zinc-400">Fallback Agent</label>
+                      <div className="relative">
+                        <select
+                          value={fallbackAgentId}
+                          onChange={(e) => setFallbackAgentId(e.target.value)}
+                          disabled={!fallbackEnabled}
+                          className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8 disabled:opacity-50"
+                        >
+                          <option value="">None</option>
+                          {availableFallbackAgents.map((agent) => (
+                            <option key={agent.id} value={agent.id}>
+                              {agent.name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-zinc-400">Fallback Model</label>
+                      <div className="relative">
+                        <select
+                          value={fallbackModel}
+                          onChange={(e) => setFallbackModel(e.target.value)}
+                          disabled={!fallbackEnabled}
+                          className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8 disabled:opacity-50"
+                        >
+                          <option value="">None</option>
+                          {fallbackModelOptions.map((model) => (
+                            <option key={model.id} value={model.id}>
+                              {model.label}
+                              {model.badge ? ` — ${model.badge}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-zinc-400">Max Retries Before Fallback</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={5}
+                      value={maxRetries}
+                      onChange={(e) => setMaxRetries(Math.max(0, Math.min(5, Number(e.target.value) || 0)))}
+                      disabled={!fallbackEnabled}
+                      className="w-28 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors disabled:opacity-50"
+                    />
+                  </div>
+
+                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
+                    <p className="text-[10px] text-zinc-500">
+                      {fallbackEnabled
+                        ? `Primary attempts: ${maxRetries + 1}. ${
+                            fallbackAgentId || fallbackModel
+                              ? "If those fail, the runtime switches automatically."
+                              : "Add a fallback agent or model to activate the last-resort path."
+                          }`
+                        : "Fallbacks are disabled for this member."}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* ── Feedback Loop ── */}
               <div className="space-y-1.5 border-t border-zinc-800 pt-4">
@@ -1997,6 +2143,13 @@ function TeamDetailInner() {
             {team.status}
           </span>
 
+          {team.schedulePreview?.description ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-300">
+              <CalendarDays className="h-3 w-3" />
+              {team.schedulePreview.description}
+            </span>
+          ) : null}
+
           {/* Health badge */}
           {healthScore && (
             <button
@@ -2536,6 +2689,15 @@ function TeamDetailInner() {
             focusExecutionId={focusedExecutionId}
             onRefreshTeam={fetchTeam}
             onExecutionContextChange={setSharedContextPreview}
+          />
+        )}
+
+        {activeTab === "schedule" && (
+          <TeamScheduleTab
+            teamId={teamId}
+            initialSchedule={team.config?.schedule || null}
+            initialPreview={team.schedulePreview || null}
+            onSaved={fetchTeam}
           />
         )}
       </div>

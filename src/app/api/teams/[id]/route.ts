@@ -1,7 +1,11 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getTeamSchedulePreview } from "@/lib/team-schedule";
+import {
+  getTeamSchedulePreview,
+  normalizeTeamScheduleConfig,
+} from "@/lib/team-schedule";
 
 // Get single team with members, tasks, and hierarchy
 export async function GET(
@@ -48,9 +52,11 @@ export async function GET(
     return Response.json({
       ...team,
       schedulePreview: getTeamSchedulePreview(
-        team.config && typeof team.config === "object"
-          ? (team.config as Record<string, unknown>).schedule
-          : null
+        normalizeTeamScheduleConfig(
+          team.config && typeof team.config === "object"
+            ? (team.config as Record<string, unknown>).schedule
+            : null
+        )
       ),
     });
   } catch (err) {
@@ -80,6 +86,19 @@ export async function PATCH(
 
     const body = await request.json();
     const { name, description, goal, status, config } = body;
+    const mergedConfig =
+      config !== undefined
+        ? {
+            ...(existing.config &&
+            typeof existing.config === "object" &&
+            !Array.isArray(existing.config)
+              ? (existing.config as Record<string, unknown>)
+              : {}),
+            ...(config && typeof config === "object" && !Array.isArray(config)
+              ? (config as Record<string, unknown>)
+              : {}),
+          }
+        : undefined;
 
     const team = await prisma.agentTeam.update({
       where: { id: params.id },
@@ -88,11 +107,30 @@ export async function PATCH(
         ...(description !== undefined && { description }),
         ...(goal !== undefined && { goal }),
         ...(status !== undefined && { status }),
-        ...(config !== undefined && { config }),
+        ...(mergedConfig !== undefined && {
+          config: JSON.parse(
+            JSON.stringify(mergedConfig)
+          ) as Prisma.InputJsonValue,
+        }),
       },
     });
 
-    return Response.json(team);
+    return Response.json({
+      ...team,
+      schedulePreview: getTeamSchedulePreview(
+        normalizeTeamScheduleConfig(
+          mergedConfig &&
+            typeof mergedConfig === "object" &&
+            !Array.isArray(mergedConfig)
+            ? (mergedConfig as Record<string, unknown>).schedule
+            : team.config &&
+                typeof team.config === "object" &&
+                !Array.isArray(team.config)
+              ? (team.config as Record<string, unknown>).schedule
+              : null
+        )
+      ),
+    });
   } catch (err) {
     console.error("PATCH /api/teams/[id] error:", err);
     const message = err instanceof Error ? err.message : "Server error";
