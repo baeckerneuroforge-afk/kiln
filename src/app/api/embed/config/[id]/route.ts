@@ -1,5 +1,9 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  getAgentScheduleFromWhiteLabel,
+  getAgentScheduleStatus,
+} from "@/lib/agent-scheduling";
 
 function normalizeProactiveRules(input: unknown) {
   if (!Array.isArray(input)) return [];
@@ -43,6 +47,8 @@ export async function GET(
   }
 
   const wl = (agent.whiteLabel || {}) as Record<string, unknown>;
+  const schedule = getAgentScheduleFromWhiteLabel(wl);
+  const scheduleStatus = getAgentScheduleStatus(schedule);
   const proactive =
     wl.proactive && typeof wl.proactive === "object"
       ? (wl.proactive as Record<string, unknown>)
@@ -64,6 +70,11 @@ export async function GET(
         ? wl.soundEnabled
         : false,
     position: typeof wl.position === "string" ? wl.position : "bottom-right",
+    schedule: {
+      ...schedule,
+      isOnline: scheduleStatus.isOnline,
+      nextOnlineText: scheduleStatus.nextOnlineText,
+    },
     proactive: {
       enabled: proactive?.enabled !== false,
       delay:

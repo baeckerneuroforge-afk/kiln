@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { fireWebhookEvent } from "@/lib/webhooks";
 import { emitEvent } from "@/lib/events";
 import { sanitizeCss } from "@/lib/css-sanitizer";
+import { normalizeAgentSchedule } from "@/lib/agent-scheduling";
 import {
   applyAgentUpdateToVersionConfig,
   createVersion,
@@ -69,15 +70,23 @@ export async function PATCH(
     }
 
     const body = await request.json();
+    const whiteLabelRecord =
+      body?.whiteLabel && typeof body.whiteLabel === "object"
+        ? (body.whiteLabel as Record<string, unknown>)
+        : null;
+
     const sanitizedBody =
-      body?.whiteLabel &&
-      typeof body.whiteLabel === "object" &&
-      typeof (body.whiteLabel as Record<string, unknown>).customCss === "string"
+      whiteLabelRecord
         ? {
             ...body,
             whiteLabel: {
-              ...(body.whiteLabel as Record<string, unknown>),
-              customCss: sanitizeCss((body.whiteLabel as Record<string, string>).customCss),
+              ...whiteLabelRecord,
+              ...(typeof whiteLabelRecord.customCss === "string"
+                ? { customCss: sanitizeCss(whiteLabelRecord.customCss) }
+                : {}),
+              ...(whiteLabelRecord.schedule !== undefined
+                ? { schedule: normalizeAgentSchedule(whiteLabelRecord.schedule) }
+                : {}),
             },
           }
         : body;

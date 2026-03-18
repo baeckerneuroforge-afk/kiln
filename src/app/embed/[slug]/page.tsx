@@ -61,6 +61,11 @@ export default async function EmbedPage({ params, searchParams }: Props) {
       showPoweredBy={agent.showPoweredBy}
       imageAnalysisEnabled={agent.imageAnalysisEnabled}
       customCss={typeof whiteLabel.customCss === "string" ? whiteLabel.customCss : null}
+      schedule={
+        whiteLabel.schedule && typeof whiteLabel.schedule === "object"
+          ? (whiteLabel.schedule as Record<string, unknown>)
+          : null
+      }
     />
   );
 }

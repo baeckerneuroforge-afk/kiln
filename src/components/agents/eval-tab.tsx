@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EvalSuggestions } from "@/components/agents/eval-suggestions";
+import { DeepDiveSection } from "@/components/agents/deep-dive-section";
 
 interface EvalData {
   configuredActions: string[];
@@ -426,6 +427,9 @@ export function EvalTab({ agentId }: EvalTabProps) {
         </div>
         <EvalSuggestions agentId={agentId} />
       </div>
+
+      {/* Deep Dive Analytics */}
+      <DeepDiveSection agentId={agentId} />
     </div>
   );
 }

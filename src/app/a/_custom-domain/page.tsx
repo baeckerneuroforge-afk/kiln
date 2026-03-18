@@ -32,8 +32,11 @@ export default async function CustomDomainAgentPage({ searchParams }: Props) {
     notFound();
   }
 
-  const whiteLabel = (agent.whiteLabel as Record<string, string>) || {};
-  const primaryColor = whiteLabel.primaryColor || "#F97316";
+  const whiteLabel = (agent.whiteLabel as Record<string, unknown>) || {};
+  const primaryColor =
+    typeof whiteLabel.primaryColor === "string"
+      ? whiteLabel.primaryColor
+      : "#F97316";
 
   const effectiveWelcome = agent.showAiDisclaimer
     ? `I am an AI assistant.${agent.welcomeMessage ? ` ${agent.welcomeMessage}` : ""}`
@@ -68,9 +71,14 @@ export default async function CustomDomainAgentPage({ searchParams }: Props) {
             welcomeMessage={effectiveWelcome}
             suggestedQuestions={agent.suggestedQuestions}
             primaryColor={primaryColor}
-            logoUrl={whiteLabel.logo || null}
+            logoUrl={typeof whiteLabel.logo === "string" ? whiteLabel.logo : null}
             showPoweredBy={agent.showPoweredBy}
-            customCss={whiteLabel.customCss || null}
+            customCss={typeof whiteLabel.customCss === "string" ? whiteLabel.customCss : null}
+            schedule={
+              whiteLabel.schedule && typeof whiteLabel.schedule === "object"
+                ? (whiteLabel.schedule as Record<string, unknown>)
+                : null
+            }
           />
         </div>
       </div>

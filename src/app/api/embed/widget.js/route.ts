@@ -80,6 +80,7 @@ export async function GET(request: NextRequest) {
     var slug = config.slug;
     var position = configuredPosition || config.position || 'bottom-right';
     var avatarUrl = config.avatarUrl || '';
+    var schedule = config.schedule || null;
     var autoThemeEnabled = isTruthy(autoThemeAttr, config.autoTheme !== false);
     var soundEnabled = isTruthy(soundAttr, config.soundEnabled === true);
     var proactiveConfig = config.proactive || {};
@@ -94,6 +95,10 @@ export async function GET(request: NextRequest) {
     var timeTrigger = null;
     var hasInteracted = false;
     var proactiveVisible = false;
+
+    if (schedule && schedule.enabled && schedule.isOnline === false && schedule.offlineAction === 'hide_widget') {
+      return;
+    }
 
     function parseColorValue(value) {
       if (!value || typeof value !== 'string') return null;

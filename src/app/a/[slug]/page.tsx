@@ -95,8 +95,11 @@ export default async function PublicAgentPage({ params }: Props) {
     }
   }
 
-  const whiteLabel = (agent.whiteLabel as Record<string, string>) || {};
-  const primaryColor = whiteLabel.primaryColor || "#F97316";
+  const whiteLabel = (agent.whiteLabel as Record<string, unknown>) || {};
+  const primaryColor =
+    typeof whiteLabel.primaryColor === "string"
+      ? whiteLabel.primaryColor
+      : "#F97316";
 
   // AI Transparency: Prepend disclaimer to welcome message
   const effectiveWelcome = agent.showAiDisclaimer
@@ -143,10 +146,15 @@ export default async function PublicAgentPage({ params }: Props) {
             welcomeMessage={effectiveWelcome}
             suggestedQuestions={agent.suggestedQuestions}
             primaryColor={primaryColor}
-            logoUrl={whiteLabel.logo || null}
+            logoUrl={typeof whiteLabel.logo === "string" ? whiteLabel.logo : null}
             showPoweredBy={agent.showPoweredBy}
             imageAnalysisEnabled={agent.imageAnalysisEnabled}
-            customCss={whiteLabel.customCss || null}
+            customCss={typeof whiteLabel.customCss === "string" ? whiteLabel.customCss : null}
+            schedule={
+              whiteLabel.schedule && typeof whiteLabel.schedule === "object"
+                ? (whiteLabel.schedule as Record<string, unknown>)
+                : null
+            }
           />
         </div>
       </div>

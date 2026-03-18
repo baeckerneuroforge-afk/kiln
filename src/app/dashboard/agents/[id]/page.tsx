@@ -65,10 +65,16 @@ import { EventSubscriptionsTab } from "@/components/agents/event-subscriptions-t
 import { IntegrationsTab } from "@/components/agents/integrations-tab";
 import { ChannelsTab } from "@/components/agents/channels-tab";
 import { TeamAccess } from "@/components/agents/team-access";
+import { AgentScheduleSection } from "@/components/agents/agent-schedule-section";
 import { PromptEditor } from "@/components/agents/prompt-editor";
 import { LivePreviewPanel } from "@/components/agents/live-preview-panel";
 import { cn } from "@/lib/utils";
 import { PROVIDERS, getModelsForProvider, getModelDef, type ProviderKey } from "@/lib/ai";
+import {
+  type AgentScheduleConfig,
+  getAgentScheduleFromWhiteLabel,
+  normalizeAgentSchedule,
+} from "@/lib/agent-scheduling";
 import { getCreditCost } from "@/lib/credits";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 import { useToast } from "@/components/toast";
@@ -278,6 +284,9 @@ export default function AgentDetailPage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [widgetAutoTheme, setWidgetAutoTheme] = useState(true);
   const [widgetSoundEnabled, setWidgetSoundEnabled] = useState(false);
+  const [scheduleConfig, setScheduleConfig] = useState<AgentScheduleConfig>(
+    () => normalizeAgentSchedule(null)
+  );
   const [domainVerified, setDomainVerified] = useState<boolean | null>(null);
   const [domainMessage, setDomainMessage] = useState("");
   const [verifyingDomain, setVerifyingDomain] = useState(false);
@@ -327,11 +336,13 @@ export default function AgentDetailPage() {
     const wl = (data.whiteLabel || {}) as Record<string, unknown>;
     const proactive = getProactiveSettings(wl);
     const widget = getWidgetSettings(wl);
+    const schedule = getAgentScheduleFromWhiteLabel(wl);
     setPrimaryColor(typeof wl.primaryColor === "string" ? wl.primaryColor : "#F97316");
     setLogoUrl(typeof wl.logo === "string" ? wl.logo : "");
     setAvatarUrl(widget.avatarUrl);
     setWidgetAutoTheme(widget.autoTheme);
     setWidgetSoundEnabled(widget.soundEnabled);
+    setScheduleConfig(schedule);
     setProactiveEnabled(proactive.enabled);
     setProactiveDelay(proactive.delay);
     setProactiveRules(proactive.rules);
@@ -392,6 +403,7 @@ export default function AgentDetailPage() {
             avatarUrl: avatarUrl.trim() || null,
             autoTheme: widgetAutoTheme,
             soundEnabled: widgetSoundEnabled,
+            schedule: scheduleConfig,
             position:
               typeof existingWhiteLabel.position === "string"
                 ? existingWhiteLabel.position
@@ -1114,6 +1126,11 @@ export default function AgentDetailPage() {
                 </div>
               </div>
 
+              <AgentScheduleSection
+                value={scheduleConfig}
+                onChange={setScheduleConfig}
+              />
+
               {/* Auto-detect Language Toggle */}
               <div className="rounded-xl border border-border bg-card/50 p-5">
                 <div className="flex items-center justify-between">
@@ -1532,6 +1549,7 @@ export default function AgentDetailPage() {
                   avatarUrl: avatarUrl.trim() || null,
                   autoTheme: widgetAutoTheme,
                   soundEnabled: widgetSoundEnabled,
+                  schedule: scheduleConfig,
                   proactive: {
                     enabled: proactiveEnabled,
                     delay: proactiveEnabled ? Math.max(0, proactiveDelay) : 0,

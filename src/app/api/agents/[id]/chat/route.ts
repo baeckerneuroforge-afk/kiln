@@ -24,6 +24,10 @@ import { Redis } from "@upstash/redis";
 import { extractTextContent, hashSession, extractAndSaveMemories, evaluateOrchestrationHandoff } from "@/lib/services/chat-service";
 import { buildTools, executeChatTool } from "@/lib/services/action-service";
 import { getOrCreateVisitor, generateMemoryPrefix, updateVisitorMemory, linkEmailToVisitor } from "@/lib/visitor-memory";
+import {
+  getAgentScheduleFromWhiteLabel,
+  getAgentScheduleStatus,
+} from "@/lib/agent-scheduling";
 
 const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
 const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -73,14 +77,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { messages, sessionId: clientSessionId, channel, debug, visitorId: clientVisitorId } = body;
-
-    if (!messages || !Array.isArray(messages)) {
-      return Response.json(
-        { error: "Messages are required." },
-        { status: 400 }
-      );
-    }
+    const { messages, sessionId: clientSessionId, channel, debug, visitorId: clientVisitorId, offlineLead } = body;
 
     // Load agent with actions and custom tools
     const originalAgent = await prisma.agent.findUnique({
@@ -95,6 +92,63 @@ export async function POST(
 
     if (!originalAgent) {
       return Response.json({ error: "Agent not found" }, { status: 404 });
+    }
+
+    const schedule = getAgentScheduleFromWhiteLabel(originalAgent.whiteLabel);
+    const scheduleStatus = getAgentScheduleStatus(schedule);
+
+    if (offlineLead) {
+      if (!schedule.enabled || scheduleStatus.isOnline) {
+        return Response.json(
+          { error: "Offline lead capture is only available outside business hours." },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      const email =
+        offlineLead && typeof offlineLead === "object" && typeof offlineLead.email === "string"
+          ? offlineLead.email.trim()
+          : "";
+      const name =
+        offlineLead && typeof offlineLead === "object" && typeof offlineLead.name === "string"
+          ? offlineLead.name.trim()
+          : null;
+
+      if (!email || !email.includes("@")) {
+        return Response.json(
+          { error: "A valid email address is required." },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      await prisma.lead.create({
+        data: {
+          agentId: params.id,
+          email,
+          name: name || null,
+          context: "offline-lead",
+        },
+      });
+
+      waitUntil(
+        emitEvent("lead.captured", originalAgent.userId, params.id, {
+          email,
+          name: name || null,
+          source: "offline-lead",
+        })
+      );
+
+      return Response.json(
+        { success: true, message: "Offline lead captured." },
+        { headers: corsHeaders }
+      );
+    }
+
+    if (!messages || !Array.isArray(messages)) {
+      return Response.json(
+        { error: "Messages are required." },
+        { status: 400 }
+      );
     }
 
     // Conversation-Persistenz: Session finden oder erstellen (before agent resolution for handoff check)
@@ -118,6 +172,21 @@ export async function POST(
       if (handoffAgent) {
         agent = handoffAgent;
       }
+    }
+
+    const activeSchedule = getAgentScheduleFromWhiteLabel(agent.whiteLabel);
+    const activeScheduleStatus = getAgentScheduleStatus(activeSchedule);
+    if (activeSchedule.enabled && !activeScheduleStatus.isOnline) {
+      return Response.json(
+        {
+          error: "This agent is currently offline.",
+          offline: true,
+          offlineAction: activeSchedule.offlineAction,
+          offlineMessage: activeSchedule.offlineMessage,
+          nextOnlineText: activeScheduleStatus.nextOnlineText,
+        },
+        { status: 423, headers: corsHeaders }
+      );
     }
 
     // BYOK: Prüfen ob der User einen eigenen Key für den gewählten Provider hat

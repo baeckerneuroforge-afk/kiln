@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, Bot, User, ImageIcon, X, UserCheck } from "lucide-react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { Send, Loader2, Bot, User, ImageIcon, X, UserCheck, Mail, MoonStar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { sanitizeCss } from "@/lib/css-sanitizer";
 import { MarkdownMessage } from "./markdown-message";
+import {
+  type AgentScheduleConfig,
+  getAgentScheduleStatus,
+  normalizeAgentSchedule,
+} from "@/lib/agent-scheduling";
 
 interface ChatMessage {
   id: string;
@@ -26,6 +31,7 @@ interface PublicAgentChatProps {
   showPoweredBy: boolean;
   imageAnalysisEnabled?: boolean;
   customCss?: string | null;
+  schedule?: AgentScheduleConfig | Record<string, unknown> | null;
 }
 
 /**
@@ -117,8 +123,10 @@ export function PublicAgentChat({
   showPoweredBy,
   imageAnalysisEnabled = false,
   customCss,
+  schedule,
 }: PublicAgentChatProps) {
   const sanitizedCustomCss = customCss ? sanitizeCss(customCss) : "";
+  const normalizedSchedule = useMemo(() => normalizeAgentSchedule(schedule), [schedule]);
   const [messages, setMessages] = useState<ChatMessage[]>(
     welcomeMessage
       ? [{ id: "welcome", role: "assistant", content: welcomeMessage, createdAt: new Date().toISOString() }]
@@ -129,6 +137,14 @@ export function PublicAgentChat({
   const [sessionId] = useState(() => crypto.randomUUID());
   const [visitorId] = useState(() => getOrCreateVisitorId());
   const [pendingImage, setPendingImage] = useState<{ dataUrl: string; mediaType: string } | null>(null);
+  const [scheduleStatus, setScheduleStatus] = useState(() =>
+    getAgentScheduleStatus(normalizedSchedule)
+  );
+  const [offlineName, setOfflineName] = useState("");
+  const [offlineEmail, setOfflineEmail] = useState("");
+  const [offlineSubmitting, setOfflineSubmitting] = useState(false);
+  const [offlineSubmitted, setOfflineSubmitted] = useState(false);
+  const [offlineError, setOfflineError] = useState<string | null>(null);
   const lastHumanPollRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -137,6 +153,15 @@ export function PublicAgentChat({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    const updateStatus = () => setScheduleStatus(getAgentScheduleStatus(normalizedSchedule));
+    updateStatus();
+    const interval = window.setInterval(updateStatus, 60_000);
+    return () => window.clearInterval(interval);
+  }, [normalizedSchedule]);
+
+  const isOffline = normalizedSchedule.enabled && !scheduleStatus.isOnline;
 
   // Poll for human replies when handoff is active
   const pollForHumanReplies = useCallback(async () => {
@@ -235,7 +260,7 @@ export function PublicAgentChat({
   }
 
   async function sendMessage(content: string) {
-    if ((!content.trim() && !pendingImage) || isStreaming) return;
+    if ((!content.trim() && !pendingImage) || isStreaming || isOffline) return;
 
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
@@ -288,7 +313,14 @@ export function PublicAgentChat({
         body: JSON.stringify({ messages: apiMessages, sessionId, channel: "WEB", visitorId }),
       });
 
-      if (!res.ok) throw new Error("Chat error");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(
+          errorData && typeof errorData.error === "string"
+            ? errorData.error
+            : "Chat error"
+        );
+      }
 
       const reader = res.body?.getReader();
       if (!reader) throw new Error("No stream");
@@ -337,9 +369,51 @@ export function PublicAgentChat({
     }
   }
 
+  async function submitOfflineLead() {
+    if (!offlineEmail.trim() || offlineSubmitting) return;
+
+    setOfflineSubmitting(true);
+    setOfflineError(null);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          offlineLead: {
+            email: offlineEmail.trim(),
+            name: offlineName.trim() || undefined,
+          },
+          sessionId,
+          channel: "WEB",
+          visitorId,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(
+          data && typeof data.error === "string"
+            ? data.error
+            : "Failed to save your details."
+        );
+      }
+
+      setOfflineSubmitted(true);
+      setOfflineEmail("");
+      setOfflineName("");
+    } catch (error) {
+      setOfflineError(
+        error instanceof Error ? error.message : "Failed to save your details."
+      );
+    } finally {
+      setOfflineSubmitting(false);
+    }
+  }
+
   const showSuggestions =
     suggestedQuestions &&
     suggestedQuestions.length > 0 &&
+    !isOffline &&
     messages.filter((m) => m.role === "user").length === 0;
 
   return (
@@ -380,10 +454,12 @@ export function PublicAgentChat({
           <div className="flex items-center gap-1.5">
             <div
               className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: "#22C55E" }}
+              style={{ backgroundColor: isOffline ? "#F59E0B" : "#22C55E" }}
             />
             <p className="text-xs" style={{ color: "#A8A29E" }}>
-              Online
+              {isOffline
+                ? scheduleStatus.nextOnlineText || "Offline"
+                : "Online"}
             </p>
           </div>
         </div>
@@ -391,7 +467,80 @@ export function PublicAgentChat({
 
       {/* Nachrichten */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {messages.map((msg) => (
+        {isOffline && (
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-[#FAFAF9]">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/15">
+                <MoonStar className="h-4 w-4 text-amber-300" />
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    We&apos;re currently offline
+                  </p>
+                  <p className="mt-1 text-sm text-[#E7E5E4]">
+                    {normalizedSchedule.offlineMessage}
+                  </p>
+                  {scheduleStatus.nextOnlineText && (
+                    <p className="mt-2 text-xs text-amber-200">
+                      {scheduleStatus.nextOnlineText}
+                    </p>
+                  )}
+                </div>
+
+                {normalizedSchedule.offlineAction === "collect_email" && (
+                  <div className="space-y-3 rounded-xl border border-white/10 bg-[#1C1917]/70 p-3">
+                    {offlineSubmitted ? (
+                      <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+                        Thanks. Your details were saved and tagged for follow-up.
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-xs font-medium uppercase tracking-[0.14em] text-amber-100/80">
+                          Leave your email
+                        </p>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <input
+                            type="text"
+                            value={offlineName}
+                            onChange={(event) => setOfflineName(event.target.value)}
+                            placeholder="Name (optional)"
+                            className="rounded-xl border border-white/10 bg-[#292524] px-3 py-2.5 text-sm text-white placeholder:text-[#A8A29E] focus:outline-none"
+                          />
+                          <input
+                            type="email"
+                            value={offlineEmail}
+                            onChange={(event) => setOfflineEmail(event.target.value)}
+                            placeholder="you@example.com"
+                            className="rounded-xl border border-white/10 bg-[#292524] px-3 py-2.5 text-sm text-white placeholder:text-[#A8A29E] focus:outline-none"
+                          />
+                        </div>
+                        {offlineError && (
+                          <p className="text-xs text-red-300">{offlineError}</p>
+                        )}
+                        <button
+                          onClick={submitOfflineLead}
+                          disabled={!offlineEmail.trim() || offlineSubmitting}
+                          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-white transition-opacity disabled:opacity-50"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          {offlineSubmitting ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Mail className="h-4 w-4" />
+                          )}
+                          Send details
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!isOffline && messages.map((msg) => (
           <div
             key={msg.id}
             className={cn(
@@ -528,7 +677,8 @@ export function PublicAgentChat({
 
       {/* Input */}
       <div className="border-t p-4" style={{ borderColor: "#292524" }}>
-        <div className="flex items-center gap-2">
+        {!isOffline ? (
+          <div className="flex items-center gap-2">
           {imageAnalysisEnabled && (
             <>
               <input
@@ -580,7 +730,14 @@ export function PublicAgentChat({
               <Send className="h-4 w-4" />
             )}
           </button>
-        </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-white/10 bg-[#1C1917] px-4 py-3 text-sm text-[#D6D3D1]">
+            {normalizedSchedule.offlineAction === "hide_widget"
+              ? "This agent is outside business hours."
+              : "Chat is currently paused outside business hours."}
+          </div>
+        )}
         {showPoweredBy && (
           <p className="mt-2 text-center text-[10px]" style={{ color: "#78716C" }}>
             Powered by{" "}
