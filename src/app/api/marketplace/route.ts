@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { ActionType } from "@prisma/client";
 import { deployWorkflow } from "@/lib/workflow-templates";
+import { deployTeamTemplate } from "@/lib/team-templates";
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 
@@ -206,6 +207,21 @@ export async function PATCH(request: NextRequest) {
       }
 
       const config = template.agentConfigSnapshot as Record<string, unknown>;
+
+      if (typeof config.teamTemplateId === "string") {
+        const deployedTeam = await deployTeamTemplate(userId, config.teamTemplateId);
+
+        await prisma.marketplaceTemplate.update({
+          where: { id: templateId },
+          data: { downloads: { increment: 1 } },
+        });
+
+        return Response.json({
+          teamId: deployedTeam.teamId,
+          teamName: deployedTeam.teamName,
+          agentIds: deployedTeam.agentIds,
+        });
+      }
 
       if (typeof config.workflowTemplateId === "string") {
         const workflow = await deployWorkflow(userId, config.workflowTemplateId);

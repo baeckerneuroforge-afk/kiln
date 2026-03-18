@@ -83,7 +83,7 @@ export async function POST(
     }
 
     // Load agent with actions and custom tools
-    const agent = await prisma.agent.findUnique({
+    const originalAgent = await prisma.agent.findUnique({
       where: { id: params.id },
       include: {
         knowledgeBases: { where: { embeddingStatus: "READY" } },
@@ -93,8 +93,31 @@ export async function POST(
       },
     });
 
-    if (!agent) {
+    if (!originalAgent) {
       return Response.json({ error: "Agent not found" }, { status: 404 });
+    }
+
+    // Conversation-Persistenz: Session finden oder erstellen (before agent resolution for handoff check)
+    const sessionId = clientSessionId || crypto.randomUUID();
+    let conversation = await prisma.conversation.findFirst({
+      where: { agentId: params.id, sessionId },
+    });
+
+    // Check for active agent handoff — if conversation was handed off, use target agent
+    let agent = originalAgent;
+    if (conversation?.handoffAgentId && conversation.handoffAgentId !== params.id) {
+      const handoffAgent = await prisma.agent.findUnique({
+        where: { id: conversation.handoffAgentId },
+        include: {
+          knowledgeBases: { where: { embeddingStatus: "READY" } },
+          actions: true,
+          customTools: { where: { enabled: true } },
+          channels: { where: { type: "STRIPE", isActive: true } },
+        },
+      });
+      if (handoffAgent) {
+        agent = handoffAgent;
+      }
     }
 
     // BYOK: Prüfen ob der User einen eigenen Key für den gewählten Provider hat
@@ -129,12 +152,6 @@ export async function POST(
         { status: 429, headers: corsHeaders }
       );
     }
-
-    // Conversation-Persistenz: Session finden oder erstellen
-    const sessionId = clientSessionId || crypto.randomUUID();
-    let conversation = await prisma.conversation.findFirst({
-      where: { agentId: params.id, sessionId },
-    });
 
     if (!conversation) {
       conversation = await prisma.conversation.create({
@@ -612,6 +629,11 @@ export async function POST(
                   );
                 }
 
+                // Agent handoff for OpenAI path: signal handoff in stream
+                if (fnCall.function.name === "handoff_agent" && parsedToolResult?.handoff) {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ handoff: { from: agent.name, to: parsedToolResult.targetAgentName || "Agent" } })}\n\n`));
+                }
+
                 waitUntil(
                   fireWebhookEvent(agent.userId, "action.executed", params.id, {
                     conversationId,
@@ -826,6 +848,77 @@ export async function POST(
                       console.error("Handoff email failed:", err);
                     })
                   );
+                }
+
+                // Agent handoff: after tool result, get response from target agent
+                if (block.name === "handoff_agent" && parsedToolResult?.handoff && parsedToolResult.targetAgentId) {
+                  const targetId = parsedToolResult.targetAgentId as string;
+                  const handoffSummary = (parsedToolResult.summary as string) || "";
+                  const handoffReason = (parsedToolResult.reason as string) || "";
+
+                  // Load target agent with full config
+                  const targetAgent = await prisma.agent.findUnique({
+                    where: { id: targetId },
+                    include: {
+                      knowledgeBases: { where: { embeddingStatus: "READY" } },
+                      actions: true,
+                      customTools: { where: { enabled: true } },
+                    },
+                  });
+
+                  if (targetAgent) {
+                    // Build target system prompt
+                    const hNow = new Date();
+                    let targetPrompt = targetAgent.systemPrompt
+                      .replace(/\{\{agent\.name\}\}/g, targetAgent.name)
+                      .replace(/\{\{current\.time\}\}/g, hNow.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }))
+                      .replace(/\{\{current\.date\}\}/g, hNow.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }))
+                      .replace(/\{\{user\.name\}\}/g, conversation.visitorName || "Unknown")
+                      .replace(/\{\{user\.email\}\}/g, conversation.visitorEmail || "Unknown")
+                      .replace(/\{\{knowledge\.context\}\}/g, "");
+
+                    // RAG for target agent
+                    if (targetAgent.knowledgeBases.length > 0) {
+                      try {
+                        const lastUserText = [...messages].reverse().find((m: { role: string }) => m.role === "user");
+                        if (lastUserText) {
+                          const targetRagChunks = await searchRelevantChunks(targetId, extractTextContent(lastUserText.content), 5);
+                          if (targetRagChunks.length > 0) {
+                            targetPrompt += "\n\n---\nRELEVANT KNOWLEDGE FROM THE KNOWLEDGE BASE:\n" +
+                              targetRagChunks.map((c: { content: string }, i: number) => `[${i + 1}] ${c.content}`).join("\n\n") +
+                              "\n---\nUse the above knowledge to answer the question.";
+                          }
+                        }
+                      } catch { /* continue without RAG */ }
+                    }
+
+                    // Add handoff context
+                    targetPrompt += `\n\nIMPORTANT: This conversation was seamlessly handed off to you from another agent. The user does not know about the handoff. Continue the conversation naturally without mentioning any transfer or handoff. Conversation summary: ${handoffSummary}. Reason for handoff: ${handoffReason}`;
+
+                    // Get response from target agent
+                    const targetClient = anthropicClient || getClaudeClient();
+                    const targetModel = targetAgent.llmModel || "claude-sonnet-4-20250514";
+
+                    const handoffResponse = await targetClient.messages.create({
+                      model: targetModel.startsWith("claude") ? targetModel : "claude-sonnet-4-20250514",
+                      max_tokens: 2048,
+                      system: targetPrompt,
+                      messages: currentMessages,
+                    });
+
+                    for (const hBlock of handoffResponse.content) {
+                      if (hBlock.type === "text" && hBlock.text) {
+                        fullAssistantText += hBlock.text;
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: hBlock.text })}\n\n`));
+                      }
+                    }
+
+                    // Signal handoff in stream metadata
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ handoff: { from: agent.name, to: targetAgent.name } })}\n\n`));
+
+                    // Skip further tool processing — handoff agent has responded
+                    hasToolUse = false;
+                  }
                 }
 
                 // Webhook: action.executed

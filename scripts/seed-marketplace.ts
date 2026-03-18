@@ -4,6 +4,7 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { WORKFLOW_MARKETPLACE_TEMPLATES } from "../src/lib/workflow-templates";
+import { TEAM_MARKETPLACE_TEMPLATES } from "../src/lib/team-templates";
 
 const prisma = new PrismaClient();
 
@@ -195,6 +196,7 @@ Goal: Drive reservations and get guests to visit the restaurant.`,
     },
   },
   ...WORKFLOW_MARKETPLACE_TEMPLATES,
+  ...TEAM_MARKETPLACE_TEMPLATES,
 ];
 
 async function main() {

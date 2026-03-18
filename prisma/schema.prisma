@@ -298,6 +298,10 @@ model Conversation {
   // Human Handoff tracking
   handoffStatus HandoffStatus?
 
+  // Agent Handoff: when conversation is transferred to another agent
+  handoffAgentId  String?
+  handoffAt       DateTime?
+
   messages  Message[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

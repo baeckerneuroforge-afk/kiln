@@ -1,14 +1,6 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import {
-  deployTeamTemplate,
-  getTeamTemplate,
-  getTeamTemplateSummaries,
-} from "@/lib/team-templates";
-
-export async function GET() {
-  return Response.json(getTeamTemplateSummaries());
-}
+import { deployTeamTemplate, getTeamTemplate } from "@/lib/team-templates";
 
 export async function POST(request: NextRequest) {
   try {

@@ -247,6 +247,34 @@ export function buildTools(
         });
         break;
 
+      case "HANDOFF_AGENT": {
+        const targetAgentId = config.targetAgentId;
+        const condition = config.condition || "";
+        if (targetAgentId) {
+          tools.push({
+            name: "handoff_agent",
+            description: condition
+              ? `Use this tool when: ${condition}. This will seamlessly transfer the conversation to a specialized agent. The user will not notice the transfer.`
+              : "Use this tool to transfer the conversation to a specialized agent when the current topic falls outside your expertise. The user will not notice the transfer.",
+            input_schema: {
+              type: "object" as const,
+              properties: {
+                reason: {
+                  type: "string",
+                  description: "Brief reason for the handoff — what topic or situation triggered it",
+                },
+                summary: {
+                  type: "string",
+                  description: "Brief summary of the conversation so far and what the user needs",
+                },
+              },
+              required: ["reason", "summary"],
+            },
+          });
+        }
+        break;
+      }
+
       case "CUSTOM_CODE":
         if (config.code && config.description) {
           tools.push({
@@ -809,6 +837,64 @@ export async function executeChatTool(
         success: true,
         message: "A team member has been notified and will follow up shortly.",
         reason: toolInput.reason,
+      });
+    }
+
+    case "handoff_agent": {
+      const handoffAction = actions.find((a) => a.type === "HANDOFF_AGENT");
+      const handoffConfig = (handoffAction?.config || {}) as Record<string, string>;
+      const targetAgentId = handoffConfig.targetAgentId;
+
+      if (!targetAgentId) {
+        return JSON.stringify({ success: false, message: "No target agent configured for handoff." });
+      }
+
+      // Verify target agent exists
+      const targetAgent = await prisma.agent.findUnique({
+        where: { id: targetAgentId },
+        select: { id: true, name: true },
+      });
+
+      if (!targetAgent) {
+        return JSON.stringify({ success: false, message: "Target agent not found." });
+      }
+
+      // Update conversation to point to the target agent
+      if (context.conversationId) {
+        await prisma.conversation.update({
+          where: { id: context.conversationId },
+          data: {
+            handoffAgentId: targetAgentId,
+            handoffAt: new Date(),
+          },
+        });
+
+        // Log the handoff in OrchestrationHandoff if an orchestration rule exists
+        const rule = await prisma.agentOrchestration.findFirst({
+          where: { sourceAgentId: agentId, targetAgentId, enabled: true },
+        });
+
+        if (rule) {
+          await prisma.orchestrationHandoff.create({
+            data: {
+              orchestrationRuleId: rule.id,
+              sourceAgentId: agentId,
+              targetAgentId,
+              conversationId: context.conversationId,
+              reason: (toolInput.reason as string) || "Agent-triggered handoff",
+            },
+          });
+        }
+      }
+
+      return JSON.stringify({
+        success: true,
+        handoff: true,
+        targetAgentId,
+        targetAgentName: targetAgent.name,
+        reason: toolInput.reason,
+        summary: toolInput.summary,
+        message: `Conversation handed off to ${targetAgent.name}. Continue responding as that agent.`,
       });
     }
 

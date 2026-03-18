@@ -1,18 +1,8 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-import { getTeamTemplate } from "@/lib/team-templates";
+import { deployTeamTemplate } from "@/lib/team-templates";
 import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
-import crypto from "crypto";
-
-function generateSlug(name: string): string {
-  const base = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40);
-  return `${base}-${crypto.randomBytes(3).toString("hex")}`;
-}
 
 // List all teams for the user
 export async function GET() {
@@ -54,7 +44,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, description, goal, template: templateKey } = body;
 
-    if (!name) {
+    if (!name && !templateKey) {
       return Response.json(
         { error: "Name is required." },
         { status: 400 }
@@ -69,63 +59,32 @@ export async function POST(request: NextRequest) {
       create: { id: userId, email: userEmail },
     });
 
-    // If a template key was provided, use the template to provision agents
-    const template = templateKey ? getTeamTemplate(templateKey.toUpperCase()) : null;
+    if (templateKey) {
+      const result = await deployTeamTemplate(userId, templateKey, {
+        teamName: name,
+      });
+
+      const fullTeam = await prisma.agentTeam.findUnique({
+        where: { id: result.teamId },
+        include: {
+          members: {
+            include: { agent: { select: { id: true, name: true, slug: true } } },
+          },
+          _count: { select: { tasks: true } },
+        },
+      });
+
+      return Response.json(fullTeam, { status: 201 });
+    }
 
     const team = await prisma.agentTeam.create({
       data: {
         userId,
         name,
-        description: description || template?.description || null,
-        goal: goal || template?.goal || null,
+        description: description || null,
+        goal: goal || null,
       },
     });
-
-    // If template, create agents and members
-    if (template) {
-      const memberMap = new Map<string, string>();
-
-      // First pass: create agents and members
-      for (const role of template.roles) {
-        const agent = await prisma.agent.create({
-          data: {
-            userId,
-            name: role.name,
-            slug: generateSlug(role.name),
-            systemPrompt: role.systemPrompt,
-            description: role.responsibilities,
-            status: "DRAFT",
-          },
-        });
-
-        const levelMap = { HEAD: 0, COORDINATOR: 1, EXECUTOR: 2, REPORTER: 2 } as const;
-        const member = await prisma.agentTeamMember.create({
-          data: {
-            teamId: team.id,
-            agentId: agent.id,
-            role: role.role,
-            level: levelMap[role.role],
-            responsibilities: role.responsibilities,
-          },
-        });
-
-        memberMap.set(role.name, member.id);
-      }
-
-      // Second pass: set reportsTo relationships
-      for (const role of template.roles) {
-        if (role.reportsTo) {
-          const memberId = memberMap.get(role.name);
-          const reportsToId = memberMap.get(role.reportsTo);
-          if (memberId && reportsToId) {
-            await prisma.agentTeamMember.update({
-              where: { id: memberId },
-              data: { reportsToMemberId: reportsToId },
-            });
-          }
-        }
-      }
-    }
 
     // Return full team with members
     const fullTeam = await prisma.agentTeam.findUnique({

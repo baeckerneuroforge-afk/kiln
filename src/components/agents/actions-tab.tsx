@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, X, Code2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,11 @@ interface AgentAction {
   type: string;
   enabled: boolean;
   config: Record<string, string> | null;
+}
+
+interface AgentSummary {
+  id: string;
+  name: string;
 }
 
 interface ActionsTabProps {
@@ -97,6 +102,16 @@ const actionTypes = [
       { key: "responseMapping", label: "Response mapping (JSON path)", placeholder: "data.results[0].status" },
     ],
   },
+  {
+    type: "HANDOFF_AGENT",
+    label: "Agent Handoff",
+    icon: "\u{1F504}",
+    description: "Seamlessly transfer to another agent mid-conversation",
+    configFields: [
+      { key: "targetAgentId", label: "Target Agent", placeholder: "Select agent..." },
+      { key: "condition", label: "Handoff condition (optional)", placeholder: "Hand off when the visitor asks about pricing or sales" },
+    ],
+  },
 ];
 
 export function ActionsTab({ agentId, initialActions }: ActionsTabProps) {
@@ -106,6 +121,18 @@ export function ActionsTab({ agentId, initialActions }: ActionsTabProps) {
   const [configValues, setConfigValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
   const [showCodeEditor, setShowCodeEditor] = useState(false);
+  const [otherAgents, setOtherAgents] = useState<AgentSummary[]>([]);
+
+  useEffect(() => {
+    // Load user's agents for handoff target selection
+    fetch("/api/agents")
+      .then((r) => r.json())
+      .then((data) => {
+        const agents = (data.agents || data || []) as AgentSummary[];
+        setOtherAgents(agents.filter((a) => a.id !== agentId));
+      })
+      .catch(() => {});
+  }, [agentId]);
 
   async function toggleAction(actionType: string) {
     const existing = actions.find((a) => a.type === actionType);
@@ -382,18 +409,36 @@ export function ActionsTab({ agentId, initialActions }: ActionsTabProps) {
                   <label className="mb-1 block text-sm font-medium text-foreground">
                     {field.label}
                   </label>
-                  <input
-                    type="text"
-                    value={configValues[field.key] || ""}
-                    onChange={(e) =>
-                      setConfigValues((prev) => ({
-                        ...prev,
-                        [field.key]: e.target.value,
-                      }))
-                    }
-                    placeholder={field.placeholder}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
+                  {field.key === "targetAgentId" ? (
+                    <select
+                      value={configValues[field.key] || ""}
+                      onChange={(e) =>
+                        setConfigValues((prev) => ({
+                          ...prev,
+                          [field.key]: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="">Select an agent...</option>
+                      {otherAgents.map((a) => (
+                        <option key={a.id} value={a.id}>{a.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={configValues[field.key] || ""}
+                      onChange={(e) =>
+                        setConfigValues((prev) => ({
+                          ...prev,
+                          [field.key]: e.target.value,
+                        }))
+                      }
+                      placeholder={field.placeholder}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  )}
                 </div>
               ))}
             </div>

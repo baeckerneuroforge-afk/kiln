@@ -118,6 +118,54 @@ export async function GET(
       });
     }
 
+    // Load handoff data for conversations that have agent handoffs
+    const handoffAgentIds = new Set(
+      filtered.filter((c) => c.handoffAgentId).map((c) => c.handoffAgentId!)
+    );
+    const handoffAgents = handoffAgentIds.size > 0
+      ? await prisma.agent.findMany({
+          where: { id: { in: Array.from(handoffAgentIds) } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const handoffAgentMap = new Map(handoffAgents.map((a) => [a.id, a.name]));
+
+    // Load orchestration handoff logs for these conversations
+    const convIds = filtered.map((c) => c.id);
+    const handoffLogs = convIds.length > 0
+      ? await prisma.orchestrationHandoff.findMany({
+          where: { conversationId: { in: convIds } },
+          orderBy: { createdAt: "asc" },
+          select: {
+            conversationId: true,
+            sourceAgentId: true,
+            targetAgentId: true,
+            reason: true,
+            createdAt: true,
+          },
+        })
+      : [];
+
+    // Get source agent names
+    const sourceAgentIds = new Set(handoffLogs.map((h) => h.sourceAgentId));
+    const sourceAgents = sourceAgentIds.size > 0
+      ? await prisma.agent.findMany({
+          where: { id: { in: Array.from(sourceAgentIds) } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const allAgentNames = new Map([
+      ...handoffAgents.map((a) => [a.id, a.name] as [string, string]),
+      ...sourceAgents.map((a) => [a.id, a.name] as [string, string]),
+    ]);
+
+    const handoffsByConv = new Map<string, typeof handoffLogs>();
+    for (const h of handoffLogs) {
+      const arr = handoffsByConv.get(h.conversationId) || [];
+      arr.push(h);
+      handoffsByConv.set(h.conversationId, arr);
+    }
+
     // JSON Response
     const result = filtered.map((c) => ({
       id: c.id,
@@ -129,6 +177,15 @@ export async function GET(
       visitorName: c.visitorName,
       visitorEmail: c.visitorEmail,
       handoffStatus: c.handoffStatus,
+      handoffAgentId: c.handoffAgentId,
+      handoffAgentName: c.handoffAgentId ? handoffAgentMap.get(c.handoffAgentId) || null : null,
+      handoffAt: c.handoffAt,
+      handoffs: (handoffsByConv.get(c.id) || []).map((h) => ({
+        from: allAgentNames.get(h.sourceAgentId) || h.sourceAgentId,
+        to: allAgentNames.get(h.targetAgentId) || h.targetAgentId,
+        reason: h.reason,
+        at: h.createdAt,
+      })),
       messageCount: c._count.messages,
       createdAt: c.createdAt,
       messages: c.messages.map((m) => ({

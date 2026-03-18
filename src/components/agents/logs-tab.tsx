@@ -24,6 +24,13 @@ interface LogMessage {
   createdAt: string;
 }
 
+interface HandoffEntry {
+  from: string;
+  to: string;
+  reason: string;
+  at: string;
+}
+
 interface LogEntry {
   id: string;
   sessionId: string;
@@ -34,6 +41,8 @@ interface LogEntry {
   visitorName: string | null;
   visitorEmail: string | null;
   handoffStatus: string | null;
+  handoffAgentName: string | null;
+  handoffs: HandoffEntry[];
   messageCount: number;
   createdAt: string;
   messages: LogMessage[];
@@ -168,6 +177,7 @@ export function LogsTab({ agentId, onAddTestCase }: LogsTabProps) {
     "BOOK_APPOINTMENT",
     "COLLECT_EMAIL",
     "SCORE_LEAD",
+    "HANDOFF_AGENT",
   ];
 
   const channelOptions = [
@@ -388,6 +398,11 @@ export function LogsTab({ agentId, onAddTestCase }: LogsTabProps) {
                         Replied
                       </span>
                     )}
+                    {log.handoffAgentName && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
+                        {"\u{1F504}"} → {log.handoffAgentName}
+                      </span>
+                    )}
                   </div>
                   <div className="truncate">
                     {log.visitorEmail ? (
@@ -437,6 +452,29 @@ export function LogsTab({ agentId, onAddTestCase }: LogsTabProps) {
                 {/* Expanded Messages */}
                 {isExpanded && log.messages.length > 0 && (
                   <div className="mx-4 mb-3 space-y-2 rounded-lg border border-border/50 bg-background p-3">
+                    {/* Handoff timeline markers */}
+                    {log.handoffs && log.handoffs.length > 0 && (
+                      <div className="space-y-1.5 mb-3 pb-3 border-b border-border/50">
+                        {log.handoffs.map((h, hi) => (
+                          <div key={hi} className="flex items-center gap-2 rounded-lg bg-blue-500/5 border border-blue-500/10 px-3 py-2">
+                            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/10">
+                              <span className="text-[10px]">{"\u{1F504}"}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-medium text-blue-400">
+                                {h.from} → {h.to}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                {h.reason}
+                              </p>
+                            </div>
+                            <span className="text-[10px] text-muted-foreground/50 shrink-0">
+                              {new Date(h.at).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {log.messages.map((msg, i) => {
                       // Nächste Assistant-Nachricht für "Add as test case"
                       const nextAssistant = msg.role === "USER"

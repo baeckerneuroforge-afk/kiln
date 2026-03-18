@@ -14,6 +14,7 @@ import {
   Sparkles,
   X,
   Briefcase,
+  CalendarDays,
   Headphones,
   PenTool,
   ArrowLeft,
@@ -121,6 +122,53 @@ const TEAM_TEMPLATES = [
   { value: "sales", label: "Sales Team" },
   { value: "support", label: "Support Team" },
   { value: "content", label: "Content Team" },
+];
+
+const TEAM_TEMPLATE_SHOWCASE = [
+  {
+    id: "sales-pipeline",
+    label: "Sales Pipeline",
+    description: "Qualifier routes hot leads to Closer and colder leads to Follow-Up.",
+    agents: "3 agents",
+    flow: "Qualifier → Closer / Follow-Up",
+    icon: Briefcase,
+    color: "text-kiln-orange",
+    bg: "bg-kiln-orange/10",
+    border: "border-kiln-orange/25",
+  },
+  {
+    id: "customer-support-tiers",
+    label: "Customer Support Tiers",
+    description: "Tier 1 handles first contact, then deeper support and escalation.",
+    agents: "3 agents",
+    flow: "Tier 1 → Tier 2 → Escalation",
+    icon: Headphones,
+    color: "text-blue-400",
+    bg: "bg-blue-500/10",
+    border: "border-blue-500/25",
+  },
+  {
+    id: "content-creation-pipeline",
+    label: "Content Creation Pipeline",
+    description: "Research, drafting, and editing run as a sequential production line.",
+    agents: "3 agents",
+    flow: "Researcher → Writer → Editor",
+    icon: PenTool,
+    color: "text-emerald-400",
+    bg: "bg-emerald-500/10",
+    border: "border-emerald-500/25",
+  },
+  {
+    id: "lead-qualification-booking",
+    label: "Lead Qualification & Booking",
+    description: "BANT qualification hands off qualified prospects into booking.",
+    agents: "2 agents",
+    flow: "Qualifier → Booker",
+    icon: CalendarDays,
+    color: "text-violet-400",
+    bg: "bg-violet-500/10",
+    border: "border-violet-500/25",
+  },
 ];
 
 /* ---------- Helpers ---------- */
@@ -1572,6 +1620,66 @@ export default function TeamsPage() {
           <Plus className="mr-2 h-4 w-4" />
           Create Team
         </Button>
+      </div>
+
+      <div className="mb-8 rounded-2xl border border-border bg-card/60 p-5">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+              Templates
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Deploy complete multi-agent workflows with industry customization in one flow.
+            </p>
+          </div>
+          <Link
+            href="/dashboard/teams/new"
+            className="inline-flex items-center gap-2 text-sm font-medium text-kiln-orange transition-colors hover:text-kiln-orange/80"
+          >
+            Browse all templates
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-4">
+          {TEAM_TEMPLATE_SHOWCASE.map((template) => {
+            const Icon = template.icon;
+
+            return (
+              <Link
+                key={template.id}
+                href={`/dashboard/teams/new?template=${template.id}`}
+                className={cn(
+                  "rounded-xl border bg-background/60 p-4 transition-all duration-200 hover:bg-background hover:border-foreground/15",
+                  template.border
+                )}
+              >
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div
+                    className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-xl",
+                      template.bg
+                    )}
+                  >
+                    <Icon className={cn("h-4 w-4", template.color)} />
+                  </div>
+                  <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
+                    {template.agents}
+                  </span>
+                </div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  {template.label}
+                </h3>
+                <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
+                  {template.description}
+                </p>
+                <div className="mt-3 rounded-lg border border-border/70 bg-card/70 px-3 py-2 text-[11px] text-foreground/80">
+                  {template.flow}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       {/* Quick Templates */}
