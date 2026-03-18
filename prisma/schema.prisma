@@ -792,17 +792,21 @@ enum AgentTeamStatus {
 
 enum TeamExecutionStatus {
   RUNNING
+  AWAITING_APPROVAL
   COMPLETED
   FAILED
   PARTIAL
+  REJECTED
 }
 
 enum TeamExecutionTaskStatus {
   PENDING
   RUNNING
+  AWAITING_APPROVAL
   COMPLETED
   FAILED
   SKIPPED
+  REJECTED
 }
 
 enum AgentTeamRole {
@@ -810,6 +814,14 @@ enum AgentTeamRole {
   COORDINATOR
   EXECUTOR
   REPORTER
+  APPROVAL_GATE
+}
+
+enum ApprovalRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SKIPPED
 }
 
 model AgentTeam {
@@ -835,14 +847,18 @@ model AgentTeamMember {
   id                 String            @id @default(cuid())
   teamId             String
   team               AgentTeam         @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  agentId            String
-  agent              Agent             @relation("AgentTeamMembers", fields: [agentId], references: [id], onDelete: Cascade)
+  agentId            String?
+  agent              Agent?            @relation("AgentTeamMembers", fields: [agentId], references: [id], onDelete: Cascade)
   role               AgentTeamRole
   level              Int               @default(0) // 0 = top (HEAD), 1 = COORDINATOR, 2 = EXECUTOR/REPORTER
   responsibilities   String?           @db.Text
+  config             Json?
   reportsToMemberId  String?
   reportsTo          AgentTeamMember?  @relation("TeamHierarchy", fields: [reportsToMemberId], references: [id])
   subordinates       AgentTeamMember[] @relation("TeamHierarchy")
+  outputSchema       Json?             // Structured output schema: [{ field, type, description }]
+  enabledActions     String[]          // Scoped actions for team context (empty = all agent actions)
+  approvalRequests   ApprovalRequest[]
   createdAt          DateTime          @default(now())
 
   @@index([teamId])
@@ -882,8 +898,11 @@ model TeamExecution {
   totalTasks     Int                 @default(0)
   completedTasks Int                 @default(0)
   failedTasks    Int                 @default(0)
+  taskPlan       Json?
+  executionContext Json?
 
   logs           TeamExecutionLog[]
+  approvalRequests ApprovalRequest[]
 
   @@index([teamId])
   @@index([userId])
@@ -891,30 +910,55 @@ model TeamExecution {
 }
 
 model TeamExecutionLog {
-  id          String                  @id @default(cuid())
-  teamId      String
-  team        AgentTeam               @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  executionId String
-  execution   TeamExecution           @relation(fields: [executionId], references: [id], onDelete: Cascade)
-  taskId      String?
-  task        AgentTeamTask?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  taskIndex   Int
-  taskTitle   String
-  agentId     String?
-  agent       Agent?                  @relation(fields: [agentId], references: [id], onDelete: SetNull)
-  attempt     Int                     @default(1)
-  status      TeamExecutionTaskStatus @default(PENDING)
-  input       Json?
-  output      String?                 @db.Text
-  startedAt   DateTime?
-  completedAt DateTime?
-  error       String?                 @db.Text
+  id            String                  @id @default(cuid())
+  teamId        String
+  team          AgentTeam               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  executionId   String
+  execution     TeamExecution           @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  taskId        String?
+  task          AgentTeamTask?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  taskIndex     Int
+  taskTitle     String
+  agentId       String?
+  agent         Agent?                  @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  attempt       Int                     @default(1)
+  status        TeamExecutionTaskStatus @default(PENDING)
+  input         Json?
+  output        String?                 @db.Text
+  structuredOutput Json?                // Extracted JSON from agent output
+  tokensIn      Int?                    // Input tokens used
+  tokensOut     Int?                    // Output tokens generated
+  model         String?                 // Model used for this task
+  estimatedCost Float?                  // Cost in USD
+  startedAt     DateTime?
+  completedAt   DateTime?
+  error         String?                 @db.Text
 
   @@index([teamId])
   @@index([executionId])
   @@index([taskId])
   @@index([agentId])
   @@index([executionId, taskIndex])
+}
+
+model ApprovalRequest {
+  id              String                @id @default(cuid())
+  teamExecutionId String
+  teamExecution   TeamExecution         @relation(fields: [teamExecutionId], references: [id], onDelete: Cascade)
+  gateMemberId    String?
+  gateMember      AgentTeamMember?      @relation(fields: [gateMemberId], references: [id], onDelete: SetNull)
+  taskIndex       Int
+  token           String                @unique
+  status          ApprovalRequestStatus @default(PENDING)
+  approverEmail   String
+  requestedAt     DateTime              @default(now())
+  respondedAt     DateTime?
+  respondedBy     String?
+  note            String?               @db.Text
+
+  @@index([teamExecutionId])
+  @@index([gateMemberId])
+  @@index([taskIndex])
 }
 
 // Webhook Execution Log — pipeline execution records

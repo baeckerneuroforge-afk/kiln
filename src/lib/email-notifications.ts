@@ -219,6 +219,60 @@ export async function sendWeeklySummaryEmail(userId: string, stats: {
   await sendEmail(email, subject, html);
 }
 
+export async function sendTeamApprovalRequestEmail(params: {
+  approverEmail: string;
+  teamName: string;
+  goal?: string | null;
+  executionId: string;
+  approvalMessage: string;
+  previousDecision: string;
+  nextStep: string;
+  approveUrl: string;
+  rejectUrl: string;
+  sharedContext?: Record<string, unknown>;
+  timeoutHours?: number;
+}) {
+  if (!params.approverEmail) return;
+
+  const sharedContext = params.sharedContext
+    ? JSON.stringify(params.sharedContext, null, 2)
+    : "{}";
+  const subject = `Approval needed: ${params.teamName}`;
+
+  await sendEmail(
+    params.approverEmail,
+    subject,
+    `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;color:#1a1a1a">
+        <p>A running KILN team needs approval before it can continue.</p>
+        <div style="background:#f5f5f5;border-radius:10px;padding:14px 16px;margin:16px 0;font-size:14px;color:#333">
+          <p style="margin:0"><strong>Team:</strong> ${escapeHtml(params.teamName)}</p>
+          <p style="margin:8px 0 0"><strong>Execution:</strong> ${escapeHtml(params.executionId.slice(0, 8))}</p>
+          ${params.goal ? `<p style="margin:8px 0 0"><strong>Goal:</strong> ${escapeHtml(params.goal)}</p>` : ""}
+          <p style="margin:8px 0 0"><strong>Approval message:</strong> ${escapeHtml(params.approvalMessage)}</p>
+          <p style="margin:8px 0 0"><strong>Previous decision:</strong> ${escapeHtml(params.previousDecision.slice(0, 1500))}</p>
+          <p style="margin:8px 0 0"><strong>What happens next:</strong> ${escapeHtml(params.nextStep)}</p>
+          <p style="margin:8px 0 0"><strong>Timeout:</strong> ${params.timeoutHours || 24} hour(s)</p>
+        </div>
+        <div style="margin:16px 0 20px">
+          <p style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Shared team context</p>
+          <pre style="background:#111827;color:#e5e7eb;border-radius:10px;padding:12px 14px;font-size:12px;overflow:auto;white-space:pre-wrap">${escapeHtml(sharedContext)}</pre>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <a href="${params.approveUrl}" style="display:inline-block;background:#16a34a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600">
+            Approve
+          </a>
+          <a href="${params.rejectUrl}" style="display:inline-block;background:#dc2626;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600">
+            Reject
+          </a>
+        </div>
+        <p style="color:#888;font-size:12px;margin-top:20px">These links open a token-protected approval page.</p>
+        <p style="color:#888;font-size:12px">— The KILN Team</p>
+      </div>
+    `
+  );
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")

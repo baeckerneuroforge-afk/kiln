@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { waitUntil } from "@vercel/functions";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { resolveTimedOutApprovalIfNeeded } from "@/lib/services/team-approval-runtime";
 import {
   executeTeamExecution,
   loadTeamExecutionRuntimeContext,
@@ -18,6 +19,7 @@ function groupExecutionTimeline(
     status: string;
     input: unknown;
     output: string | null;
+    structuredOutput: unknown;
     startedAt: Date | null;
     completedAt: Date | null;
     error: string | null;
@@ -49,6 +51,7 @@ function groupExecutionTimeline(
       status: string;
       input: unknown;
       output: string | null;
+      structuredOutput: unknown;
       error: string | null;
       startedAt: Date | null;
       completedAt: Date | null;
@@ -77,6 +80,7 @@ function groupExecutionTimeline(
       status: log.status,
       input: log.input,
       output: log.output,
+      structuredOutput: log.structuredOutput,
       error: log.error,
       startedAt: log.startedAt,
       completedAt: log.completedAt,
@@ -102,6 +106,41 @@ function groupExecutionTimeline(
     }));
 }
 
+function buildSharedContextTimeline(
+  logs: Array<{
+    taskIndex: number;
+    taskTitle: string;
+    structuredOutput: unknown;
+    startedAt: Date | null;
+    completedAt: Date | null;
+    agent: { id: string; name: string } | null;
+  }>
+) {
+  return logs
+    .flatMap((log) => {
+      const structured =
+        log.structuredOutput &&
+        typeof log.structuredOutput === "object" &&
+        !Array.isArray(log.structuredOutput)
+          ? (log.structuredOutput as Record<string, unknown>)
+          : {};
+
+      return Object.entries(structured).map(([key, value]) => ({
+        key,
+        value,
+        taskIndex: log.taskIndex,
+        taskTitle: log.taskTitle,
+        addedAt: log.completedAt || log.startedAt,
+        addedBy: log.agent?.name || "Approval Gate",
+      }));
+    })
+    .sort((a, b) => {
+      const aTime = a.addedAt ? a.addedAt.getTime() : 0;
+      const bTime = b.addedAt ? b.addedAt.getTime() : 0;
+      return aTime - bTime;
+    });
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string; execId: string } }
@@ -110,6 +149,18 @@ export async function GET(
     const { userId } = await auth();
     if (!userId) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const timeoutResult = await resolveTimedOutApprovalIfNeeded(
+      params.id,
+      params.execId
+    );
+    if (timeoutResult?.resumePromise) {
+      waitUntil(
+        timeoutResult.resumePromise.catch((error) => {
+          console.error("Execution timeout resume failed:", error);
+        })
+      );
     }
 
     const execution = await prisma.teamExecution.findFirst({
@@ -136,6 +187,16 @@ export async function GET(
           },
           orderBy: [{ taskIndex: "asc" }, { attempt: "asc" }],
         },
+        approvalRequests: {
+          include: {
+            gateMember: {
+              include: {
+                agent: { select: { id: true, name: true } },
+              },
+            },
+          },
+          orderBy: { requestedAt: "desc" },
+        },
       },
     });
 
@@ -154,11 +215,34 @@ export async function GET(
         totalTasks: execution.totalTasks,
         completedTasks: execution.completedTasks,
         failedTasks: execution.failedTasks,
+        executionContext:
+          execution.executionContext && typeof execution.executionContext === "object"
+            ? execution.executionContext
+            : {},
         durationMs: execution.completedAt
           ? execution.completedAt.getTime() - execution.startedAt.getTime()
           : null,
       },
       timeline: groupExecutionTimeline(execution.logs),
+      sharedContextTimeline: buildSharedContextTimeline(execution.logs),
+      approvalRequests: execution.approvalRequests.map((request) => ({
+        id: request.id,
+        token: request.token,
+        taskIndex: request.taskIndex,
+        status: request.status,
+        approverEmail: request.approverEmail,
+        requestedAt: request.requestedAt,
+        respondedAt: request.respondedAt,
+        respondedBy: request.respondedBy,
+        note: request.note,
+        gateMember: request.gateMember
+          ? {
+              id: request.gateMember.id,
+              role: request.gateMember.role,
+              name: request.gateMember.agent?.name || "Approval Gate",
+            }
+          : null,
+      })),
     });
   } catch (error) {
     console.error("GET /api/teams/[id]/executions/[execId] error:", error);
@@ -235,6 +319,15 @@ export async function POST(
         userId,
         goal: execution.goal || team.goal || "Re-run failed team tasks",
         totalTasks: failedLogs.length,
+        taskPlan: failedLogs.map((log) => ({
+          id: log.task?.id || log.taskId || `task-${log.taskIndex}`,
+          title: log.task?.title || log.taskTitle,
+          description: log.task?.description || null,
+          priority: log.task?.priority || "MEDIUM",
+          assignedToId: log.task?.assignedToId || null,
+          taskIndex: log.taskIndex,
+        })),
+        executionContext: execution.executionContext || {},
       },
     });
 
@@ -263,6 +356,10 @@ export async function POST(
         goal: execution.goal || team.goal || "Re-run failed team tasks",
         tasks: rerunTasks,
         priorOutputs,
+        executionContext:
+          execution.executionContext && typeof execution.executionContext === "object"
+            ? (execution.executionContext as Record<string, unknown>)
+            : {},
       }).catch((error) => {
         console.error("Background team rerun failed:", error);
       })

@@ -65,7 +65,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { agentId, role, responsibilities, reportsToMemberId, level } = body;
+    const { agentId, role, responsibilities, reportsToMemberId, level, outputSchema, enabledActions } = body;
 
     if (!agentId || !role) {
       return Response.json(
@@ -116,6 +116,8 @@ export async function POST(
         level: level ?? 0,
         responsibilities: responsibilities || null,
         reportsToMemberId: reportsToMemberId || null,
+        outputSchema: outputSchema || undefined,
+        enabledActions: enabledActions || [],
       },
       include: {
         agent: { select: { id: true, name: true, slug: true } },
@@ -150,7 +152,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { memberId, role, responsibilities, reportsToMemberId } = body;
+    const { memberId, role, responsibilities, reportsToMemberId, outputSchema, enabledActions } = body;
 
     if (!memberId) {
       return Response.json({ error: "memberId is required." }, { status: 400 });
@@ -195,6 +197,8 @@ export async function PATCH(
     if (role !== undefined) updateData.role = role;
     if (responsibilities !== undefined) updateData.responsibilities = responsibilities || null;
     if (reportsToMemberId !== undefined) updateData.reportsToMemberId = reportsToMemberId || null;
+    if (outputSchema !== undefined) updateData.outputSchema = outputSchema;
+    if (enabledActions !== undefined) updateData.enabledActions = enabledActions;
 
     const updated = await prisma.agentTeamMember.update({
       where: { id: memberId },

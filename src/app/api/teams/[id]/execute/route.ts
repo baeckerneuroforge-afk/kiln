@@ -48,7 +48,9 @@ export async function POST(
     const memberDescriptions = team.members
       .map(
         (m) =>
-          `- ${m.agent.name} (Role: ${m.role}, ID: ${m.id})${m.responsibilities ? ` — ${m.responsibilities}` : ""}${m.agent.description ? ` | ${m.agent.description}` : ""}`
+          m.role === "APPROVAL_GATE"
+            ? `- Approval Gate (Role: ${m.role}, ID: ${m.id})${m.responsibilities ? ` — ${m.responsibilities}` : ""}. This is a human checkpoint. Assign work here only when execution must pause for approval before continuing.`
+            : `- ${m.agent?.name || "Unnamed agent"} (Role: ${m.role}, ID: ${m.id})${m.responsibilities ? ` — ${m.responsibilities}` : ""}${m.agent?.description ? ` | ${m.agent.description}` : ""}`
       )
       .join("\n");
 
@@ -68,6 +70,10 @@ Respond with a JSON array of tasks. Each task has:
 - "description": Detailed description of what needs to be done
 - "priority": "LOW" | "MEDIUM" | "HIGH" | "URGENT"
 - "assignedToId": The member ID from the list above (or null if unassigned)
+
+Important:
+- Approval Gate members are human checkpoints, not AI agents.
+- Use an Approval Gate task whenever a human must approve the current plan or qualification outcome before downstream execution continues.
 
 Respond ONLY with a valid JSON array, no other text.`,
       messages: [{ role: "user", content: goal }],
@@ -126,6 +132,18 @@ Respond ONLY with a valid JSON array, no other text.`,
         totalTasks: subtasks.length,
         completedTasks: 0,
         failedTasks: 0,
+        taskPlan: subtasks.map((task, taskIndex) => ({
+          id: `planned-${taskIndex}`,
+          title: task.title,
+          description: task.description || null,
+          priority: task.priority || "MEDIUM",
+          assignedToId:
+            task.assignedToId && validMemberIds.has(task.assignedToId)
+              ? task.assignedToId
+              : null,
+          taskIndex,
+        })),
+        executionContext: {},
       },
     });
 
@@ -147,6 +165,20 @@ Respond ONLY with a valid JSON array, no other text.`,
       )
     );
 
+    await prisma.teamExecution.update({
+      where: { id: execution.id },
+      data: {
+        taskPlan: createdTasks.map((task, taskIndex) => ({
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          priority: task.priority,
+          assignedToId: task.assignedToId,
+          taskIndex,
+        })),
+      },
+    });
+
     waitUntil(
       executeTeamExecution({
         executionId: execution.id,
@@ -161,6 +193,7 @@ Respond ONLY with a valid JSON array, no other text.`,
           assignedToId: task.assignedToId,
           taskIndex,
         })),
+        executionContext: {},
       }).catch((error) => {
         console.error("Background team execution failed:", error);
       })

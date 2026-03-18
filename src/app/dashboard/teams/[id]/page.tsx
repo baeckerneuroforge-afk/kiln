@@ -17,6 +17,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
 import { TeamExecutionsTab } from "@/components/teams/executions-tab";
+import { TeamCostDashboard } from "@/components/teams/team-cost-dashboard";
 import { cn } from "@/lib/utils";
 import {
   Users,
@@ -40,6 +41,9 @@ import {
   MessageSquare,
   Zap,
   Info,
+  Coins,
+  AlertCircle,
+  Database,
 } from "lucide-react";
 import {
   PROVIDERS,
@@ -47,6 +51,10 @@ import {
   getModelDef,
   type ProviderKey,
 } from "@/lib/ai";
+import {
+  normalizeApprovalGateConfig,
+  type ApprovalTimeoutAction,
+} from "@/lib/team-approval";
 
 /* ========== Types ========== */
 interface TeamAgent {
@@ -64,16 +72,25 @@ interface TeamAgent {
   triggerConfig?: Record<string, unknown> | null;
 }
 
+interface OutputSchemaField {
+  field: string;
+  type: "string" | "number" | "boolean";
+  description: string;
+}
+
 interface TeamMember {
   id: string;
-  agentId: string;
-  agent: TeamAgent;
-  role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER";
+  agentId?: string | null;
+  agent: TeamAgent | null;
+  role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER" | "APPROVAL_GATE";
   level: number;
   responsibilities?: string;
+  config?: Record<string, unknown> | null;
   reportsToMemberId?: string | null;
-  reportsTo?: { id: string; agent: { id: string; name: string } } | null;
-  subordinates?: { id: string; agent: { id: string; name: string } }[];
+  reportsTo?: { id: string; agent: { id: string; name: string } | null } | null;
+  subordinates?: { id: string; agent: { id: string; name: string } | null }[];
+  outputSchema?: OutputSchemaField[] | null;
+  enabledActions?: string[];
   createdAt: string;
 }
 
@@ -83,7 +100,15 @@ interface TeamTask {
   assignedToId?: string | null;
   title: string;
   description?: string | null;
-  status: "PENDING" | "RUNNING" | "IN_PROGRESS" | "COMPLETED" | "FAILED" | "SKIPPED";
+  status:
+    | "PENDING"
+    | "RUNNING"
+    | "IN_PROGRESS"
+    | "COMPLETED"
+    | "FAILED"
+    | "SKIPPED"
+    | "AWAITING_APPROVAL"
+    | "REJECTED";
   priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   result?: string | null;
   parentTaskId?: string | null;
@@ -110,6 +135,7 @@ const roleColors: Record<string, { bg: string; text: string; border: string; hex
   COORDINATOR: { bg: "bg-blue-500/20", text: "text-blue-400", border: "border-blue-500/40", hex: "#3B82F6" },
   EXECUTOR: { bg: "bg-green-500/20", text: "text-green-400", border: "border-green-500/40", hex: "#22C55E" },
   REPORTER: { bg: "bg-purple-500/20", text: "text-purple-400", border: "border-purple-500/40", hex: "#A855F7" },
+  APPROVAL_GATE: { bg: "bg-amber-500/20", text: "text-amber-300", border: "border-amber-500/40", hex: "#F59E0B" },
 };
 
 const priorityColors: Record<string, { bg: string; text: string }> = {
@@ -119,18 +145,24 @@ const priorityColors: Record<string, { bg: string; text: string }> = {
   URGENT: { bg: "bg-red-500/20", text: "text-red-400" },
 };
 
-const statusColumns = ["PENDING", "RUNNING", "COMPLETED", "FAILED", "SKIPPED"] as const;
+const statusColumns = ["PENDING", "RUNNING", "AWAITING_APPROVAL", "COMPLETED", "FAILED", "REJECTED", "SKIPPED"] as const;
 const statusLabels: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   PENDING: { label: "Pending", icon: <Clock className="h-4 w-4" />, color: "text-zinc-400" },
   RUNNING: { label: "Running", icon: <Loader2 className="h-4 w-4 animate-spin" />, color: "text-blue-400" },
   IN_PROGRESS: { label: "Running", icon: <Loader2 className="h-4 w-4 animate-spin" />, color: "text-blue-400" },
+  AWAITING_APPROVAL: { label: "Awaiting approval", icon: <AlertCircle className="h-4 w-4" />, color: "text-amber-300" },
   COMPLETED: { label: "Completed", icon: <CheckCircle2 className="h-4 w-4" />, color: "text-green-400" },
   FAILED: { label: "Failed", icon: <AlertTriangle className="h-4 w-4" />, color: "text-red-400" },
+  REJECTED: { label: "Rejected", icon: <X className="h-4 w-4" />, color: "text-red-300" },
   SKIPPED: { label: "Skipped", icon: <Info className="h-4 w-4" />, color: "text-zinc-500" },
 };
 
 function normalizeTaskStatus(status: TeamTask["status"]) {
   return status === "IN_PROGRESS" ? "RUNNING" : status;
+}
+
+function getMemberDisplayName(member: TeamMember) {
+  return member.agent?.name || (member.role === "APPROVAL_GATE" ? "Approval Gate" : "Unassigned member");
 }
 
 /* ========== Custom ReactFlow Node ========== */
@@ -142,6 +174,10 @@ type TeamMemberNodeData = {
   taskCount: number;
   llmModel?: string;
   agentMode?: string;
+  enabledActionsCount?: number;
+  hasOutputSchema?: boolean;
+  sharedContextCount?: number;
+  sharedContextPreview?: string[];
   [key: string]: unknown;
 };
 
@@ -184,25 +220,54 @@ function TeamMemberNode({ data }: NodeProps<Node<TeamMemberNodeData>>) {
       )}
 
       {/* Agent mode badge */}
-      {data.agentMode && (
-        <div className="mt-2">
+      <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+        {data.agentMode && (
           <span
             className={cn(
               "inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full",
+              data.agentMode === "APPROVAL"
+                ? "bg-amber-500/15 text-amber-300"
+                :
               data.agentMode === "CHAT"
                 ? "bg-blue-500/15 text-blue-400"
                 : "bg-green-500/15 text-green-400"
             )}
           >
-            {data.agentMode === "CHAT" ? (
+            {data.agentMode === "APPROVAL" ? (
+              <AlertCircle className="h-2.5 w-2.5" />
+            ) : data.agentMode === "CHAT" ? (
               <MessageSquare className="h-2.5 w-2.5" />
             ) : (
               <Zap className="h-2.5 w-2.5" />
             )}
-            {data.agentMode === "CHAT" ? "Chat" : "Task"}
+            {data.agentMode === "APPROVAL"
+              ? "Approval"
+              : data.agentMode === "CHAT"
+                ? "Chat"
+                : "Task"}
           </span>
-        </div>
-      )}
+        )}
+        {typeof data.enabledActionsCount === "number" && data.enabledActionsCount > 0 && (
+          <span className="inline-flex items-center gap-0.5 text-[9px] bg-orange-500/10 text-orange-400 px-1.5 py-0.5 rounded-full">
+            <Zap className="h-2 w-2" />
+            {data.enabledActionsCount}
+          </span>
+        )}
+        {data.hasOutputSchema && (
+          <span className="inline-flex items-center text-[9px] bg-violet-500/10 text-violet-400 px-1.5 py-0.5 rounded-full">
+            JSON
+          </span>
+        )}
+        {typeof data.sharedContextCount === "number" && data.sharedContextCount > 0 && (
+          <span
+            title={(data.sharedContextPreview || []).join(", ")}
+            className="inline-flex items-center gap-1 text-[9px] bg-amber-500/10 text-amber-300 px-1.5 py-0.5 rounded-full"
+          >
+            <Database className="h-2.5 w-2.5" />
+            {data.sharedContextCount}
+          </span>
+        )}
+      </div>
 
       <Handle type="source" position={Position.Bottom} className="!bg-zinc-600 !w-2 !h-2" />
     </div>
@@ -212,7 +277,11 @@ function TeamMemberNode({ data }: NodeProps<Node<TeamMemberNodeData>>) {
 const nodeTypes = { teamMember: TeamMemberNode };
 
 /* ========== Tree layout helper ========== */
-function buildHierarchyGraph(members: TeamMember[], tasks: TeamTask[]) {
+function buildHierarchyGraph(
+  members: TeamMember[],
+  tasks: TeamTask[],
+  sharedContextKeys: string[] = []
+) {
   // Count tasks per member
   const taskCounts: Record<string, number> = {};
   tasks.forEach((t) => {
@@ -230,7 +299,13 @@ function buildHierarchyGraph(members: TeamMember[], tasks: TeamTask[]) {
   });
 
   // Alternatively, use role-based Y if levels are all 0
-  const roleYMap: Record<string, number> = { HEAD: 0, COORDINATOR: 200, EXECUTOR: 400, REPORTER: 600 };
+  const roleYMap: Record<string, number> = {
+    HEAD: 0,
+    COORDINATOR: 200,
+    APPROVAL_GATE: 300,
+    EXECUTOR: 400,
+    REPORTER: 600,
+  };
   const allSameLevel = members.length > 1 && members.every((m) => m.level === members[0].level);
 
   // Build parent -> children map for horizontal positioning
@@ -310,13 +385,17 @@ function buildHierarchyGraph(members: TeamMember[], tasks: TeamTask[]) {
     type: "teamMember",
     position: positions[m.id] || { x: 0, y: 0 },
     data: {
-      label: m.agent.name,
+      label: getMemberDisplayName(m),
       role: m.role,
-      agentName: m.agent.name,
+      agentName: getMemberDisplayName(m),
       responsibilities: m.responsibilities || "",
       taskCount: taskCounts[m.id] || 0,
-      llmModel: m.agent.llmModel || undefined,
-      agentMode: m.agent.agentMode || undefined,
+      llmModel: m.agent?.llmModel || undefined,
+      agentMode: m.role === "APPROVAL_GATE" ? "APPROVAL" : (m.agent?.agentMode || undefined),
+      enabledActionsCount: m.enabledActions?.length || 0,
+      hasOutputSchema: Array.isArray(m.outputSchema) && m.outputSchema.length > 0,
+      sharedContextCount: sharedContextKeys.length,
+      sharedContextPreview: sharedContextKeys.slice(0, 4),
     },
   }));
 
@@ -334,13 +413,14 @@ function buildHierarchyGraph(members: TeamMember[], tasks: TeamTask[]) {
 }
 
 /* ========== Tabs ========== */
-type TabKey = "hierarchy" | "tasks" | "activity" | "analytics" | "executions";
+type TabKey = "hierarchy" | "tasks" | "activity" | "analytics" | "cost" | "executions";
 
 const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "hierarchy", label: "Hierarchy", icon: <Users className="h-4 w-4" /> },
   { key: "tasks", label: "Tasks", icon: <Target className="h-4 w-4" /> },
   { key: "activity", label: "Activity", icon: <Activity className="h-4 w-4" /> },
   { key: "analytics", label: "Analytics", icon: <BarChart3 className="h-4 w-4" /> },
+  { key: "cost", label: "Cost", icon: <Coins className="h-4 w-4" /> },
   { key: "executions", label: "Executions", icon: <Clock className="h-4 w-4" /> },
 ];
 
@@ -362,7 +442,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
 
   // Editable fields
   const [agentName, setAgentName] = useState("");
-  const [role, setRole] = useState<"HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER">("EXECUTOR");
+  const [role, setRole] = useState<"HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER" | "APPROVAL_GATE">("EXECUTOR");
   const [responsibilities, setResponsibilities] = useState("");
   const [reportsToMemberId, setReportsToMemberId] = useState<string>("");
   const [provider, setProvider] = useState<ProviderKey>("ANTHROPIC");
@@ -370,22 +450,58 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
   const [systemPrompt, setSystemPrompt] = useState("");
   const [triggerType, setTriggerType] = useState("");
   const [outputType, setOutputType] = useState("");
+  const [approverEmail, setApproverEmail] = useState("");
+  const [approvalMessage, setApprovalMessage] = useState("");
+  const [timeoutHours, setTimeoutHours] = useState(24);
+  const [timeoutAction, setTimeoutAction] = useState<ApprovalTimeoutAction>("skip");
+
+  // Output schema
+  const [schemaFields, setSchemaFields] = useState<OutputSchemaField[]>([]);
+
+  // Tool scoping
+  const [agentActions, setAgentActions] = useState<string[]>([]);
+  const [enabledActions, setEnabledActions] = useState<string[]>([]);
 
   // Fetch full agent data when member changes
   useEffect(() => {
     if (!member) return;
 
     // Seed form from member data immediately
-    setAgentName(member.agent.name);
+    setAgentName(getMemberDisplayName(member));
     setRole(member.role);
     setResponsibilities(member.responsibilities || "");
     setReportsToMemberId(member.reportsToMemberId || "");
-    setProvider((member.agent.modelProvider as ProviderKey) || "ANTHROPIC");
-    setLlmModel(member.agent.llmModel || "");
-    setSystemPrompt(member.agent.systemPrompt || "");
-    setTriggerType(member.agent.triggerType || "");
-    setOutputType(member.agent.outputType || "");
+    setProvider((member.agent?.modelProvider as ProviderKey) || "ANTHROPIC");
+    setLlmModel(member.agent?.llmModel || "");
+    setSystemPrompt(member.agent?.systemPrompt || "");
+    setTriggerType(member.agent?.triggerType || "");
+    setOutputType(member.agent?.outputType || "");
+    setSchemaFields((member.outputSchema as OutputSchemaField[]) || []);
+    setEnabledActions(member.enabledActions || []);
+    const gateConfig = normalizeApprovalGateConfig(member.config, "");
+    setApproverEmail(gateConfig.approverEmail);
+    setApprovalMessage(gateConfig.approvalMessage);
+    setTimeoutHours(gateConfig.timeoutHours);
+    setTimeoutAction(gateConfig.timeoutAction);
     setConfirmRemove(false);
+
+    if (member.role === "APPROVAL_GATE" || !member.agentId) {
+      setAgentActions([]);
+      setAgentData(null);
+      setLoadingAgent(false);
+      return;
+    }
+
+    // Load agent's available actions for tool scoping
+    fetch(`/api/agents/${member.agentId}/actions`)
+      .then((r) => r.json())
+      .then((data) => {
+        const actions = (Array.isArray(data) ? data : data.actions || [])
+          .filter((a: { enabled: boolean }) => a.enabled)
+          .map((a: { type: string }) => a.type);
+        setAgentActions(actions);
+      })
+      .catch(() => setAgentActions([]));
 
     // Fetch full agent to get systemPrompt + mode
     setLoadingAgent(true);
@@ -418,21 +534,22 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
     if (!member || saving) return;
     setSaving(true);
     try {
-      // 1. Update agent fields
-      await fetch(`/api/agents/${member.agentId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: agentName.trim(),
-          systemPrompt: systemPrompt.trim(),
-          llmModel: llmModel || undefined,
-          modelProvider: provider,
-          triggerType: triggerType || undefined,
-          outputType: outputType || undefined,
-        }),
-      });
+      if (role !== "APPROVAL_GATE" && member.agentId) {
+        await fetch(`/api/agents/${member.agentId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: agentName.trim(),
+            systemPrompt: systemPrompt.trim(),
+            llmModel: llmModel || undefined,
+            modelProvider: provider,
+            triggerType: triggerType || undefined,
+            outputType: outputType || undefined,
+          }),
+        });
+      }
 
-      // 2. Update member fields (role, responsibilities, reportsTo)
+      // 2. Update member fields (role, responsibilities, reportsTo, schema, tools)
       await fetch(`/api/teams/${teamId}/members`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -441,6 +558,17 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
           role,
           responsibilities: responsibilities.trim() || undefined,
           reportsToMemberId: reportsToMemberId || null,
+          outputSchema: schemaFields.length > 0 ? schemaFields : null,
+          enabledActions,
+          config:
+            role === "APPROVAL_GATE"
+              ? {
+                  approverEmail: approverEmail.trim(),
+                  approvalMessage: approvalMessage.trim(),
+                  timeoutHours,
+                  timeoutAction,
+                }
+              : null,
         }),
       });
 
@@ -467,7 +595,10 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
     }
   };
 
-  const agentMode = agentData?.agentMode || member?.agent.agentMode;
+  const agentMode =
+    role === "APPROVAL_GATE"
+      ? "APPROVAL"
+      : (agentData?.agentMode || member?.agent?.agentMode);
   const rc = member ? (roleColors[member.role] || roleColors.EXECUTOR) : roleColors.EXECUTOR;
 
   return (
@@ -537,6 +668,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                     <option value="COORDINATOR">COORDINATOR</option>
                     <option value="EXECUTOR">EXECUTOR</option>
                     <option value="REPORTER">REPORTER</option>
+                    <option value="APPROVAL_GATE">APPROVAL_GATE</option>
                   </select>
                   <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
                 </div>
@@ -550,17 +682,26 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                     <span
                       className={cn(
                         "inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full",
+                        agentMode === "APPROVAL"
+                          ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                          :
                         agentMode === "CHAT"
                           ? "bg-blue-500/15 text-blue-400 border border-blue-500/30"
                           : "bg-green-500/15 text-green-400 border border-green-500/30"
                       )}
                     >
-                      {agentMode === "CHAT" ? (
+                      {agentMode === "APPROVAL" ? (
+                        <AlertCircle className="h-3 w-3" />
+                      ) : agentMode === "CHAT" ? (
                         <MessageSquare className="h-3 w-3" />
                       ) : (
                         <Zap className="h-3 w-3" />
                       )}
-                      {agentMode === "CHAT" ? "Chat Agent" : "Task Agent"}
+                      {agentMode === "APPROVAL"
+                        ? "Approval Gate"
+                        : agentMode === "CHAT"
+                          ? "Chat Agent"
+                          : "Task Agent"}
                     </span>
                   </div>
                 </div>
@@ -614,6 +755,53 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                 />
               </div>
 
+              {role === "APPROVAL_GATE" && (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-zinc-400">Approver Email</label>
+                    <input
+                      value={approverEmail}
+                      onChange={(e) => setApproverEmail(e.target.value)}
+                      placeholder="approver@example.com"
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-600"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-zinc-400">Approval Message</label>
+                    <textarea
+                      value={approvalMessage}
+                      onChange={(e) => setApprovalMessage(e.target.value)}
+                      rows={3}
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-zinc-600"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-zinc-400">Timeout Hours</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={timeoutHours}
+                        onChange={(e) => setTimeoutHours(Math.max(1, Number(e.target.value) || 24))}
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium text-zinc-400">Timeout Action</label>
+                      <select
+                        value={timeoutAction}
+                        onChange={(e) => setTimeoutAction(e.target.value as ApprovalTimeoutAction)}
+                        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors"
+                      >
+                        <option value="auto_approve">Auto approve</option>
+                        <option value="auto_reject">Auto reject</option>
+                        <option value="skip">Skip gate</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+
               {/* System prompt */}
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-zinc-400">System Prompt</label>
@@ -640,7 +828,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                       .filter((m) => m.id !== member.id)
                       .map((m) => (
                         <option key={m.id} value={m.id}>
-                          {m.agent.name} ({m.role})
+                          {getMemberDisplayName(m)} ({m.role})
                         </option>
                       ))}
                   </select>
@@ -688,6 +876,138 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                     </div>
                   </div>
                 </>
+              )}
+
+              {/* ── Output Schema (Structured Routing) ── */}
+              <div className="space-y-1.5 border-t border-zinc-800 pt-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-zinc-400">Output Schema</label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSchemaFields((prev) => [...prev, { field: "", type: "string", description: "" }])
+                    }
+                    className="text-[10px] font-medium text-orange-400 hover:text-orange-300"
+                  >
+                    + Add Field
+                  </button>
+                </div>
+                <p className="text-[10px] text-zinc-500">Define structured output fields for JSON routing between agents.</p>
+
+                {schemaFields.length > 0 && (
+                  <div className="space-y-2 mt-2">
+                    {schemaFields.map((sf, i) => (
+                      <div key={i} className="flex gap-1.5 items-start">
+                        <input
+                          value={sf.field}
+                          onChange={(e) => {
+                            const updated = [...schemaFields];
+                            updated[i] = { ...updated[i], field: e.target.value };
+                            setSchemaFields(updated);
+                          }}
+                          placeholder="field_name"
+                          className="flex-1 bg-zinc-800 border border-zinc-700 rounded-md text-xs text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60 font-mono"
+                        />
+                        <select
+                          value={sf.type}
+                          onChange={(e) => {
+                            const updated = [...schemaFields];
+                            updated[i] = { ...updated[i], type: e.target.value as OutputSchemaField["type"] };
+                            setSchemaFields(updated);
+                          }}
+                          className="w-20 appearance-none bg-zinc-800 border border-zinc-700 rounded-md text-xs text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60"
+                        >
+                          <option value="string">string</option>
+                          <option value="number">number</option>
+                          <option value="boolean">bool</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => setSchemaFields((prev) => prev.filter((_, idx) => idx !== i))}
+                          className="text-zinc-600 hover:text-red-400 mt-1"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {schemaFields.length > 0 && (
+                  <div className="mt-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-2">
+                    <p className="text-[9px] font-medium text-zinc-500 mb-1">Preview</p>
+                    <pre className="text-[10px] font-mono text-zinc-400 overflow-x-auto">
+                      {JSON.stringify(
+                        Object.fromEntries(
+                          schemaFields
+                            .filter((f) => f.field)
+                            .map((f) => [f.field, f.type === "number" ? 0 : f.type === "boolean" ? false : ""])
+                        ),
+                        null,
+                        2
+                      )}
+                    </pre>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Tool Scoping ── */}
+              {agentActions.length > 0 && (
+                <div className="space-y-1.5 border-t border-zinc-800 pt-4">
+                  <label className="text-xs font-medium text-zinc-400">Active Tools</label>
+                  <p className="text-[10px] text-zinc-500">
+                    Select which tools this agent can use during team execution.
+                    {enabledActions.length === 0 && " (All tools active)"}
+                  </p>
+
+                  {agentActions.length > 6 && (
+                    <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-1.5 mt-1">
+                      <AlertCircle className="h-3 w-3 text-amber-400 shrink-0" />
+                      <p className="text-[10px] text-amber-400">
+                        {agentActions.length} tools active — consider reducing for better reliability
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="space-y-1 mt-2">
+                    {agentActions.map((action) => {
+                      const isActive = enabledActions.length === 0 || enabledActions.includes(action);
+                      return (
+                        <label
+                          key={action}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer transition-colors",
+                            isActive
+                              ? "border-orange-500/30 bg-orange-500/5"
+                              : "border-zinc-800 bg-zinc-900/30 opacity-60"
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isActive}
+                            onChange={() => {
+                              if (enabledActions.length === 0) {
+                                // First toggle: enable all except this one
+                                setEnabledActions(agentActions.filter((a) => a !== action));
+                              } else if (enabledActions.includes(action)) {
+                                const next = enabledActions.filter((a) => a !== action);
+                                setEnabledActions(next.length === 0 ? [] : next);
+                              } else {
+                                const next = [...enabledActions, action];
+                                // If all are selected, reset to empty (= all)
+                                setEnabledActions(next.length === agentActions.length ? [] : next);
+                              }
+                            }}
+                            className="rounded border-zinc-600 bg-zinc-800 text-orange-500 focus:ring-orange-500/50 h-3 w-3"
+                          />
+                          <span className="text-xs text-zinc-300">
+                            {action.replace(/_/g, " ")}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </>
           )}
@@ -752,13 +1072,17 @@ interface AddMemberModalProps {
 
 function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModalProps) {
   const [agentName, setAgentName] = useState("");
-  const [role, setRole] = useState<"HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER">("EXECUTOR");
+  const [role, setRole] = useState<"HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER" | "APPROVAL_GATE">("EXECUTOR");
   const [agentMode, setAgentMode] = useState<"CHAT" | "TASK">("CHAT");
   const [provider, setProvider] = useState<ProviderKey>("ANTHROPIC");
   const [llmModel, setLlmModel] = useState("claude-sonnet-4-20250514");
   const [systemPrompt, setSystemPrompt] = useState("");
   const [reportsToMemberId, setReportsToMemberId] = useState("");
   const [responsibilities, setResponsibilities] = useState("");
+  const [approverEmail, setApproverEmail] = useState("");
+  const [approvalMessage, setApprovalMessage] = useState("");
+  const [timeoutHours, setTimeoutHours] = useState(24);
+  const [timeoutAction, setTimeoutAction] = useState<ApprovalTimeoutAction>("skip");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -771,40 +1095,53 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
   };
 
   const handleCreate = async () => {
-    if (!agentName.trim() || !systemPrompt.trim() || creating) return;
+    if (!agentName.trim() || creating) return;
+    if (role !== "APPROVAL_GATE" && !systemPrompt.trim()) return;
     setCreating(true);
     setError(null);
     try {
-      // 1. Create agent
-      const slug = agentName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now();
-      const agentRes = await fetch("/api/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: agentName.trim(),
-          slug,
-          systemPrompt: systemPrompt.trim(),
-          llmModel,
-          modelProvider: provider,
-          agentMode,
-        }),
-      });
-      if (!agentRes.ok) {
-        const d = await agentRes.json().catch(() => ({}));
-        throw new Error(d.error || "Failed to create agent");
+      let agent: { id: string } | null = null;
+      if (role !== "APPROVAL_GATE") {
+        const slug = agentName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now();
+        const agentRes = await fetch("/api/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: agentName.trim(),
+            slug,
+            systemPrompt: systemPrompt.trim(),
+            llmModel,
+            modelProvider: provider,
+            agentMode,
+          }),
+        });
+        if (!agentRes.ok) {
+          const d = await agentRes.json().catch(() => ({}));
+          throw new Error(d.error || "Failed to create agent");
+        }
+        agent = await agentRes.json();
       }
-      const agent = await agentRes.json();
 
       // 2. Add as team member
       const memberRes = await fetch(`/api/teams/${teamId}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          agentId: agent.id,
+          agentId: agent?.id,
+          name: role === "APPROVAL_GATE" ? agentName.trim() : undefined,
           role,
           responsibilities: responsibilities.trim() || undefined,
           reportsToMemberId: reportsToMemberId || undefined,
           level: 0,
+          config:
+            role === "APPROVAL_GATE"
+              ? {
+                  approverEmail: approverEmail.trim(),
+                  approvalMessage: approvalMessage.trim(),
+                  timeoutHours,
+                  timeoutAction,
+                }
+              : undefined,
         }),
       });
       if (!memberRes.ok) {
@@ -861,6 +1198,7 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
                 <option value="COORDINATOR">COORDINATOR</option>
                 <option value="EXECUTOR">EXECUTOR</option>
                 <option value="REPORTER">REPORTER</option>
+                <option value="APPROVAL_GATE">APPROVAL_GATE</option>
               </select>
               <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
             </div>
@@ -950,6 +1288,53 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
             />
           </div>
 
+          {role === "APPROVAL_GATE" && (
+            <>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-400">Approver Email</label>
+                <input
+                  value={approverEmail}
+                  onChange={(e) => setApproverEmail(e.target.value)}
+                  placeholder="approver@example.com"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-600"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-zinc-400">Approval Message</label>
+                <textarea
+                  value={approvalMessage}
+                  onChange={(e) => setApprovalMessage(e.target.value)}
+                  rows={3}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-zinc-400">Timeout Hours</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={timeoutHours}
+                    onChange={(e) => setTimeoutHours(Math.max(1, Number(e.target.value) || 24))}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-zinc-400">Timeout Action</label>
+                  <select
+                    value={timeoutAction}
+                    onChange={(e) => setTimeoutAction(e.target.value as ApprovalTimeoutAction)}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors"
+                  >
+                    <option value="auto_approve">Auto approve</option>
+                    <option value="auto_reject">Auto reject</option>
+                    <option value="skip">Skip gate</option>
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Reports to */}
           {allMembers.length > 0 && (
             <div className="space-y-1.5">
@@ -963,7 +1348,7 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
                   <option value="">— None (root) —</option>
                   {allMembers.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.agent.name} ({m.role})
+                      {getMemberDisplayName(m)} ({m.role})
                     </option>
                   ))}
                 </select>
@@ -987,7 +1372,7 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
           <Button
             size="sm"
             onClick={handleCreate}
-            disabled={creating || !agentName.trim() || !systemPrompt.trim()}
+            disabled={creating || !agentName.trim() || (role !== "APPROVAL_GATE" && !systemPrompt.trim())}
             className="bg-orange-600 hover:bg-orange-700 text-white min-w-[100px]"
           >
             {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
@@ -1010,6 +1395,7 @@ function TeamDetailInner() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>("hierarchy");
   const [focusedExecutionId, setFocusedExecutionId] = useState<string | null>(null);
+  const [sharedContextPreview, setSharedContextPreview] = useState<Record<string, unknown>>({});
 
   // Inline name editing
   const [editingName, setEditingName] = useState(false);
@@ -1171,7 +1557,7 @@ function TeamDetailInner() {
   const chatModeWarning = useMemo(() => {
     if (!team) return false;
     return team.members.some((m) => {
-      const mode = m.agent.agentMode;
+      const mode = m.agent?.agentMode;
       const role = m.role;
       // HEAD, COORDINATOR, REPORTER should always be Task
       if ((role === "HEAD" || role === "COORDINATOR" || role === "REPORTER") && mode === "CHAT") return true;
@@ -1185,7 +1571,10 @@ function TeamDetailInner() {
     setConvertingToTask(true);
     try {
       const toConvert = team.members.filter(
-        (m) => (m.role === "HEAD" || m.role === "COORDINATOR" || m.role === "REPORTER") && m.agent.agentMode === "CHAT"
+        (m) =>
+          (m.role === "HEAD" || m.role === "COORDINATOR" || m.role === "REPORTER") &&
+          m.agent?.agentMode === "CHAT" &&
+          m.agentId
       );
       await Promise.all(
         toConvert.map((m) =>
@@ -1231,8 +1620,8 @@ function TeamDetailInner() {
   /* Hierarchy graph */
   const { nodes, edges } = useMemo(() => {
     if (!team) return { nodes: [], edges: [] };
-    return buildHierarchyGraph(team.members, team.tasks);
-  }, [team]);
+    return buildHierarchyGraph(team.members, team.tasks, Object.keys(sharedContextPreview));
+  }, [sharedContextPreview, team]);
 
   /* Derived analytics */
   const analytics = useMemo(() => {
@@ -1257,7 +1646,7 @@ function TeamDetailInner() {
   const activityFeed = useMemo(() => {
     if (!team) return [];
     const items: { id: string; timestamp: string; description: string; memberName: string }[] = [];
-    const memberMap = new Map(team.members.map((m) => [m.id, m.agent.name]));
+    const memberMap = new Map(team.members.map((m) => [m.id, getMemberDisplayName(m)]));
 
     team.tasks.forEach((t) => {
       const normalizedStatus = normalizeTaskStatus(t.status);
@@ -1479,6 +1868,27 @@ function TeamDetailInner() {
                 </Button>
               </div>
             )}
+            {Object.keys(sharedContextPreview).length > 0 && (
+              <div className="mx-4 mt-3 flex items-start gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 shrink-0">
+                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/10">
+                  <Database className="h-4 w-4 text-amber-300" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-[0.14em] text-amber-200/80">
+                    Shared Memory
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-200">
+                    {Object.keys(sharedContextPreview).length} context field(s) currently flow between team members.
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    {Object.entries(sharedContextPreview)
+                      .slice(0, 4)
+                      .map(([key, value]) => `${key}: ${String(value)}`)
+                      .join(" · ")}
+                  </p>
+                </div>
+              </div>
+            )}
             {team.members.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-4 py-16">
                 <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-orange-500/10">
@@ -1623,7 +2033,7 @@ function TeamDetailInner() {
               {statusColumns.map((status) => {
                 const col = statusLabels[status];
                 const colTasks = team.tasks.filter((t) => normalizeTaskStatus(t.status) === status);
-                const memberMap = new Map(team.members.map((m) => [m.id, m.agent.name]));
+                const memberMap = new Map(team.members.map((m) => [m.id, getMemberDisplayName(m)]));
 
                 return (
                   <div key={status} className="flex flex-col">
@@ -1734,6 +2144,12 @@ function TeamDetailInner() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {activeTab === "cost" && (
+          <div className="p-6 h-full overflow-auto">
+            <TeamCostDashboard teamId={teamId} />
           </div>
         )}
 
