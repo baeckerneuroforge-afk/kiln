@@ -188,15 +188,35 @@ export async function sendAppointmentConfirmationEmails(params: {
 }
 
 /**
- * Weekly summary email with key stats. (Stub — implementation coming later)
+ * Weekly summary email with key stats + KB gap analysis.
+ * Called from /api/cron/weekly-report — see weekly-kb-report.ts for full implementation.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function sendWeeklySummaryEmail(userId: string, stats: {
   totalConversations: number;
   newLeads: number;
   topAgent: string | null;
 }) {
-  // TODO: Implement weekly summary email
+  const email = await getNotifiableEmail(userId);
+  if (!email) return;
+
+  const subject = `Weekly Report — ${stats.totalConversations} conversations, ${stats.newLeads} leads`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln.hephaistos-systems.de";
+
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:480px;color:#1a1a1a">
+      <p>Your weekly summary is ready.</p>
+      <div style="background:#f5f5f5;border-radius:8px;padding:12px 16px;margin:16px 0;font-size:14px;color:#333">
+        <p style="margin:0"><strong>Conversations:</strong> ${stats.totalConversations}</p>
+        <p style="margin:4px 0 0"><strong>Leads:</strong> ${stats.newLeads}</p>
+        ${stats.topAgent ? `<p style="margin:4px 0 0"><strong>Top Agent:</strong> ${escapeHtml(stats.topAgent)}</p>` : ""}
+      </div>
+      <a href="${appUrl}/dashboard" style="display:inline-block;background:#F97316;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500">
+        View Dashboard
+      </a>
+      <p style="color:#888;font-size:12px;margin-top:24px">— The KILN Team</p>
+    </div>`;
+
+  await sendEmail(email, subject, html);
 }
 
 function escapeHtml(str: string): string {

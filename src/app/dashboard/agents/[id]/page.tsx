@@ -41,6 +41,8 @@ import {
   Users,
   Store,
   Download,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -106,6 +108,11 @@ interface Agent {
   _count: { conversations: number };
 }
 
+type ProactiveRule = {
+  match: string;
+  message: string;
+};
+
 type Tab = "config" | "knowledge" | "actions" | "analytics" | "eval" | "embed" | "channels" | "integrations" | "tools" | "debug" | "logs" | "memory" | "automations" | "versions" | "testing" | "testlab" | "webhooks" | "runs";
 
 const chatBaseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
@@ -140,6 +147,46 @@ const statusOptions = [
 
 const fullWidthTabs: Tab[] = ["analytics", "eval", "tools", "logs", "memory", "automations", "versions", "testing", "testlab", "runs"];
 
+function normalizeProactiveRules(input: unknown): ProactiveRule[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+      const record = entry as Record<string, unknown>;
+      const match = typeof record.match === "string" ? record.match.trim() : "";
+      const message = typeof record.message === "string" ? record.message.trim() : "";
+      if (!match || !message) return null;
+      return { match, message };
+    })
+    .filter((entry): entry is ProactiveRule => Boolean(entry));
+}
+
+function getProactiveSettings(whiteLabel: Record<string, unknown> | null | undefined) {
+  const proactive =
+    whiteLabel &&
+    typeof whiteLabel === "object" &&
+    whiteLabel.proactive &&
+    typeof whiteLabel.proactive === "object"
+      ? (whiteLabel.proactive as Record<string, unknown>)
+      : null;
+
+  const delay =
+    typeof proactive?.delay === "number" && Number.isFinite(proactive.delay)
+      ? Math.max(0, Math.round(proactive.delay))
+      : 15;
+
+  return {
+    enabled: proactive?.enabled !== false,
+    delay,
+    rules: normalizeProactiveRules(proactive?.rules),
+  };
+}
+
+function encodeRulesForAttribute(rules: ProactiveRule[]) {
+  return JSON.stringify(rules).replace(/'/g, "&apos;");
+}
+
 export default function AgentDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -169,6 +216,9 @@ export default function AgentDetailPage() {
   const [agentType, setAgentType] = useState<"PUBLIC" | "INTERNAL">("PUBLIC");
   const [promptBranches, setPromptBranches] = useState<{ name: string; keywords: string[]; promptSnippet: string; enabled: boolean }[]>([]);
   const [customDomain, setCustomDomain] = useState("");
+  const [proactiveEnabled, setProactiveEnabled] = useState(true);
+  const [proactiveDelay, setProactiveDelay] = useState(15);
+  const [proactiveRules, setProactiveRules] = useState<ProactiveRule[]>([]);
   const [domainVerified, setDomainVerified] = useState<boolean | null>(null);
   const [domainMessage, setDomainMessage] = useState("");
   const [verifyingDomain, setVerifyingDomain] = useState(false);
@@ -217,9 +267,13 @@ export default function AgentDetailPage() {
         setAgentType(data.agentType || "PUBLIC");
         setPromptBranches(Array.isArray(data.promptBranches) ? data.promptBranches : []);
         setCustomDomain(data.customDomain || "");
-        const wl = (data.whiteLabel || {}) as Record<string, string>;
-        setPrimaryColor(wl.primaryColor || "#F97316");
-        setLogoUrl(wl.logo || "");
+        const wl = (data.whiteLabel || {}) as Record<string, unknown>;
+        const proactive = getProactiveSettings(wl);
+        setPrimaryColor(typeof wl.primaryColor === "string" ? wl.primaryColor : "#F97316");
+        setLogoUrl(typeof wl.logo === "string" ? wl.logo : "");
+        setProactiveEnabled(proactive.enabled);
+        setProactiveDelay(proactive.delay);
+        setProactiveRules(proactive.rules);
       })
       .catch(() => router.push("/dashboard/agents"))
       .finally(() => setLoading(false));
@@ -236,6 +290,7 @@ export default function AgentDetailPage() {
     if (!agent) return;
     setSaving(true);
     try {
+      const existingWhiteLabel = (agent.whiteLabel || {}) as Record<string, unknown>;
       const res = await fetch(`/api/agents/${agent.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -255,9 +310,18 @@ export default function AgentDetailPage() {
           promptBranches: promptBranches.length > 0 ? promptBranches : null,
           customDomain: customDomain.trim() || null,
           whiteLabel: {
+            ...existingWhiteLabel,
             primaryColor,
             logo: logoUrl || null,
-            position: "bottom-right",
+            position:
+              typeof existingWhiteLabel.position === "string"
+                ? existingWhiteLabel.position
+                : "bottom-right",
+            proactive: {
+              enabled: proactiveEnabled,
+              delay: proactiveEnabled ? Math.max(0, proactiveDelay) : 0,
+              rules: proactiveRules,
+            },
           },
         }),
       });
@@ -342,10 +406,29 @@ export default function AgentDetailPage() {
   const [copiedWidget, setCopiedWidget] = useState(false);
   const [copiedIframe, setCopiedIframe] = useState(false);
 
+  function buildWidgetCodeSnippet(host: string) {
+    if (!agent) return "";
+
+    const lines = [
+      "<script",
+      `  src="${host}/api/embed/widget.js"`,
+      `  data-agent-id="${agent.id}"`,
+      `  data-proactive-delay="${proactiveEnabled ? Math.max(0, proactiveDelay) : 0}"`,
+    ];
+
+    if (proactiveRules.length > 0) {
+      lines.push(`  data-proactive-rules='${encodeRulesForAttribute(proactiveRules)}'`);
+    }
+
+    lines.push("  async", "></script>");
+
+    return lines.join("\n");
+  }
+
   function copyWidgetCode() {
     if (!agent) return;
     const host = typeof window !== "undefined" ? window.location.origin : "https://kilnbase.com";
-    const code = `<script src="${host}/api/embed/widget.js" data-agent-id="${agent.id}" async></script>`;
+    const code = buildWidgetCodeSnippet(host);
     navigator.clipboard.writeText(code);
     setCopiedWidget(true);
     setTimeout(() => setCopiedWidget(false), 2000);
@@ -1302,9 +1385,13 @@ export default function AgentDetailPage() {
                     setMemoryEnabled(data.memoryEnabled || false);
                     setImageAnalysisEnabled(data.imageAnalysisEnabled || false);
                     setCustomDomain(data.customDomain || "");
-                    const wl = (data.whiteLabel || {}) as Record<string, string>;
-                    setPrimaryColor(wl.primaryColor || "#F97316");
-                    setLogoUrl(wl.logo || "");
+                    const wl = (data.whiteLabel || {}) as Record<string, unknown>;
+                    const proactive = getProactiveSettings(wl);
+                    setPrimaryColor(typeof wl.primaryColor === "string" ? wl.primaryColor : "#F97316");
+                    setLogoUrl(typeof wl.logo === "string" ? wl.logo : "");
+                    setProactiveEnabled(proactive.enabled);
+                    setProactiveDelay(proactive.delay);
+                    setProactiveRules(proactive.rules);
                   })
                   .catch(() => {});
               }}
@@ -1351,6 +1438,128 @@ export default function AgentDetailPage() {
 
           {activeTab === "embed" && (
             <div className="space-y-6">
+              <div className="rounded-xl border border-border bg-card/40 p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Proactive Messages</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Show a context-aware prompt when visitors linger or scroll deep on the page.
+                    </p>
+                  </div>
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-white/[0.08] bg-black/10 px-3 py-1.5 text-xs font-medium text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={proactiveEnabled}
+                      onChange={(event) => setProactiveEnabled(event.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-border bg-card text-kiln-orange"
+                    />
+                    Enable proactive messages
+                  </label>
+                </div>
+
+                <div className="mt-5 grid gap-4 lg:grid-cols-[180px,1fr]">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      Delay
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={proactiveDelay}
+                      disabled={!proactiveEnabled}
+                      onChange={(event) =>
+                        setProactiveDelay(Math.max(0, Number(event.target.value) || 0))
+                      }
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      Seconds before the popup appears. `0` disables proactive triggers.
+                    </p>
+                  </div>
+
+                  <div>
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <label className="block text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                        Custom URL Rules
+                      </label>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setProactiveRules((prev) => [...prev, { match: "", message: "" }])
+                        }
+                        disabled={!proactiveEnabled}
+                      >
+                        <Plus className="mr-1.5 h-3.5 w-3.5" />
+                        Add Rule
+                      </Button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {proactiveRules.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-5 text-sm text-muted-foreground">
+                          No custom rules yet. Built-in rules for pricing, product, contact, and FAQ still apply.
+                        </div>
+                      ) : (
+                        proactiveRules.map((rule, index) => (
+                          <div
+                            key={index}
+                            className="grid gap-3 rounded-lg border border-border bg-black/10 p-3 md:grid-cols-[180px,1fr,auto]"
+                          >
+                            <input
+                              type="text"
+                              value={rule.match}
+                              disabled={!proactiveEnabled}
+                              onChange={(event) =>
+                                setProactiveRules((prev) =>
+                                  prev.map((entry, entryIndex) =>
+                                    entryIndex === index
+                                      ? { ...entry, match: event.target.value }
+                                      : entry
+                                  )
+                                )
+                              }
+                              placeholder="pricing"
+                              className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                            />
+                            <input
+                              type="text"
+                              value={rule.message}
+                              disabled={!proactiveEnabled}
+                              onChange={(event) =>
+                                setProactiveRules((prev) =>
+                                  prev.map((entry, entryIndex) =>
+                                    entryIndex === index
+                                      ? { ...entry, message: event.target.value }
+                                      : entry
+                                  )
+                                )
+                              }
+                              placeholder="Looking at pricing? I can help you find the right plan."
+                              className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                            />
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="outline"
+                              disabled={!proactiveEnabled}
+                              onClick={() =>
+                                setProactiveRules((prev) =>
+                                  prev.filter((_, entryIndex) => entryIndex !== index)
+                                )
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Public URL */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">
@@ -1390,11 +1599,9 @@ export default function AgentDetailPage() {
                 </p>
                 <div className="relative">
                   <pre className="rounded-lg border border-border bg-card p-4 font-mono text-xs text-foreground overflow-x-auto">
-{`<script
-  src="${typeof window !== "undefined" ? window.location.origin : "https://kilnbase.com"}/api/embed/widget.js"
-  data-agent-id="${agent.id}"
-  async
-></script>`}
+{buildWidgetCodeSnippet(
+  typeof window !== "undefined" ? window.location.origin : "https://kilnbase.com"
+)}
                   </pre>
                   <Button
                     size="sm"
@@ -1414,7 +1621,9 @@ export default function AgentDetailPage() {
                   <p className="mb-2 text-xs font-medium text-foreground">Optional attributes:</p>
                   <div className="space-y-1 font-mono text-[11px] text-muted-foreground">
                     <p><span className="text-kiln-orange">data-position</span>=&quot;bottom-left&quot; — Place bubble on the left</p>
-                    <p><span className="text-kiln-orange">data-greeting</span>=&quot;Hi! Need help?&quot; — Show a greeting tooltip</p>
+                    <p><span className="text-kiln-orange">data-greeting</span>=&quot;Hi! Need help?&quot; — Override the default proactive message</p>
+                    <p><span className="text-kiln-orange">data-proactive-delay</span>=&quot;15&quot; — Delay before the proactive popup appears</p>
+                    <p><span className="text-kiln-orange">data-proactive-rules</span>=&apos;[&#123;&quot;match&quot;:&quot;pricing&quot;,&quot;message&quot;:&quot;Looking at pricing?&quot;&#125;]&apos; — Custom URL pattern rules</p>
                   </div>
                 </div>
               </div>

@@ -1,6 +1,21 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+function normalizeProactiveRules(input: unknown) {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") return null;
+      const record = entry as Record<string, unknown>;
+      const match = typeof record.match === "string" ? record.match.trim() : "";
+      const message = typeof record.message === "string" ? record.message.trim() : "";
+      if (!match || !message) return null;
+      return { match, message };
+    })
+    .filter((entry): entry is { match: string; message: string } => Boolean(entry));
+}
+
 // Lightweight config endpoint for the universal widget script
 export async function GET(
   _request: NextRequest,
@@ -11,6 +26,7 @@ export async function GET(
     select: {
       slug: true,
       name: true,
+      welcomeMessage: true,
       status: true,
       whiteLabel: true,
     },
@@ -26,13 +42,27 @@ export async function GET(
     });
   }
 
-  const wl = (agent.whiteLabel || {}) as Record<string, string>;
+  const wl = (agent.whiteLabel || {}) as Record<string, unknown>;
+  const proactive =
+    wl.proactive && typeof wl.proactive === "object"
+      ? (wl.proactive as Record<string, unknown>)
+      : null;
 
   return Response.json({
     slug: agent.slug,
     name: agent.name,
-    color: wl.primaryColor || "#F97316",
-    logo: wl.logo || null,
+    greeting: agent.welcomeMessage || "",
+    color: typeof wl.primaryColor === "string" ? wl.primaryColor : "#F97316",
+    logo: typeof wl.logo === "string" ? wl.logo : null,
+    position: typeof wl.position === "string" ? wl.position : "bottom-right",
+    proactive: {
+      enabled: proactive?.enabled !== false,
+      delay:
+        typeof proactive?.delay === "number" && Number.isFinite(proactive.delay)
+          ? Math.max(0, Math.round(proactive.delay))
+          : 15,
+      rules: normalizeProactiveRules(proactive?.rules),
+    },
   }, {
     headers: {
       "Access-Control-Allow-Origin": "*",

@@ -21,8 +21,43 @@ export async function GET(request: NextRequest) {
   var agentId = scriptTag.getAttribute('data-agent-id');
   if (!agentId) { console.error('[KILN] Missing data-agent-id attribute'); return; }
 
-  var position = scriptTag.getAttribute('data-position') || 'bottom-right';
-  var greeting = scriptTag.getAttribute('data-greeting') || '';
+  var configuredPosition = scriptTag.getAttribute('data-position') || '';
+  var greetingOverride = scriptTag.getAttribute('data-greeting') || '';
+  var proactiveDelayAttr = scriptTag.getAttribute('data-proactive-delay');
+  var proactiveRulesAttr = scriptTag.getAttribute('data-proactive-rules');
+
+  function normalizeRules(input) {
+    if (!Array.isArray(input)) return [];
+    return input
+      .map(function(rule) {
+        if (!rule || typeof rule !== 'object') return null;
+        var match = '';
+        if (Array.isArray(rule.match)) {
+          match = rule.match
+            .filter(function(entry) { return typeof entry === 'string' && entry.trim(); })
+            .map(function(entry) { return entry.trim(); })
+            .join('|');
+        } else if (typeof rule.match === 'string') {
+          match = rule.match.trim();
+        }
+        var message = typeof rule.message === 'string' ? rule.message.trim() : '';
+        if (!match || !message) return null;
+        return { match: match, message: message };
+      })
+      .filter(Boolean);
+  }
+
+  function parseRules(raw) {
+    if (!raw) return [];
+    try {
+      return normalizeRules(JSON.parse(raw));
+    } catch (err) {
+      console.warn('[KILN] Invalid data-proactive-rules JSON', err);
+      return [];
+    }
+  }
+
+  var customRules = parseRules(proactiveRulesAttr);
 
   // Fetch agent config (slug, color, name)
   fetch('${origin}/api/embed/config/' + agentId)
@@ -37,6 +72,19 @@ export async function GET(request: NextRequest) {
     var color = config.color || '#F97316';
     var slug = config.slug;
     var embedUrl = '${origin}/embed/' + slug;
+    var position = configuredPosition || config.position || 'bottom-right';
+    var proactiveConfig = config.proactive || {};
+    var proactiveEnabled = proactiveConfig.enabled !== false;
+    var proactiveDelay = proactiveDelayAttr !== null
+      ? Math.max(0, parseInt(proactiveDelayAttr, 10) || 0)
+      : (typeof proactiveConfig.delay === 'number' ? Math.max(0, Math.round(proactiveConfig.delay)) : 15);
+    var proactiveRules = customRules.length > 0 ? customRules : normalizeRules(proactiveConfig.rules || []);
+    var defaultGreeting = greetingOverride || config.greeting || '';
+    var sessionKey = 'kiln:proactive:' + agentId;
+    var autoDismissTimer = null;
+    var timeTrigger = null;
+    var hasInteracted = false;
+    var proactiveVisible = false;
 
     // Parse color to RGB for shadows
     var r = parseInt(color.slice(1, 3), 16) || 249;
@@ -53,10 +101,13 @@ export async function GET(request: NextRequest) {
       '#kiln-widget-bubble { animation: kiln-bounce 0.4s ease-out, kiln-pulse 2s ease-out 1s; }',
       '#kiln-widget-frame-wrap.kiln-opening { animation: kiln-fade-in 0.25s ease-out forwards; }',
       '#kiln-widget-frame-wrap.kiln-closing { animation: kiln-fade-out 0.2s ease-in forwards; }',
+      '#kiln-widget-tooltip { opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity 0.25s ease, transform 0.25s ease; }',
+      '#kiln-widget-tooltip.kiln-visible { opacity: 1; transform: translateY(0); pointer-events: auto; }',
       '@media (max-width: 480px) {',
       '  #kiln-widget-frame-wrap { width: 100vw !important; height: 100vh !important; bottom: 0 !important; right: 0 !important; left: 0 !important; top: 0 !important; border-radius: 0 !important; position: fixed !important; }',
       '  #kiln-widget-frame-wrap iframe { border-radius: 0 !important; }',
       '  #kiln-widget-bubble.kiln-open { bottom: auto !important; top: 12px !important; right: 12px !important; z-index: 100001 !important; }',
+      '  #kiln-widget-tooltip { max-width: min(280px, calc(100vw - 32px)) !important; }',
       '}',
     ].join('\\n');
     document.head.appendChild(style);
@@ -70,6 +121,56 @@ export async function GET(request: NextRequest) {
     var container = document.createElement('div');
     container.id = 'kiln-widget-container';
     container.style.cssText = 'position:fixed;bottom:0;' + posX + 'z-index:99999;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;';
+
+    function wasProactiveShown() {
+      try {
+        return window.sessionStorage.getItem(sessionKey) === '1';
+      } catch (_err) {
+        return false;
+      }
+    }
+
+    function markProactiveShown() {
+      try {
+        window.sessionStorage.setItem(sessionKey, '1');
+      } catch (_err) {
+        // noop
+      }
+    }
+
+    function clearTriggers() {
+      if (timeTrigger) {
+        clearTimeout(timeTrigger);
+        timeTrigger = null;
+      }
+      window.removeEventListener('scroll', onScroll, { passive: true });
+    }
+
+    function getContextAwareMessage() {
+      var href = String(window.location.href || '').toLowerCase();
+      var builtInRules = [
+        { match: 'pricing|preise', message: 'Looking at pricing? I can help you find the right plan.' },
+        { match: 'product|produkt', message: 'Want to know more about this product? Ask me anything.' },
+        { match: 'contact|kontakt', message: 'Need to get in touch? I can help schedule a call.' },
+        { match: 'faq|help', message: 'Can\\'t find what you\\'re looking for? I might be able to help.' }
+      ];
+      var mergedRules = proactiveRules.concat(builtInRules);
+
+      for (var i = 0; i < mergedRules.length; i++) {
+        var parts = String(mergedRules[i].match || '')
+          .toLowerCase()
+          .split('|')
+          .map(function(entry) { return entry.trim(); })
+          .filter(Boolean);
+        for (var j = 0; j < parts.length; j++) {
+          if (href.indexOf(parts[j]) !== -1) {
+            return mergedRules[i].message;
+          }
+        }
+      }
+
+      return defaultGreeting;
+    }
 
     // Chat bubble button
     var bubble = document.createElement('button');
@@ -89,7 +190,7 @@ export async function GET(request: NextRequest) {
     var closeIcon = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
     bubble.innerHTML = chatIcon;
 
-    bubble.onmouseenter = function() { bubble.style.transform = 'scale(1.1)'; bubble.style.boxShadow = '0 6px 32px rgba(' + r + ',' + g + ',' + b + ',0.55)'; };
+    bubble.onmouseenter = function() { markInteraction(); bubble.style.transform = 'scale(1.1)'; bubble.style.boxShadow = '0 6px 32px rgba(' + r + ',' + g + ',' + b + ',0.55)'; };
     bubble.onmouseleave = function() { if (!isOpen) { bubble.style.transform = 'scale(1)'; bubble.style.boxShadow = '0 4px 24px rgba(' + r + ',' + g + ',' + b + ',0.4)'; } };
 
     // Frame wrapper (hidden initially)
@@ -110,26 +211,80 @@ export async function GET(request: NextRequest) {
     frame.title = config.name || 'Chat';
     frameWrap.appendChild(frame);
 
-    // Greeting tooltip
-    if (greeting) {
-      var tip = document.createElement('div');
-      tip.style.cssText = [
-        'position:fixed;bottom:90px;' + (isRight ? 'right:20px;' : 'left:20px;'),
-        'background:#fff;color:#1a1a1a;padding:10px 16px;border-radius:12px;',
-        'box-shadow:0 4px 20px rgba(0,0,0,0.12);font-size:14px;max-width:260px;',
-        'z-index:99998;opacity:0;transition:opacity 0.3s ease;pointer-events:none;',
-        'line-height:1.4;',
-      ].join('');
-      tip.textContent = greeting;
-      document.body.appendChild(tip);
-      setTimeout(function() { if (!isOpen) tip.style.opacity = '1'; }, 3000);
-      setTimeout(function() { tip.style.opacity = '0'; }, 10000);
-    }
+    var tooltip = document.createElement('div');
+    tooltip.id = 'kiln-widget-tooltip';
+    tooltip.style.cssText = [
+      'position:fixed;bottom:92px;' + (isRight ? 'right:20px;' : 'left:20px;'),
+      'display:flex;align-items:flex-start;gap:10px;',
+      'max-width:280px;background:#fff;color:#1a1a1a;padding:12px 14px;border-radius:14px;',
+      'box-shadow:0 8px 30px rgba(0,0,0,0.18);z-index:99998;line-height:1.45;',
+    ].join('');
+
+    var tooltipMessage = document.createElement('div');
+    tooltipMessage.style.cssText = 'flex:1;font-size:13px;font-weight:500;';
+    tooltip.appendChild(tooltipMessage);
+
+    var tooltipClose = document.createElement('button');
+    tooltipClose.type = 'button';
+    tooltipClose.setAttribute('aria-label', 'Dismiss message');
+    tooltipClose.style.cssText = 'border:none;background:transparent;color:#57534E;cursor:pointer;font-size:14px;line-height:1;padding:0;margin:1px 0 0;';
+    tooltipClose.innerHTML = '✕';
+    tooltip.appendChild(tooltipClose);
+    document.body.appendChild(tooltip);
 
     var isOpen = false;
     var iframeLoaded = false;
+    function dismissTooltip(markSeen) {
+      if (!proactiveVisible) return;
+      proactiveVisible = false;
+      tooltip.classList.remove('kiln-visible');
+      if (autoDismissTimer) {
+        clearTimeout(autoDismissTimer);
+        autoDismissTimer = null;
+      }
+      if (markSeen) markProactiveShown();
+    }
+
+    function showTooltip(source) {
+      if (!proactiveEnabled || proactiveDelay === 0 || hasInteracted || wasProactiveShown() || proactiveVisible) return;
+      var message = getContextAwareMessage();
+      if (!message) return;
+
+      clearTriggers();
+      proactiveVisible = true;
+      tooltip.setAttribute('data-source', source);
+      tooltipMessage.textContent = message;
+      tooltip.classList.add('kiln-visible');
+      markProactiveShown();
+      autoDismissTimer = setTimeout(function() {
+        dismissTooltip(false);
+      }, 10000);
+    }
+
+    function markInteraction() {
+      hasInteracted = true;
+      clearTriggers();
+      dismissTooltip(true);
+    }
+
+    function onScroll() {
+      if (!proactiveEnabled || proactiveDelay === 0 || hasInteracted || wasProactiveShown()) return;
+      var doc = document.documentElement;
+      var scrollTop = window.pageYOffset || doc.scrollTop || 0;
+      var maxScroll = Math.max(1, (doc.scrollHeight || document.body.scrollHeight || 0) - window.innerHeight);
+      if ((scrollTop / maxScroll) >= 0.7) {
+        showTooltip('scroll');
+      }
+    }
+
+    tooltipClose.onclick = function(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      dismissTooltip(true);
+    };
 
     bubble.onclick = function() {
+      markInteraction();
       isOpen = !isOpen;
 
       if (isOpen) {
@@ -145,12 +300,6 @@ export async function GET(request: NextRequest) {
         bubble.classList.add('kiln-open');
         bubble.style.transform = 'scale(1)';
         bubble.setAttribute('aria-label', 'Close chat');
-
-        // Hide greeting
-        if (greeting) {
-          var t = document.querySelector('#kiln-widget-container ~ div');
-          if (t) t.style.opacity = '0';
-        }
       } else {
         frameWrap.className = 'kiln-closing';
         bubble.innerHTML = chatIcon;
@@ -166,6 +315,13 @@ export async function GET(request: NextRequest) {
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape' && isOpen) { bubble.onclick(); }
     });
+
+    if (proactiveEnabled && proactiveDelay > 0 && !wasProactiveShown()) {
+      timeTrigger = setTimeout(function() {
+        showTooltip('timer');
+      }, proactiveDelay * 1000);
+      window.addEventListener('scroll', onScroll, { passive: true });
+    }
 
     container.appendChild(frameWrap);
     document.body.appendChild(container);
