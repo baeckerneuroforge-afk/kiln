@@ -94,6 +94,7 @@ model Agent {
   welcomeMessage     String?       @db.Text
   suggestedQuestions String[]      // Array von Vorschlägen
   llmModel           String        @default("claude-sonnet-4-20250514")
+  temperature        Float         @default(0.7)
   modelProvider      ModelProvider @default(ANTHROPIC)
   status             AgentStatus   @default(DRAFT)
   agentType          AgentType     @default(PUBLIC)
@@ -149,6 +150,7 @@ model Agent {
   versions       AgentVersion[]
   testCases      AgentTestCase[]
   testRuns       AgentTestRun[]
+  testComparisons TestComparison[]
   orchestrationsFrom AgentOrchestration[] @relation("OrchestrationSource")
   orchestrationsTo   AgentOrchestration[] @relation("OrchestrationTarget")
   webhooks           AgentWebhook[]
@@ -492,6 +494,31 @@ model AgentTestRun {
   runAt      DateTime @default(now())
 
   @@index([agentId])
+}
+
+enum TestComparisonWinner {
+  A
+  B
+  SAME
+}
+
+model TestComparison {
+  id              String                @id @default(cuid())
+  agentId         String
+  agent           Agent                 @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  message         String                @db.Text
+  responseA       String                @db.Text
+  responseB       String                @db.Text
+  configA         Json
+  configB         Json
+  winner          TestComparisonWinner?
+  responseTimeA   Int?
+  responseTimeB   Int?
+  tokenCountA     Int?
+  tokenCountB     Int?
+  createdAt       DateTime              @default(now())
+
+  @@index([agentId, createdAt])
 }
 
 // Webhook Endpoints — Event-Benachrichtigungen per HTTP POST

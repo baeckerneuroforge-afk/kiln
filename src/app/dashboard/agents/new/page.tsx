@@ -2,14 +2,15 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Loader2, Upload, MessageSquare, Zap, Play } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Upload, Zap, Play, Sparkles, Code2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { BuilderChat } from "@/components/agents/builder-chat";
 import { AgentPreview } from "@/components/agents/agent-preview";
+import { AgentWizard } from "@/components/agents/agent-wizard";
 import type { GeneratedAgentConfig } from "@/types/agent";
 
-type AgentMode = "CHAT" | "TASK";
+type AgentMode = "CHAT" | "TASK" | "WIZARD";
 type TaskStep = "describe" | "trigger" | "tools" | "output" | "review";
 
 export default function NewAgentPage() {
@@ -305,6 +306,11 @@ export default function NewAgentPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  // ─── Wizard Mode ────────────────────────────────────────
+  if (mode === "WIZARD") {
+    return <AgentWizard onBack={() => setMode(null)} />;
+  }
+
   // ─── Mode Selection Screen ────────────────────────────────
   if (!mode) {
     return (
@@ -318,46 +324,66 @@ export default function NewAgentPage() {
           </Link>
           <div className="ml-3">
             <h1 className="text-sm font-semibold text-foreground">New Agent</h1>
-            <p className="text-xs text-muted-foreground">Choose agent type</p>
+            <p className="text-xs text-muted-foreground">Choose how to create your agent</p>
           </div>
         </div>
         <div className="flex flex-1 items-center justify-center">
-          <div className="mx-auto max-w-2xl px-6">
+          <div className="mx-auto max-w-3xl px-6">
             <div className="mb-8 text-center">
-              <h2 className="font-serif text-3xl text-foreground">What kind of agent?</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Choose how your agent will operate.</p>
+              <h2 className="font-serif text-3xl text-foreground">Create a new agent</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Choose your preferred creation method.</p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {/* Chat Agent Card */}
+            <div className="grid gap-4 sm:grid-cols-3">
+              {/* Guided Wizard — Recommended */}
+              <button
+                onClick={() => setMode("WIZARD")}
+                className="relative flex flex-col items-start rounded-xl border-2 border-kiln-orange/30 bg-card p-6 text-left transition-all hover:border-kiln-orange/60 hover:bg-kiln-orange/5"
+              >
+                <span className="absolute -top-2.5 right-4 rounded-full bg-kiln-orange px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                  Recommended
+                </span>
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-kiln-orange/10 mb-4">
+                  <Sparkles className="h-6 w-6 text-kiln-orange" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground">Guided Builder</h3>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                  Step-by-step wizard. Choose a goal, add business info, customize style. Auto-generates an optimized agent.
+                </p>
+                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-kiln-orange">
+                  Start Wizard <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+                </div>
+              </button>
+
+              {/* Quick Create — Conversational */}
               <button
                 onClick={() => setMode("CHAT")}
                 className="flex flex-col items-start rounded-xl border border-border bg-card p-6 text-left transition-all hover:border-blue-500/30 hover:bg-blue-500/5"
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 mb-4">
-                  <MessageSquare className="h-6 w-6 text-blue-500" />
+                  <Code2 className="h-6 w-6 text-blue-500" />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground">Chat Agent</h3>
+                <h3 className="text-lg font-semibold text-foreground">Quick Create</h3>
                 <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  Conversational AI that chats with your customers. Embed on your website, answer questions, book appointments, collect leads.
+                  Describe your agent in natural language. AI generates the config. For experienced users who know what they want.
                 </p>
                 <div className="mt-4 flex items-center gap-2 text-sm font-medium text-blue-500">
-                  Create Chat Agent <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+                  Open Builder <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
                 </div>
               </button>
 
-              {/* Task Agent Card */}
+              {/* Task Agent */}
               <button
                 onClick={() => setMode("TASK")}
-                className="flex flex-col items-start rounded-xl border border-border bg-card p-6 text-left transition-all hover:border-kiln-orange/30 hover:bg-kiln-orange/5"
+                className="flex flex-col items-start rounded-xl border border-border bg-card p-6 text-left transition-all hover:border-violet-500/30 hover:bg-violet-500/5"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-kiln-orange/10 mb-4">
-                  <Zap className="h-6 w-6 text-kiln-orange" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/10 mb-4">
+                  <Zap className="h-6 w-6 text-violet-500" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground">Task Agent</h3>
                 <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  Autonomous AI that executes tasks. Set a trigger, define instructions, configure outputs. Runs in the background.
+                  Autonomous agent that executes tasks in the background. Set triggers, define instructions, configure outputs.
                 </p>
-                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-kiln-orange">
+                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-violet-500">
                   Create Task Agent <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
                 </div>
               </button>

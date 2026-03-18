@@ -56,6 +56,7 @@ import { CustomToolsTab } from "@/components/agents/custom-tools-tab";
 import { AutomationsTab } from "@/components/agents/automations-tab";
 import { VersionsTab } from "@/components/agents/versions-tab";
 import { TestingTab } from "@/components/agents/testing-tab";
+import { TestLab } from "@/components/agents/test-lab";
 import { WebhooksTab } from "@/components/agents/webhooks-tab";
 import { EventSubscriptionsTab } from "@/components/agents/event-subscriptions-tab";
 import { IntegrationsTab } from "@/components/agents/integrations-tab";
@@ -78,6 +79,7 @@ interface Agent {
   welcomeMessage: string | null;
   suggestedQuestions: string[];
   llmModel: string;
+  temperature: number;
   modelProvider: string;
   status: "DRAFT" | "LIVE" | "PAUSED";
   whiteLabel: Record<string, unknown> | null;
@@ -104,7 +106,7 @@ interface Agent {
   _count: { conversations: number };
 }
 
-type Tab = "config" | "knowledge" | "actions" | "analytics" | "eval" | "embed" | "channels" | "integrations" | "tools" | "debug" | "logs" | "memory" | "automations" | "versions" | "testing" | "webhooks" | "runs";
+type Tab = "config" | "knowledge" | "actions" | "analytics" | "eval" | "embed" | "channels" | "integrations" | "tools" | "debug" | "logs" | "memory" | "automations" | "versions" | "testing" | "testlab" | "webhooks" | "runs";
 
 const chatBaseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "config", label: "Configuration", icon: Settings2 },
@@ -126,6 +128,7 @@ const advancedTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "memory", label: "Memory", icon: Brain },
   { id: "versions", label: "Versions", icon: History },
   { id: "testing", label: "Testing", icon: FlaskConical },
+  { id: "testlab", label: "Test Lab", icon: FlaskConical },
   { id: "webhooks", label: "Webhooks", icon: Link2 },
 ];
 
@@ -135,7 +138,7 @@ const statusOptions = [
   { value: "PAUSED", label: "Paused" },
 ];
 
-const fullWidthTabs: Tab[] = ["analytics", "eval", "tools", "logs", "memory", "automations", "versions", "testing", "runs"];
+const fullWidthTabs: Tab[] = ["analytics", "eval", "tools", "logs", "memory", "automations", "versions", "testing", "testlab", "runs"];
 
 export default function AgentDetailPage() {
   const params = useParams();
@@ -157,6 +160,7 @@ export default function AgentDetailPage() {
   const [primaryColor, setPrimaryColor] = useState("#F97316");
   const [logoUrl, setLogoUrl] = useState("");
   const [llmModel, setLlmModel] = useState("claude-sonnet-4-20250514");
+  const [temperature, setTemperature] = useState(0.7);
   const [modelProvider, setModelProvider] = useState("ANTHROPIC");
   const [autoDetectLanguage, setAutoDetectLanguage] = useState(true);
   const [memoryEnabled, setMemoryEnabled] = useState(false);
@@ -204,6 +208,7 @@ export default function AgentDetailPage() {
         setWelcomeMessage(data.welcomeMessage || "");
         setStatus(data.status);
         setLlmModel(data.llmModel || "claude-sonnet-4-20250514");
+        setTemperature(typeof data.temperature === "number" ? data.temperature : 0.7);
         setModelProvider(data.modelProvider || "ANTHROPIC");
         setAutoDetectLanguage(data.autoDetectLanguage !== false);
         setMemoryEnabled(data.memoryEnabled || false);
@@ -240,6 +245,7 @@ export default function AgentDetailPage() {
           welcomeMessage,
           status,
           llmModel,
+          temperature,
           modelProvider,
           autoDetectLanguage,
           memoryEnabled,
@@ -288,6 +294,48 @@ export default function AgentDetailPage() {
       setDomainMessage("Verification failed. Please try again.");
     } finally {
       setVerifyingDomain(false);
+    }
+  }
+
+  async function handleApplyTestVersion(config: {
+    systemPrompt: string;
+    llmModel: string;
+    modelProvider: string;
+    temperature: number;
+  }) {
+    if (!agent) return;
+
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/agents/${agent.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemPrompt: config.systemPrompt,
+          llmModel: config.llmModel,
+          modelProvider: config.modelProvider,
+          temperature: config.temperature,
+        }),
+      });
+
+      if (!res.ok) {
+        toast("Failed to apply test version", "error");
+        return;
+      }
+
+      const updated = await res.json();
+      setAgent((prev) => (prev ? { ...prev, ...updated } : prev));
+      setSystemPrompt(updated.systemPrompt || config.systemPrompt);
+      setLlmModel(updated.llmModel || config.llmModel);
+      setTemperature(
+        typeof updated.temperature === "number" ? updated.temperature : config.temperature
+      );
+      setModelProvider(updated.modelProvider || config.modelProvider);
+      toast("Test version applied", "success");
+    } catch {
+      toast("Failed to apply test version", "error");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -385,6 +433,7 @@ export default function AgentDetailPage() {
       welcomeMessage: agent.welcomeMessage,
       suggestedQuestions: agent.suggestedQuestions,
       llmModel: agent.llmModel,
+      temperature: agent.temperature,
       modelProvider: agent.modelProvider,
       memoryEnabled: agent.memoryEnabled,
       imageAnalysisEnabled: agent.imageAnalysisEnabled,
@@ -1247,6 +1296,7 @@ export default function AgentDetailPage() {
                     setWelcomeMessage(data.welcomeMessage || "");
                     setStatus(data.status);
                     setLlmModel(data.llmModel || "claude-sonnet-4-20250514");
+                    setTemperature(typeof data.temperature === "number" ? data.temperature : 0.7);
                     setModelProvider(data.modelProvider || "ANTHROPIC");
                     setAutoDetectLanguage(data.autoDetectLanguage !== false);
                     setMemoryEnabled(data.memoryEnabled || false);
@@ -1266,6 +1316,19 @@ export default function AgentDetailPage() {
               agentId={agent.id}
               prefill={testCasePrefill}
               onPrefillConsumed={() => setTestCasePrefill(null)}
+            />
+          )}
+
+          {activeTab === "testlab" && (
+            <TestLab
+              agentId={agent.id}
+              currentConfig={{
+                systemPrompt,
+                llmModel,
+                modelProvider,
+                temperature,
+              }}
+              onApplyVersion={handleApplyTestVersion}
             />
           )}
 

@@ -28,6 +28,12 @@ const mockPrisma = vi.hoisted(() => ({
   agentOrchestration: {
     findMany: vi.fn(),
   },
+  webhookEndpoint: {
+    findMany: vi.fn(),
+  },
+  webhookDelivery: {
+    create: vi.fn(),
+  },
   message: {
     create: vi.fn(),
   },
@@ -135,6 +141,7 @@ describe("POST /api/agents/[id]/chat", () => {
       knowledgeBases: [],
       actions: [],
       customTools: [],
+      channels: [],
       memoryEnabled: false,
       promptBranches: null,
     });
@@ -148,6 +155,8 @@ describe("POST /api/agents/[id]/chat", () => {
     mockPrisma.conversation.count.mockResolvedValue(1);
     mockPrisma.conversation.update.mockResolvedValue({});
     mockPrisma.agentOrchestration.findMany.mockResolvedValue([]);
+    mockPrisma.webhookEndpoint.findMany.mockResolvedValue([]);
+    mockPrisma.webhookDelivery.create.mockResolvedValue({});
     mockPrisma.message.create.mockResolvedValue({});
     mockCheckCredits.mockResolvedValue({
       allowed: true,
