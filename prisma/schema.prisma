@@ -507,6 +507,22 @@ model AgentVersion {
   @@index([agentId])
 }
 
+// Workflow Version History — Snapshot bei jedem Workflow-Speichern
+model TeamVersion {
+  id        String   @id @default(cuid())
+  teamId    String
+  team      AgentTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  version   Int
+  config    Json     // Full workflow snapshot: nodes, edges, variables, teamConfig
+  changelog String   @db.Text
+  note      String?  @db.Text  // Optional user note when saving
+  createdAt DateTime @default(now())
+  createdBy String
+
+  @@unique([teamId, version])
+  @@index([teamId])
+}
+
 // Agent Test Cases — Eval-Suite für Agent-Antworten
 model AgentTestCase {
   id               String    @id @default(cuid())
@@ -873,6 +889,7 @@ model AgentTeam {
   knowledgeBases KnowledgeBase[]
   webhooks       WebhookEndpoint[]
   permissions    TeamPermission[]
+  versions       TeamVersion[]
   abTestsAsA     TeamABTest[]     @relation("ABTestTeamA")
   abTestsAsB     TeamABTest[]     @relation("ABTestTeamB")
 

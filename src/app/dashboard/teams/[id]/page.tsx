@@ -28,6 +28,8 @@ import { TeamKnowledgeTab } from "@/components/teams/team-knowledge-tab";
 import { TeamWebhooksTab } from "@/components/teams/team-webhooks-tab";
 import { TeamPermissionsTab } from "@/components/teams/team-permissions-tab";
 import { ErrorHandlerConfigPanel, type ErrorHandlerConfig } from "@/components/workflows/error-handler-config";
+import { VersionHistoryPanel } from "@/components/workflows/version-history";
+import { WorkflowActivityFeed, WorkflowChangelog } from "@/components/workflows/workflow-comments";
 import { TeamCostCalculator } from "@/components/teams/team-cost-calculator";
 import { cn } from "@/lib/utils";
 import { Skeleton, SkeletonTab } from "@/components/ui/skeleton";
@@ -73,6 +75,8 @@ import {
   Layers,
   Shield,
   Share2,
+  History,
+  GitCompare,
 } from "lucide-react";
 import {
   PROVIDERS,
@@ -87,6 +91,10 @@ import {
 import { NodeConfigPanel } from "@/components/workflows/node-config-panel";
 import { DataMapper, type FieldMapping } from "@/components/workflows/data-mapper";
 import { type WorkflowNodeType } from "@/lib/workflow-node-types";
+import DebugRunner from "@/components/workflows/debug-runner";
+import { LogViewer } from "@/components/workflows/log-viewer";
+import { ExecutionDiff } from "@/components/workflows/execution-diff";
+import { PerformanceProfiler } from "@/components/workflows/performance-profiler";
 
 /* ========== Types ========== */
 interface TeamAgent {
@@ -478,7 +486,7 @@ function buildHierarchyGraph(
 }
 
 /* ========== Tabs ========== */
-type TabKey = "hierarchy" | "tasks" | "activity" | "analytics" | "cost" | "knowledge" | "executions" | "schedule" | "webhooks" | "permissions" | "settings";
+type TabKey = "hierarchy" | "tasks" | "activity" | "analytics" | "cost" | "knowledge" | "executions" | "versions" | "schedule" | "webhooks" | "permissions" | "settings";
 
 const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "hierarchy", label: "Hierarchy", icon: <Users className="h-4 w-4" /> },
@@ -488,6 +496,7 @@ const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "analytics", label: "Analytics", icon: <BarChart3 className="h-4 w-4" /> },
   { key: "cost", label: "Cost", icon: <Coins className="h-4 w-4" /> },
   { key: "executions", label: "Executions", icon: <Clock className="h-4 w-4" /> },
+  { key: "versions", label: "Versions", icon: <History className="h-4 w-4" /> },
   { key: "schedule", label: "Schedule", icon: <CalendarDays className="h-4 w-4" /> },
   { key: "webhooks", label: "Webhooks", icon: <Globe className="h-4 w-4" /> },
   { key: "permissions", label: "Members", icon: <Shield className="h-4 w-4" /> },
@@ -1895,6 +1904,16 @@ function TeamDetailInner() {
   const [assignGoal, setAssignGoal] = useState("");
   const [assigning, setAssigning] = useState(false);
 
+  // Debug / profiling tools
+  const [debugExecutionId, setDebugExecutionId] = useState<string | null>(null);
+  const [showDebugRunner, setShowDebugRunner] = useState(false);
+  const [showLogViewer, setShowLogViewer] = useState(false);
+  const [logViewerExecId, setLogViewerExecId] = useState<string | null>(null);
+  const [showExecDiff, setShowExecDiff] = useState(false);
+  const [showProfiler, setShowProfiler] = useState(false);
+  const [profilerExecId, setProfilerExecId] = useState<string | null>(null);
+  const [debugRunning, setDebugRunning] = useState(false);
+
   // New task inline form
   const [showNewTask, setShowNewTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -2102,6 +2121,28 @@ function TeamDetailInner() {
       }
     } finally {
       setAssigning(false);
+    }
+  };
+
+  /* Debug execution (step-by-step) */
+  const executeDebug = async () => {
+    if (!assignGoal.trim() || debugRunning) return;
+    setDebugRunning(true);
+    try {
+      const res = await fetch(`/api/teams/${teamId}/execute-debug`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goal: assignGoal.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDebugExecutionId(data.executionId);
+        setShowDebugRunner(true);
+        setShowAssignDialog(false);
+        setAssignGoal("");
+      }
+    } finally {
+      setDebugRunning(false);
     }
   };
 
@@ -3070,7 +3111,37 @@ function TeamDetailInner() {
             focusExecutionId={focusedExecutionId}
             onRefreshTeam={fetchTeam}
             onExecutionContextChange={setSharedContextPreview}
+            onOpenLogs={(execId) => {
+              setLogViewerExecId(execId);
+              setShowLogViewer(true);
+            }}
+            onOpenProfiler={(execId) => {
+              setProfilerExecId(execId);
+              setShowProfiler(true);
+            }}
+            onOpenDiff={() => setShowExecDiff(true)}
           />
+        )}
+
+        {activeTab === "versions" && (
+          <div className="p-6 h-full overflow-auto">
+            <div className="max-w-3xl space-y-8">
+              <VersionHistoryPanel
+                teamId={teamId}
+                onRollback={fetchTeam}
+              />
+              <div className="border-t border-zinc-800 pt-6">
+                <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-100">
+                  <GitCompare className="h-4 w-4 text-orange-500" />
+                  Changelog
+                </h3>
+                <WorkflowChangelog teamId={teamId} />
+              </div>
+              <div className="border-t border-zinc-800 pt-6">
+                <WorkflowActivityFeed teamId={teamId} />
+              </div>
+            </div>
+          </div>
         )}
 
         {activeTab === "schedule" && (
@@ -3294,8 +3365,27 @@ function TeamDetailInner() {
               </Button>
               <Button
                 size="sm"
+                variant="outline"
+                onClick={executeDebug}
+                disabled={debugRunning || assigning || !assignGoal.trim()}
+                className="border-violet-500/30 text-violet-400 hover:bg-violet-500/10 min-w-[100px]"
+              >
+                {debugRunning ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Starting...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <FlaskConical className="h-4 w-4" />
+                    <span>Debug Run</span>
+                  </div>
+                )}
+              </Button>
+              <Button
+                size="sm"
                 onClick={executeGoal}
-                disabled={assigning || !assignGoal.trim()}
+                disabled={assigning || debugRunning || !assignGoal.trim()}
                 className="bg-orange-600 hover:bg-orange-700 text-white min-w-[100px]"
               >
                 {assigning ? (
@@ -3359,6 +3449,47 @@ function TeamDetailInner() {
           </div>
         </div>
       )}
+
+      {/* Debug Runner overlay */}
+      <DebugRunner
+        open={showDebugRunner}
+        teamId={teamId}
+        executionId={debugExecutionId}
+        onClose={() => {
+          setShowDebugRunner(false);
+          setDebugExecutionId(null);
+          fetchTeam();
+        }}
+      />
+
+      {/* Log Viewer panel */}
+      <LogViewer
+        teamId={teamId}
+        executionId={logViewerExecId}
+        open={showLogViewer}
+        onClose={() => {
+          setShowLogViewer(false);
+          setLogViewerExecId(null);
+        }}
+      />
+
+      {/* Execution Diff modal */}
+      <ExecutionDiff
+        teamId={teamId}
+        open={showExecDiff}
+        onClose={() => setShowExecDiff(false)}
+      />
+
+      {/* Performance Profiler panel */}
+      <PerformanceProfiler
+        teamId={teamId}
+        executionId={profilerExecId}
+        open={showProfiler}
+        onClose={() => {
+          setShowProfiler(false);
+          setProfilerExecId(null);
+        }}
+      />
     </div>
   );
 }

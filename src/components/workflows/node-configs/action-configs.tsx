@@ -29,11 +29,13 @@ export function HttpRequestConfig({
     if (!url) return;
     setTesting(true);
     setTestResult(null);
+    const currentHeaders = (config.headers as { key: string; value: string }[]) || [];
+    const currentBody = (config.body as string) || "";
     try {
       const res = await fetch("/api/workflows/test-http", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ method, url, headers: Object.fromEntries(headers.map(h => [h.key, h.value])), body }),
+        body: JSON.stringify({ method, url, headers: Object.fromEntries(currentHeaders.map(h => [h.key, h.value])), body: currentBody }),
       });
       const data = await res.json();
       setTestResult(res.ok ? `✓ ${data.status || 200}` : `✗ ${data.error || "Failed"}`);
@@ -42,7 +44,7 @@ export function HttpRequestConfig({
     } finally {
       setTesting(false);
     }
-  }, [method, url, headers, body]);
+  }, [method, url, config.headers, config.body]);
 
   return (
     <div className="space-y-4">

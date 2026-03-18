@@ -51,6 +51,53 @@ export interface WorkflowExecutionOptions {
   triggerPayload?: Record<string, unknown>;
   goal?: string;
   depth?: number; // Sub-workflow nesting depth (max 5)
+  debugMode?: boolean; // Step-by-step execution mit Pausen
+}
+
+/* ── Debug Mode State ── */
+
+export interface DebugStepState {
+  nodeId: string;
+  nodeType: string;
+  nodeLabel: string;
+  status: "pending" | "running" | "completed" | "failed" | "skipped" | "paused";
+  input: Record<string, unknown>;
+  config: Record<string, unknown>;
+  output: Record<string, unknown> | null;
+  error: string | null;
+  durationMs: number | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  cost: number | null;
+  contextSnapshot: Record<string, unknown>;
+  variablesSnapshot: Record<string, unknown>;
+}
+
+export interface DebugState {
+  executionId: string;
+  status: "running" | "paused" | "completed" | "failed" | "aborted";
+  currentNodeId: string | null;
+  steps: DebugStepState[];
+  pendingAction: "continue" | "skip" | "abort" | null;
+}
+
+// In-memory debug state store (pro Execution)
+const debugStates = new Map<string, DebugState>();
+
+export function getDebugState(executionId: string): DebugState | null {
+  return debugStates.get(executionId) || null;
+}
+
+export function setDebugAction(executionId: string, action: "continue" | "skip" | "abort"): boolean {
+  const state = debugStates.get(executionId);
+  if (!state || state.status !== "paused") return false;
+  state.pendingAction = action;
+  return true;
+}
+
+function cleanupDebugState(executionId: string) {
+  // Cleanup nach 30 Minuten
+  setTimeout(() => debugStates.delete(executionId), 30 * 60 * 1000);
 }
 
 interface NodeExecutionLog {
@@ -63,6 +110,10 @@ interface NodeExecutionLog {
   startedAt: Date;
   completedAt?: Date;
   meta?: Record<string, unknown>;
+  tokensIn?: number;
+  tokensOut?: number;
+  model?: string;
+  estimatedCost?: number;
 }
 
 const NODE_CATEGORIES: Record<string, string> = {
@@ -270,6 +321,18 @@ export async function executeWorkflow(
   let completedNodes = 0;
   let failedNodes = 0;
   let paused = false;
+  const isDebug = options.debugMode === true;
+
+  // Debug-Mode State initialisieren
+  if (isDebug) {
+    debugStates.set(executionId, {
+      executionId,
+      status: "running",
+      currentNodeId: null,
+      steps: [],
+      pendingAction: null,
+    });
+  }
 
   try {
     // Emit start event
@@ -608,6 +671,101 @@ export async function executeWorkflow(
 
       nodeLogs.push(nodeResult);
 
+      // Debug-Mode: Schritt aufzeichnen und pausieren
+      if (isDebug) {
+        const debugState = debugStates.get(executionId);
+        if (debugState) {
+          const durationMs = nodeResult.startedAt && nodeResult.completedAt
+            ? nodeResult.completedAt.getTime() - nodeResult.startedAt.getTime()
+            : null;
+
+          debugState.steps.push({
+            nodeId: node.id,
+            nodeType: node.type,
+            nodeLabel: node.label || node.type,
+            status: nodeResult.status,
+            input: nodeResult.meta || {},
+            config: node.config,
+            output: nodeResult.contextDelta,
+            error: nodeResult.error || null,
+            durationMs,
+            tokensIn: nodeResult.tokensIn || null,
+            tokensOut: nodeResult.tokensOut || null,
+            cost: nodeResult.estimatedCost || null,
+            contextSnapshot: JSON.parse(JSON.stringify(context)),
+            variablesSnapshot: JSON.parse(JSON.stringify(context.variables || {})),
+          });
+
+          // Pausiere wenn noch Nodes in der Queue sind
+          if (queue.length > 0 && !paused) {
+            debugState.status = "paused";
+            debugState.currentNodeId = queue[0];
+            debugState.pendingAction = null;
+
+            // Warte auf User-Aktion (max 5 Minuten pro Schritt)
+            const maxWait = 5 * 60 * 1000;
+            const pollInterval = 200;
+            let waited = 0;
+
+            while (waited < maxWait) {
+              const current = debugStates.get(executionId);
+              if (!current || current.pendingAction) break;
+              await new Promise((r) => setTimeout(r, pollInterval));
+              waited += pollInterval;
+            }
+
+            const current = debugStates.get(executionId);
+            if (!current) break;
+
+            if (current.pendingAction === "abort") {
+              current.status = "aborted";
+              paused = true; // Beende die Loop
+              break;
+            } else if (current.pendingAction === "skip") {
+              // Skip: Node aus Queue entfernen (überspringe den nächsten)
+              const skippedId = queue.shift();
+              if (skippedId) {
+                const skippedNode = nodeMap.get(skippedId);
+                executedNodes.add(skippedId);
+                if (skippedNode) {
+                  debugState.steps.push({
+                    nodeId: skippedId,
+                    nodeType: skippedNode.type,
+                    nodeLabel: skippedNode.label || skippedNode.type,
+                    status: "skipped",
+                    input: {},
+                    config: skippedNode.config,
+                    output: null,
+                    error: null,
+                    durationMs: 0,
+                    tokensIn: null,
+                    tokensOut: null,
+                    cost: null,
+                    contextSnapshot: JSON.parse(JSON.stringify(context)),
+                    variablesSnapshot: JSON.parse(JSON.stringify(context.variables || {})),
+                  });
+                  await logNodeExecution(executionId, teamId, skippedNode, {
+                    nodeId: skippedId,
+                    nodeType: skippedNode.type,
+                    status: "skipped",
+                    contextDelta: {},
+                    startedAt: new Date(),
+                    completedAt: new Date(),
+                    meta: { reason: "Skipped in debug mode" },
+                  });
+                  // Queue die Nachfolger des übersprungenen Nodes
+                  queue.push(...getNormalSuccessors(skippedId, edges));
+                }
+              }
+            }
+            // "continue" → einfach weitermachen
+
+            current.status = "running";
+            current.pendingAction = null;
+          }
+        }
+      }
+
       // Progress updaten
       await prisma.teamExecution.update({
         where: { id: executionId },
@@ -636,6 +794,16 @@ export async function executeWorkflow(
         executionContext: toJsonValue(context),
       },
     });
+
+    // Debug-State abschließen
+    if (isDebug) {
+      const debugState = debugStates.get(executionId);
+      if (debugState) {
+        debugState.status = debugState.status === "aborted" ? "aborted" : (paused ? "paused" : (failedNodes > 0 && completedNodes === 0 ? "failed" : "completed"));
+        debugState.currentNodeId = null;
+        cleanupDebugState(executionId);
+      }
+    }
 
     // Emit completion event
     if (!paused) {
@@ -1039,6 +1207,10 @@ async function logNodeExecution(
     paused: TeamExecutionTaskStatus.PENDING,
   };
 
+  const durationMs = result.startedAt && result.completedAt
+    ? result.completedAt.getTime() - result.startedAt.getTime()
+    : null;
+
   await prisma.teamExecutionLog.create({
     data: {
       teamId,
@@ -1056,7 +1228,13 @@ async function logNodeExecution(
         ? toJsonValue(result.contextDelta)
         : undefined,
       error: result.error || null,
-      input: result.meta ? toJsonValue(result.meta) : undefined,
+      input: result.meta
+        ? toJsonValue({ ...result.meta, durationMs })
+        : toJsonValue({ durationMs }),
+      tokensIn: result.tokensIn || null,
+      tokensOut: result.tokensOut || null,
+      model: result.model || null,
+      estimatedCost: result.estimatedCost || null,
     },
   });
 }

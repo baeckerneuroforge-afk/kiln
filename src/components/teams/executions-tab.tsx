@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
+  ArrowRightLeft,
   Bot,
   Bug,
   CheckCircle2,
@@ -116,6 +117,9 @@ interface TeamExecutionsTabProps {
   focusExecutionId?: string | null;
   onRefreshTeam?: () => Promise<void> | void;
   onExecutionContextChange?: (context: Record<string, unknown>) => void;
+  onOpenLogs?: (executionId: string) => void;
+  onOpenProfiler?: (executionId: string) => void;
+  onOpenDiff?: () => void;
 }
 
 const statusStyles: Record<string, string> = {
@@ -313,6 +317,9 @@ export function TeamExecutionsTab({
   focusExecutionId,
   onRefreshTeam,
   onExecutionContextChange,
+  onOpenLogs,
+  onOpenProfiler,
+  onOpenDiff,
 }: TeamExecutionsTabProps) {
   const [executions, setExecutions] = useState<ExecutionSummary[]>([]);
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(focusExecutionId || null);
@@ -614,7 +621,18 @@ export function TeamExecutionsTab({
       <div className="grid gap-4 xl:grid-cols-[320px,1fr]">
         <div className="space-y-3">
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Execution History</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Execution History</p>
+              {onOpenDiff && (
+                <button
+                  onClick={onOpenDiff}
+                  className="text-[10px] text-violet-400 hover:text-violet-300 transition-colors flex items-center gap-1"
+                >
+                  <ArrowRightLeft className="h-3 w-3" />
+                  Compare
+                </button>
+              )}
+            </div>
             <p className="mt-2 text-2xl font-semibold text-zinc-100">{executions.length}</p>
             <p className="mt-1 text-xs text-zinc-500">
               Operational runs with retries, approval gates, and shared memory.
@@ -781,6 +799,28 @@ export function TeamExecutionsTab({
                     <Bug className="mr-2 h-4 w-4" />
                     Debug
                   </Button>
+                  {onOpenLogs && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onOpenLogs(detail.execution.id)}
+                      className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                    >
+                      <Database className="mr-2 h-4 w-4" />
+                      Logs
+                    </Button>
+                  )}
+                  {onOpenProfiler && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onOpenProfiler(detail.execution.id)}
+                      className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                    >
+                      <Timer className="mr-2 h-4 w-4" />
+                      Profile
+                    </Button>
+                  )}
                   {pendingApproval && detail.execution.status === "AWAITING_APPROVAL" && (
                     <>
                       <Button

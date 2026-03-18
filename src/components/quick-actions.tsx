@@ -222,10 +222,9 @@ const agentActions = [
 
 export function AgentQuickActions({
   agentId,
-  agentName,
 }: {
   agentId: string;
-  agentName: string;
+  agentName?: string;
 }) {
   function getHref(label: string) {
     switch (label) {
@@ -287,13 +286,12 @@ export function AgentQuickActions({
 // ─── 4. WorkflowQuickActions ────────────────────────────────────────────────
 
 export function WorkflowQuickActions({
-  teamId,
   onRunNow,
   onAddNode,
   onExportYaml,
   onClone,
 }: {
-  teamId: string;
+  teamId?: string;
   onRunNow?: () => void;
   onAddNode?: () => void;
   onExportYaml?: () => void;

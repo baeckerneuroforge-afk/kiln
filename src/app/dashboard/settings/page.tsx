@@ -313,7 +313,7 @@ function SettingsContent() {
     if (tab && ["profile", "billing", "api-keys", "webhooks", "referral", "templates", "danger"].includes(tab)) {
       setActiveTab(tab as SettingsTab);
     }
-  }, [searchParams]);
+  }, [searchParams, toast]);
 
   useEffect(() => {
     fetch("/api/stripe/plan")

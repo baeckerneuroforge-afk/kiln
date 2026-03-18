@@ -11,6 +11,10 @@ import {
   canAccessTeam,
   canEditTeam,
 } from "@/lib/team-permissions";
+import {
+  snapshotWorkflowConfig,
+  createWorkflowVersion,
+} from "@/lib/workflow-versioning";
 
 // Get single team with members, tasks, and hierarchy
 export async function GET(
@@ -112,8 +116,12 @@ export async function PATCH(
       return Response.json({ error: "Team not found" }, { status: 404 });
     }
 
+    // Snapshot config before update for versioning
+    const prevSnapshot = snapshotWorkflowConfig(existing);
+
     const body = await request.json();
     const { name, description, goal, status, config } = body;
+    const saveNote = typeof body.saveNote === "string" ? body.saveNote.trim() : undefined;
     const mergedConfig =
       config !== undefined
         ? {
@@ -143,8 +151,35 @@ export async function PATCH(
       },
     });
 
+    // Auto-version: create a version snapshot if workflow content changed
+    const newSnapshot = snapshotWorkflowConfig(team);
+    let versionInfo: { version: number; currentVersion: number } | undefined;
+    try {
+      const hasWorkflowChange =
+        JSON.stringify(prevSnapshot.nodes) !== JSON.stringify(newSnapshot.nodes) ||
+        JSON.stringify(prevSnapshot.edges) !== JSON.stringify(newSnapshot.edges) ||
+        JSON.stringify(prevSnapshot.variables) !== JSON.stringify(newSnapshot.variables) ||
+        prevSnapshot.name !== newSnapshot.name ||
+        prevSnapshot.goal !== newSnapshot.goal;
+
+      if (hasWorkflowChange) {
+        const result = await createWorkflowVersion(
+          params.id,
+          userId,
+          prevSnapshot,
+          newSnapshot,
+          saveNote
+        );
+        versionInfo = { version: result.version, currentVersion: result.currentVersion };
+      }
+    } catch (vErr) {
+      // Versioning failure should not block the save
+      console.error("Auto-versioning failed:", vErr);
+    }
+
     return Response.json({
       ...team,
+      ...(versionInfo ? { versionInfo } : {}),
       schedulePreview: getTeamSchedulePreview(
         normalizeTeamScheduleConfig(
           mergedConfig &&

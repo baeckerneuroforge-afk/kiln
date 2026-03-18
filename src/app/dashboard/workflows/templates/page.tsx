@@ -570,7 +570,6 @@ function TemplateCard({
   const router = useRouter();
   const visual = TEMPLATE_VISUALS[template.id] ?? DEFAULT_VISUAL;
   const Icon = visual.icon;
-  const category = getTemplateCategory(template);
   const industry = getIndustry(template);
   const nodeCount = template.workflow?.nodes?.length ?? 0;
 
