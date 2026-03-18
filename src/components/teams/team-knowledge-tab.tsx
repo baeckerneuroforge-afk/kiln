@@ -364,7 +364,7 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
       {entries.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-sm font-medium text-zinc-200">
-            Team Knowledge Sources ({entries.length})
+            Workflow Knowledge Sources ({entries.length})
           </h3>
           {entries.map((entry) => (
             <div

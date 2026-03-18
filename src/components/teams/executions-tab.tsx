@@ -450,7 +450,7 @@ export function TeamExecutionsTab({
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium text-zinc-100">
-                        {execution.goal?.slice(0, 56) || "Team execution"}
+                        {execution.goal?.slice(0, 56) || "Workflow execution"}
                       </p>
                       <p className="mt-1 text-xs text-zinc-500">{formatDateTime(execution.startedAt)}</p>
                     </div>
@@ -635,7 +635,7 @@ export function TeamExecutionsTab({
                 <div className="rounded-xl border border-border bg-zinc-950/40 p-4">
                   <div className="flex items-center gap-2">
                     <Database className="h-4 w-4 text-amber-300" />
-                    <p className="text-sm font-semibold text-zinc-100">Team Knowledge</p>
+                    <p className="text-sm font-semibold text-zinc-100">Workflow Knowledge</p>
                   </div>
                   {Object.keys(detail.execution.executionContext || {}).length === 0 ? (
                     <p className="mt-3 text-sm text-zinc-500">No shared context fields have been captured yet.</p>

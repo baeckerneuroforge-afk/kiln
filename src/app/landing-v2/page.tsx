@@ -696,7 +696,7 @@ export default function LandingPageV2() {
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             {[
               { icon: Globe, title: "Site Builder", color: "#3B82F6", badge: "Q3 2026", desc: "Describe your website in natural language. KILN designs, builds, and hosts it with integrated AI." },
-              { icon: Zap, title: "Flow Engine", color: "#22C55E", badge: "Q4 2026", desc: "Automate workflows with natural language. Connect CRM, email, calendar, and 100+ tools." },
+              { icon: Zap, title: "Workflow Automation", color: "#22C55E", badge: "Q4 2026", desc: "Automate workflows with natural language. Connect CRM, email, calendar, and 100+ tools." },
             ].map((mod, i) => (
               <motion.div
                 key={mod.title}

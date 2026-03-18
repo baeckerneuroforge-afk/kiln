@@ -176,8 +176,8 @@ export function TeamPermissionsTab({ teamId, isOwner }: TeamPermissionsTabProps)
           <Shield className="h-4 w-4 text-orange-400" />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-foreground">Team-Mitglieder & Berechtigungen</h3>
-          <p className="text-xs text-muted-foreground">Verwalte, wer Zugriff auf dieses Team hat.</p>
+          <h3 className="text-sm font-semibold text-foreground">Workflow-Mitglieder & Berechtigungen</h3>
+          <p className="text-xs text-muted-foreground">Verwalte, wer Zugriff auf diesen Workflow hat.</p>
         </div>
       </div>
 

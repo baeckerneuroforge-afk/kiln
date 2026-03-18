@@ -166,7 +166,7 @@ export function TeamWebhooksTab({ teamId }: TeamWebhooksTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-zinc-100">Team Webhooks</h3>
+          <h3 className="text-sm font-semibold text-zinc-100">Workflow Webhooks</h3>
           <p className="text-xs text-zinc-500 mt-0.5">
             Receive HTTP notifications after each agent step, approval gate, or execution completion.
           </p>

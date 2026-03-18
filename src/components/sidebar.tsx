@@ -77,16 +77,16 @@ const allModules = [
     minAgents: 2, // Show after 2+ agents
   },
   {
-    name: "Agent Teams",
+    name: "Workflows",
     href: "/dashboard/teams",
-    icon: Users,
+    icon: Zap,
     color: "text-muted-foreground",
     activeColor: "text-kiln-orange",
     minAgents: 5, // Show after 5+ agents or Pro+
     requiresPro: true,
   },
   {
-    name: "Team Monitor",
+    name: "Workflow Monitor",
     href: "/dashboard/teams/monitor",
     icon: Radio,
     color: "text-muted-foreground",
@@ -127,15 +127,6 @@ const allModules = [
     color: "text-muted-foreground",
     activeColor: "text-kiln-blue",
     badge: "Q3 2026" as string | null,
-    minAgents: 0,
-  },
-  {
-    name: "Flow Engine",
-    href: "/dashboard/flows",
-    icon: Zap,
-    color: "text-muted-foreground",
-    activeColor: "text-kiln-green",
-    badge: "Q4 2026" as string | null,
     minAgents: 0,
   },
 ];

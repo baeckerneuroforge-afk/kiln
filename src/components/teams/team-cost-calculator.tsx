@@ -226,7 +226,7 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
           <div className="rounded-lg border border-orange-900/30 bg-orange-950/10 p-4">
             <div className="flex items-center gap-1.5 mb-2">
               <Coins className="h-3.5 w-3.5 text-orange-500" />
-              <span className="text-xs text-orange-400/80">Dein Team</span>
+              <span className="text-xs text-orange-400/80">Dein Workflow</span>
             </div>
             <p className="text-xl font-bold text-zinc-100">
               ~{formatCost(teamCostPerExecution)}
@@ -296,7 +296,7 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-lg bg-zinc-950/50 border border-zinc-800 p-3">
-            <p className="text-xs text-zinc-500 mb-1">Team / Monat</p>
+            <p className="text-xs text-zinc-500 mb-1">Workflow / Monat</p>
             <p className="text-lg font-bold text-zinc-100">
               {formatCost(monthlyTeamCost)}
             </p>

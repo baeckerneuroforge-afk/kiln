@@ -220,12 +220,12 @@ export default function NewTeamTemplatePage() {
       const res = await fetch("/api/teams/templates");
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to load team templates");
+        throw new Error(data.error || "Failed to load workflow templates");
       }
       setTemplates(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("Failed to load team templates:", err);
-      toast("Failed to load team templates", "error");
+      console.error("Failed to load workflow templates:", err);
+      toast("Failed to load workflow templates", "error");
     } finally {
       setLoading(false);
     }
@@ -281,7 +281,7 @@ export default function NewTeamTemplatePage() {
     ? businessName.trim()
       ? `${businessName.trim()} ${selectedTemplate.name}`
       : selectedTemplate.name
-    : "Team Template";
+    : "Workflow Template";
 
   async function deployTemplate() {
     if (!selectedTemplate) return;
@@ -304,15 +304,15 @@ export default function NewTeamTemplatePage() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to deploy team");
+        throw new Error(data.error || "Failed to deploy workflow");
       }
 
-      toast(`Team "${data.teamName}" deployed`);
+      toast(`Workflow "${data.teamName}" deployed`);
       router.push(data.detailUrl || `/dashboard/teams/${data.teamId}`);
     } catch (err) {
-      console.error("Failed to deploy team template:", err);
+      console.error("Failed to deploy workflow template:", err);
       toast(
-        err instanceof Error ? err.message : "Failed to deploy team template",
+        err instanceof Error ? err.message : "Failed to deploy workflow template",
         "error"
       );
     } finally {
@@ -328,7 +328,7 @@ export default function NewTeamTemplatePage() {
           className="inline-flex items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-muted hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Teams
+          Back to Workflows
         </Link>
       </div>
 
@@ -336,14 +336,14 @@ export default function NewTeamTemplatePage() {
         <div>
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-kiln-orange/20 bg-kiln-orange/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-kiln-orange">
             <Sparkles className="h-3.5 w-3.5" />
-            One-Click Team Templates
+            One-Click Workflow Templates
           </div>
           <h1 className="font-serif text-3xl text-foreground">
             Deploy Multi-Agent Workflows in One Click
           </h1>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            Choose a proven team template, adapt it to your business and industry,
-            and KILN will create the full team, all agents, and the orchestration
+            Choose a proven workflow template, adapt it to your business and industry,
+            and KILN will create the full workflow, all agents, and the orchestration
             links for you.
           </p>
         </div>
@@ -459,7 +459,7 @@ export default function NewTeamTemplatePage() {
                       Customize {selectedTemplate.name}
                     </h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Tune the team to your business, then deploy the full workflow.
+                      Tune the workflow to your business, then deploy the full workflow.
                     </p>
                   </div>
                   <div className="rounded-full border border-kiln-orange/20 bg-kiln-orange/10 px-3 py-1 text-[11px] font-medium text-kiln-orange">
@@ -588,7 +588,7 @@ export default function NewTeamTemplatePage() {
                           What gets created
                         </p>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          KILN will create the team, all agents, their default actions,
+                          KILN will create the workflow, all agents, their default actions,
                           and the orchestration rules connecting them. You can test or edit
                           everything right away.
                         </p>
@@ -607,11 +607,11 @@ export default function NewTeamTemplatePage() {
                       {deploying ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Deploying Team
+                          Deploying Workflow
                         </>
                       ) : (
                         <>
-                          Deploy Team
+                          Deploy Workflow
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </>
                       )}
@@ -626,7 +626,7 @@ export default function NewTeamTemplatePage() {
                   Choose a template to continue
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Select one of the team templates on the left to customize and deploy it.
+                  Select one of the workflow templates on the left to customize and deploy it.
                 </p>
               </div>
             )}

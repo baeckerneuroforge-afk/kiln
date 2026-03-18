@@ -166,10 +166,10 @@ export default function TeamMonitorPage() {
             <div>
               <h1 className="text-xl font-semibold text-zinc-100 font-[family-name:var(--font-instrument)] flex items-center gap-2">
                 <Radio className="h-5 w-5 text-orange-400" />
-                Team Monitor
+                Workflow Monitor
               </h1>
               <p className="text-xs text-zinc-500 mt-0.5">
-                Live overview of all team executions · Auto-refreshes every 5s
+                Live overview of all workflow executions · Auto-refreshes every 5s
               </p>
             </div>
           </div>
@@ -315,7 +315,7 @@ export default function TeamMonitorPage() {
             onChange={(e) => setTeamFilter(e.target.value)}
             className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 focus:border-orange-500 focus:outline-none"
           >
-            <option value="all">All Teams</option>
+            <option value="all">All Workflows</option>
             {teamNames.map((name) => (
               <option key={name} value={name}>{name}</option>
             ))}

@@ -25,6 +25,7 @@ import { extractTextContent, hashSession, extractAndSaveMemories, evaluateOrches
 import { detectIntent, hasTopicShifted, loadTeamAgentsForRouting } from "@/lib/intent-router";
 import { buildTools, executeChatTool } from "@/lib/services/action-service";
 import { getOrCreateVisitor, generateMemoryPrefix, updateVisitorMemory, linkEmailToVisitor } from "@/lib/visitor-memory";
+import { triggerLeadWorkflows } from "@/lib/services/workflow-lead-trigger";
 import {
   getAgentScheduleFromWhiteLabel,
   getAgentScheduleStatus,
@@ -133,6 +134,14 @@ export async function POST(
 
       waitUntil(
         emitEvent("lead.captured", originalAgent.userId, params.id, {
+          email,
+          name: name || null,
+          source: "offline-lead",
+        })
+      );
+      // Trigger Workflows mit Lead-Trigger
+      waitUntil(
+        triggerLeadWorkflows(params.id, originalAgent.userId, {
           email,
           name: name || null,
           source: "offline-lead",
@@ -694,6 +703,13 @@ export async function POST(
                       name: toolInput.name || null,
                     })
                   );
+                  waitUntil(
+                    triggerLeadWorkflows(params.id, agent.userId, {
+                      conversationId,
+                      email: (toolInput.email as string) || null,
+                      name: (toolInput.name as string) || null,
+                    })
+                  );
                   // Export lead to Notion (if configured)
                   waitUntil(
                     exportLeadToNotion(params.id, agent.userId, {
@@ -913,6 +929,13 @@ export async function POST(
                       conversationId,
                       email: input.email || null,
                       name: input.name || null,
+                    })
+                  );
+                  waitUntil(
+                    triggerLeadWorkflows(params.id, agent.userId, {
+                      conversationId,
+                      email: (input.email as string) || null,
+                      name: (input.name as string) || null,
                     })
                   );
                   // Export lead to Notion (if configured)

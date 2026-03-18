@@ -827,6 +827,33 @@ export default function AgentDetailPage() {
             <Download className="mr-2 h-3.5 w-3.5" />
             Export
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              try {
+                const res = await fetch("/api/teams", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    name: `${agent.name} Workflow`,
+                    description: `Workflow for ${agent.name}`,
+                    goal: `Run ${agent.name}`,
+                    agentId: agent.id,
+                    autoCreateWorkflow: true,
+                  }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Failed");
+                router.push(`/dashboard/teams/${data.id || data.teamId}`);
+              } catch {
+                router.push(`/dashboard/teams/new`);
+              }
+            }}
+          >
+            <Zap className="mr-2 h-3.5 w-3.5" />
+            Open in Workflow Editor
+          </Button>
           <div className="relative">
             {savedVersion && (
               <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-400 animate-in fade-in slide-in-from-bottom-2 duration-300">

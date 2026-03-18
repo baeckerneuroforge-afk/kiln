@@ -166,7 +166,7 @@ export function TeamCostDashboard({ teamId }: TeamCostDashboardProps) {
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[10px] font-medium uppercase tracking-wider text-emerald-400/80">Team Savings</p>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-emerald-400/80">Workflow Savings</p>
               <p className="mt-1.5 text-2xl font-semibold text-emerald-400">{data.savingsPercent}%</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 vs single Opus agent ({formatCost(data.singleAgentEquivalent)})

@@ -222,7 +222,7 @@ function getMemberDisplayName(member: TeamMember) {
       : "Approval Gate";
   }
 
-  return "Unassigned member";
+  return "Unassigned node";
 }
 
 /* ========== Custom ReactFlow Node ========== */
@@ -794,7 +794,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                 {member.role}
               </span>
             )}
-            <h3 className="text-sm font-semibold text-zinc-100">Edit Member</h3>
+            <h3 className="text-sm font-semibold text-zinc-100">Edit Node</h3>
           </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 transition-colors">
             <X className="h-4 w-4" />
@@ -1123,7 +1123,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                 <div className="space-y-1.5 border-t border-zinc-800 pt-4">
                   <label className="text-xs font-medium text-zinc-400">Active Tools</label>
                   <p className="text-[10px] text-zinc-500">
-                    Select which tools this agent can use during team execution.
+                    Select which tools this agent can use during workflow execution.
                     {enabledActions.length === 0 && " (All tools active)"}
                   </p>
 
@@ -1184,10 +1184,10 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                     <div>
                       <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
                         <Network className="h-3 w-3" />
-                        Trigger Team
+                        Trigger Workflow
                       </label>
                       <p className="mt-1 text-[10px] text-zinc-500">
-                        After this agent completes, trigger another team&apos;s execution.
+                        After this agent completes, trigger another workflow&apos;s execution.
                       </p>
                     </div>
                     <button
@@ -1210,13 +1210,13 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                   {triggerTeamEnabled && (
                     <div className="space-y-3 ml-1">
                       <div>
-                        <label className="text-[10px] text-zinc-500 mb-1 block">Target Team</label>
+                        <label className="text-[10px] text-zinc-500 mb-1 block">Target Workflow</label>
                         <select
                           value={triggerTeamTargetId}
                           onChange={(e) => setTriggerTeamTargetId(e.target.value)}
                           className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
                         >
-                          <option value="">Select team...</option>
+                          <option value="">Select workflow...</option>
                           {availableTeams.map((t) => (
                             <option key={t.id} value={t.id}>{t.name}</option>
                           ))}
@@ -1528,7 +1528,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
               className="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10"
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Remove Member
+              Remove Node
             </Button>
           )}
         </div>
@@ -1621,7 +1621,7 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
       });
       if (!memberRes.ok) {
         const d = await memberRes.json().catch(() => ({}));
-        throw new Error(d.error || "Failed to add member");
+        throw new Error(d.error || "Failed to add node");
       }
 
       onAdded();
@@ -1639,7 +1639,7 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
         {/* Modal header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <h2 className="text-base font-semibold text-zinc-100 font-[family-name:var(--font-instrument)]">
-            Add Member
+            Add Node
           </h2>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 transition-colors">
             <X className="h-4 w-4" />
@@ -1851,7 +1851,7 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
             className="bg-orange-600 hover:bg-orange-700 text-white min-w-[100px]"
           >
             {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-            {creating ? "Creating..." : "Add Member"}
+            {creating ? "Creating..." : "Add Node"}
           </Button>
         </div>
       </div>
@@ -1939,7 +1939,7 @@ function TeamDetailInner() {
       const res = await fetch(`/api/teams/${teamId}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to load team");
+        throw new Error(data.error || "Failed to load workflow");
       }
       const data: Team = await res.json();
       setTeam(data);
@@ -2019,7 +2019,7 @@ function TeamDetailInner() {
 
   /* Delete team */
   const deleteTeam = async () => {
-    if (!confirm("Are you sure you want to delete this team?")) return;
+    if (!confirm("Are you sure you want to delete this workflow?")) return;
     try {
       const res = await fetch(`/api/teams/${teamId}`, { method: "DELETE" });
       if (res.ok) router.push("/dashboard/teams");
@@ -2082,10 +2082,10 @@ function TeamDetailInner() {
         setTeam(data);
       } else {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || "Failed to generate members");
+        setError(data.error || "Failed to generate workflow nodes");
       }
     } catch {
-      setError("Failed to generate members");
+      setError("Failed to generate workflow nodes");
     } finally {
       setGeneratingMembers(false);
     }
@@ -2302,10 +2302,10 @@ function TeamDetailInner() {
   if (error || !team) {
     return (
       <div className="flex flex-col items-center justify-center h-[80vh] gap-4">
-        <ErrorState message={error || "Team not found"} />
+        <ErrorState message={error || "Workflow not found"} />
         <Link href="/dashboard/teams">
           <Button variant="outline" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Teams
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Workflows
           </Button>
         </Link>
       </div>
@@ -2451,7 +2451,7 @@ function TeamDetailInner() {
                     }}
                     className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
                   >
-                    <Copy className="h-4 w-4" /> Clone Team
+                    <Copy className="h-4 w-4" /> Clone Workflow
                   </button>
                   <button
                     onClick={() => {
@@ -2489,7 +2489,7 @@ function TeamDetailInner() {
                     }}
                     className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2"
                   >
-                    <Trash2 className="h-4 w-4" /> Delete Team
+                    <Trash2 className="h-4 w-4" /> Delete Workflow
                   </button>
                 </div>
               </>
@@ -2504,7 +2504,7 @@ function TeamDetailInner() {
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
               <Heart className="h-4 w-4 text-orange-400" />
-              Team Health Score
+              Workflow Health Score
             </h3>
             <button onClick={() => setShowHealthBreakdown(false)} className="text-zinc-500 hover:text-zinc-300">
               <X className="h-4 w-4" />
@@ -2618,7 +2618,7 @@ function TeamDetailInner() {
               className="border-dashed border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 h-8"
             >
               <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Add Member
+              Add Node
             </Button>
           </div>
         )}
@@ -2634,7 +2634,7 @@ function TeamDetailInner() {
               <div className="mx-4 mt-3 flex items-center gap-3 rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-2.5 shrink-0">
                 <Info className="h-4 w-4 text-blue-400 shrink-0" />
                 <p className="flex-1 text-xs text-zinc-300">
-                  Some agents in this team are set to Chat mode. For autonomous task execution, convert them to Task Agents.
+                  Some agents in this workflow are set to Chat mode. For autonomous task execution, convert them to Task Agents.
                 </p>
                 <Button
                   size="sm"
@@ -2658,7 +2658,7 @@ function TeamDetailInner() {
                     Shared Memory
                   </p>
                   <p className="mt-1 text-sm text-zinc-200">
-                    {Object.keys(sharedContextPreview).length} context field(s) currently flow between team members.
+                    {Object.keys(sharedContextPreview).length} context field(s) currently flow between workflow nodes.
                   </p>
                   <p className="mt-1 text-xs text-zinc-400">
                     {Object.entries(sharedContextPreview)
@@ -2675,11 +2675,11 @@ function TeamDetailInner() {
                   <Users className="h-10 w-10 text-orange-500/50" />
                 </div>
                 <div className="text-center">
-                  <p className="text-sm font-medium text-zinc-300 mb-1">No members in this team yet</p>
+                  <p className="text-sm font-medium text-zinc-300 mb-1">No members in this workflow yet</p>
                   <p className="text-xs text-zinc-600 max-w-sm">
                     {team.goal
-                      ? "Generate agents based on your team's goal using AI, or add them manually."
-                      : "Add a goal to your team, then generate agents or add them manually."}
+                      ? "Generate agents based on your workflow's goal using AI, or add them manually."
+                      : "Add a goal to your workflow, then generate agents or add them manually."}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -2698,7 +2698,7 @@ function TeamDetailInner() {
                       ) : (
                         <>
                           <Sparkles className="h-4 w-4 mr-2" />
-                          Generate Members from Goal
+                          Generate Nodes from Goal
                         </>
                       )}
                     </Button>
@@ -2923,7 +2923,7 @@ function TeamDetailInner() {
                 { label: "Total Tasks", value: analytics.total, icon: <Target className="h-5 w-5 text-orange-400" /> },
                 { label: "Completed Tasks", value: analytics.completed, icon: <CheckCircle2 className="h-5 w-5 text-green-400" /> },
                 { label: "Avg Completion Time", value: analytics.avgTime, icon: <Clock className="h-5 w-5 text-blue-400" /> },
-                { label: "Active Members", value: analytics.activeMembers, icon: <Users className="h-5 w-5 text-purple-400" /> },
+                { label: "Active Nodes", value: analytics.activeMembers, icon: <Users className="h-5 w-5 text-purple-400" /> },
               ].map((stat) => (
                 <div
                   key={stat.label}
@@ -3082,7 +3082,7 @@ function TeamDetailInner() {
           <div className="w-full max-w-lg rounded-2xl border border-border bg-zinc-900 shadow-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-zinc-100 font-[family-name:var(--font-instrument)]">
-                Assign Task to Team
+                Assign Task to Workflow
               </h2>
               <button
                 onClick={() => {
@@ -3096,7 +3096,7 @@ function TeamDetailInner() {
             </div>
 
             <p className="text-sm text-zinc-500 mb-4">
-              Describe the goal or task. Claude will decompose it into subtasks and assign them to team members.
+              Describe the goal or task. Claude will decompose it into subtasks and assign them to workflow nodes.
             </p>
 
             <textarea
@@ -3150,7 +3150,7 @@ function TeamDetailInner() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-zinc-100 flex items-center gap-2 font-[family-name:var(--font-instrument)]">
                 <Copy className="h-5 w-5 text-orange-400" />
-                Clone Team
+                Clone Workflow
               </h2>
               <button onClick={() => setShowCloneModal(false)} className="text-zinc-500 hover:text-zinc-300">
                 <X className="h-5 w-5" />
@@ -3158,7 +3158,7 @@ function TeamDetailInner() {
             </div>
 
             <p className="text-sm text-zinc-400 mb-6">
-              This will create a copy of this team with all agents, knowledge bases, and settings. The cloned team will be independent from the original.
+              This will create a copy of this workflow with all agents, knowledge bases, and settings. The cloned workflow will be independent from the original.
             </p>
 
             <div className="flex justify-end gap-3">

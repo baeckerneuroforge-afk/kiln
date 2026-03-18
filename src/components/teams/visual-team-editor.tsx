@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -39,10 +39,39 @@ import {
   GitBranch,
   Sparkles,
   LayoutGrid,
+  ChevronRight,
+  ChevronDown,
+  Globe,
+  Clock,
+  UserPlus,
+  Play,
+  GitFork,
+  Filter,
+  Mail,
+  Hash,
+  Timer,
+  Variable,
+  ShieldCheck,
+  Pause,
+  Layers,
+  Merge,
+  Bot,
+  GripVertical,
+  PanelLeftClose,
+  PanelLeft,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getModelDef } from "@/lib/ai";
 import { Button } from "@/components/ui/button";
+import {
+  WORKFLOW_CATEGORIES,
+  WORKFLOW_NODE_DEFINITIONS,
+  type WorkflowNodeType,
+  type WorkflowNodeCategory,
+  type WorkflowNodeDefinition,
+  createWorkflowNode,
+} from "@/lib/workflow-node-types";
 
 /* ========== Types ========== */
 interface OutputSchemaField {
@@ -105,6 +134,12 @@ interface VisualTeamEditorProps {
   savedPositions?: Record<string, { x: number; y: number }>;
   onPositionsChange?: (positions: Record<string, { x: number; y: number }>) => void;
   teamKnowledgeCount?: number;
+  /** Workflow nodes (non-agent) stored in JSON on the team */
+  workflowNodes?: { id: string; type: WorkflowNodeType; label: string; position: { x: number; y: number }; config: Record<string, unknown> }[];
+  workflowEdges?: { sourceId: string; targetId: string; condition?: string; sourceHandle?: string }[];
+  onWorkflowNodesChange?: (nodes: { id: string; type: WorkflowNodeType; label: string; position: { x: number; y: number }; config: Record<string, unknown> }[]) => void;
+  onWorkflowEdgesChange?: (edges: { sourceId: string; targetId: string; condition?: string; sourceHandle?: string }[]) => void;
+  onWorkflowNodeClick?: (nodeId: string, nodeType: WorkflowNodeType, config: Record<string, unknown>) => void;
 }
 
 /* ========== Constants ========== */
@@ -114,6 +149,22 @@ const roleColors: Record<string, { bg: string; text: string; border: string; hex
   EXECUTOR: { bg: "bg-green-500/20", text: "text-green-400", border: "border-green-500/40", hex: "#22C55E", glow: "shadow-green-500/20" },
   REPORTER: { bg: "bg-purple-500/20", text: "text-purple-400", border: "border-purple-500/40", hex: "#A855F7", glow: "shadow-purple-500/20" },
   APPROVAL_GATE: { bg: "bg-amber-500/20", text: "text-amber-300", border: "border-amber-500/40", hex: "#F59E0B", glow: "shadow-amber-500/20" },
+};
+
+/** Color mapping for workflow node types (non-agent nodes) */
+const workflowNodeColors: Record<WorkflowNodeCategory, { border: string; bg: string; text: string; hex: string }> = {
+  triggers: { border: "border-amber-500/50", bg: "bg-amber-500/15", text: "text-amber-400", hex: "#F59E0B" },
+  agents: { border: "border-orange-500/40", bg: "bg-orange-500/15", text: "text-orange-400", hex: "#F97316" },
+  logic: { border: "border-violet-500/50", bg: "bg-violet-500/15", text: "text-violet-400", hex: "#8B5CF6" },
+  actions: { border: "border-blue-500/50", bg: "bg-blue-500/15", text: "text-blue-400", hex: "#3B82F6" },
+  control: { border: "border-cyan-500/50", bg: "bg-cyan-500/15", text: "text-cyan-400", hex: "#06B6D4" },
+};
+
+/** Map lucide icon names to components */
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  Globe, Clock, UserPlus, MessageSquare, Play, Bot, GitBranch, GitFork,
+  Filter, Mail, Hash, Timer, Variable, ShieldCheck, Pause, Layers, Merge,
+  Zap, Shield,
 };
 
 const NODE_WIDTH = 260;
@@ -158,7 +209,7 @@ function getLayoutedElements(
   return { nodes: layoutedNodes, edges };
 }
 
-/* ========== Custom Node ========== */
+/* ========== Custom Node: Agent ========== */
 type VisualNodeData = {
   label: string;
   role: string;
@@ -339,6 +390,105 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
   );
 }
 
+/* ========== Custom Node: Workflow Node (non-agent) ========== */
+type WorkflowNodeData = {
+  label: string;
+  nodeType: WorkflowNodeType;
+  category: WorkflowNodeCategory;
+  description: string;
+  iconName: string;
+  config: Record<string, unknown>;
+  [key: string]: unknown;
+};
+
+function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeData>>) {
+  const category = data.category as WorkflowNodeCategory;
+  const colors = workflowNodeColors[category] || workflowNodeColors.actions;
+  const IconComp = iconMap[data.iconName as string] || Zap;
+  const nodeType = data.nodeType as WorkflowNodeType;
+  const isLogicNode = category === "logic";
+
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border-2 bg-zinc-900/95 backdrop-blur-md px-4 py-3 shadow-xl min-w-[200px] max-w-[240px] transition-all duration-200",
+        colors.border,
+        selected && "shadow-lg scale-[1.02] ring-1 ring-white/10",
+      )}
+    >
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="!bg-zinc-500 !w-3 !h-3 !border-2 !border-zinc-800 hover:!bg-orange-400 transition-colors !-top-1.5"
+      />
+
+      <div className="flex items-center gap-2.5 mb-1.5">
+        <div className={cn("flex h-8 w-8 items-center justify-center rounded-xl shrink-0", colors.bg)}>
+          <IconComp className={cn("h-4 w-4", colors.text)} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <span className={cn("text-[9px] font-bold uppercase tracking-wider", colors.text)}>
+            {category}
+          </span>
+          <p className="text-sm font-semibold text-zinc-100 truncate">{data.label as string}</p>
+        </div>
+      </div>
+
+      <p className="text-[11px] text-zinc-500 line-clamp-2">{data.description as string}</p>
+
+      {/* Config preview */}
+      {nodeType === "delay" && data.config && (
+        <div className="mt-2 flex items-center gap-1 text-[10px] text-zinc-400">
+          <Timer className="h-3 w-3" />
+          {(data.config as Record<string, unknown>).duration as number || 60}{(data.config as Record<string, unknown>).unit as string || "s"}
+        </div>
+      )}
+      {nodeType === "http_request" && data.config && (
+        <div className="mt-2 flex items-center gap-1 text-[10px] font-mono text-zinc-400 truncate">
+          <Globe className="h-3 w-3 shrink-0" />
+          {(data.config as Record<string, unknown>).method as string || "GET"} {(data.config as Record<string, unknown>).url as string || "..."}
+        </div>
+      )}
+      {nodeType === "if_condition" && data.config && (
+        <div className="mt-2 flex items-center gap-1 text-[10px] font-mono text-zinc-400 truncate">
+          <GitBranch className="h-3 w-3 shrink-0" />
+          {(data.config as Record<string, unknown>).field as string || "field"} {(data.config as Record<string, unknown>).operator as string || "=="} {(data.config as Record<string, unknown>).value as string || "value"}
+        </div>
+      )}
+
+      {/* Source handles */}
+      {isLogicNode ? (
+        <>
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="true"
+            className="!bg-green-500 !w-3 !h-3 !border-2 !border-zinc-800 !-bottom-1.5"
+            style={{ left: "35%" }}
+          />
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="false"
+            className="!bg-red-500 !w-3 !h-3 !border-2 !border-zinc-800 !-bottom-1.5"
+            style={{ left: "65%" }}
+          />
+          <div className="flex justify-between mt-2 px-2 text-[8px] text-zinc-600">
+            <span className="text-green-500">true</span>
+            <span className="text-red-400">false</span>
+          </div>
+        </>
+      ) : (
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          className="!bg-zinc-500 !w-3 !h-3 !border-2 !border-zinc-800 hover:!bg-orange-400 transition-colors !-bottom-1.5"
+        />
+      )}
+    </div>
+  );
+}
+
 /* ========== Team Knowledge Node ========== */
 type KnowledgeNodeData = {
   label: string;
@@ -369,7 +519,7 @@ function TeamKnowledgeNode({ data }: NodeProps<Node<KnowledgeNodeData>>) {
           Shared KB
         </span>
       </div>
-      <p className="text-sm font-semibold text-zinc-200">Team Knowledge</p>
+      <p className="text-sm font-semibold text-zinc-200">Workflow Knowledge</p>
       <p className="text-[11px] text-zinc-500 mt-0.5">
         {data.docCount} {data.docCount === 1 ? "Dokument" : "Dokumente"}
       </p>
@@ -502,17 +652,151 @@ function AnimatedConnectionEdge({
 /* ========== Node & Edge types ========== */
 const nodeTypes = {
   visualAgent: VisualAgentNode,
+  workflowNode: WorkflowNodeComponent,
   teamKnowledge: TeamKnowledgeNode,
   fallbackGhost: FallbackGhostNode,
 };
 const edgeTypes = { animated: AnimatedConnectionEdge };
+
+/* ========== Sidebar: Draggable Node Palette ========== */
+function NodePaletteSidebar({
+  collapsed,
+  onToggle,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    new Set(WORKFLOW_CATEGORIES.map((c) => c.id))
+  );
+
+  const toggleCategory = (id: string) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const onDragStart = (e: React.DragEvent, def: WorkflowNodeDefinition) => {
+    e.dataTransfer.setData("application/kiln-workflow-node", JSON.stringify({
+      type: def.type,
+      label: def.label,
+      category: def.category,
+      description: def.description,
+      icon: def.icon,
+      color: def.color,
+      defaultConfig: def.defaultConfig,
+    }));
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  if (collapsed) {
+    return (
+      <div className="absolute left-0 top-0 z-20 h-full">
+        <button
+          onClick={onToggle}
+          className="m-2 flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900/95 text-zinc-400 shadow-lg backdrop-blur-md transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+          title="Show node palette"
+        >
+          <PanelLeft className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="absolute left-0 top-0 z-20 flex h-full w-[250px] flex-col border-r border-zinc-800 bg-zinc-950/95 backdrop-blur-md">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <Zap className="h-4 w-4 text-kiln-orange" />
+          <span className="text-xs font-semibold text-zinc-200">Node Palette</span>
+        </div>
+        <button
+          onClick={onToggle}
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+        >
+          <PanelLeftClose className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Categories */}
+      <div className="flex-1 overflow-y-auto py-1 scrollbar-thin">
+        {WORKFLOW_CATEGORIES.map((cat) => {
+          const isExpanded = expandedCategories.has(cat.id);
+          const catNodes = WORKFLOW_NODE_DEFINITIONS.filter((d) => d.category === cat.id);
+          const CatIcon = iconMap[cat.icon] || Zap;
+
+          return (
+            <div key={cat.id}>
+              <button
+                onClick={() => toggleCategory(cat.id)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-zinc-800/60"
+              >
+                <span style={{ color: cat.color }}><CatIcon className="h-3.5 w-3.5 shrink-0" /></span>
+                <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                  {cat.label}
+                </span>
+                <span className="text-[10px] text-zinc-600">{catNodes.length}</span>
+                {isExpanded ? (
+                  <ChevronDown className="h-3 w-3 text-zinc-600" />
+                ) : (
+                  <ChevronRight className="h-3 w-3 text-zinc-600" />
+                )}
+              </button>
+
+              {isExpanded && (
+                <div className="px-2 pb-1.5">
+                  {catNodes.map((def) => {
+                    const Icon = iconMap[def.icon] || Zap;
+                    return (
+                      <div
+                        key={def.type}
+                        draggable
+                        onDragStart={(e) => onDragStart(e, def)}
+                        className="group flex cursor-grab items-center gap-2.5 rounded-xl px-2.5 py-2 transition-all hover:bg-zinc-800/80 active:cursor-grabbing active:scale-[0.97]"
+                      >
+                        <div className="flex h-3 w-3 items-center justify-center text-zinc-600 opacity-0 transition-opacity group-hover:opacity-100">
+                          <GripVertical className="h-3 w-3" />
+                        </div>
+                        <div
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                          style={{ backgroundColor: `${def.color}15` }}
+                        >
+                          <span style={{ color: def.color }}><Icon className="h-3.5 w-3.5" /></span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[11px] font-medium text-zinc-300">{def.label}</p>
+                          <p className="truncate text-[9px] text-zinc-600">{def.description}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer hint */}
+      <div className="border-t border-zinc-800 px-3 py-2">
+        <p className="text-[10px] text-zinc-600">Drag nodes onto the canvas to add them to your workflow</p>
+      </div>
+    </div>
+  );
+}
 
 /* ========== Helper: members to flow elements ========== */
 function membersToFlowElements(
   members: TeamMember[],
   executionSteps?: ExecutionStep[],
   savedPositions?: Record<string, { x: number; y: number }>,
-  teamKnowledgeCount?: number
+  teamKnowledgeCount?: number,
+  workflowNodes?: VisualTeamEditorProps["workflowNodes"],
+  workflowEdges?: VisualTeamEditorProps["workflowEdges"]
 ) {
   const execMap = new Map(executionSteps?.map((s) => [s.memberId, s.status]) || []);
   const teamMemberNodeIdsByAgentId = new Map(
@@ -707,7 +991,7 @@ function membersToFlowElements(
       id: kbNodeId,
       type: "teamKnowledge",
       position: savedPositions?.[kbNodeId] || { x: 0, y: 0 },
-      data: { label: "Team Knowledge", docCount: teamKnowledgeCount, role: "KB", agentName: "Team Knowledge", responsibilities: "" },
+      data: { label: "Workflow Knowledge", docCount: teamKnowledgeCount, role: "KB", agentName: "Workflow Knowledge", responsibilities: "" },
       draggable: true,
       selectable: false,
     });
@@ -734,6 +1018,52 @@ function membersToFlowElements(
     });
   }
 
+  // Add workflow nodes (non-agent)
+  if (workflowNodes && workflowNodes.length > 0) {
+    const defMap = new Map(WORKFLOW_NODE_DEFINITIONS.map((d) => [d.type, d]));
+    workflowNodes.forEach((wn) => {
+      const def = defMap.get(wn.type);
+      if (!def) return;
+      nodes.push({
+        id: wn.id,
+        type: "workflowNode",
+        position: savedPositions?.[wn.id] || wn.position,
+        data: {
+          label: wn.label,
+          nodeType: wn.type,
+          category: def.category,
+          description: def.description,
+          iconName: def.icon,
+          config: wn.config,
+        },
+      });
+    });
+  }
+
+  // Add workflow edges
+  if (workflowEdges && workflowEdges.length > 0) {
+    workflowEdges.forEach((we) => {
+      edges.push({
+        id: `wfe-${we.sourceId}-${we.targetId}`,
+        source: we.sourceId,
+        target: we.targetId,
+        sourceHandle: we.sourceHandle || undefined,
+        type: "animated",
+        animated: true,
+        data: {
+          label: we.condition || undefined,
+          executionActive: false,
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: "#52525b",
+          width: 16,
+          height: 16,
+        },
+      });
+    });
+  }
+
   return { nodes, edges };
 }
 
@@ -755,9 +1085,16 @@ function VisualTeamEditorInner({
   savedPositions,
   onPositionsChange,
   teamKnowledgeCount,
+  workflowNodes: wfNodes,
+  workflowEdges: wfEdges,
+  onWorkflowNodesChange,
+  onWorkflowEdgesChange,
+  onWorkflowNodeClick,
 }: VisualTeamEditorProps) {
   const reactFlowInstance = useReactFlow();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Inject dash animation CSS
   useEffect(() => {
@@ -775,7 +1112,9 @@ function VisualTeamEditorInner({
 
   // Build initial elements
   const initial = useMemo(() => {
-    const { nodes: rawNodes, edges: rawEdges } = membersToFlowElements(members, executionSteps, savedPositions, teamKnowledgeCount);
+    const { nodes: rawNodes, edges: rawEdges } = membersToFlowElements(
+      members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges
+    );
 
     // Apply dagre layout only if no saved positions
     const hasSaved = savedPositions && Object.keys(savedPositions).length > 0;
@@ -783,14 +1122,16 @@ function VisualTeamEditorInner({
       return { nodes: rawNodes, edges: rawEdges };
     }
     return getLayoutedElements(rawNodes, rawEdges, "TB");
-  }, [members, executionSteps, savedPositions, teamKnowledgeCount]);
+  }, [members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
 
   // Update nodes/edges when members or execution steps change
   useEffect(() => {
-    const { nodes: rawNodes, edges: rawEdges } = membersToFlowElements(members, executionSteps, savedPositions, teamKnowledgeCount);
+    const { nodes: rawNodes, edges: rawEdges } = membersToFlowElements(
+      members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges
+    );
     const hasSaved = savedPositions && Object.keys(savedPositions).length > 0;
 
     if (hasSaved) {
@@ -801,7 +1142,7 @@ function VisualTeamEditorInner({
       setNodes(layouted.nodes);
       setEdges(layouted.edges);
     }
-  }, [members, executionSteps, savedPositions, teamKnowledgeCount, setNodes, setEdges]);
+  }, [members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges, setNodes, setEdges]);
 
   // Save positions on drag end (debounced)
   const handleNodeDragStop = useCallback(
@@ -830,6 +1171,7 @@ function VisualTeamEditorInner({
         id: `e-${connection.source}-${connection.target}`,
         source: connection.source,
         target: connection.target,
+        sourceHandle: connection.sourceHandle || undefined,
         type: "animated",
         animated: true,
         data: {},
@@ -867,21 +1209,101 @@ function VisualTeamEditorInner({
     }
   }, [nodes, edges, setNodes, setEdges, reactFlowInstance, onPositionsChange]);
 
+  // Handle drop from sidebar palette
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+
+      const raw = e.dataTransfer.getData("application/kiln-workflow-node");
+      if (!raw) return;
+
+      try {
+        const payload = JSON.parse(raw) as {
+          type: WorkflowNodeType;
+          label: string;
+          category: WorkflowNodeCategory;
+          description: string;
+          icon: string;
+          color: string;
+          defaultConfig: Record<string, unknown>;
+        };
+
+        // Convert screen coordinates to flow position
+        const bounds = reactFlowWrapper.current?.getBoundingClientRect();
+        if (!bounds) return;
+
+        const position = reactFlowInstance.screenToFlowPosition({
+          x: e.clientX - bounds.left,
+          y: e.clientY - bounds.top,
+        });
+
+        const wfNode = createWorkflowNode(payload.type, position);
+
+        // Add the React Flow node immediately
+        const def = WORKFLOW_NODE_DEFINITIONS.find((d) => d.type === payload.type);
+        if (!def) return;
+
+        const newFlowNode: Node = {
+          id: wfNode.id,
+          type: "workflowNode",
+          position,
+          data: {
+            label: wfNode.label,
+            nodeType: wfNode.type,
+            category: def.category,
+            description: def.description,
+            iconName: def.icon,
+            config: wfNode.config,
+          },
+        };
+
+        setNodes((nds) => [...nds, newFlowNode]);
+
+        // Notify parent about new workflow node
+        if (onWorkflowNodesChange) {
+          const currentWfNodes = wfNodes || [];
+          onWorkflowNodesChange([
+            ...currentWfNodes,
+            { id: wfNode.id, type: wfNode.type, label: wfNode.label, position, config: wfNode.config },
+          ]);
+        }
+      } catch {
+        // Invalid drag data
+      }
+    },
+    [reactFlowInstance, setNodes, onWorkflowNodesChange, wfNodes]
+  );
+
   // Empty state
-  if (members.length === 0) {
+  if (members.length === 0 && (!wfNodes || wfNodes.length === 0)) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-4 py-16">
-        <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-orange-500/10">
-          <Sparkles className="h-10 w-10 text-orange-500/50" />
+      <div className="relative h-full w-full">
+        <NodePaletteSidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
+        <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-4 py-16">
+          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-orange-500/10">
+            <Sparkles className="h-10 w-10 text-orange-500/50" />
+          </div>
+          <p className="text-sm text-zinc-400">Drag nodes from the palette to build your workflow</p>
         </div>
-        <p className="text-sm text-zinc-400">Add team members to see the visual editor</p>
       </div>
     );
   }
 
   return (
-    <div className="h-full w-full relative">
-      {/* Animated dash keyframes injected via useEffect below */}
+    <div className="h-full w-full relative" ref={reactFlowWrapper}>
+      {/* Node Palette Sidebar */}
+      <NodePaletteSidebar
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
 
       <ReactFlow
         nodes={nodes}
@@ -890,6 +1312,8 @@ function VisualTeamEditorInner({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeDragStop={handleNodeDragStop}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
@@ -905,6 +1329,12 @@ function VisualTeamEditorInner({
         }}
         onNodeClick={(_event, node) => {
           if (node.id.startsWith("__fallback__")) return;
+          // Check if it's a workflow node
+          if (node.type === "workflowNode") {
+            const nd = node.data as WorkflowNodeData;
+            onWorkflowNodeClick?.(node.id, nd.nodeType, nd.config);
+            return;
+          }
           onNodeClick(node.id);
         }}
         deleteKeyCode={["Backspace", "Delete"]}
@@ -914,6 +1344,15 @@ function VisualTeamEditorInner({
             onConnectionDelete?.(e.source, e.target);
           });
         }}
+        onNodesDelete={(deletedNodes) => {
+          // Remove workflow nodes
+          if (!onWorkflowNodesChange || !wfNodes) return;
+          const deletedIds = new Set(deletedNodes.map((n) => n.id));
+          const remaining = wfNodes.filter((n) => !deletedIds.has(n.id));
+          if (remaining.length !== wfNodes.length) {
+            onWorkflowNodesChange(remaining);
+          }
+        }}
         snapToGrid
         snapGrid={[20, 20]}
       >
@@ -921,6 +1360,10 @@ function VisualTeamEditorInner({
 
         <MiniMap
           nodeColor={(node) => {
+            if (node.type === "workflowNode") {
+              const cat = (node.data as WorkflowNodeData)?.category;
+              return workflowNodeColors[cat]?.hex || "#52525b";
+            }
             const role = (node.data as VisualNodeData)?.role;
             return roleColors[role]?.hex || "#52525b";
           }}

@@ -105,7 +105,7 @@ interface ManualMember {
 const QUICK_TEMPLATES = [
   {
     key: "sales",
-    label: "Sales Team",
+    label: "Sales Workflow",
     description: "Lead gen, outreach, qualification & meeting booking",
     icon: Briefcase,
     color: "text-orange-400",
@@ -115,7 +115,7 @@ const QUICK_TEMPLATES = [
   },
   {
     key: "support",
-    label: "Support Team",
+    label: "Support Workflow",
     description: "Triage, technical support, billing & onboarding",
     icon: Headphones,
     color: "text-blue-400",
@@ -125,7 +125,7 @@ const QUICK_TEMPLATES = [
   },
   {
     key: "content",
-    label: "Content Team",
+    label: "Content Workflow",
     description: "Blog, social media, newsletters, SEO & analytics",
     icon: PenTool,
     color: "text-green-400",
@@ -137,9 +137,9 @@ const QUICK_TEMPLATES = [
 
 const TEAM_TEMPLATES = [
   { value: "", label: "Custom (no template)" },
-  { value: "sales", label: "Sales Team" },
-  { value: "support", label: "Support Team" },
-  { value: "content", label: "Content Team" },
+  { value: "sales", label: "Sales Workflow" },
+  { value: "support", label: "Support Workflow" },
+  { value: "content", label: "Content Workflow" },
 ];
 
 const TEAM_TEMPLATE_SHOWCASE = [
@@ -395,7 +395,7 @@ function AutoStep1({
     <div className="space-y-4">
       <div>
         <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Team Name <span className="text-kiln-orange">*</span>
+          Workflow Name <span className="text-kiln-orange">*</span>
         </label>
         <input
           autoFocus
@@ -408,19 +408,19 @@ function AutoStep1({
       </div>
       <div>
         <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Team Goal <span className="text-kiln-orange">*</span>
+          Workflow Goal <span className="text-kiln-orange">*</span>
         </label>
         <textarea
           value={goal}
           onChange={(e) => onGoalChange(e.target.value)}
-          placeholder="Describe what this team should accomplish. KILN will design the optimal agent structure..."
+          placeholder="Describe what this workflow should accomplish. KILN will design the optimal agent structure..."
           rows={4}
           className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/30 resize-none"
         />
       </div>
       <p className="text-xs text-muted-foreground/70 flex items-center gap-1.5">
         <Sparkles className="h-3.5 w-3.5 text-kiln-orange/70" />
-        Claude will suggest an optimal team structure based on your goal.
+        Claude will suggest an optimal workflow structure based on your goal.
       </p>
     </div>
   );
@@ -631,7 +631,7 @@ function ReviewStep({
   );
 }
 
-/* ---------- Manual Step 1: Team Basics ---------- */
+/* ---------- Manual Step 1: Workflow Basics ---------- */
 function ManualStep1({
   name,
   goal,
@@ -651,7 +651,7 @@ function ManualStep1({
     <div className="space-y-4">
       <div>
         <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Team Name <span className="text-kiln-orange">*</span>
+          Workflow Name <span className="text-kiln-orange">*</span>
         </label>
         <input
           autoFocus
@@ -669,14 +669,14 @@ function ManualStep1({
         <textarea
           value={goal}
           onChange={(e) => onGoalChange(e.target.value)}
-          placeholder="What should this team accomplish?"
+          placeholder="What should this workflow accomplish?"
           rows={3}
           className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/30 resize-none"
         />
       </div>
       <div>
         <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Team Template <span className="text-muted-foreground/50">(optional)</span>
+          Workflow Template <span className="text-muted-foreground/50">(optional)</span>
         </label>
         <select
           value={teamTemplate}
@@ -711,7 +711,7 @@ function ManualStep2({
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Define the agents that will be part of this team. Each agent has a role, model, and system prompt.
+        Define the agents that will be part of this workflow. Each agent has a role, model, and system prompt.
       </p>
       {members.map((member, idx) => {
         const providerModels = getModelsForProvider(member.provider);
@@ -1026,7 +1026,7 @@ function ManualStep3({
   );
 }
 
-/* ---------- Create Team Modal ---------- */
+/* ---------- Create Workflow Modal ---------- */
 type ModalMode = "pick" | "auto" | "manual";
 type AutoStep = 1 | 2;
 type ManualStep = 1 | 2 | 3 | 4;
@@ -1154,7 +1154,7 @@ function CreateTeamModal({
       onCreated();
       router.push(`/dashboard/teams/${team.id}`);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to create team";
+      const message = err instanceof Error ? err.message : "Failed to create workflow";
       setError(message);
     } finally {
       setSubmitting(false);
@@ -1236,23 +1236,23 @@ function CreateTeamModal({
   if (!open) return null;
 
   /* ---- Determine header title & subtitle ---- */
-  let headerTitle = "Create Team";
-  let headerSub = "Choose how you want to build your team.";
+  let headerTitle = "Create Workflow";
+  let headerSub = "Choose how you want to build your workflow.";
 
   if (mode === "auto") {
-    headerTitle = autoStep === 1 ? "Auto-Generate Team" : "Review Team Structure";
+    headerTitle = autoStep === 1 ? "Auto-Generate Workflow" : "Review Workflow Structure";
     headerSub =
       autoStep === 1
-        ? "Define your team's name and goal. KILN will design the optimal agent structure."
+        ? "Define your workflow's name and goal. KILN will design the optimal agent structure."
         : `${suggestedRoles.length} agents suggested. Review, edit, then create.`;
   } else if (mode === "manual") {
-    const manualStepLabels = ["Team Basics", "Define Roles", "Configure I/O", "Review"];
+    const manualStepLabels = ["Workflow Basics", "Define Roles", "Configure I/O", "Review"];
     headerTitle = `Build Manually — ${manualStepLabels[manualStep - 1]}`;
     headerSub = [
-      "Set the name, goal, and optional template for your team.",
+      "Set the name, goal, and optional template for your workflow.",
       "Add and configure each agent member.",
       "Set triggers and outputs for Task Agents.",
-      "Review the full team structure before creating.",
+      "Review the full workflow structure before creating.",
     ][manualStep - 1];
   }
 
@@ -1303,7 +1303,7 @@ function CreateTeamModal({
           {mode === "pick" && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                How do you want to create your team?
+                How do you want to create your workflow?
               </p>
               <div className="grid gap-4 sm:grid-cols-2">
                 {/* Auto-Generate card */}
@@ -1317,7 +1317,7 @@ function CreateTeamModal({
                   <div>
                     <p className="font-semibold text-foreground">Auto-Generate</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Describe your goal. Claude suggests the optimal team structure with agents, roles, and prompts.
+                      Describe your goal. Claude suggests the optimal workflow structure with agents, roles, and prompts.
                     </p>
                   </div>
                   <div className="flex items-center gap-1 text-xs text-kiln-orange font-medium mt-auto">
@@ -1498,7 +1498,7 @@ function CreateTeamModal({
                 {generating ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Designing team...
+                    Designing workflow...
                   </>
                 ) : (
                   <>
@@ -1525,7 +1525,7 @@ function CreateTeamModal({
                 ) : (
                   <>
                     <Plus className="mr-2 h-4 w-4" />
-                    Create Team ({suggestedRoles.length} agents)
+                    Create Workflow ({suggestedRoles.length} agents)
                   </>
                 )}
               </Button>
@@ -1561,7 +1561,7 @@ function CreateTeamModal({
                 ) : (
                   <>
                     <Plus className="mr-2 h-4 w-4" />
-                    Create Team ({manualMembers.length} agents)
+                    Create Workflow ({manualMembers.length} agents)
                   </>
                 )}
               </Button>
@@ -1627,7 +1627,7 @@ export default function TeamsPage() {
       })
       .catch((err) => {
         console.error("Failed to load teams:", err);
-        setError(err.message || "Error loading teams");
+        setError(err.message || "Error loading workflows");
       })
       .finally(() => setLoading(false));
   }
@@ -1645,7 +1645,7 @@ export default function TeamsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: tpl?.label || "New Team",
+          name: tpl?.label || "New Workflow",
           template: templateKey,
         }),
       });
@@ -1659,7 +1659,7 @@ export default function TeamsPage() {
       router.push(`/dashboard/teams/${team.id}`);
     } catch (err) {
       console.error("Template creation failed:", err);
-      setError(err instanceof Error ? err.message : "Failed to create team");
+      setError(err instanceof Error ? err.message : "Failed to create workflow");
     } finally {
       setCreatingTemplate(null);
     }
@@ -1744,7 +1744,7 @@ export default function TeamsPage() {
       {/* Header */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-serif text-3xl text-foreground">Agent Teams</h1>
+          <h1 className="font-serif text-3xl text-foreground">Workflows</h1>
           <p className="mt-2 text-muted-foreground">
             Coordinate groups of AI agents working toward shared goals.
           </p>
@@ -1756,7 +1756,7 @@ export default function TeamsPage() {
           </Button>
           <Button size="sm" onClick={() => setShowCreate(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Create Team
+            Create Workflow
           </Button>
         </div>
       </div>
@@ -1898,22 +1898,22 @@ export default function TeamsPage() {
             </div>
           </div>
           <h2 className="mb-2 text-xl font-semibold text-foreground">
-            No agent teams yet
+            No workflows yet
           </h2>
           <p className="mb-6 max-w-md text-center text-sm text-muted-foreground">
-            Use a Quick Start Template above, or create a custom team with
+            Use a Quick Start Template above, or create a custom workflow with
             AI-generated structure.
           </p>
           <Button onClick={() => setShowCreate(true)}>
             <Sparkles className="mr-2 h-4 w-4" />
-            Create Custom Team
+            Create Custom Workflow
           </Button>
         </div>
       ) : (
         /* Team cards grid */
         <>
           <h2 className="mb-3 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-            Your Teams
+            Your Workflows
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {teams.filter((t) => t.isOwner !== false).map((team) => {
@@ -2017,7 +2017,7 @@ export default function TeamsPage() {
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted mb-3">
                 <Plus className="h-6 w-6" />
               </div>
-              <span className="text-sm font-medium">Custom Team</span>
+              <span className="text-sm font-medium">Custom Workflow</span>
             </button>
           </div>
 
@@ -2098,7 +2098,7 @@ export default function TeamsPage() {
                   <Upload className="h-5 w-5 text-kiln-orange" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-foreground">Import Team from YAML</h2>
+                  <h2 className="text-lg font-semibold text-foreground">Import Workflow from YAML</h2>
                   <p className="text-sm text-muted-foreground">Upload a .yaml file or paste YAML content</p>
                 </div>
               </div>
@@ -2139,7 +2139,7 @@ export default function TeamsPage() {
                   setImportPreview(null);
                   setImportError(null);
                 }}
-                placeholder={`name: My Team\ndescription: Team description\nagents:\n  - name: Qualifier\n    role: COORDINATOR\n    model: claude-sonnet-4-6\n    systemPrompt: |\n      You are a lead qualifier...`}
+                placeholder={`name: My Workflow\ndescription: Workflow description\nagents:\n  - name: Qualifier\n    role: COORDINATOR\n    model: claude-sonnet-4-6\n    systemPrompt: |\n      You are a lead qualifier...`}
                 rows={10}
                 className="w-full rounded-xl border border-border bg-background px-4 py-3 font-mono text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/30"
               />
@@ -2161,7 +2161,7 @@ export default function TeamsPage() {
                   </div>
                   <div className="space-y-2 text-sm">
                     <p className="text-foreground">
-                      <span className="text-muted-foreground">Team:</span>{" "}
+                      <span className="text-muted-foreground">Workflow:</span>{" "}
                       <span className="font-medium">{importPreview.name}</span>
                     </p>
                     {importPreview.description && (
@@ -2237,7 +2237,7 @@ export default function TeamsPage() {
                     ) : (
                       <Upload className="mr-2 h-4 w-4" />
                     )}
-                    Import Team
+                    Import Workflow
                   </Button>
                 )}
               </div>

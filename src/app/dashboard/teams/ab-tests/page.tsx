@@ -249,7 +249,7 @@ export default function ABTestsPage() {
             <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
               <FlaskConical className="h-12 w-12 mb-4 opacity-30" />
               <p className="text-sm mb-2">No A/B tests yet</p>
-              <p className="text-xs text-zinc-600">Compare two team configurations to find the best performer</p>
+              <p className="text-xs text-zinc-600">Compare two workflow configurations to find the best performer</p>
             </div>
           ) : (
             <div className="divide-y divide-border">
@@ -399,7 +399,7 @@ export default function ABTestsPage() {
                       <p className="text-sm font-medium text-zinc-200">
                         {detailTest.stats.winner === "TIE"
                           ? "Currently a tie"
-                          : `Team ${detailTest.stats.winner} (${detailTest.stats.winner === "A" ? detailTest.teamA.name : detailTest.teamB.name}) is winning`
+                          : `Workflow ${detailTest.stats.winner} (${detailTest.stats.winner === "A" ? detailTest.teamA.name : detailTest.teamB.name}) is winning`
                         }
                       </p>
                       <p className="text-xs text-zinc-500">
@@ -438,7 +438,7 @@ export default function ABTestsPage() {
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-zinc-200 flex items-center gap-2">
-                              Team {side}
+                              Workflow {side}
                               {isWinner && <Trophy className="h-3.5 w-3.5 text-orange-400" />}
                             </span>
                             <span className="text-[11px] text-zinc-500">{teamName}</span>
@@ -503,7 +503,7 @@ export default function ABTestsPage() {
                           </div>
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-zinc-500 w-10">Team A</span>
+                              <span className="text-[10px] text-zinc-500 w-16">Workflow A</span>
                               <div className="flex-1 h-3 rounded-full bg-zinc-800 overflow-hidden">
                                 <div
                                   className={cn(
@@ -517,7 +517,7 @@ export default function ABTestsPage() {
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-zinc-500 w-10">Team B</span>
+                              <span className="text-[10px] text-zinc-500 w-16">Workflow B</span>
                               <div className="flex-1 h-3 rounded-full bg-zinc-800 overflow-hidden">
                                 <div
                                   className={cn(
@@ -597,33 +597,33 @@ export default function ABTestsPage() {
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Support Team v2 vs v1"
+                  placeholder="e.g. Support Workflow v2 vs v1"
                   className="w-full bg-zinc-800/60 border border-zinc-700 rounded-xl text-sm text-zinc-200 outline-none px-3 py-2 placeholder:text-zinc-600 focus:border-orange-500/50"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-zinc-500 mb-1 block">Team A</label>
+                  <label className="text-xs text-zinc-500 mb-1 block">Workflow A</label>
                   <select
                     value={teamAId}
                     onChange={(e) => setTeamAId(e.target.value)}
                     className="w-full bg-zinc-800/60 border border-zinc-700 rounded-xl text-sm text-zinc-200 outline-none px-3 py-2"
                   >
-                    <option value="">Select team...</option>
+                    <option value="">Select workflow...</option>
                     {teams.filter((t) => t.id !== teamBId).map((t) => (
                       <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-zinc-500 mb-1 block">Team B</label>
+                  <label className="text-xs text-zinc-500 mb-1 block">Workflow B</label>
                   <select
                     value={teamBId}
                     onChange={(e) => setTeamBId(e.target.value)}
                     className="w-full bg-zinc-800/60 border border-zinc-700 rounded-xl text-sm text-zinc-200 outline-none px-3 py-2"
                   >
-                    <option value="">Select team...</option>
+                    <option value="">Select workflow...</option>
                     {teams.filter((t) => t.id !== teamAId).map((t) => (
                       <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
@@ -632,7 +632,7 @@ export default function ABTestsPage() {
               </div>
 
               <div>
-                <label className="text-xs text-zinc-500 mb-1 block">Split Percentage (Team A : Team B)</label>
+                <label className="text-xs text-zinc-500 mb-1 block">Split Percentage (Workflow A : Workflow B)</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="range"
@@ -717,7 +717,7 @@ export default function ABTestsPage() {
               </button>
             </div>
             <p className="text-sm text-zinc-500 mb-4">
-              The execution will be randomly routed to Team A or Team B based on the split percentage.
+              The execution will be randomly routed to Workflow A or Workflow B based on the split percentage.
             </p>
             <textarea
               autoFocus

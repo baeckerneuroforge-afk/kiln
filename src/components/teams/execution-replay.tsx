@@ -257,7 +257,7 @@ export function ExecutionReplay({
               Execution Replay
             </p>
             <h2 className="mt-1 text-xl font-semibold text-zinc-100">
-              {data?.team.name || "Team execution"}
+              {data?.team.name || "Workflow execution"}
             </h2>
             <p className="mt-1 text-sm text-zinc-400">
               Step through the execution exactly as the team advanced.

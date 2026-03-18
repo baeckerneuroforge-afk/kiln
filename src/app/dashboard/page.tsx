@@ -35,7 +35,7 @@ const modules = [
     active: false,
   },
   {
-    title: "Flow Engine",
+    title: "Workflow Automation",
     description: "Automate workflows with AI-powered automations.",
     icon: Zap,
     href: "/dashboard/flows",

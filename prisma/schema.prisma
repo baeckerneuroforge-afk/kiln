@@ -989,6 +989,8 @@ model TeamExecutionLog {
   attempt       Int                     @default(1)
   status        TeamExecutionTaskStatus @default(PENDING)
   parallelGroup String?                 // Groups logs that ran in parallel
+  nodeId        String?                 // Workflow node ID (for workflow executions)
+  nodeType      String?                 // Workflow node type (trigger, logic, action, etc.)
   input         Json?
   output        String?                 @db.Text
   structuredOutput Json?                // Extracted JSON from agent output

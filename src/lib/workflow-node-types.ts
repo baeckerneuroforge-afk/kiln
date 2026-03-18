@@ -1,0 +1,283 @@
+/**
+ * Workflow Node Type System
+ * Defines all node types available in the visual workflow editor.
+ * Agent nodes represent existing AI agents; all other types are
+ * non-LLM nodes (triggers, logic, actions, control flow).
+ */
+
+/* ========== Node Type Registry ========== */
+
+export type WorkflowNodeType =
+  // AI Agents
+  | "agent"
+  // Triggers
+  | "trigger_webhook"
+  | "trigger_schedule"
+  | "trigger_lead"
+  | "trigger_chat"
+  | "trigger_manual"
+  // Logic
+  | "if_condition"
+  | "switch"
+  | "filter"
+  // Actions
+  | "http_request"
+  | "send_email"
+  | "send_slack"
+  | "delay"
+  | "set_variable"
+  // Control
+  | "approval_gate"
+  | "wait_webhook"
+  | "sub_workflow"
+  | "merge";
+
+export type WorkflowNodeCategory = "agents" | "triggers" | "logic" | "actions" | "control";
+
+export interface WorkflowNodeDefinition {
+  type: WorkflowNodeType;
+  label: string;
+  description: string;
+  category: WorkflowNodeCategory;
+  icon: string; // lucide icon name
+  color: string; // hex color for the node border/accent
+  defaultConfig: Record<string, unknown>;
+}
+
+export interface WorkflowNode {
+  id: string;
+  type: WorkflowNodeType;
+  label: string;
+  position: { x: number; y: number };
+  config: Record<string, unknown>;
+  agentId?: string; // nur für "agent" Nodes
+}
+
+export interface WorkflowEdge {
+  sourceId: string;
+  targetId: string;
+  condition?: string; // optional label/condition on the edge
+  sourceHandle?: string; // z.B. "true" / "false" bei if_condition
+}
+
+/* ========== Category Definitions ========== */
+
+export const WORKFLOW_CATEGORIES: {
+  id: WorkflowNodeCategory;
+  label: string;
+  icon: string;
+  color: string;
+}[] = [
+  { id: "triggers", label: "Triggers", icon: "Zap", color: "#F59E0B" },
+  { id: "agents", label: "AI Agents", icon: "Bot", color: "#F97316" },
+  { id: "logic", label: "Logic", icon: "GitBranch", color: "#8B5CF6" },
+  { id: "actions", label: "Actions", icon: "Play", color: "#3B82F6" },
+  { id: "control", label: "Control", icon: "Shield", color: "#06B6D4" },
+];
+
+/* ========== Node Definitions ========== */
+
+export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
+  // Triggers
+  {
+    type: "trigger_webhook",
+    label: "Webhook Trigger",
+    description: "Receives HTTP POST, extracts data",
+    category: "triggers",
+    icon: "Globe",
+    color: "#F59E0B",
+    defaultConfig: { method: "POST", path: "" },
+  },
+  {
+    type: "trigger_schedule",
+    label: "Schedule Trigger",
+    description: "Runs on cron schedule",
+    category: "triggers",
+    icon: "Clock",
+    color: "#F59E0B",
+    defaultConfig: { cron: "0 9 * * *", timezone: "Europe/Berlin" },
+  },
+  {
+    type: "trigger_lead",
+    label: "Lead Captured",
+    description: "Fires when any agent captures a lead",
+    category: "triggers",
+    icon: "UserPlus",
+    color: "#F59E0B",
+    defaultConfig: { agentFilter: "all" },
+  },
+  {
+    type: "trigger_chat",
+    label: "Chat Started",
+    description: "Fires when embed chat begins",
+    category: "triggers",
+    icon: "MessageSquare",
+    color: "#F59E0B",
+    defaultConfig: { agentFilter: "all" },
+  },
+  {
+    type: "trigger_manual",
+    label: "Manual Trigger",
+    description: "Click to run manually",
+    category: "triggers",
+    icon: "Play",
+    color: "#F59E0B",
+    defaultConfig: {},
+  },
+
+  // AI Agents
+  {
+    type: "agent",
+    label: "AI Agent",
+    description: "Run an existing AI agent",
+    category: "agents",
+    icon: "Bot",
+    color: "#F97316",
+    defaultConfig: {},
+  },
+
+  // Logic
+  {
+    type: "if_condition",
+    label: "IF / Condition",
+    description: "Evaluates expression, two outputs",
+    category: "logic",
+    icon: "GitBranch",
+    color: "#8B5CF6",
+    defaultConfig: { field: "", operator: "equals", value: "" },
+  },
+  {
+    type: "switch",
+    label: "Switch",
+    description: "Multiple conditions, multiple outputs",
+    category: "logic",
+    icon: "GitFork",
+    color: "#8B5CF6",
+    defaultConfig: { cases: [{ label: "Case 1", condition: "" }] },
+  },
+  {
+    type: "filter",
+    label: "Filter",
+    description: "Passes data if condition met",
+    category: "logic",
+    icon: "Filter",
+    color: "#8B5CF6",
+    defaultConfig: { field: "", operator: "exists", value: "" },
+  },
+
+  // Actions
+  {
+    type: "http_request",
+    label: "HTTP Request",
+    description: "Make HTTP call (GET, POST, etc.)",
+    category: "actions",
+    icon: "Globe",
+    color: "#3B82F6",
+    defaultConfig: { method: "GET", url: "", headers: {}, body: "" },
+  },
+  {
+    type: "send_email",
+    label: "Send Email",
+    description: "Send email via Resend",
+    category: "actions",
+    icon: "Mail",
+    color: "#3B82F6",
+    defaultConfig: { to: "", subject: "", body: "" },
+  },
+  {
+    type: "send_slack",
+    label: "Send Slack Message",
+    description: "Post to Slack channel",
+    category: "actions",
+    icon: "Hash",
+    color: "#3B82F6",
+    defaultConfig: { channel: "", message: "" },
+  },
+  {
+    type: "delay",
+    label: "Delay",
+    description: "Wait before continuing",
+    category: "actions",
+    icon: "Timer",
+    color: "#3B82F6",
+    defaultConfig: { duration: 60, unit: "seconds" },
+  },
+  {
+    type: "set_variable",
+    label: "Set Variable",
+    description: "Store key=value in context",
+    category: "actions",
+    icon: "Variable",
+    color: "#3B82F6",
+    defaultConfig: { key: "", value: "" },
+  },
+
+  // Control
+  {
+    type: "approval_gate",
+    label: "Approval Gate",
+    description: "Pause until human approves",
+    category: "control",
+    icon: "ShieldCheck",
+    color: "#06B6D4",
+    defaultConfig: { approverEmail: "", timeoutMinutes: 60 },
+  },
+  {
+    type: "wait_webhook",
+    label: "Wait for Webhook",
+    description: "Pause until external webhook received",
+    category: "control",
+    icon: "Pause",
+    color: "#06B6D4",
+    defaultConfig: { timeoutMinutes: 1440 },
+  },
+  {
+    type: "sub_workflow",
+    label: "Sub-Workflow",
+    description: "Run another workflow as a step",
+    category: "control",
+    icon: "Layers",
+    color: "#06B6D4",
+    defaultConfig: { workflowId: "", mode: "sync" },
+  },
+  {
+    type: "merge",
+    label: "Merge",
+    description: "Wait for all parallel branches",
+    category: "control",
+    icon: "Merge",
+    color: "#06B6D4",
+    defaultConfig: { strategy: "wait_all" },
+  },
+];
+
+/* ========== Helpers ========== */
+
+export function getNodeDefinition(type: WorkflowNodeType): WorkflowNodeDefinition | undefined {
+  return WORKFLOW_NODE_DEFINITIONS.find((d) => d.type === type);
+}
+
+export function getNodesByCategory(category: WorkflowNodeCategory): WorkflowNodeDefinition[] {
+  return WORKFLOW_NODE_DEFINITIONS.filter((d) => d.category === category);
+}
+
+export function getCategoryDef(id: WorkflowNodeCategory) {
+  return WORKFLOW_CATEGORIES.find((c) => c.id === id);
+}
+
+/** Erstelle eine neue WorkflowNode-Instanz mit Default-Config */
+export function createWorkflowNode(
+  type: WorkflowNodeType,
+  position: { x: number; y: number },
+  overrides?: Partial<WorkflowNode>
+): WorkflowNode {
+  const def = getNodeDefinition(type);
+  return {
+    id: `wf_${type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    type,
+    label: def?.label || type,
+    position,
+    config: { ...(def?.defaultConfig || {}) },
+    ...overrides,
+  };
+}
