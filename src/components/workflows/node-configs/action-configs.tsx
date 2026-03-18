@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Globe, Mail, Hash, Timer, Variable, Send, Plus, Trash2 } from "lucide-react";
+import { Globe, Mail, Hash, Timer, Variable, Send, Trash2 } from "lucide-react";
 import { ExpressionInput, KeyValueEditor } from "../expression-input";
 import { cn } from "@/lib/utils";
 
@@ -328,12 +328,6 @@ export function SendSlackConfig({
 }
 
 /* ========== Delay ========== */
-const DELAY_UNITS = [
-  { value: "seconds", label: "Seconds", max: 3600 },
-  { value: "minutes", label: "Minutes", max: 60 },
-  { value: "hours", label: "Hours", max: 1 },
-];
-
 export function DelayConfig({
   config,
   onChange,
@@ -341,42 +335,107 @@ export function DelayConfig({
   config: Record<string, unknown>;
   onChange: (config: Record<string, unknown>) => void;
 }) {
+  const mode = (config.delayMode as string) || "duration";
   const duration = (config.duration as number) || 60;
   const unit = (config.unit as string) || "seconds";
-  const maxDef = DELAY_UNITS.find((u) => u.value === unit);
-  const exceeds = maxDef ? duration > maxDef.max : false;
+  const waitUntil = (config.waitUntil as string) || "";
+  const waitUntilType = (config.waitUntilType as string) || "datetime";
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2">
         <Timer className="h-4 w-4 text-blue-400" />
-        <p className="text-xs text-zinc-300">Pause the workflow for a specified duration</p>
+        <p className="text-xs text-zinc-300">Pause execution for a specified duration</p>
       </div>
 
+      {/* Mode selector */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Duration</label>
+        <label className="text-xs font-medium text-zinc-400">Delay Mode</label>
         <div className="flex gap-2">
-          <input
-            type="number"
-            min={1}
-            value={duration}
-            onChange={(e) => onChange({ ...config, duration: Math.max(1, parseInt(e.target.value) || 1) })}
-            className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
-          />
-          <select
-            value={unit}
-            onChange={(e) => onChange({ ...config, unit: e.target.value })}
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
-          >
-            {DELAY_UNITS.map((u) => (
-              <option key={u.value} value={u.value}>{u.label}</option>
-            ))}
-          </select>
+          {(["duration", "wait_until"] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => onChange({ ...config, delayMode: m })}
+              className={cn(
+                "flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
+                mode === m
+                  ? "border-orange-500/40 bg-orange-500/10 text-orange-400"
+                  : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
+              )}
+            >
+              {m === "duration" ? "Duration" : "Wait Until"}
+            </button>
+          ))}
         </div>
-        {exceeds && (
-          <p className="text-[10px] text-amber-400">Maximum delay is 1 hour</p>
-        )}
       </div>
+
+      {mode === "duration" ? (
+        <>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-400">Duration</label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min={1}
+                value={duration}
+                onChange={(e) => onChange({ ...config, duration: Math.max(1, parseInt(e.target.value) || 60) })}
+                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+              />
+              <select
+                value={unit}
+                onChange={(e) => onChange({ ...config, unit: e.target.value })}
+                className="w-28 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+              >
+                <option value="seconds">Seconds</option>
+                <option value="minutes">Minutes</option>
+                <option value="hours">Hours</option>
+              </select>
+            </div>
+            <p className="text-[10px] text-zinc-600">Max 1 hour for in-process delays. Longer delays are stored and resumed.</p>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-400">Wait Until Type</label>
+            <select
+              value={waitUntilType}
+              onChange={(e) => onChange({ ...config, waitUntilType: e.target.value })}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+            >
+              <option value="datetime">Specific Date/Time</option>
+              <option value="expression">Expression</option>
+            </select>
+          </div>
+
+          {waitUntilType === "datetime" ? (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-zinc-400">Date & Time</label>
+              <input
+                type="datetime-local"
+                value={waitUntil}
+                onChange={(e) => onChange({ ...config, waitUntil: e.target.value })}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+              />
+            </div>
+          ) : (
+            <ExpressionInput
+              label="Wait Until Expression"
+              value={waitUntil}
+              onChange={(v) => onChange({ ...config, waitUntil: v })}
+              placeholder="{{ next_monday_9am }}"
+              hint="Expression that resolves to an ISO date string"
+            />
+          )}
+
+          <div className="rounded-lg border border-zinc-700/40 bg-zinc-800/20 p-3">
+            <p className="text-[10px] text-zinc-500">
+              Long waits are stored in the database and resumed via background job.
+              The workflow will pause and resume automatically at the specified time.
+            </p>
+          </div>
+        </>
+      )}
     </div>
   );
 }

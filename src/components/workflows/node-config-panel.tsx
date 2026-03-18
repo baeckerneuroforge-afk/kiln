@@ -33,6 +33,7 @@ import {
 import {
   ApprovalGateConfig,
   WaitWebhookConfig,
+  WaitFormConfig,
   SubWorkflowConfig,
   MergeConfig,
 } from "./node-configs/control-configs";
@@ -42,13 +43,13 @@ import { AgentNodeConfig } from "./node-configs/agent-node-config";
 import {
   Globe, Clock, UserPlus, MessageSquare, Play, Bot,
   GitBranch, GitFork, Filter, Mail, Hash, Timer,
-  Variable, ShieldCheck, Pause, Layers, Merge, Zap,
+  Variable, ShieldCheck, Pause, Layers, Merge, Zap, FileText,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Globe, Clock, UserPlus, MessageSquare, Play, Bot,
   GitBranch, GitFork, Filter, Mail, Hash, Timer,
-  Variable, ShieldCheck, Pause, Layers, Merge, Zap,
+  Variable, ShieldCheck, Pause, Layers, Merge, Zap, FileText,
 };
 
 interface NodeConfigPanelProps {
@@ -211,8 +212,11 @@ export function NodeConfigPanel({
           {nodeType === "wait_webhook" && (
             <WaitWebhookConfig config={config} onChange={setConfig} teamId={teamId} />
           )}
+          {nodeType === "wait_form" && (
+            <WaitFormConfig config={config} onChange={setConfig} />
+          )}
           {nodeType === "sub_workflow" && (
-            <SubWorkflowConfig config={config} onChange={setConfig} />
+            <SubWorkflowConfig config={config} onChange={setConfig} teamId={teamId} />
           )}
           {nodeType === "merge" && (
             <MergeConfig config={config} onChange={setConfig} />

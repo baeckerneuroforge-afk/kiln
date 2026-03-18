@@ -42,6 +42,9 @@ const isPublicRoute = createRouteMatcher([
   "/api/automations/run",   // Cron-Endpoint (eigene Secret-Auth)
   "/api/teams/:id/executions/:execId/approve",
   "/api/teams/:id/executions/:execId/reject",
+  "/api/workflows/callback/(.*)",  // Workflow callback (resume paused executions)
+  "/api/workflows/form/(.*)",      // Workflow form API
+  "/workflows/form/(.*)",          // Workflow form page (public)
   "/marketplace",            // Public Marketplace
   "/landing-v2",             // Landing V2 Preview
   "/developers",             // Developer Docs

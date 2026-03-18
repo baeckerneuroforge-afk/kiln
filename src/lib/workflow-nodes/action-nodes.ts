@@ -305,8 +305,20 @@ export function executeSetVariable(
     resolvedValue = resolveExpressionDeep(rawValue, context);
   }
 
+  const contextDelta: Record<string, unknown> = { [key]: resolvedValue };
+
+  // Wenn der Key mit "variables." beginnt, aktualisiere auch das variables-Objekt
+  if (key.startsWith("variables.")) {
+    const varName = key.slice("variables.".length);
+    const existingVars = (context.variables && typeof context.variables === "object")
+      ? { ...(context.variables as Record<string, unknown>) }
+      : {};
+    existingVars[varName] = resolvedValue;
+    contextDelta.variables = existingVars;
+  }
+
   return {
-    contextDelta: { [key]: resolvedValue },
+    contextDelta,
     success: true,
     meta: { key, value: resolvedValue },
   };

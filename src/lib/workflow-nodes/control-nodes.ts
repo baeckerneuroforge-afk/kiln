@@ -60,16 +60,39 @@ export function executeWaitWebhook(
   config: Record<string, unknown>,
 ): ControlNodeResult {
   const timeoutMinutes = Number(config.timeoutMinutes) || 1440;
-  const resumeKey = String(config.resumeKey || "");
+  const timeoutAction = String(config.timeoutAction || "fail");
+  const expectedSchema = config.expectedSchema || null;
 
-  // Die Execution wird pausiert bis ein externer Webhook sie resumed.
   return {
     action: "pause",
     contextDelta: {},
-    pauseReason: `Warte auf externen Webhook${resumeKey ? ` (Key: ${resumeKey})` : ""}`,
+    pauseReason: `Warte auf externen Webhook (Timeout: ${timeoutMinutes}min)`,
     meta: {
       timeoutMinutes,
-      resumeKey,
+      timeoutAction,
+      expectedSchema,
+    },
+  };
+}
+
+/* ── Wait for Form ── */
+
+export function executeWaitForm(
+  config: Record<string, unknown>,
+): ControlNodeResult {
+  const timeoutMinutes = Number(config.timeoutMinutes) || 10080; // 7 Tage Default
+  const formTitle = String(config.formTitle || "Form");
+  const fields = (config.fields as Array<{ name: string; type: string; label: string; required: boolean }>) || [];
+
+  return {
+    action: "pause",
+    contextDelta: {},
+    pauseReason: `Warte auf Formular-Eingabe: ${formTitle} (${fields.length} Felder)`,
+    meta: {
+      timeoutMinutes,
+      formTitle,
+      fieldCount: fields.length,
+      fields: fields.map(f => f.name),
     },
   };
 }
@@ -202,6 +225,8 @@ export function executeControlNode(
       return executeApprovalGate(config, context);
     case "wait_webhook":
       return executeWaitWebhook(config);
+    case "wait_form":
+      return executeWaitForm(config);
     case "sub_workflow":
       return executeSubWorkflow(config, context);
     case "merge":

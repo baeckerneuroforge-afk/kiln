@@ -1,11 +1,23 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Code2 } from "lucide-react";
+import { Code2, Variable, AlertTriangle } from "lucide-react";
+
+/** Extract variable names referenced via {{ variables.X }} */
+function extractVariableRefs(value: string): string[] {
+  const refs: string[] = [];
+  const re = /\{\{\s*variables\.(\w+)\s*\}\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(value)) !== null) {
+    refs.push(m[1]);
+  }
+  return refs;
+}
 
 /**
  * Text input that supports {{ expression }} syntax.
  * Shows a subtle code icon when value contains expressions.
+ * Highlights {{ variables.X }} references when availableVariables is provided.
  */
 export function ExpressionInput({
   value,
@@ -15,6 +27,7 @@ export function ExpressionInput({
   hint,
   multiline,
   className,
+  availableVariables,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -23,11 +36,20 @@ export function ExpressionInput({
   hint?: string;
   multiline?: boolean;
   className?: string;
+  /** Names of defined workflow variables — enables missing-variable warnings */
+  availableVariables?: string[];
 }) {
   const hasExpression = value.includes("{{");
+  const varRefs = extractVariableRefs(value);
+  const hasVarRef = varRefs.length > 0;
+  const missingVars = availableVariables
+    ? varRefs.filter((v) => !availableVariables.includes(v))
+    : [];
+
   const inputClass = cn(
     "w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-600",
     hasExpression && "border-violet-500/40 bg-violet-500/5",
+    missingVars.length > 0 && "border-amber-500/40 bg-amber-500/5",
     className
   );
 
@@ -36,7 +58,13 @@ export function ExpressionInput({
       {label && (
         <div className="flex items-center gap-1.5">
           <label className="text-xs font-medium text-zinc-400">{label}</label>
-          {hasExpression && (
+          {hasVarRef && (
+            <span className="inline-flex items-center gap-0.5 text-[9px] text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded-full">
+              <Variable className="h-2.5 w-2.5" />
+              {varRefs.length} var{varRefs.length > 1 ? "s" : ""}
+            </span>
+          )}
+          {hasExpression && !hasVarRef && (
             <span className="inline-flex items-center gap-0.5 text-[9px] text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded-full">
               <Code2 className="h-2.5 w-2.5" />
               expr
@@ -60,6 +88,12 @@ export function ExpressionInput({
           placeholder={placeholder}
           className={inputClass}
         />
+      )}
+      {missingVars.length > 0 && (
+        <div className="flex items-center gap-1 text-[10px] text-amber-400">
+          <AlertTriangle className="h-3 w-3" />
+          Undefined variable{missingVars.length > 1 ? "s" : ""}: {missingVars.join(", ")}
+        </div>
       )}
       {hint && <p className="text-[10px] text-zinc-600">{hint}</p>}
     </div>

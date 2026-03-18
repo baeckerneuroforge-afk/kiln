@@ -141,6 +141,7 @@ interface VisualTeamEditorProps {
   onWorkflowEdgesChange?: (edges: { sourceId: string; targetId: string; condition?: string; sourceHandle?: string }[]) => void;
   onWorkflowNodeClick?: (nodeId: string, nodeType: WorkflowNodeType, config: Record<string, unknown>) => void;
   onEdgeClick?: (edgeId: string, sourceNodeId: string, targetNodeId: string) => void;
+  onVariablesClick?: () => void;
 }
 
 /* ========== Constants ========== */
@@ -399,6 +400,7 @@ type WorkflowNodeData = {
   description: string;
   iconName: string;
   config: Record<string, unknown>;
+  hasErrorPath?: boolean;
   [key: string]: unknown;
 };
 
@@ -408,6 +410,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
   const IconComp = iconMap[data.iconName as string] || Zap;
   const nodeType = data.nodeType as WorkflowNodeType;
   const isLogicNode = category === "logic";
+  const isTriggerNode = category === "triggers";
 
   return (
     <div
@@ -479,12 +482,31 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
             <span className="text-red-400">false</span>
           </div>
         </>
-      ) : (
+      ) : isTriggerNode ? (
         <Handle
           type="source"
           position={Position.Bottom}
           className="!bg-zinc-500 !w-3 !h-3 !border-2 !border-zinc-800 hover:!bg-orange-400 transition-colors !-bottom-1.5"
         />
+      ) : (
+        <>
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            className="!bg-zinc-500 !w-3 !h-3 !border-2 !border-zinc-800 hover:!bg-orange-400 transition-colors !-bottom-1.5"
+            style={{ left: "40%" }}
+          />
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="error"
+            className="!bg-red-500/70 !w-2.5 !h-2.5 !border-2 !border-zinc-800 hover:!bg-red-400 transition-colors !-bottom-1.5"
+            style={{ left: "75%" }}
+          />
+          {data.hasErrorPath && (
+            <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500/80" />
+          )}
+        </>
       )}
     </div>
   );
@@ -583,6 +605,7 @@ function AnimatedConnectionEdge({
 
   const isExecuting = data?.executionActive as boolean;
   const isFallback = data?.isFallback as boolean;
+  const isErrorEdge = data?.isErrorEdge as boolean;
 
   return (
     <>
@@ -605,15 +628,23 @@ function AnimatedConnectionEdge({
         id={id}
         path={edgePath}
         style={{
-          stroke: isFallback
-            ? "#FB923C"
-            : isExecuting
-              ? "#F97316"
-              : selected
+          stroke: isErrorEdge
+            ? "#EF4444"
+            : isFallback
+              ? "#FB923C"
+              : isExecuting
                 ? "#F97316"
-                : "#3f3f46",
-          strokeWidth: isFallback ? 2 : isExecuting ? 3 : 2,
-          strokeDasharray: isFallback ? "5 5" : isExecuting ? "8 4" : undefined,
+                : selected
+                  ? "#F97316"
+                  : "#3f3f46",
+          strokeWidth: isErrorEdge ? 1.5 : isFallback ? 2 : isExecuting ? 3 : 2,
+          strokeDasharray: isErrorEdge
+            ? "6 4"
+            : isFallback
+              ? "5 5"
+              : isExecuting
+                ? "8 4"
+                : undefined,
           animation: isFallback
             ? undefined
             : isExecuting
@@ -643,6 +674,18 @@ function AnimatedConnectionEdge({
               <GitBranch className="h-3 w-3" />
               {data.label as string}
             </div>
+          </div>
+        </EdgeLabelRenderer>
+      )}
+      {isErrorEdge && !data?.label && (
+        <EdgeLabelRenderer>
+          <div
+            className="absolute pointer-events-none rounded-md border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-[8px] font-medium text-red-400"
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            }}
+          >
+            error
           </div>
         </EdgeLabelRenderer>
       )}
@@ -1025,6 +1068,9 @@ function membersToFlowElements(
     workflowNodes.forEach((wn) => {
       const def = defMap.get(wn.type);
       if (!def) return;
+      const hasErrorPath = workflowEdges?.some(
+        (we) => we.sourceId === wn.id && (we.sourceHandle === "error" || we.condition === "error")
+      );
       nodes.push({
         id: wn.id,
         type: "workflowNode",
@@ -1036,6 +1082,7 @@ function membersToFlowElements(
           description: def.description,
           iconName: def.icon,
           config: wn.config,
+          hasErrorPath: !!hasErrorPath,
         },
       });
     });
@@ -1054,6 +1101,7 @@ function membersToFlowElements(
         data: {
           label: we.condition || undefined,
           executionActive: false,
+          isErrorEdge: we.sourceHandle === "error" || we.condition === "error",
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
@@ -1089,9 +1137,9 @@ function VisualTeamEditorInner({
   workflowNodes: wfNodes,
   workflowEdges: wfEdges,
   onWorkflowNodesChange,
-  onWorkflowEdgesChange,
   onWorkflowNodeClick,
   onEdgeClick: onEdgeClickProp,
+  onVariablesClick,
 }: VisualTeamEditorProps) {
   const reactFlowInstance = useReactFlow();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1383,8 +1431,19 @@ function VisualTeamEditorInner({
           showInteractive={false}
         />
 
-        {/* Auto-layout button */}
+        {/* Toolbar buttons */}
         <Panel position="top-right" className="flex gap-2">
+          {onVariablesClick && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onVariablesClick}
+              className="bg-zinc-900/90 border-zinc-700 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 shadow-lg"
+            >
+              <Variable className="h-3.5 w-3.5 mr-1.5" />
+              Variables
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"

@@ -29,6 +29,7 @@ export type WorkflowNodeType =
   // Control
   | "approval_gate"
   | "wait_webhook"
+  | "wait_form"
   | "sub_workflow"
   | "merge";
 
@@ -58,6 +59,17 @@ export interface WorkflowEdge {
   targetId: string;
   condition?: string; // optional label/condition on the edge
   sourceHandle?: string; // z.B. "true" / "false" bei if_condition
+}
+
+/* ========== Workflow Variables ========== */
+
+export interface WorkflowVariable {
+  id: string;
+  name: string;
+  defaultValue: string;
+  type: "string" | "number" | "boolean";
+  description: string;
+  isSecret: boolean;
 }
 
 /* ========== Category Definitions ========== */
@@ -232,13 +244,28 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     defaultConfig: { timeoutMinutes: 1440 },
   },
   {
+    type: "wait_form",
+    label: "Wait for Form",
+    description: "Pause until a form is submitted",
+    category: "control",
+    icon: "FileText",
+    color: "#06B6D4",
+    defaultConfig: {
+      formTitle: "",
+      formDescription: "",
+      fields: [],
+      timeoutMinutes: 10080,
+      timeoutAction: "fail",
+    },
+  },
+  {
     type: "sub_workflow",
     label: "Sub-Workflow",
     description: "Run another workflow as a step",
     category: "control",
     icon: "Layers",
     color: "#06B6D4",
-    defaultConfig: { workflowId: "", mode: "sync" },
+    defaultConfig: { workflowId: "", mode: "sync", inputMapping: [], outputMapping: [], timeoutMinutes: 5 },
   },
   {
     type: "merge",

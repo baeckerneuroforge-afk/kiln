@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getTestResults, routeExecution, recordABTestResult } from "@/lib/team-ab-testing";
-import { TeamABTestStatus } from "@prisma/client";
+
 
 // Test-Details mit Ergebnissen
 export async function GET(

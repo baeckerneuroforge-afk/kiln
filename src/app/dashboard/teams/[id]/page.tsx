@@ -27,6 +27,7 @@ import { VisualTeamEditor } from "@/components/teams/visual-team-editor";
 import { TeamKnowledgeTab } from "@/components/teams/team-knowledge-tab";
 import { TeamWebhooksTab } from "@/components/teams/team-webhooks-tab";
 import { TeamPermissionsTab } from "@/components/teams/team-permissions-tab";
+import { ErrorHandlerConfigPanel, type ErrorHandlerConfig } from "@/components/workflows/error-handler-config";
 import { TeamCostCalculator } from "@/components/teams/team-cost-calculator";
 import { cn } from "@/lib/utils";
 import { Skeleton, SkeletonTab } from "@/components/ui/skeleton";
@@ -85,7 +86,7 @@ import {
 } from "@/lib/team-approval";
 import { NodeConfigPanel } from "@/components/workflows/node-config-panel";
 import { DataMapper, type FieldMapping } from "@/components/workflows/data-mapper";
-import { type WorkflowNodeType, getNodeDefinition } from "@/lib/workflow-node-types";
+import { type WorkflowNodeType } from "@/lib/workflow-node-types";
 
 /* ========== Types ========== */
 interface TeamAgent {
@@ -164,6 +165,7 @@ interface Team {
     nodePositions?: Record<string, { x: number; y: number }>;
     schedule?: Partial<TeamScheduleConfigValue>;
     maxConcurrent?: number;
+    errorHandler?: ErrorHandlerConfig;
   } | null;
   schedulePreview?: TeamSchedulePreviewValue | null;
   parentTeamId?: string | null;
@@ -476,7 +478,7 @@ function buildHierarchyGraph(
 }
 
 /* ========== Tabs ========== */
-type TabKey = "hierarchy" | "tasks" | "activity" | "analytics" | "cost" | "knowledge" | "executions" | "schedule" | "webhooks" | "permissions";
+type TabKey = "hierarchy" | "tasks" | "activity" | "analytics" | "cost" | "knowledge" | "executions" | "schedule" | "webhooks" | "permissions" | "settings";
 
 const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "hierarchy", label: "Hierarchy", icon: <Users className="h-4 w-4" /> },
@@ -489,6 +491,7 @@ const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "schedule", label: "Schedule", icon: <CalendarDays className="h-4 w-4" /> },
   { key: "webhooks", label: "Webhooks", icon: <Globe className="h-4 w-4" /> },
   { key: "permissions", label: "Members", icon: <Shield className="h-4 w-4" /> },
+  { key: "settings", label: "Settings", icon: <Settings className="h-4 w-4" /> },
 ];
 
 /* ========== Edit Member Panel ========== */
@@ -1882,6 +1885,11 @@ function TeamDetailInner() {
   // Settings dropdown
   const [showSettings, setShowSettings] = useState(false);
 
+  // Error handler config
+  const [errorHandlerConfig, setErrorHandlerConfig] = useState<ErrorHandlerConfig>({
+    onUnhandledError: "stop",
+  });
+
   // Assign task dialog
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [assignGoal, setAssignGoal] = useState("");
@@ -1981,6 +1989,10 @@ function TeamDetailInner() {
       // Initialize maxConcurrent from config
       if (data.config?.maxConcurrent && typeof data.config.maxConcurrent === "number") {
         setMaxConcurrent(data.config.maxConcurrent);
+      }
+      // Initialize error handler config
+      if (data.config?.errorHandler) {
+        setErrorHandlerConfig(data.config.errorHandler as ErrorHandlerConfig);
       }
       // Fetch queue status
       fetch(`/api/teams/${teamId}/queue-status`)
@@ -3150,6 +3162,28 @@ function TeamDetailInner() {
         {activeTab === "permissions" && (
           <div className="p-6 h-full overflow-auto">
             <TeamPermissionsTab teamId={teamId} isOwner={team.isOwner !== false} />
+          </div>
+        )}
+
+        {activeTab === "settings" && (
+          <div className="p-6 h-full overflow-auto max-w-2xl">
+            <ErrorHandlerConfigPanel
+              config={errorHandlerConfig}
+              onChange={async (newConfig) => {
+                setErrorHandlerConfig(newConfig);
+                try {
+                  await fetch(`/api/teams/${teamId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      config: { ...team.config, errorHandler: newConfig },
+                    }),
+                  });
+                } catch {
+                  // Silently fail — will sync on next save
+                }
+              }}
+            />
           </div>
         )}
       </div>

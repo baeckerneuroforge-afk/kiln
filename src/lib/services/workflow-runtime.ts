@@ -14,8 +14,9 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { emitEvent } from "@/lib/events";
-import type { WorkflowNode, WorkflowEdge, WorkflowNodeType } from "@/lib/workflow-node-types";
+import type { WorkflowNode, WorkflowEdge, WorkflowNodeType, WorkflowVariable } from "@/lib/workflow-node-types";
 import type { ExpressionContext } from "@/lib/workflow-expressions";
+import { resolveExpression, resolveExpressionValue } from "@/lib/workflow-expressions";
 
 import { executeTriggerNode } from "@/lib/workflow-nodes/trigger-nodes";
 import { executeLogicNode } from "@/lib/workflow-nodes/logic-nodes";
@@ -40,6 +41,7 @@ import {
 export interface WorkflowDefinition {
   nodes: WorkflowNode[];
   edges: WorkflowEdge[];
+  variables?: WorkflowVariable[];
 }
 
 export interface WorkflowExecutionOptions {
@@ -48,6 +50,7 @@ export interface WorkflowExecutionOptions {
   triggerNodeId?: string; // Welcher Trigger hat gefeuert
   triggerPayload?: Record<string, unknown>;
   goal?: string;
+  depth?: number; // Sub-workflow nesting depth (max 5)
 }
 
 interface NodeExecutionLog {
@@ -79,9 +82,12 @@ const NODE_CATEGORIES: Record<string, string> = {
   set_variable: "action",
   approval_gate: "control",
   wait_webhook: "control",
+  wait_form: "control",
   sub_workflow: "control",
   merge: "control",
 };
+
+const MAX_SUB_WORKFLOW_DEPTH = 5;
 
 function getNodeCategory(type: WorkflowNodeType): string {
   return NODE_CATEGORIES[type] || "unknown";
@@ -161,9 +167,12 @@ export function extractWorkflowDefinition(
 
   if (nodes.length === 0) return null;
 
+  const variables = Array.isArray(workflow.variables) ? workflow.variables : [];
+
   return {
     nodes: nodes as WorkflowNode[],
     edges: edges as WorkflowEdge[],
+    variables: variables as WorkflowVariable[],
   };
 }
 
@@ -187,6 +196,13 @@ export async function executeWorkflow(
   options: WorkflowExecutionOptions
 ): Promise<{ executionId: string; status: string; context: ExpressionContext }> {
   const { teamId, userId, triggerPayload, goal } = options;
+
+  const currentDepth = options.depth ?? 0;
+  if (currentDepth > MAX_SUB_WORKFLOW_DEPTH) {
+    throw new Error(
+      `Sub-Workflow maximale Verschachtelungstiefe (${MAX_SUB_WORKFLOW_DEPTH}) überschritten. Prüfe auf zirkuläre Sub-Workflow-Referenzen.`
+    );
+  }
 
   // Lade Team
   const team = await loadTeamExecutionRuntimeContext(teamId, userId);
@@ -233,7 +249,21 @@ export async function executeWorkflow(
   });
 
   const executionId = execution.id;
-  let context: ExpressionContext = {};
+
+  // Initialisiere Variablen aus der Workflow-Definition
+  const variablesInit: Record<string, unknown> = {};
+  if (workflowDef.variables && workflowDef.variables.length > 0) {
+    for (const v of workflowDef.variables) {
+      let parsed: unknown = v.defaultValue;
+      if (v.type === "number") parsed = Number(v.defaultValue) || 0;
+      else if (v.type === "boolean") parsed = v.defaultValue === "true";
+      variablesInit[v.name] = parsed;
+    }
+  }
+
+  let context: ExpressionContext = {
+    variables: variablesInit,
+  };
   const executedNodes = new Set<string>();
   const nodeLogs: NodeExecutionLog[] = [];
   let completedNodes = 0;
@@ -258,7 +288,7 @@ export async function executeWorkflow(
         triggerNode.config,
         triggerPayload
       );
-      context = { ...triggerResult.context };
+      context = { ...context, ...triggerResult.context };
 
       await logNodeExecution(executionId, teamId, triggerNode, {
         nodeId: triggerNode.id,
@@ -379,6 +409,8 @@ export async function executeWorkflow(
                   },
                 };
                 queue.push(...errorTargets);
+              } else {
+                await invokeGlobalErrorHandler(team.config, executionId, node.id, node.type, actionResult.error || "Action failed", context);
               }
 
               failedNodes++;
@@ -410,6 +442,8 @@ export async function executeWorkflow(
                   },
                 };
                 queue.push(...errorTargets);
+              } else {
+                await invokeGlobalErrorHandler(team.config, executionId, node.id, node.type, nodeResult.error || "Agent failed", context);
               }
               failedNodes++;
             }
@@ -417,6 +451,42 @@ export async function executeWorkflow(
           }
 
           case "control": {
+            // Special handling for sub_workflow: actually execute it
+            if (node.type === "sub_workflow") {
+              const subResult = await executeSubWorkflowNode(
+                node,
+                context,
+                userId,
+                currentDepth
+              );
+
+              if (subResult.status === "completed") {
+                context = { ...context, ...subResult.contextDelta };
+                nodeResult = subResult;
+                queue.push(...getNormalSuccessors(node.id, edges));
+              } else if (subResult.status === "paused") {
+                nodeResult = subResult;
+                paused = true;
+              } else {
+                nodeResult = subResult;
+                const errorTargets = getErrorSuccessors(node.id, edges);
+                if (errorTargets.length > 0) {
+                  context = {
+                    ...context,
+                    _lastError: {
+                      nodeId: node.id,
+                      nodeType: node.type,
+                      error: subResult.error,
+                    },
+                  };
+                  queue.push(...errorTargets);
+                }
+                failedNodes++;
+              }
+              break;
+            }
+
+            // ... rest of control handling (merge extra, executeControlNode, etc.)
             const mergeExtra =
               node.type === "merge"
                 ? {
@@ -520,6 +590,8 @@ export async function executeWorkflow(
             },
           };
           queue.push(...errorTargets);
+        } else {
+          await invokeGlobalErrorHandler(team.config, executionId, node.id, node.type, nodeResult.error || "Node execution failed", context);
         }
 
         failedNodes++;
@@ -762,6 +834,157 @@ async function executeAgentNode(
   }
 }
 
+/* ── Sub-Workflow Node Execution ── */
+
+async function executeSubWorkflowNode(
+  node: WorkflowNode,
+  context: ExpressionContext,
+  userId: string,
+  parentDepth: number
+): Promise<NodeExecutionLog> {
+  const startTime = new Date();
+  const config = node.config as {
+    workflowId?: string;
+    mode?: string;
+    inputMapping?: { key: string; value: string }[];
+    outputMapping?: { key: string; value: string }[];
+    timeoutMinutes?: number;
+  };
+
+  const targetTeamId = config.workflowId
+    ? resolveExpression(config.workflowId, context)
+    : "";
+
+  if (!targetTeamId) {
+    return {
+      nodeId: node.id,
+      nodeType: node.type,
+      status: "failed",
+      contextDelta: {},
+      error: "Keine Workflow-ID konfiguriert",
+      startedAt: startTime,
+      completedAt: new Date(),
+    };
+  }
+
+  // Build input from mapping
+  const subInput: Record<string, unknown> = {};
+  if (config.inputMapping) {
+    for (const mapping of config.inputMapping) {
+      if (mapping.key && mapping.value) {
+        subInput[mapping.key] = resolveExpressionValue(mapping.value, context);
+      }
+    }
+  }
+
+  const mode = config.mode || "sync";
+
+  try {
+    if (mode === "async") {
+      // Fire and forget — start sub-workflow but don't wait
+      // Use a detached promise (the caller's waitUntil should handle this)
+      executeWorkflow({
+        teamId: targetTeamId,
+        userId,
+        triggerPayload: subInput,
+        goal: `Sub-Workflow von ${node.label}`,
+        depth: parentDepth + 1,
+      }).catch(() => {
+        // Async errors are logged but don't affect parent
+      });
+
+      return {
+        nodeId: node.id,
+        nodeType: node.type,
+        status: "completed",
+        contextDelta: {
+          [`_subWorkflow_${node.id}`]: {
+            workflowId: targetTeamId,
+            mode: "async",
+            triggeredAt: new Date().toISOString(),
+          },
+        },
+        output: `Async Sub-Workflow ${targetTeamId} gestartet`,
+        startedAt: startTime,
+        completedAt: new Date(),
+        meta: { workflowId: targetTeamId, mode: "async" },
+      };
+    }
+
+    // Sync mode — execute and wait for result
+    const timeoutMs = (config.timeoutMinutes || 5) * 60 * 1000;
+
+    const subExecution = await Promise.race([
+      executeWorkflow({
+        teamId: targetTeamId,
+        userId,
+        triggerPayload: subInput,
+        goal: `Sub-Workflow von ${node.label}`,
+        depth: parentDepth + 1,
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`Sub-Workflow Timeout nach ${config.timeoutMinutes || 5} Minuten`)),
+          timeoutMs
+        )
+      ),
+    ]);
+
+    // Map output back to parent context
+    const contextDelta: Record<string, unknown> = {
+      [`_subWorkflow_${node.id}`]: {
+        workflowId: targetTeamId,
+        executionId: subExecution.executionId,
+        mode: "sync",
+        status: subExecution.status,
+        completedAt: new Date().toISOString(),
+      },
+    };
+
+    if (config.outputMapping) {
+      for (const mapping of config.outputMapping) {
+        if (mapping.key && mapping.value) {
+          // Resolve from sub-workflow's context
+          contextDelta[mapping.key] = resolveExpressionValue(
+            mapping.value,
+            subExecution.context
+          );
+        }
+      }
+    }
+
+    const isSuccess = subExecution.status === "COMPLETED";
+
+    return {
+      nodeId: node.id,
+      nodeType: node.type,
+      status: isSuccess ? "completed" : "failed",
+      contextDelta,
+      output: `Sub-Workflow ${targetTeamId}: ${subExecution.status}`,
+      error: isSuccess ? undefined : `Sub-Workflow endete mit Status: ${subExecution.status}`,
+      startedAt: startTime,
+      completedAt: new Date(),
+      meta: {
+        workflowId: targetTeamId,
+        subExecutionId: subExecution.executionId,
+        mode: "sync",
+        subStatus: subExecution.status,
+      },
+    };
+  } catch (err) {
+    return {
+      nodeId: node.id,
+      nodeType: node.type,
+      status: "failed",
+      contextDelta: {},
+      error: err instanceof Error ? err.message : "Sub-Workflow Execution fehlgeschlagen",
+      startedAt: startTime,
+      completedAt: new Date(),
+      meta: { workflowId: targetTeamId, mode },
+    };
+  }
+}
+
 /* ── Approval Request für Workflow Nodes ── */
 
 async function createWorkflowApprovalRequest(
@@ -835,6 +1058,79 @@ async function logNodeExecution(
       input: result.meta ? toJsonValue(result.meta) : undefined,
     },
   });
+}
+
+/* ── Global Error Handler ── */
+
+/**
+ * Führt den globalen Error-Handler aus, wenn ein Node fehlschlägt
+ * und keinen Error-Pfad hat.
+ */
+async function invokeGlobalErrorHandler(
+  teamConfig: unknown,
+  executionId: string,
+  nodeId: string,
+  nodeType: string,
+  error: string,
+  context: ExpressionContext
+) {
+  try {
+    const cfg = teamConfig as Record<string, unknown> | null;
+    const errorHandler = cfg?.errorHandler as { onUnhandledError?: string; errorEmail?: string; errorWebhookUrl?: string } | undefined;
+    if (!errorHandler) return;
+
+    const { onUnhandledError, errorEmail, errorWebhookUrl } = errorHandler;
+
+    if (onUnhandledError === "email" && errorEmail) {
+      // Sende Error-Benachrichtigung per E-Mail
+      try {
+        const { Resend } = await import("resend");
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: process.env.RESEND_FROM || "KILN <noreply@kilnbase.com>",
+          to: errorEmail,
+          subject: `[KILN] Workflow Error: ${nodeType} failed`,
+          html: `
+            <h2>Workflow Execution Error</h2>
+            <p><strong>Execution:</strong> ${executionId}</p>
+            <p><strong>Node:</strong> ${nodeId} (${nodeType})</p>
+            <p><strong>Error:</strong> ${error}</p>
+            <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+            <hr/>
+            <p style="color:#666;font-size:12px;">This is an automated error notification from KILN.</p>
+          `,
+        });
+      } catch (emailErr) {
+        console.error("Failed to send error notification email:", emailErr);
+      }
+    }
+
+    if (onUnhandledError === "webhook" && errorWebhookUrl) {
+      // Sende Error an Webhook
+      try {
+        await fetch(errorWebhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "workflow.error",
+            executionId,
+            nodeId,
+            nodeType,
+            error,
+            timestamp: new Date().toISOString(),
+            context: Object.fromEntries(
+              Object.entries(context).filter(([k]) => !k.startsWith("_"))
+            ),
+          }),
+          signal: AbortSignal.timeout(10000),
+        });
+      } catch (webhookErr) {
+        console.error("Failed to call error webhook:", webhookErr);
+      }
+    }
+  } catch {
+    // Globaler Error-Handler darf die Execution nicht abstürzen lassen
+  }
 }
 
 /* ── Fallback: Agent-Only Team Execution ── */

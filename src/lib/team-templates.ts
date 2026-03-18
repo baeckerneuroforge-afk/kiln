@@ -6,7 +6,7 @@ import type {
   Prisma,
 } from "@prisma/client";
 import { MODEL_PROVIDER_MAP } from "./ai";
-import type { WorkflowNode, WorkflowEdge } from "./workflow-node-types";
+import type { WorkflowNode, WorkflowEdge, WorkflowVariable } from "./workflow-node-types";
 
 type TeamTemplateAction = {
   type: ActionType;
@@ -60,6 +60,7 @@ export type TeamTemplate = {
   workflow?: {
     nodes: WorkflowNode[];
     edges: WorkflowEdge[];
+    variables?: WorkflowVariable[];
   };
 };
 
@@ -267,6 +268,11 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
         { sourceId: "n3", targetId: "n6", sourceHandle: "false", condition: "score <= 70" },
         { sourceId: "n4", targetId: "n5" },
         { sourceId: "n6", targetId: "n7" },
+      ],
+      variables: [
+        { id: "v1", name: "COMPANY_NAME", defaultValue: "{{businessName}}", type: "string", description: "Firmenname für Agent-Prompts und Emails", isSecret: false },
+        { id: "v2", name: "MIN_SCORE", defaultValue: "70", type: "number", description: "Minimaler Lead-Score für direkten Closer-Kontakt", isSecret: false },
+        { id: "v3", name: "NOTIFICATION_EMAIL", defaultValue: "", type: "string", description: "Email für Benachrichtigungen bei neuen qualifizierten Leads", isSecret: false },
       ],
     },
   },
@@ -702,6 +708,11 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
         { sourceId: "n4", targetId: "n5" },
         { sourceId: "n6", targetId: "n7" },
         { sourceId: "n7", targetId: "n8" },
+      ],
+      variables: [
+        { id: "v1", name: "FIRMENNAME", defaultValue: "{{businessName}}", type: "string", description: "SHK-Betrieb Name für Kommunikation", isSecret: false },
+        { id: "v2", name: "NOTFALL_SCORE", defaultValue: "80", type: "number", description: "Score ab dem sofort ein Termin gebucht wird", isSecret: false },
+        { id: "v3", name: "NACHFASS_TAGE", defaultValue: "2", type: "number", description: "Tage bis zum Nachfass bei nicht-qualifizierten Leads", isSecret: false },
       ],
     },
   },
@@ -1357,6 +1368,9 @@ export async function deployTeamTemplate(
             workflow: {
               nodes: resolvedNodes,
               edges: template.workflow.edges,
+              ...(template.workflow.variables && template.workflow.variables.length > 0
+                ? { variables: template.workflow.variables }
+                : {}),
             },
           })),
         },

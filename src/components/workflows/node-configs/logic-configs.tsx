@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { GitBranch, GitFork, Filter, Plus, Trash2 } from "lucide-react";
+import { GitBranch, GitFork, Filter, Trash2 } from "lucide-react";
 import { ExpressionInput } from "../expression-input";
 import { cn } from "@/lib/utils";
 

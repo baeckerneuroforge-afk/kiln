@@ -14,10 +14,8 @@ import {
   Play,
   Check,
   BarChart3,
-  Clock,
   DollarSign,
   Zap,
-  ChevronDown,
   Send,
   Target,
 } from "lucide-react";

@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   Timer,
   Variable,
+  FileText,
   XCircle,
   Zap,
 } from "lucide-react";
@@ -185,6 +186,7 @@ function getNodeTypeIcon(nodeType: string | null | undefined) {
     case "set_variable": return <Variable className="h-3.5 w-3.5 text-blue-400" />;
     case "approval_gate": return <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" />;
     case "wait_webhook": return <Pause className="h-3.5 w-3.5 text-cyan-400" />;
+    case "wait_form": return <FileText className="h-3.5 w-3.5 text-cyan-400" />;
     case "agent": return <Bot className="h-3.5 w-3.5 text-orange-400" />;
     default: return null;
   }
@@ -207,6 +209,7 @@ function getNodeTypeLabel(nodeType: string | null | undefined): string {
     set_variable: "Set Variable",
     approval_gate: "Approval Gate",
     wait_webhook: "Wait Webhook",
+    wait_form: "Wait for Form",
     sub_workflow: "Sub-Workflow",
     merge: "Merge",
     agent: "AI Agent",
@@ -219,7 +222,7 @@ function getNodeTypeCategoryStyle(nodeType: string | null | undefined): string {
   if (nodeType.startsWith("trigger_")) return "border-amber-500/20 bg-amber-500/5";
   if (["if_condition", "switch", "filter"].includes(nodeType)) return "border-purple-500/20 bg-purple-500/5";
   if (["http_request", "send_email", "send_slack", "delay", "set_variable"].includes(nodeType)) return "border-blue-500/20 bg-blue-500/5";
-  if (["approval_gate", "wait_webhook", "sub_workflow", "merge"].includes(nodeType)) return "border-cyan-500/20 bg-cyan-500/5";
+  if (["approval_gate", "wait_webhook", "wait_form", "sub_workflow", "merge"].includes(nodeType)) return "border-cyan-500/20 bg-cyan-500/5";
   if (nodeType === "agent") return "border-orange-500/20 bg-orange-500/5";
   return "border-border bg-zinc-950/30";
 }
@@ -269,6 +272,16 @@ function formatNodeOutput(task: ExecutionTimelineItem): string {
       const receivedAt = parsed.trigger?.receivedAt || parsed.trigger?.firedAt || parsed.trigger?.triggeredAt;
       return `${triggerType} received${receivedAt ? ` at ${new Date(receivedAt).toLocaleTimeString()}` : ""}`;
     }
+    if (nodeType === "wait_webhook") {
+      if (parsed.pauseReason) return parsed.pauseReason;
+      if (parsed.payload) return `Webhook received: ${JSON.stringify(parsed.payload).slice(0, 100)}`;
+      return "Waiting for webhook callback...";
+    }
+    if (nodeType === "wait_form") {
+      if (parsed.pauseReason) return parsed.pauseReason;
+      if (parsed.data) return `Form submitted: ${Object.keys(parsed.data).length} fields`;
+      return "Waiting for form submission...";
+    }
     if (nodeType === "approval_gate") {
       return parsed.pauseReason || `Awaiting approval`;
     }
@@ -300,6 +313,8 @@ export function TeamExecutionsTab({
   const [rerunningExecutionId, setRerunningExecutionId] = useState<string | null>(null);
   const [retryingTaskKey, setRetryingTaskKey] = useState<string | null>(null);
   const [approvalActionKey, setApprovalActionKey] = useState<string | null>(null);
+  const [resumingExecutionId, setResumingExecutionId] = useState<string | null>(null);
+  const [cancellingExecutionId, setCancellingExecutionId] = useState<string | null>(null);
   const [replayExecutionId, setReplayExecutionId] = useState<string | null>(null);
   const [debugExecutionId, setDebugExecutionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -527,6 +542,58 @@ export function TeamExecutionsTab({
     }
   }
 
+  async function handleManualResume(executionId: string) {
+    setResumingExecutionId(executionId);
+    try {
+      // Find the waiting node from timeline
+      const waitingNode = detail?.timeline.find(
+        (t) => (t.nodeType === "wait_webhook" || t.nodeType === "wait_form") && t.latestStatus === "PENDING"
+      );
+      const nodeId = waitingNode?.nodeId || "unknown";
+
+      const res = await fetch(`/api/workflows/callback/${executionId}/${nodeId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ _manualResume: true, resumedAt: new Date().toISOString() }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to resume workflow");
+      }
+
+      // Refresh
+      setSelectedExecutionId(executionId);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to resume");
+    } finally {
+      setResumingExecutionId(null);
+    }
+  }
+
+  async function handleCancelExecution(executionId: string) {
+    if (!confirm("Cancel this execution? It will be marked as failed.")) return;
+    setCancellingExecutionId(executionId);
+    try {
+      const res = await fetch(`/api/teams/${teamId}/executions/${executionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "FAILED" }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to cancel execution");
+      }
+
+      // Refresh
+      setSelectedExecutionId(executionId);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to cancel");
+    } finally {
+      setCancellingExecutionId(null);
+    }
+  }
+
   return (
     <div className="p-6 h-full overflow-auto">
       {error && (
@@ -733,6 +800,42 @@ export function TeamExecutionsTab({
                           <XCircle className="mr-2 h-4 w-4" />
                         )}
                         Reject
+                      </Button>
+                    </>
+                  )}
+                  {detail.execution.status === "AWAITING_APPROVAL" && !pendingApproval && (
+                    <>
+                      {/* Wait state indicator — for webhook/form waits without approval */}
+                      <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-1.5">
+                        <Pause className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
+                        <span className="text-xs text-amber-300">Waiting for external input...</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleManualResume(detail.execution.id)}
+                        disabled={resumingExecutionId === detail.execution.id}
+                        className="bg-cyan-600 hover:bg-cyan-700 text-white"
+                      >
+                        {resumingExecutionId === detail.execution.id ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Play className="mr-2 h-4 w-4" />
+                        )}
+                        Resume Manually
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCancelExecution(detail.execution.id)}
+                        disabled={cancellingExecutionId === detail.execution.id}
+                        className="border-red-500/30 text-red-300 hover:bg-red-500/10"
+                      >
+                        {cancellingExecutionId === detail.execution.id ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <XCircle className="mr-2 h-4 w-4" />
+                        )}
+                        Cancel
                       </Button>
                     </>
                   )}

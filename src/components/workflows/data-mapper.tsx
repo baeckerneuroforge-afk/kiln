@@ -25,7 +25,8 @@ const OUTPUT_FIELDS: Partial<Record<WorkflowNodeType, string[]>> = {
   delay: ["resumedAt"],
   set_variable: ["variables"],
   approval_gate: ["approved", "approverEmail", "approvedAt"],
-  wait_webhook: ["payload", "receivedAt"],
+  wait_form: ["form", "submittedAt", "formTitle"],
+  wait_webhook: ["webhook", "receivedAt", "payload"],
   sub_workflow: ["result", "status", "executionId"],
   merge: ["branches", "completedCount"],
 };
@@ -71,8 +72,6 @@ interface DataMapperProps {
 
 export function DataMapper({
   edgeId,
-  sourceNodeId,
-  targetNodeId,
   sourceNodeType,
   targetNodeType,
   sourceLabel,

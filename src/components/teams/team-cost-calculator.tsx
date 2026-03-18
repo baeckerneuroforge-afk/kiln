@@ -9,7 +9,6 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import {
-  MODEL_PRICING,
   estimateCost,
   singleAgentEquivalentCost,
   projectMonthlyCost,

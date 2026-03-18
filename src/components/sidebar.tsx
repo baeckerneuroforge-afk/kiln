@@ -20,7 +20,6 @@ import {
   Store,
   ChevronsLeft,
   ChevronsRight,
-  Users,
   MessageCircle,
   MessageSquare,
   HelpCircle,
