@@ -43,6 +43,7 @@ interface ExecutionSummary {
   failedTasks: number;
   durationMs: number | null;
   sharedContextFields?: number;
+  priority?: number;
   latestApproval?: Omit<ApprovalInfo, "token" | "taskIndex" | "note" | "gateMember"> | null;
 }
 
@@ -111,6 +112,7 @@ const statusStyles: Record<string, string> = {
   REJECTED: "border-red-500/30 bg-red-500/10 text-red-200",
   PENDING: "border-zinc-700 bg-zinc-800/80 text-zinc-300",
   SKIPPED: "border-zinc-700 bg-zinc-800/80 text-zinc-400",
+  QUEUED: "border-cyan-500/30 bg-cyan-500/10 text-cyan-300",
 };
 
 function formatDuration(durationMs: number | null) {
@@ -152,6 +154,13 @@ function getStrategyLabel(strategy: ExecutionAttempt["strategy"]) {
       return "Primary";
   }
 }
+
+const PRIORITY_BADGE: Record<number, { label: string; style: string }> = {
+  0: { label: "Critical", style: "border-red-500/40 bg-red-500/15 text-red-300" },
+  1: { label: "High", style: "border-orange-500/40 bg-orange-500/15 text-orange-300" },
+  2: { label: "Normal", style: "border-zinc-600 bg-zinc-800/80 text-zinc-400" },
+  3: { label: "Low", style: "border-blue-500/40 bg-blue-500/15 text-blue-300" },
+};
 
 export function TeamExecutionsTab({
   teamId,
@@ -451,6 +460,11 @@ export function TeamExecutionsTab({
                           Scheduled
                         </span>
                       ) : null}
+                      {typeof execution.priority === "number" && execution.priority !== 2 && (
+                        <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase", PRIORITY_BADGE[execution.priority]?.style || PRIORITY_BADGE[2].style)}>
+                          {PRIORITY_BADGE[execution.priority]?.label || "Normal"}
+                        </span>
+                      )}
                       <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase", statusStyles[execution.status] || statusStyles.PENDING)}>
                         {execution.status}
                       </span>

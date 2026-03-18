@@ -136,6 +136,10 @@ model Agent {
   // Prompt Branching — conditional prompt snippets
   promptBranches     Json?       // [{ name, keywords[], promptSnippet, enabled }]
 
+  // Team-Based Intent Routing
+  teamRoutingEnabled Boolean     @default(false)
+  teamRoutingTeamId  String?     // AgentTeam ID for intent-based routing
+
   // Clone-Tracking
   clonedFromId         String?   // ID des Original-Agents (falls geklont)
   clonedFromName       String?   // Name des Originals zum Zeitpunkt des Klonens
@@ -305,6 +309,10 @@ model Conversation {
   // Agent Handoff: when conversation is transferred to another agent
   handoffAgentId  String?
   handoffAt       DateTime?
+
+  // Intent-Based Routing
+  lastDetectedIntent  String?     // Last classified intent (e.g., "pricing", "support")
+  lastIntentAgentId   String?     // Agent ID the intent was routed to
 
   messages  Message[]
   createdAt DateTime @default(now())
@@ -798,6 +806,7 @@ enum AgentTeamStatus {
 }
 
 enum TeamExecutionStatus {
+  QUEUED
   RUNNING
   AWAITING_APPROVAL
   COMPLETED
@@ -832,16 +841,17 @@ enum ApprovalRequestStatus {
 }
 
 model AgentTeam {
-  id          String          @id @default(cuid())
-  userId      String
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  description String?         @db.Text
-  goal        String?         @db.Text
-  config      Json?
-  status      AgentTeamStatus @default(ACTIVE)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?         @db.Text
+  goal          String?         @db.Text
+  config        Json?
+  status        AgentTeamStatus @default(ACTIVE)
+  parentTeamId  String?         // Cloned/forked from this team
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   members        AgentTeamMember[]
   tasks          AgentTeamTask[]
@@ -911,6 +921,8 @@ model TeamExecution {
   user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   goal           String?             @db.Text
   status         TeamExecutionStatus @default(RUNNING)
+  priority       Int                 @default(2) // 0=CRITICAL, 1=HIGH, 2=NORMAL, 3=LOW
+  queuedAt       DateTime?           // Set when status=QUEUED, null when processing
   startedAt      DateTime            @default(now())
   completedAt    DateTime?
   totalTasks     Int                 @default(0)

@@ -43,6 +43,8 @@ interface LogEntry {
   handoffStatus: string | null;
   handoffAgentName: string | null;
   handoffs: HandoffEntry[];
+  lastDetectedIntent: string | null;
+  lastIntentAgentName: string | null;
   messageCount: number;
   createdAt: string;
   messages: LogMessage[];
@@ -401,6 +403,12 @@ export function LogsTab({ agentId, onAddTestCase }: LogsTabProps) {
                     {log.handoffAgentName && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
                         {"\u{1F504}"} → {log.handoffAgentName}
+                      </span>
+                    )}
+                    {log.lastDetectedIntent && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-medium text-orange-400">
+                        Intent: {log.lastDetectedIntent}
+                        {log.lastIntentAgentName && ` → ${log.lastIntentAgentName}`}
                       </span>
                     )}
                   </div>

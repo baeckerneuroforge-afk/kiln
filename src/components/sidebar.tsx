@@ -24,6 +24,7 @@ import {
   MessageCircle,
   MessageSquare,
   HelpCircle,
+  Radio,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -81,6 +82,15 @@ const allModules = [
     color: "text-muted-foreground",
     activeColor: "text-kiln-orange",
     minAgents: 5, // Show after 5+ agents or Pro+
+    requiresPro: true,
+  },
+  {
+    name: "Team Monitor",
+    href: "/dashboard/teams/monitor",
+    icon: Radio,
+    color: "text-muted-foreground",
+    activeColor: "text-kiln-orange",
+    minAgents: 5,
     requiresPro: true,
   },
   {

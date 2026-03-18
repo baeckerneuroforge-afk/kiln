@@ -1583,6 +1583,12 @@ export async function executeTeamExecution({
       status: finalStatus,
       sharedMemory: getVisibleExecutionContext(executionContext),
     });
+
+    // Process queue: start next queued execution if capacity available
+    try {
+      const { processQueue } = await import("@/lib/execution-queue");
+      await processQueue(team.id);
+    } catch { /* Queue processing is best-effort */ }
   } catch (error) {
     console.error("Team execution runtime failed:", error);
     const finalStatus =
@@ -1614,6 +1620,12 @@ export async function executeTeamExecution({
       failedTasks: failedTasks > 0 ? failedTasks : 1,
       status: finalStatus,
     }).catch(() => {});
+
+    // Process queue even on failure
+    try {
+      const { processQueue } = await import("@/lib/execution-queue");
+      await processQueue(team.id);
+    } catch { /* Queue processing is best-effort */ }
   }
 }
 

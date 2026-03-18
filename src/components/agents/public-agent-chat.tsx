@@ -13,7 +13,7 @@ import {
 
 interface ChatMessage {
   id: string;
-  role: "user" | "assistant" | "human";
+  role: "user" | "assistant" | "human" | "system";
   content: string;
   imageUrl?: string;
   createdAt: string;
@@ -339,6 +339,18 @@ export function PublicAgentChat({
           if (data === "[DONE]") break;
           try {
             const parsed = JSON.parse(data);
+            if (parsed.intentRouting) {
+              const ir = parsed.intentRouting as { intent: string; confidence: number; targetAgent: string };
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: `routing-${Date.now()}`,
+                  role: "system" as const,
+                  content: `Weiterleitung an ${ir.targetAgent} (${ir.intent}, ${Math.round(ir.confidence * 100)}%)`,
+                  createdAt: new Date().toISOString(),
+                },
+              ]);
+            }
             if (parsed.text) {
               fullText += parsed.text;
               setMessages((prev) =>
@@ -554,6 +566,13 @@ export function PublicAgentChat({
               msg.role === "user" ? "justify-end" : "justify-start"
             )}
             >
+            {msg.role === "system" && (
+              <div className="w-full flex justify-center">
+                <span className="text-[10px] text-zinc-500 bg-zinc-900/50 border border-zinc-800 rounded-full px-3 py-1">
+                  {msg.content}
+                </span>
+              </div>
+            )}
             {msg.role === "assistant" && (
               <div className="mt-0.5 shrink-0">
                 {renderAgentAvatar("h-7 w-7", "text-xs")}
@@ -567,6 +586,7 @@ export function PublicAgentChat({
                 <UserCheck className="h-4 w-4" style={{ color: "#22C55E" }} />
               </div>
             )}
+            {msg.role !== "system" && (
             <div
               className={cn(
                 "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
@@ -608,12 +628,14 @@ export function PublicAgentChat({
                 </span>
               )}
             </div>
+            )}
             {msg.role === "user" && (
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full mt-0.5 bg-[#292524]">
                 <User className="h-4 w-4" style={{ color: "#A8A29E" }} />
               </div>
             )}
           </div>
+            {msg.role !== "system" && (
             <div
               className={cn(
                 "px-10 text-[10px] text-[#78716C] opacity-0 transition-opacity duration-150 group-hover:opacity-100",
@@ -622,6 +644,7 @@ export function PublicAgentChat({
             >
               {formatRelativeTime(msg.createdAt)}
             </div>
+            )}
           </div>
         ))}
 

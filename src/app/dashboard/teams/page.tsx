@@ -37,6 +37,7 @@ import {
   Building2,
   GraduationCap,
   CookingPot,
+  GitFork,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,7 @@ interface Team {
   description: string | null;
   goal: string | null;
   scheduleSummary?: string | null;
+  parentTeamId?: string | null;
   status: "ACTIVE" | "PAUSED";
   members: TeamMember[];
   _count: { tasks: number };
@@ -1987,8 +1989,14 @@ export default function TeamsPage() {
                   </div>
 
                   {/* Name + Goal */}
-                  <h3 className="mb-1 font-semibold text-foreground group-hover:text-kiln-orange transition-colors">
+                  <h3 className="mb-1 font-semibold text-foreground group-hover:text-kiln-orange transition-colors flex items-center gap-2">
                     {team.name}
+                    {team.parentTeamId && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500 border border-zinc-700/50 font-normal">
+                        <GitFork className="h-2.5 w-2.5" />
+                        {team.name.includes("(Copy)") ? "Copy" : "Fork"}
+                      </span>
+                    )}
                   </h3>
                   <p className="mb-auto text-xs text-muted-foreground line-clamp-2 min-h-[2rem]">
                     {team.goal || team.description || "No goal set"}

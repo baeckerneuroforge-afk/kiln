@@ -49,8 +49,19 @@ export async function GET(
       return Response.json({ error: "Team not found" }, { status: 404 });
     }
 
+    // Resolve parent team name for cloned/forked teams
+    let parentTeamName: string | null = null;
+    if (team.parentTeamId) {
+      const parent = await prisma.agentTeam.findUnique({
+        where: { id: team.parentTeamId },
+        select: { name: true },
+      });
+      parentTeamName = parent?.name ?? null;
+    }
+
     return Response.json({
       ...team,
+      parentTeamName,
       schedulePreview: getTeamSchedulePreview(
         normalizeTeamScheduleConfig(
           team.config && typeof team.config === "object"

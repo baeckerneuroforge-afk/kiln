@@ -62,6 +62,9 @@ import {
   TrendingDown,
   Globe,
   Download,
+  Copy,
+  GitFork,
+  Layers,
 } from "lucide-react";
 import {
   PROVIDERS,
@@ -149,8 +152,11 @@ interface Team {
   config?: {
     nodePositions?: Record<string, { x: number; y: number }>;
     schedule?: Partial<TeamScheduleConfigValue>;
+    maxConcurrent?: number;
   } | null;
   schedulePreview?: TeamSchedulePreviewValue | null;
+  parentTeamId?: string | null;
+  parentTeamName?: string | null;
   status: "ACTIVE" | "PAUSED";
   createdAt: string;
   updatedAt: string;
@@ -1775,6 +1781,15 @@ function TeamDetailInner() {
   } | null>(null);
   const [showHealthBreakdown, setShowHealthBreakdown] = useState(false);
 
+  // Clone team
+  const [showCloneModal, setShowCloneModal] = useState(false);
+  const [cloning, setCloning] = useState(false);
+
+  // Queue & Priorität
+  const [maxConcurrent, setMaxConcurrent] = useState(5);
+  const [queueStatus, setQueueStatus] = useState<{ running: number; queued: number; maxConcurrent: number } | null>(null);
+  const [savingQueue, setSavingQueue] = useState(false);
+
   /* Fetch team data */
   const fetchTeam = useCallback(async () => {
     try {
@@ -1793,6 +1808,15 @@ function TeamDetailInner() {
       fetch(`/api/teams/${teamId}/knowledge`)
         .then((r) => (r.ok ? r.json() : []))
         .then((entries: unknown[]) => setTeamKnowledgeCount(entries.length))
+        .catch(() => {});
+      // Initialize maxConcurrent from config
+      if (data.config?.maxConcurrent && typeof data.config.maxConcurrent === "number") {
+        setMaxConcurrent(data.config.maxConcurrent);
+      }
+      // Fetch queue status
+      fetch(`/api/teams/${teamId}/queue-status`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((qs) => { if (qs) setQueueStatus(qs); })
         .catch(() => {});
       // Fetch health score
       fetch(`/api/teams/${teamId}/health`)
@@ -1858,6 +1882,22 @@ function TeamDetailInner() {
       if (res.ok) router.push("/dashboard/teams");
     } catch {
       // noop
+    }
+  };
+
+  /* Clone team */
+  const cloneTeam = async () => {
+    if (cloning) return;
+    setCloning(true);
+    try {
+      const res = await fetch(`/api/teams/${teamId}/clone`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setShowCloneModal(false);
+        router.push(`/dashboard/teams/${data.id}`);
+      }
+    } finally {
+      setCloning(false);
     }
   };
 
@@ -1983,6 +2023,25 @@ function TeamDetailInner() {
       });
     } catch {
       // Silently fail — positions are still in local state
+    }
+  }, [teamId]);
+
+  /* Save maxConcurrent to team config */
+  const saveMaxConcurrent = useCallback(async (value: number) => {
+    setSavingQueue(true);
+    try {
+      await fetch(`/api/teams/${teamId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config: { maxConcurrent: value } }),
+      });
+      // Refresh queue status
+      const qs = await fetch(`/api/teams/${teamId}/queue-status`).then((r) => r.ok ? r.json() : null).catch(() => null);
+      if (qs) setQueueStatus(qs);
+    } catch {
+      // Silently fail
+    } finally {
+      setSavingQueue(false);
     }
   }, [teamId]);
 
@@ -2136,6 +2195,14 @@ function TeamDetailInner() {
             </h1>
           )}
 
+          {/* Cloned/Forked badge */}
+          {team.parentTeamId && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-zinc-800 px-2.5 py-0.5 text-[11px] text-zinc-400 border border-zinc-700">
+              <GitFork className="h-3 w-3" />
+              {team.parentTeamName ? `Forked from ${team.parentTeamName}` : "Forked"}
+            </span>
+          )}
+
           {/* Status badge */}
           <span
             className={cn(
@@ -2224,6 +2291,15 @@ function TeamDetailInner() {
                     className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
                   >
                     <Download className="h-4 w-4" /> Export YAML
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowSettings(false);
+                      setShowCloneModal(true);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+                  >
+                    <Copy className="h-4 w-4" /> Clone Team
                   </button>
                   <div className="my-1 border-t border-zinc-800" />
                   <button
@@ -2709,12 +2785,83 @@ function TeamDetailInner() {
         )}
 
         {activeTab === "schedule" && (
-          <TeamScheduleTab
-            teamId={teamId}
-            initialSchedule={team.config?.schedule || null}
-            initialPreview={team.schedulePreview || null}
-            onSaved={fetchTeam}
-          />
+          <div className="h-full overflow-auto">
+            <TeamScheduleTab
+              teamId={teamId}
+              initialSchedule={team.config?.schedule || null}
+              initialPreview={team.schedulePreview || null}
+              onSaved={fetchTeam}
+            />
+
+            {/* Queue & Priorität */}
+            <div className="mx-auto max-w-5xl px-6 pb-6">
+            <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/10">
+                  <Layers className="h-4 w-4 text-cyan-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Queue & Priorität</h3>
+                  <p className="text-xs text-muted-foreground">Parallelität und Prioritäts-Regeln konfigurieren.</p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-zinc-400">Max. gleichzeitige Ausführungen</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={maxConcurrent}
+                      onChange={(e) => setMaxConcurrent(Math.max(1, Math.min(20, parseInt(e.target.value) || 5)))}
+                      className="w-24 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 focus:border-orange-500/50 focus:outline-none"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={savingQueue}
+                      onClick={() => saveMaxConcurrent(maxConcurrent)}
+                      className="text-xs"
+                    >
+                      {savingQueue ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                      Speichern
+                    </Button>
+                  </div>
+                </div>
+
+                {queueStatus && (
+                  <div className="flex items-center gap-4 text-xs text-zinc-400">
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+                      {queueStatus.running} laufend
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-cyan-500" />
+                      {queueStatus.queued} wartend
+                    </span>
+                    <span className="text-zinc-600">/ {queueStatus.maxConcurrent} max</span>
+                  </div>
+                )}
+
+                {/* Prioritäts-Regeln (nur Anzeige) */}
+                <div className="pt-2 border-t border-zinc-800">
+                  <p className="text-xs font-medium text-zinc-400 mb-2">Prioritäts-Regeln</p>
+                  <div className="space-y-1.5">
+                    {(["URGENT", "HIGH", "MEDIUM", "LOW"] as const).map((p) => (
+                      <div key={p} className="flex items-center gap-2 text-xs">
+                        <span className={cn("inline-block h-2 w-2 rounded-full", priorityColors[p].bg.replace("/20", "/60"))} />
+                        <span className={priorityColors[p].text}>{p}</span>
+                        <span className="text-zinc-600">— wird {p === "URGENT" ? "sofort" : p === "HIGH" ? "bevorzugt" : p === "MEDIUM" ? "normal" : "nachrangig"} verarbeitet</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
         )}
 
         {activeTab === "webhooks" && (
@@ -2802,6 +2949,51 @@ function TeamDetailInner() {
                   <div className="flex items-center gap-2">
                     <Send className="h-4 w-4" />
                     <span>Execute</span>
+                  </div>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clone confirmation modal */}
+      {showCloneModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-zinc-100 flex items-center gap-2 font-[family-name:var(--font-instrument)]">
+                <Copy className="h-5 w-5 text-orange-400" />
+                Clone Team
+              </h2>
+              <button onClick={() => setShowCloneModal(false)} className="text-zinc-500 hover:text-zinc-300">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-zinc-400 mb-6">
+              This will create a copy of this team with all agents, knowledge bases, and settings. The cloned team will be independent from the original.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <Button variant="ghost" size="sm" onClick={() => setShowCloneModal(false)} className="text-zinc-400">
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={cloneTeam}
+                disabled={cloning}
+                className="bg-orange-600 hover:bg-orange-700 text-white min-w-[100px]"
+              >
+                {cloning ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Cloning...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Copy className="h-4 w-4" />
+                    <span>Clone</span>
                   </div>
                 )}
               </Button>

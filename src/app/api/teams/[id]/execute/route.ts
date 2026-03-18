@@ -9,6 +9,7 @@ import {
   executeTeamExecution,
   loadTeamExecutionRuntimeContext,
 } from "@/lib/services/team-runtime";
+import { enqueueExecution, PRIORITY_VALUES } from "@/lib/execution-queue";
 
 // Execute a team goal — decompose into subtasks via Claude
 export async function POST(
@@ -27,7 +28,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { goal } = body;
+    const { goal, priority: requestedPriority } = body;
 
     if (!goal) {
       return Response.json(
@@ -126,12 +127,18 @@ Respond ONLY with a valid JSON array, no other text.`,
 
     // Create all tasks in the database
     const executionContext = setExecutionContextMeta({}, { trigger: "manual" });
+    const executionPriority = typeof requestedPriority === "string"
+      ? (PRIORITY_VALUES[requestedPriority.toUpperCase()] ?? 2)
+      : typeof requestedPriority === "number"
+        ? Math.max(0, Math.min(3, requestedPriority))
+        : 2;
 
     const execution = await prisma.teamExecution.create({
       data: {
         teamId: params.id,
         userId,
         goal,
+        priority: executionPriority,
         totalTasks: subtasks.length,
         completedTasks: 0,
         failedTasks: 0,
@@ -182,30 +189,40 @@ Respond ONLY with a valid JSON array, no other text.`,
       },
     });
 
-    waitUntil(
-      executeTeamExecution({
-        executionId: execution.id,
-        team,
-        userId,
-        goal,
-        tasks: createdTasks.map((task, taskIndex) => ({
-          id: task.id,
-          title: task.title,
-          description: task.description,
-          priority: task.priority,
-          assignedToId: task.assignedToId,
-          taskIndex,
-        })),
-        executionContext,
-      }).catch((error) => {
-        console.error("Background team execution failed:", error);
-      })
-    );
+    // Check if we should queue or run immediately
+    const taskPayload = createdTasks.map((task, taskIndex) => ({
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      priority: task.priority,
+      assignedToId: task.assignedToId,
+      taskIndex,
+    }));
+
+    const { queued } = await enqueueExecution(execution.id, params.id, executionPriority);
+
+    if (!queued) {
+      // Run immediately
+      waitUntil(
+        executeTeamExecution({
+          executionId: execution.id,
+          team,
+          userId,
+          goal,
+          tasks: taskPayload,
+          executionContext,
+        }).catch((error) => {
+          console.error("Background team execution failed:", error);
+        })
+      );
+    }
 
     return Response.json(
       {
         executionId: execution.id,
-        status: execution.status,
+        status: queued ? "QUEUED" : execution.status,
+        priority: executionPriority,
+        queued,
         tasks: createdTasks,
         count: createdTasks.length,
       },

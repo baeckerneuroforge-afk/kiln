@@ -109,6 +109,8 @@ interface Agent {
   outputConfig?: Record<string, unknown> | null;
   lastRunAt?: string | null;
   lastRunResult?: Record<string, unknown> | null;
+  teamRoutingEnabled: boolean;
+  teamRoutingTeamId: string | null;
   clonedFromId: string | null;
   clonedFromName: string | null;
   createdAt: string;
@@ -276,6 +278,9 @@ export default function AgentDetailPage() {
   const [imageAnalysisEnabled, setImageAnalysisEnabled] = useState(false);
   const [showAiDisclaimer, setShowAiDisclaimer] = useState(true);
   const [agentType, setAgentType] = useState<"PUBLIC" | "INTERNAL">("PUBLIC");
+  const [teamRoutingEnabled, setTeamRoutingEnabled] = useState(false);
+  const [teamRoutingTeamId, setTeamRoutingTeamId] = useState<string | null>(null);
+  const [availableTeams, setAvailableTeams] = useState<{id: string; name: string}[]>([]);
   const [promptBranches, setPromptBranches] = useState<{ name: string; keywords: string[]; promptSnippet: string; enabled: boolean }[]>([]);
   const [customDomain, setCustomDomain] = useState("");
   const [proactiveEnabled, setProactiveEnabled] = useState(true);
@@ -331,6 +336,8 @@ export default function AgentDetailPage() {
     setImageAnalysisEnabled(data.imageAnalysisEnabled || false);
     setShowAiDisclaimer(data.showAiDisclaimer !== false);
     setAgentType(data.agentType || "PUBLIC");
+    setTeamRoutingEnabled(data.teamRoutingEnabled || false);
+    setTeamRoutingTeamId(data.teamRoutingTeamId || null);
     setPromptBranches(Array.isArray(data.promptBranches) ? data.promptBranches : []);
     setCustomDomain(data.customDomain || "");
     const wl = (data.whiteLabel || {}) as Record<string, unknown>;
@@ -371,6 +378,19 @@ export default function AgentDetailPage() {
       .catch(() => {});
   }, [params.id, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    async function fetchTeams() {
+      try {
+        const res = await fetch("/api/teams");
+        if (res.ok) {
+          const data = await res.json();
+          setAvailableTeams(Array.isArray(data) ? data.map((t: { id: string; name: string }) => ({ id: t.id, name: t.name })) : []);
+        }
+      } catch {}
+    }
+    fetchTeams();
+  }, []);
+
 
   async function handleSave() {
     if (!agent) return;
@@ -394,6 +414,8 @@ export default function AgentDetailPage() {
           imageAnalysisEnabled,
           showAiDisclaimer,
           agentType,
+          teamRoutingEnabled,
+          teamRoutingTeamId,
           promptBranches: promptBranches.length > 0 ? promptBranches : null,
           customDomain: customDomain.trim() || null,
           whiteLabel: {
@@ -1358,6 +1380,48 @@ export default function AgentDetailPage() {
                         <h4 className="text-xs font-semibold text-foreground">Team Access</h4>
                       </div>
                       <TeamAccess agentId={agent.id} />
+                    </div>
+
+                    {/* Team Chat Routing */}
+                    <div className="border-t border-border pt-3 mt-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Zap className="h-4 w-4 text-orange-400" />
+                        <h4 className="text-xs font-semibold text-foreground">Team Chat Routing</h4>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mb-3">
+                        Automatisch zum passenden Team-Agenten weiterleiten, basierend auf der Nutzer-Intention.
+                      </p>
+                      <div className="space-y-3">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={teamRoutingEnabled}
+                            onChange={(e) => setTeamRoutingEnabled(e.target.checked)}
+                            className="h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-orange-500 focus:ring-orange-500/30"
+                          />
+                          <span className="text-xs text-zinc-300">Intent-basiertes Routing aktivieren</span>
+                        </label>
+                        {teamRoutingEnabled && (
+                          <div>
+                            <label className="mb-1.5 block text-[11px] font-medium text-zinc-400">Team auswählen</label>
+                            <select
+                              value={teamRoutingTeamId || ""}
+                              onChange={(e) => setTeamRoutingTeamId(e.target.value || null)}
+                              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 focus:border-orange-500/50 focus:outline-none"
+                            >
+                              <option value="">— Kein Team —</option>
+                              {availableTeams.map((t) => (
+                                <option key={t.id} value={t.id}>{t.name}</option>
+                              ))}
+                            </select>
+                            {teamRoutingTeamId && (
+                              <p className="mt-2 text-[10px] text-zinc-500">
+                                Bei jeder Nachricht wird die Intention erkannt und der Agent gewechselt, wenn ein anderer besser passt (Confidence &gt; 80%).
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}

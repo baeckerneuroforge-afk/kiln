@@ -22,6 +22,7 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
 import { extractTextContent, hashSession, extractAndSaveMemories, evaluateOrchestrationHandoff } from "@/lib/services/chat-service";
+import { detectIntent, hasTopicShifted, loadTeamAgentsForRouting } from "@/lib/intent-router";
 import { buildTools, executeChatTool } from "@/lib/services/action-service";
 import { getOrCreateVisitor, generateMemoryPrefix, updateVisitorMemory, linkEmailToVisitor } from "@/lib/visitor-memory";
 import {
@@ -159,6 +160,7 @@ export async function POST(
 
     // Check for active agent handoff — if conversation was handed off, use target agent
     let agent = originalAgent;
+    let intentRoutingEvent: { intent: string; confidence: number; targetAgent: string } | null = null;
     if (conversation?.handoffAgentId && conversation.handoffAgentId !== params.id) {
       const handoffAgent = await prisma.agent.findUnique({
         where: { id: conversation.handoffAgentId },
@@ -171,6 +173,83 @@ export async function POST(
       });
       if (handoffAgent) {
         agent = handoffAgent;
+      }
+    }
+
+    // Intent-based team routing: automatically route to best agent
+    const latestUserText = messages[messages.length - 1]?.content || "";
+    if (
+      originalAgent.teamRoutingEnabled &&
+      originalAgent.teamRoutingTeamId &&
+      typeof latestUserText === "string" &&
+      latestUserText.trim()
+    ) {
+      try {
+        const teamAgents = await loadTeamAgentsForRouting(originalAgent.teamRoutingTeamId);
+        if (teamAgents.length > 1) {
+          const previousIntent = conversation?.lastDetectedIntent || null;
+          // Build conversation context from last few messages
+          const contextMessages = messages.slice(-4).map((m: { role: string; content: string }) => `${m.role}: ${typeof m.content === "string" ? m.content.slice(0, 100) : ""}`).join("\n");
+
+          const intentResult = await detectIntent(
+            latestUserText,
+            agent.id,
+            teamAgents,
+            contextMessages
+          );
+
+          // Only route on topic shift with high confidence
+          if (
+            intentResult.agentId !== agent.id &&
+            intentResult.confidence > 0.8 &&
+            hasTopicShifted(intentResult.intent, previousIntent)
+          ) {
+            // Seamless handoff to better agent
+            const targetAgent = await prisma.agent.findUnique({
+              where: { id: intentResult.agentId },
+              include: {
+                knowledgeBases: { where: { embeddingStatus: "READY" } },
+                actions: true,
+                customTools: { where: { enabled: true } },
+                channels: { where: { type: "STRIPE", isActive: true } },
+              },
+            });
+            if (targetAgent) {
+              agent = targetAgent;
+              intentRoutingEvent = {
+                intent: intentResult.intent,
+                confidence: intentResult.confidence,
+                targetAgent: targetAgent.name,
+              };
+
+              // Update conversation with intent + handoff
+              if (conversation) {
+                await prisma.conversation.update({
+                  where: { id: conversation.id },
+                  data: {
+                    handoffAgentId: targetAgent.id,
+                    handoffAt: new Date(),
+                    lastDetectedIntent: intentResult.intent,
+                    lastIntentAgentId: targetAgent.id,
+                  },
+                });
+              }
+            }
+          } else {
+            // Update intent tracking without routing
+            if (conversation && intentResult.intent !== "unknown" && intentResult.intent !== "general") {
+              waitUntil(
+                prisma.conversation.update({
+                  where: { id: conversation.id },
+                  data: { lastDetectedIntent: intentResult.intent },
+                }).catch(() => {})
+              );
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Intent routing failed:", err);
+        // Continue with current agent on failure
       }
     }
 
@@ -1167,6 +1246,15 @@ export async function POST(
             };
             controller.enqueue(
               encoder.encode(`data: ${JSON.stringify(debugInfo)}\n\n`)
+            );
+          }
+
+          // Emit intent routing event if applicable
+          if (intentRoutingEvent) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ intentRouting: intentRoutingEvent })}\n\n`
+              )
             );
           }
 
