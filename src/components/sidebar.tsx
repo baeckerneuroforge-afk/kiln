@@ -25,6 +25,7 @@ import {
   MessageSquare,
   HelpCircle,
   Radio,
+  FlaskConical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -88,6 +89,15 @@ const allModules = [
     name: "Team Monitor",
     href: "/dashboard/teams/monitor",
     icon: Radio,
+    color: "text-muted-foreground",
+    activeColor: "text-kiln-orange",
+    minAgents: 5,
+    requiresPro: true,
+  },
+  {
+    name: "A/B Tests",
+    href: "/dashboard/teams/ab-tests",
+    icon: FlaskConical,
     color: "text-muted-foreground",
     activeColor: "text-kiln-orange",
     minAgents: 5,

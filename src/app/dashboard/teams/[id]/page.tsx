@@ -26,6 +26,7 @@ import {
 import { VisualTeamEditor } from "@/components/teams/visual-team-editor";
 import { TeamKnowledgeTab } from "@/components/teams/team-knowledge-tab";
 import { TeamWebhooksTab } from "@/components/teams/team-webhooks-tab";
+import { TeamPermissionsTab } from "@/components/teams/team-permissions-tab";
 import { TeamCostCalculator } from "@/components/teams/team-cost-calculator";
 import { cn } from "@/lib/utils";
 import {
@@ -64,7 +65,10 @@ import {
   Download,
   Copy,
   GitFork,
+  FlaskConical,
+  Network,
   Layers,
+  Shield,
 } from "lucide-react";
 import {
   PROVIDERS,
@@ -146,6 +150,7 @@ interface TeamTask {
 
 interface Team {
   id: string;
+  userId?: string;
   name: string;
   description?: string;
   goal?: string;
@@ -157,6 +162,8 @@ interface Team {
   schedulePreview?: TeamSchedulePreviewValue | null;
   parentTeamId?: string | null;
   parentTeamName?: string | null;
+  isOwner?: boolean;
+  sharedRole?: string | null;
   status: "ACTIVE" | "PAUSED";
   createdAt: string;
   updatedAt: string;
@@ -463,7 +470,7 @@ function buildHierarchyGraph(
 }
 
 /* ========== Tabs ========== */
-type TabKey = "hierarchy" | "tasks" | "activity" | "analytics" | "cost" | "knowledge" | "executions" | "schedule" | "webhooks";
+type TabKey = "hierarchy" | "tasks" | "activity" | "analytics" | "cost" | "knowledge" | "executions" | "schedule" | "webhooks" | "permissions";
 
 const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "hierarchy", label: "Hierarchy", icon: <Users className="h-4 w-4" /> },
@@ -475,6 +482,7 @@ const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "executions", label: "Executions", icon: <Clock className="h-4 w-4" /> },
   { key: "schedule", label: "Schedule", icon: <CalendarDays className="h-4 w-4" /> },
   { key: "webhooks", label: "Webhooks", icon: <Globe className="h-4 w-4" /> },
+  { key: "permissions", label: "Members", icon: <Shield className="h-4 w-4" /> },
 ];
 
 /* ========== Edit Member Panel ========== */
@@ -524,6 +532,13 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
   const [maxRetries, setMaxRetries] = useState(2);
 
   // Feedback loop
+  // Trigger team config
+  const [triggerTeamEnabled, setTriggerTeamEnabled] = useState(false);
+  const [triggerTeamTargetId, setTriggerTeamTargetId] = useState("");
+  const [triggerTeamMode, setTriggerTeamMode] = useState<"async" | "sync">("async");
+  const [triggerTeamGoal, setTriggerTeamGoal] = useState("");
+  const [availableTeams, setAvailableTeams] = useState<{ id: string; name: string }[]>([]);
+
   const [loopEnabled, setLoopEnabled] = useState(false);
   const [loopTargetMemberId, setLoopTargetMemberId] = useState("");
   const [loopMaxIterations, setLoopMaxIterations] = useState(3);
@@ -565,6 +580,21 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
       setLoopQualityField("");
       setLoopQualityThreshold(80);
     }
+    // Trigger team config laden
+    const memberCfg = member.config as Record<string, unknown> | null;
+    const triggerCfg = memberCfg?.triggerTeam as Record<string, unknown> | null;
+    if (triggerCfg && member.enabledActions?.includes("TRIGGER_TEAM")) {
+      setTriggerTeamEnabled(true);
+      setTriggerTeamTargetId(String(triggerCfg.targetTeamId || ""));
+      setTriggerTeamMode((triggerCfg.mode as "async" | "sync") || "async");
+      setTriggerTeamGoal(String(triggerCfg.goalTemplate || ""));
+    } else {
+      setTriggerTeamEnabled(false);
+      setTriggerTeamTargetId("");
+      setTriggerTeamMode("async");
+      setTriggerTeamGoal("");
+    }
+
     const gateConfig = normalizeApprovalGateConfig(member.config, "");
     setApproverEmail(gateConfig.approverEmail);
     setApprovalMessage(gateConfig.approvalMessage);
@@ -621,7 +651,15 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
         );
       })
       .catch(() => setAvailableFallbackAgents([]));
-  }, [member]);
+    // Verfügbare Teams für TRIGGER_TEAM laden
+    fetch("/api/teams")
+      .then((r) => r.json())
+      .then((data: { id: string; name: string }[]) => {
+        const allTeams = Array.isArray(data) ? data : [];
+        setAvailableTeams(allTeams.filter((t) => t.id !== teamId));
+      })
+      .catch(() => setAvailableTeams([]));
+  }, [member, teamId]);
 
   const availableModels = useMemo(() => getModelsForProvider(provider), [provider]);
   const fallbackModelOptions = useMemo(
@@ -667,7 +705,9 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
           responsibilities: responsibilities.trim() || undefined,
           reportsToMemberId: reportsToMemberId || null,
           outputSchema: schemaFields.length > 0 ? schemaFields : null,
-          enabledActions,
+          enabledActions: triggerTeamEnabled
+            ? Array.from(new Set([...enabledActions.filter((a) => a !== "TRIGGER_TEAM"), "TRIGGER_TEAM"]))
+            : enabledActions.filter((a) => a !== "TRIGGER_TEAM"),
           executionMode,
           fallbackAgentId: fallbackEnabled ? fallbackAgentId || null : null,
           fallbackModel: fallbackEnabled ? fallbackModel || null : null,
@@ -684,7 +724,15 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                   timeoutHours,
                   timeoutAction,
                 }
-              : null,
+              : triggerTeamEnabled && triggerTeamTargetId
+                ? {
+                    triggerTeam: {
+                      targetTeamId: triggerTeamTargetId,
+                      mode: triggerTeamMode,
+                      goalTemplate: triggerTeamGoal.trim() || undefined,
+                    },
+                  }
+                : null,
         }),
       });
 
@@ -1123,6 +1171,98 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* ── Trigger Team (Inter-Team Communication) ── */}
+              {role !== "APPROVAL_GATE" && (
+                <div className="space-y-3 border-t border-zinc-800 pt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
+                        <Network className="h-3 w-3" />
+                        Trigger Team
+                      </label>
+                      <p className="mt-1 text-[10px] text-zinc-500">
+                        After this agent completes, trigger another team&apos;s execution.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTriggerTeamEnabled(!triggerTeamEnabled)}
+                      className={cn(
+                        "relative h-5 w-9 rounded-full transition-colors",
+                        triggerTeamEnabled ? "bg-orange-500" : "bg-zinc-700"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform",
+                          triggerTeamEnabled ? "left-4.5" : "left-0.5"
+                        )}
+                      />
+                    </button>
+                  </div>
+
+                  {triggerTeamEnabled && (
+                    <div className="space-y-3 ml-1">
+                      <div>
+                        <label className="text-[10px] text-zinc-500 mb-1 block">Target Team</label>
+                        <select
+                          value={triggerTeamTargetId}
+                          onChange={(e) => setTriggerTeamTargetId(e.target.value)}
+                          className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+                        >
+                          <option value="">Select team...</option>
+                          {availableTeams.map((t) => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-zinc-500 mb-1 block">Mode</label>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setTriggerTeamMode("async")}
+                            className={cn(
+                              "flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
+                              triggerTeamMode === "async"
+                                ? "border-orange-500/40 bg-orange-500/10 text-orange-400"
+                                : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
+                            )}
+                          >
+                            Async (fire &amp; forget)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTriggerTeamMode("sync")}
+                            className={cn(
+                              "flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
+                              triggerTeamMode === "sync"
+                                ? "border-blue-500/40 bg-blue-500/10 text-blue-400"
+                                : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
+                            )}
+                          >
+                            Sync (wait for result)
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-zinc-500 mb-1 block">
+                          Goal Template <span className="text-zinc-600">(optional, use {`{{field}}`} for context)</span>
+                        </label>
+                        <input
+                          value={triggerTeamGoal}
+                          onChange={(e) => setTriggerTeamGoal(e.target.value)}
+                          placeholder="e.g. Onboard the lead {{leadName}} from {{company}}"
+                          className="w-full bg-zinc-800/60 border border-zinc-700 rounded-lg text-xs text-zinc-200 outline-none px-3 py-2 placeholder:text-zinc-600 focus:border-orange-500/50"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -2301,6 +2441,15 @@ function TeamDetailInner() {
                   >
                     <Copy className="h-4 w-4" /> Clone Team
                   </button>
+                  <button
+                    onClick={() => {
+                      setShowSettings(false);
+                      router.push(`/dashboard/teams/ab-tests?teamA=${teamId}`);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+                  >
+                    <FlaskConical className="h-4 w-4" /> A/B Test
+                  </button>
                   <div className="my-1 border-t border-zinc-800" />
                   <button
                     onClick={() => {
@@ -2867,6 +3016,12 @@ function TeamDetailInner() {
         {activeTab === "webhooks" && (
           <div className="p-6 h-full overflow-auto">
             <TeamWebhooksTab teamId={teamId} />
+          </div>
+        )}
+
+        {activeTab === "permissions" && (
+          <div className="p-6 h-full overflow-auto">
+            <TeamPermissionsTab teamId={teamId} isOwner={team.isOwner !== false} />
           </div>
         )}
       </div>

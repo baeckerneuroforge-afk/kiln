@@ -7,6 +7,7 @@ import {
   stripExecutionContextMeta,
 } from "@/lib/team-execution-metadata";
 import { resolveTimedOutApprovalIfNeeded } from "@/lib/services/team-approval-runtime";
+import { canAccessTeam } from "@/lib/team-permissions";
 
 export async function GET(
   _request: NextRequest,
@@ -18,17 +19,12 @@ export async function GET(
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const team = await prisma.agentTeam.findFirst({
-      where: { id: params.id, userId },
-      select: { id: true },
-    });
-
-    if (!team) {
+    if (!(await canAccessTeam(params.id, userId))) {
       return Response.json({ error: "Team not found" }, { status: 404 });
     }
 
     const executions = await prisma.teamExecution.findMany({
-      where: { teamId: params.id, userId },
+      where: { teamId: params.id },
       include: {
         approvalRequests: {
           orderBy: { requestedAt: "desc" },

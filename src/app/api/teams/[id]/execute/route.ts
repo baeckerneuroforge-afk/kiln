@@ -10,6 +10,7 @@ import {
   loadTeamExecutionRuntimeContext,
 } from "@/lib/services/team-runtime";
 import { enqueueExecution, PRIORITY_VALUES } from "@/lib/execution-queue";
+import { canEditTeam } from "@/lib/team-permissions";
 
 // Execute a team goal — decompose into subtasks via Claude
 export async function POST(
@@ -20,6 +21,10 @@ export async function POST(
     const { userId } = await auth();
     if (!userId) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!(await canEditTeam(params.id, userId))) {
+      return Response.json({ error: "Team not found or insufficient permissions" }, { status: 404 });
     }
 
     const team = await loadTeamExecutionRuntimeContext(params.id, userId);

@@ -1,6 +1,6 @@
 export const TEAM_EXECUTION_META_KEY = "__meta";
 
-export type TeamExecutionTrigger = "manual" | "scheduled";
+export type TeamExecutionTrigger = "manual" | "scheduled" | "team_trigger";
 export type TeamExecutionRuntimeStrategy =
   | "primary"
   | "fallback_agent"

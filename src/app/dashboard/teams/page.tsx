@@ -60,6 +60,8 @@ interface Team {
   goal: string | null;
   scheduleSummary?: string | null;
   parentTeamId?: string | null;
+  isOwner?: boolean;
+  sharedRole?: string | null;
   status: "ACTIVE" | "PAUSED";
   members: TeamMember[];
   _count: { tasks: number };
@@ -1938,7 +1940,7 @@ export default function TeamsPage() {
             Your Teams
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {teams.map((team) => {
+            {teams.filter((t) => t.isOwner !== false).map((team) => {
               const taskCount = team._count?.tasks ?? 0;
 
               return (
@@ -2042,6 +2044,64 @@ export default function TeamsPage() {
               <span className="text-sm font-medium">Custom Team</span>
             </button>
           </div>
+
+          {/* Shared with Me */}
+          {teams.some((t) => t.isOwner === false) && (
+            <>
+              <h2 className="mt-8 mb-3 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                Shared with Me
+              </h2>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {teams.filter((t) => t.isOwner === false).map((team) => {
+                  const taskCount = team._count?.tasks ?? 0;
+                  const roleBadge = team.sharedRole || "VIEWER";
+                  const roleStyle =
+                    roleBadge === "EDITOR" ? "text-blue-400 bg-blue-500/10 border-blue-500/20"
+                    : roleBadge === "APPROVER" ? "text-purple-400 bg-purple-500/10 border-purple-500/20"
+                    : "text-green-400 bg-green-500/10 border-green-500/20";
+
+                  return (
+                    <Link
+                      key={team.id}
+                      href={`/dashboard/teams/${team.id}`}
+                      className="group relative flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:border-kiln-orange/30"
+                    >
+                      <div className="mb-3 flex items-start justify-between">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10 transition-colors group-hover:bg-kiln-orange/15">
+                          <Users className="h-5 w-5 text-kiln-orange" />
+                        </div>
+                        <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase", roleStyle)}>
+                          {roleBadge}
+                        </span>
+                      </div>
+                      <h3 className="mb-1 font-semibold text-foreground group-hover:text-kiln-orange transition-colors">
+                        {team.name}
+                      </h3>
+                      <p className="mb-auto text-xs text-muted-foreground line-clamp-2 min-h-[2rem]">
+                        {team.goal || team.description || "No goal set"}
+                      </p>
+                      <div className="mt-4 space-y-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <Users className="h-3 w-3" />
+                          <span>{roleCounts(team.members)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <Target className="h-3 w-3" />
+                            <span>{taskCount} task{taskCount !== 1 ? "s" : ""}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            <span>{formatDate(team.createdAt)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </>
       )}
 

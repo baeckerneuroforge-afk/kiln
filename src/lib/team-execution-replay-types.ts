@@ -121,7 +121,7 @@ export interface TeamExecutionReplayResponse {
     completedTasks: number;
     failedTasks: number;
     executionContext: Record<string, unknown>;
-    trigger: "manual" | "scheduled" | null;
+    trigger: "manual" | "scheduled" | "team_trigger" | null;
   };
   team: {
     id: string;

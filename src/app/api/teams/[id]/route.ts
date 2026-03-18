@@ -6,6 +6,11 @@ import {
   getTeamSchedulePreview,
   normalizeTeamScheduleConfig,
 } from "@/lib/team-schedule";
+import {
+  getTeamPermission,
+  canAccessTeam,
+  canEditTeam,
+} from "@/lib/team-permissions";
 
 // Get single team with members, tasks, and hierarchy
 export async function GET(
@@ -18,8 +23,12 @@ export async function GET(
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const team = await prisma.agentTeam.findFirst({
-      where: { id: params.id, userId },
+    if (!(await canAccessTeam(params.id, userId))) {
+      return Response.json({ error: "Team not found" }, { status: 404 });
+    }
+
+    const team = await prisma.agentTeam.findUnique({
+      where: { id: params.id },
       include: {
         members: {
           include: {
@@ -59,9 +68,13 @@ export async function GET(
       parentTeamName = parent?.name ?? null;
     }
 
+    const userRole = await getTeamPermission(params.id, userId);
+
     return Response.json({
       ...team,
       parentTeamName,
+      isOwner: team.userId === userId,
+      sharedRole: team.userId === userId ? null : userRole,
       schedulePreview: getTeamSchedulePreview(
         normalizeTeamScheduleConfig(
           team.config && typeof team.config === "object"
@@ -88,8 +101,12 @@ export async function PATCH(
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const existing = await prisma.agentTeam.findFirst({
-      where: { id: params.id, userId },
+    if (!(await canEditTeam(params.id, userId))) {
+      return Response.json({ error: "Team not found or insufficient permissions" }, { status: 404 });
+    }
+
+    const existing = await prisma.agentTeam.findUnique({
+      where: { id: params.id },
     });
     if (!existing) {
       return Response.json({ error: "Team not found" }, { status: 404 });
@@ -160,11 +177,9 @@ export async function DELETE(
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const existing = await prisma.agentTeam.findFirst({
-      where: { id: params.id, userId },
-    });
-    if (!existing) {
-      return Response.json({ error: "Team not found" }, { status: 404 });
+    const role = await getTeamPermission(params.id, userId);
+    if (role !== "OWNER") {
+      return Response.json({ error: "Only the team owner can delete." }, { status: 403 });
     }
 
     await prisma.agentTeam.delete({ where: { id: params.id } });

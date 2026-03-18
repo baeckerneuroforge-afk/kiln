@@ -1532,6 +1532,42 @@ export async function executeTeamExecution({
           }
         }
       }
+
+      // ── TRIGGER_TEAM: check if this member has team trigger actions ──
+      if (member.enabledActions?.includes("TRIGGER_TEAM")) {
+        const memberConfig = member.config as Record<string, unknown> | null;
+        const triggerConfig = memberConfig?.triggerTeam;
+        if (triggerConfig && typeof triggerConfig === "object") {
+          try {
+            const { parseTriggerTeamConfig, triggerTeamExecution } = await import("@/lib/team-communication");
+            const tc = parseTriggerTeamConfig(triggerConfig);
+            if (tc) {
+              const triggerResult = await triggerTeamExecution({
+                userId,
+                targetTeamId: tc.targetTeamId,
+                sourceExecutionId: executionId,
+                sourceTeamId: team.id,
+                sharedContext: executionContext,
+                config: tc,
+              });
+
+              // Ergebnis in Context speichern
+              executionContext = mergeExecutionContext(executionContext, {
+                [`_triggered_${tc.targetTeamId}`]: {
+                  executionId: triggerResult.executionId,
+                  status: triggerResult.status,
+                  ...(triggerResult.result ? { result: triggerResult.result } : {}),
+                },
+              });
+
+              await updateExecutionProgress(executionId, completedTasks, failedTasks, executionContext);
+            }
+          } catch (triggerError) {
+            console.error("TRIGGER_TEAM failed:", triggerError);
+            // Nicht den gesamten Lauf abbrechen
+          }
+        }
+      }
     }
 
     if (pausedForApproval) {

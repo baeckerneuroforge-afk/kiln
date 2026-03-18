@@ -833,6 +833,19 @@ enum AgentTeamRole {
   APPROVAL_GATE
 }
 
+enum TeamPermissionRole {
+  OWNER
+  EDITOR
+  VIEWER
+  APPROVER
+}
+
+enum TeamPermissionStatus {
+  PENDING
+  ACTIVE
+  REVOKED
+}
+
 enum ApprovalRequestStatus {
   PENDING
   APPROVED
@@ -859,8 +872,30 @@ model AgentTeam {
   executionLogs  TeamExecutionLog[]
   knowledgeBases KnowledgeBase[]
   webhooks       WebhookEndpoint[]
+  permissions    TeamPermission[]
+  abTestsAsA     TeamABTest[]     @relation("ABTestTeamA")
+  abTestsAsB     TeamABTest[]     @relation("ABTestTeamB")
 
   @@index([userId])
+}
+
+model TeamPermission {
+  id          String               @id @default(cuid())
+  teamId      String
+  team        AgentTeam            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId      String?              // Clerk user ID, null until accepted
+  email       String
+  role        TeamPermissionRole
+  status      TeamPermissionStatus @default(PENDING)
+  inviteToken String?              @unique
+  invitedAt   DateTime             @default(now())
+  acceptedAt  DateTime?
+  invitedBy   String               // userId of who invited
+
+  @@index([teamId])
+  @@index([userId])
+  @@index([email])
+  @@unique([teamId, email])
 }
 
 model AgentTeamMember {
@@ -990,6 +1025,54 @@ model ApprovalRequest {
   @@index([teamExecutionId])
   @@index([gateMemberId])
   @@index([taskIndex])
+}
+
+// ── Team A/B Testing ────────────────────────────────────────
+
+enum TeamABTestStatus {
+  RUNNING
+  PAUSED
+  COMPLETED
+}
+
+model TeamABTest {
+  id                String           @id @default(cuid())
+  userId            String
+  name              String
+  teamAId           String
+  teamA             AgentTeam        @relation("ABTestTeamA", fields: [teamAId], references: [id], onDelete: Cascade)
+  teamBId           String
+  teamB             AgentTeam        @relation("ABTestTeamB", fields: [teamBId], references: [id], onDelete: Cascade)
+  splitPercentage   Int              @default(50) // Percentage routed to Team A
+  metric            String           @default("completion_rate") // completion_rate, cost, speed, lead_quality
+  status            TeamABTestStatus @default(RUNNING)
+  maxExecutions     Int              @default(100)
+  currentExecutions Int              @default(0)
+  createdAt         DateTime         @default(now())
+  completedAt       DateTime?
+
+  results           TeamABTestResult[]
+
+  @@index([userId])
+  @@index([teamAId])
+  @@index([teamBId])
+}
+
+model TeamABTestResult {
+  id               String      @id @default(cuid())
+  testId           String
+  test             TeamABTest  @relation(fields: [testId], references: [id], onDelete: Cascade)
+  teamExecutionId  String
+  team             String      // "A" or "B"
+  input            Json?
+  result           String?     @db.Text
+  status           String      // COMPLETED, FAILED, PARTIAL
+  cost             Float?
+  durationMs       Int?
+  createdAt        DateTime    @default(now())
+
+  @@index([testId])
+  @@index([teamExecutionId])
 }
 
 // Webhook Execution Log — pipeline execution records

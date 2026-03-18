@@ -4,8 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { deployTeamTemplate } from "@/lib/team-templates";
 import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
 import { describeTeamSchedule, normalizeTeamScheduleConfig } from "@/lib/team-schedule";
+import { getAccessibleTeamIds } from "@/lib/team-permissions";
 
-// List all teams for the user
+// List all teams for the user (owned + shared)
 export async function GET() {
   try {
     const { userId } = await auth();
@@ -13,8 +14,11 @@ export async function GET() {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { ownedIds, sharedIds } = await getAccessibleTeamIds(userId);
+    const allTeamIds = [...ownedIds, ...sharedIds];
+
     const teams = await prisma.agentTeam.findMany({
-      where: { userId },
+      where: { id: { in: allTeamIds } },
       include: {
         members: {
           include: {
@@ -26,6 +30,15 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
+    // Fetch roles for shared teams
+    const sharedPermissions = sharedIds.length > 0
+      ? await prisma.teamPermission.findMany({
+          where: { userId, teamId: { in: sharedIds }, status: "ACTIVE" },
+          select: { teamId: true, role: true },
+        })
+      : [];
+    const roleMap = new Map(sharedPermissions.map((p) => [p.teamId, p.role]));
+
     return Response.json(
       teams.map((team) => {
         const schedule = normalizeTeamScheduleConfig(
@@ -36,6 +49,8 @@ export async function GET() {
 
         return {
           ...team,
+          isOwner: team.userId === userId,
+          sharedRole: roleMap.get(team.id) || null,
           scheduleSummary: describeTeamSchedule(schedule),
         };
       })

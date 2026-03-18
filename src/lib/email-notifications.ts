@@ -305,6 +305,57 @@ export async function sendTeamApprovalRequestEmail(params: {
   );
 }
 
+/**
+ * Send team invitation email.
+ */
+export async function sendTeamInviteEmail(
+  email: string,
+  teamName: string,
+  role: string,
+  inviteToken: string
+) {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.kiln.hephaistos-systems.de";
+  const acceptUrl = `${baseUrl}/api/teams/invite/accept?token=${inviteToken}`;
+
+  const roleLabels: Record<string, string> = {
+    EDITOR: "Editor — kann Agents und Prompts bearbeiten, Ausführungen starten",
+    VIEWER: "Viewer — kann Ausführungen und Analytics einsehen",
+    APPROVER: "Approver — kann Approval-Gate-Anfragen genehmigen oder ablehnen",
+  };
+
+  const roleLabel = roleLabels[role] || role;
+
+  await sendEmail(
+    email,
+    `Einladung: Team "${teamName}" auf KILN`,
+    `
+    <div style="font-family: 'DM Sans', -apple-system, sans-serif; max-width: 560px; margin: 0 auto; background: #0C0A09; color: #FAFAF9; border-radius: 16px; overflow: hidden;">
+      <div style="background: linear-gradient(135deg, #F97316, #DC2626); padding: 32px 24px; text-align: center;">
+        <div style="display: inline-block; background: white; border-radius: 8px; padding: 8px 12px; margin-bottom: 16px;">
+          <span style="font-family: 'Instrument Serif', serif; font-size: 24px; color: #0C0A09; font-weight: bold;">K</span>
+        </div>
+        <h1 style="margin: 0; font-size: 22px; color: white; font-weight: 600;">Team-Einladung</h1>
+      </div>
+      <div style="padding: 32px 24px;">
+        <p style="color: #A8A29E; font-size: 14px; line-height: 1.6; margin: 0 0 16px;">
+          Sie wurden zum Team <strong style="color: #FAFAF9;">"${teamName}"</strong> eingeladen.
+        </p>
+        <div style="background: #1C1917; border: 1px solid #292524; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+          <p style="color: #A8A29E; font-size: 12px; margin: 0 0 4px;">Ihre Rolle:</p>
+          <p style="color: #F97316; font-size: 14px; font-weight: 600; margin: 0;">${roleLabel}</p>
+        </div>
+        <a href="${acceptUrl}" style="display: block; background: #F97316; color: white; text-decoration: none; text-align: center; padding: 14px 24px; border-radius: 10px; font-size: 14px; font-weight: 600;">
+          Einladung annehmen
+        </a>
+        <p style="color: #78716C; font-size: 11px; margin: 24px 0 0; text-align: center;">
+          Falls Sie diese Einladung nicht erwartet haben, können Sie diese E-Mail ignorieren.
+        </p>
+      </div>
+    </div>
+    `
+  );
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
