@@ -140,6 +140,7 @@ interface VisualTeamEditorProps {
   onWorkflowNodesChange?: (nodes: { id: string; type: WorkflowNodeType; label: string; position: { x: number; y: number }; config: Record<string, unknown> }[]) => void;
   onWorkflowEdgesChange?: (edges: { sourceId: string; targetId: string; condition?: string; sourceHandle?: string }[]) => void;
   onWorkflowNodeClick?: (nodeId: string, nodeType: WorkflowNodeType, config: Record<string, unknown>) => void;
+  onEdgeClick?: (edgeId: string, sourceNodeId: string, targetNodeId: string) => void;
 }
 
 /* ========== Constants ========== */
@@ -1090,6 +1091,7 @@ function VisualTeamEditorInner({
   onWorkflowNodesChange,
   onWorkflowEdgesChange,
   onWorkflowNodeClick,
+  onEdgeClick: onEdgeClickProp,
 }: VisualTeamEditorProps) {
   const reactFlowInstance = useReactFlow();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1336,6 +1338,9 @@ function VisualTeamEditorInner({
             return;
           }
           onNodeClick(node.id);
+        }}
+        onEdgeClick={(_event, edge) => {
+          onEdgeClickProp?.(edge.id, edge.source, edge.target);
         }}
         deleteKeyCode={["Backspace", "Delete"]}
         onEdgesDelete={(deletedEdges) => {

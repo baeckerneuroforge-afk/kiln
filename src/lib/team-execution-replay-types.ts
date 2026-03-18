@@ -89,6 +89,8 @@ export interface ReplayStep {
   memberName: string;
   role: ReplayMember["role"] | null;
   agentId: string | null;
+  nodeId?: string | null;
+  nodeType?: string | null;
   status: ReplayTaskStatus;
   startedAt: string | null;
   completedAt: string | null;

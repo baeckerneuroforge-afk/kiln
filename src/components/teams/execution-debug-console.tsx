@@ -86,6 +86,30 @@ function getSearchableText(step: ReplayStep) {
     .toLowerCase();
 }
 
+function getDebugNodeTypeLabel(nodeType: string): string {
+  const labels: Record<string, string> = {
+    trigger_webhook: "Webhook Trigger",
+    trigger_schedule: "Schedule Trigger",
+    trigger_lead: "Lead Trigger",
+    trigger_chat: "Chat Trigger",
+    trigger_manual: "Manual Trigger",
+    if_condition: "IF Condition",
+    switch: "Switch",
+    filter: "Filter",
+    http_request: "HTTP Request",
+    send_email: "Send Email",
+    send_slack: "Slack Message",
+    delay: "Delay",
+    set_variable: "Set Variable",
+    approval_gate: "Approval Gate",
+    wait_webhook: "Wait Webhook",
+    sub_workflow: "Sub-Workflow",
+    merge: "Merge",
+    agent: "AI Agent",
+  };
+  return labels[nodeType] || nodeType;
+}
+
 function getStrategyLabel(strategy: ReplayStep["strategy"]) {
   switch (strategy) {
     case "fallback_agent":
@@ -347,10 +371,12 @@ export function ExecutionDebugConsole({
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <p className="text-sm font-medium text-zinc-100">
-                              {step.memberName}
+                              {step.nodeType && step.nodeType !== "agent" ? step.taskTitle : step.memberName}
                             </p>
                             <p className="mt-1 text-xs text-zinc-500">
-                              Task {step.taskIndex + 1} · Attempt {step.attempt}
+                              {step.nodeType && step.nodeType !== "agent"
+                                ? getDebugNodeTypeLabel(step.nodeType)
+                                : `Task ${step.taskIndex + 1} · Attempt ${step.attempt}`}
                             </p>
                           </div>
                           <span
@@ -367,8 +393,14 @@ export function ExecutionDebugConsole({
                         </p>
                         <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-zinc-500">
                           <span>{formatDuration(step.metrics.responseTimeMs)}</span>
-                          <span>{step.metrics.model || "Unknown model"}</span>
-                          <span>{getStrategyLabel(step.strategy)}</span>
+                          {step.nodeType && step.nodeType !== "agent" ? (
+                            <span className="text-zinc-400">{getDebugNodeTypeLabel(step.nodeType)}</span>
+                          ) : (
+                            <>
+                              <span>{step.metrics.model || "Unknown model"}</span>
+                              <span>{getStrategyLabel(step.strategy)}</span>
+                            </>
+                          )}
                           {step.error ? (
                             <span className="text-red-300">Error captured</span>
                           ) : null}
@@ -392,11 +424,15 @@ export function ExecutionDebugConsole({
                     {selectedStep.status}
                   </span>
                   <span className="text-sm text-zinc-300">
-                    {selectedStep.memberName} · Task {selectedStep.taskIndex + 1}
+                    {selectedStep.nodeType && selectedStep.nodeType !== "agent"
+                      ? getDebugNodeTypeLabel(selectedStep.nodeType)
+                      : `${selectedStep.memberName} · Task ${selectedStep.taskIndex + 1}`}
                   </span>
-                  <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold uppercase text-zinc-300">
-                    {getStrategyLabel(selectedStep.strategy)}
-                  </span>
+                  {(!selectedStep.nodeType || selectedStep.nodeType === "agent") && (
+                    <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold uppercase text-zinc-300">
+                      {getStrategyLabel(selectedStep.strategy)}
+                    </span>
+                  )}
                   <span className="text-xs text-zinc-500">
                     {formatDateTime(selectedStep.startedAt)}
                   </span>
@@ -457,40 +493,162 @@ export function ExecutionDebugConsole({
                 ) : null}
 
                 {activeTab === "prompt" ? (
-                  <div className="space-y-4">
-                    <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
-                        System Prompt
-                      </p>
-                      <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
-                        {selectedStep.prompt.system}
-                      </pre>
+                  selectedStep.nodeType && selectedStep.nodeType !== "agent" ? (
+                    <div className="space-y-4">
+                      <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                          Node Configuration
+                        </p>
+                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
+                          {formatJson(selectedStep.structuredOutput?.config || selectedStep.input)}
+                        </pre>
+                      </div>
+                      {selectedStep.nodeType === "http_request" && (
+                        <div className="space-y-4">
+                          <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                              HTTP Request
+                            </p>
+                            <div className="mt-3 space-y-2 text-xs text-zinc-200">
+                              <p><span className="text-zinc-500">Method:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.method || "GET")}</p>
+                              <p><span className="text-zinc-500">URL:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.url || "—")}</p>
+                              {!!(selectedStep.structuredOutput as Record<string, unknown>)?.headers && (
+                                <>
+                                  <p className="text-zinc-500">Headers:</p>
+                                  <pre className="whitespace-pre-wrap break-words text-zinc-300">
+                                    {formatJson((selectedStep.structuredOutput as Record<string, unknown>).headers)}
+                                  </pre>
+                                </>
+                              )}
+                              {!!(selectedStep.structuredOutput as Record<string, unknown>)?.body && (
+                                <>
+                                  <p className="text-zinc-500">Body:</p>
+                                  <pre className="whitespace-pre-wrap break-words text-zinc-300">
+                                    {formatJson((selectedStep.structuredOutput as Record<string, unknown>).body)}
+                                  </pre>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                              HTTP Response
+                            </p>
+                            <div className="mt-3 space-y-2 text-xs text-zinc-200">
+                              <p><span className="text-zinc-500">Status:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.statusCode || "—")}</p>
+                              <pre className="mt-2 whitespace-pre-wrap break-words text-zinc-300">
+                                {formatJson((selectedStep.structuredOutput as Record<string, unknown>)?.response || selectedStep.output)}
+                              </pre>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {selectedStep.nodeType === "send_email" && (
+                        <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                            Email Details
+                          </p>
+                          <div className="mt-3 space-y-2 text-xs text-zinc-200">
+                            <p><span className="text-zinc-500">To:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.to || "—")}</p>
+                            <p><span className="text-zinc-500">Subject:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.subject || "—")}</p>
+                            <p><span className="text-zinc-500">Status:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.deliveryStatus || selectedStep.status)}</p>
+                            {!!(selectedStep.structuredOutput as Record<string, unknown>)?.body && (
+                              <>
+                                <p className="mt-2 text-zinc-500">Body:</p>
+                                <pre className="mt-1 whitespace-pre-wrap break-words text-zinc-300">
+                                  {String((selectedStep.structuredOutput as Record<string, unknown>).body)}
+                                </pre>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {selectedStep.nodeType === "if_condition" && (
+                        <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                            Condition Evaluation
+                          </p>
+                          <div className="mt-3 space-y-2 text-xs text-zinc-200">
+                            <p><span className="text-zinc-500">Expression:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.expression || "—")}</p>
+                            <p><span className="text-zinc-500">Left Value:</span> {formatJson((selectedStep.structuredOutput as Record<string, unknown>)?.leftValue)}</p>
+                            <p><span className="text-zinc-500">Operator:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.operator || "—")}</p>
+                            <p><span className="text-zinc-500">Right Value:</span> {formatJson((selectedStep.structuredOutput as Record<string, unknown>)?.rightValue)}</p>
+                            <p className="mt-2">
+                              <span className="text-zinc-500">Result:</span>{" "}
+                              <span className={(selectedStep.structuredOutput as Record<string, unknown>)?.result ? "text-green-300" : "text-red-300"}>
+                                {String((selectedStep.structuredOutput as Record<string, unknown>)?.result ?? "—")} → {(selectedStep.structuredOutput as Record<string, unknown>)?.result ? "True path" : "False path"}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      {selectedStep.nodeType === "set_variable" && (
+                        <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                            Variable Assignment
+                          </p>
+                          <div className="mt-3 space-y-1 text-xs text-zinc-200">
+                            {selectedStep.structuredOutput && typeof selectedStep.structuredOutput === "object"
+                              ? Object.entries(selectedStep.structuredOutput as Record<string, unknown>).map(([k, v]) => (
+                                  <p key={k}>
+                                    <span className="font-mono text-orange-300">{k}</span>
+                                    <span className="text-zinc-500"> = </span>
+                                    <span className="text-zinc-200">{formatJson(v)}</span>
+                                  </p>
+                                ))
+                              : <p>{formatJson(selectedStep.structuredOutput)}</p>}
+                          </div>
+                        </div>
+                      )}
+                      {selectedStep.nodeType === "delay" && (
+                        <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                            Delay Info
+                          </p>
+                          <div className="mt-3 text-xs text-zinc-200">
+                            <p><span className="text-zinc-500">Duration:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.duration || selectedStep.output || "—")}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
-                        User Input
-                      </p>
-                      <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
-                        {selectedStep.prompt.user}
-                      </pre>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                          System Prompt
+                        </p>
+                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
+                          {selectedStep.prompt.system}
+                        </pre>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                          User Input
+                        </p>
+                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
+                          {selectedStep.prompt.user}
+                        </pre>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                          Included Knowledge
+                        </p>
+                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
+                          {selectedStep.prompt.knowledgeContext.length > 0
+                            ? selectedStep.prompt.knowledgeContext.join("\n\n---\n\n")
+                            : "No RAG context injected"}
+                        </pre>
+                      </div>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
-                        Included Knowledge
-                      </p>
-                      <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
-                        {selectedStep.prompt.knowledgeContext.length > 0
-                          ? selectedStep.prompt.knowledgeContext.join("\n\n---\n\n")
-                          : "No RAG context injected"}
-                      </pre>
-                    </div>
-                  </div>
+                  )
                 ) : null}
 
                 {activeTab === "input" ? (
                   <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
                     <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
-                      Agent Input
+                      {selectedStep.nodeType && selectedStep.nodeType !== "agent"
+                        ? `${getDebugNodeTypeLabel(selectedStep.nodeType)} Input`
+                        : "Agent Input"}
                     </p>
                     <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
                       {formatJson(selectedStep.input)}
@@ -501,11 +659,23 @@ export function ExecutionDebugConsole({
                 {activeTab === "output" ? (
                   <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
                     <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
-                      Raw Model Output
+                      {selectedStep.nodeType && selectedStep.nodeType !== "agent"
+                        ? `${getDebugNodeTypeLabel(selectedStep.nodeType)} Output`
+                        : "Raw Model Output"}
                     </p>
                     <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
                       {selectedStep.output || "No output recorded"}
                     </pre>
+                    {selectedStep.nodeType && selectedStep.nodeType !== "agent" && selectedStep.structuredOutput && (
+                      <div className="mt-4 border-t border-white/10 pt-4">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                          Structured Result
+                        </p>
+                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
+                          {formatJson(selectedStep.structuredOutput)}
+                        </pre>
+                      </div>
+                    )}
                   </div>
                 ) : null}
 
@@ -600,37 +770,59 @@ export function ExecutionDebugConsole({
 
                 {activeTab === "tokens" ? (
                   <div className="grid gap-4 md:grid-cols-2">
-                    {[
-                      {
-                        label: "Model",
-                        value: selectedStep.metrics.model || "Unknown model",
-                      },
-                      {
-                        label: "Response Time",
-                        value: formatDuration(selectedStep.metrics.responseTimeMs),
-                      },
-                      {
-                        label: "Input Tokens",
-                        value: String(selectedStep.metrics.tokensIn),
-                      },
-                      {
-                        label: "Output Tokens",
-                        value: String(selectedStep.metrics.tokensOut),
-                      },
-                      {
-                        label: "Estimated Cost",
-                        value:
-                          typeof selectedStep.metrics.estimatedCost === "number"
-                            ? `$${selectedStep.metrics.estimatedCost.toFixed(6)}`
-                            : "n/a",
-                      },
-                      {
-                        label: "Completed",
-                        value: formatDateTime(
-                          selectedStep.completedAt || selectedStep.startedAt
-                        ),
-                      },
-                    ].map((item) => (
+                    {(selectedStep.nodeType && selectedStep.nodeType !== "agent"
+                      ? [
+                          {
+                            label: "Node Type",
+                            value: getDebugNodeTypeLabel(selectedStep.nodeType),
+                          },
+                          {
+                            label: "Execution Time",
+                            value: formatDuration(selectedStep.metrics.responseTimeMs),
+                          },
+                          {
+                            label: "Status",
+                            value: selectedStep.status,
+                          },
+                          {
+                            label: "Completed",
+                            value: formatDateTime(
+                              selectedStep.completedAt || selectedStep.startedAt
+                            ),
+                          },
+                        ]
+                      : [
+                          {
+                            label: "Model",
+                            value: selectedStep.metrics.model || "Unknown model",
+                          },
+                          {
+                            label: "Response Time",
+                            value: formatDuration(selectedStep.metrics.responseTimeMs),
+                          },
+                          {
+                            label: "Input Tokens",
+                            value: String(selectedStep.metrics.tokensIn),
+                          },
+                          {
+                            label: "Output Tokens",
+                            value: String(selectedStep.metrics.tokensOut),
+                          },
+                          {
+                            label: "Estimated Cost",
+                            value:
+                              typeof selectedStep.metrics.estimatedCost === "number"
+                                ? `$${selectedStep.metrics.estimatedCost.toFixed(6)}`
+                                : "n/a",
+                          },
+                          {
+                            label: "Completed",
+                            value: formatDateTime(
+                              selectedStep.completedAt || selectedStep.startedAt
+                            ),
+                          },
+                        ]
+                    ).map((item) => (
                       <div
                         key={item.label}
                         className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4"

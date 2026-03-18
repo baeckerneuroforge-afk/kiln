@@ -1,0 +1,129 @@
+"use client";
+
+import { cn } from "@/lib/utils";
+import { Code2 } from "lucide-react";
+
+/**
+ * Text input that supports {{ expression }} syntax.
+ * Shows a subtle code icon when value contains expressions.
+ */
+export function ExpressionInput({
+  value,
+  onChange,
+  placeholder,
+  label,
+  hint,
+  multiline,
+  className,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  label?: string;
+  hint?: string;
+  multiline?: boolean;
+  className?: string;
+}) {
+  const hasExpression = value.includes("{{");
+  const inputClass = cn(
+    "w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-600",
+    hasExpression && "border-violet-500/40 bg-violet-500/5",
+    className
+  );
+
+  return (
+    <div className="space-y-1.5">
+      {label && (
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs font-medium text-zinc-400">{label}</label>
+          {hasExpression && (
+            <span className="inline-flex items-center gap-0.5 text-[9px] text-violet-400 bg-violet-500/10 px-1.5 py-0.5 rounded-full">
+              <Code2 className="h-2.5 w-2.5" />
+              expr
+            </span>
+          )}
+        </div>
+      )}
+      {multiline ? (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={3}
+          className={inputClass}
+        />
+      ) : (
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={inputClass}
+        />
+      )}
+      {hint && <p className="text-[10px] text-zinc-600">{hint}</p>}
+    </div>
+  );
+}
+
+/**
+ * Key-value pair editor for headers, variables, etc.
+ */
+export function KeyValueEditor({
+  pairs,
+  onChange,
+  label,
+  keyPlaceholder = "Key",
+  valuePlaceholder = "Value",
+}: {
+  pairs: { key: string; value: string }[];
+  onChange: (pairs: { key: string; value: string }[]) => void;
+  label?: string;
+  keyPlaceholder?: string;
+  valuePlaceholder?: string;
+}) {
+  const update = (index: number, field: "key" | "value", val: string) => {
+    const next = [...pairs];
+    next[index] = { ...next[index], [field]: val };
+    onChange(next);
+  };
+
+  const add = () => onChange([...pairs, { key: "", value: "" }]);
+  const remove = (index: number) => onChange(pairs.filter((_, i) => i !== index));
+
+  return (
+    <div className="space-y-1.5">
+      {label && <label className="text-xs font-medium text-zinc-400">{label}</label>}
+      <div className="space-y-1.5">
+        {pairs.map((pair, i) => (
+          <div key={i} className="flex items-center gap-1.5">
+            <input
+              value={pair.key}
+              onChange={(e) => update(i, "key", e.target.value)}
+              placeholder={keyPlaceholder}
+              className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-100 px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+            />
+            <input
+              value={pair.value}
+              onChange={(e) => update(i, "value", e.target.value)}
+              placeholder={valuePlaceholder}
+              className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-100 px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+            />
+            <button
+              onClick={() => remove(i)}
+              className="text-zinc-600 hover:text-red-400 transition-colors text-xs px-1"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={add}
+        className="text-[11px] text-orange-400 hover:text-orange-300 transition-colors"
+      >
+        + Add
+      </button>
+    </div>
+  );
+}

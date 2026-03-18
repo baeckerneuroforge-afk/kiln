@@ -628,6 +628,8 @@ export async function GET(
           memberName,
           role: memberRole,
           agentId: member?.agentId || log.agentId || null,
+          nodeId: log.nodeId ?? null,
+          nodeType: log.nodeType ?? null,
           status: log.status,
           startedAt: log.startedAt?.toISOString() || null,
           completedAt: log.completedAt?.toISOString() || null,

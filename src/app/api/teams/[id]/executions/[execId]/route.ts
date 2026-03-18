@@ -29,6 +29,8 @@ function groupExecutionTimeline(
     completedAt: Date | null;
     error: string | null;
     parallelGroup: string | null;
+    nodeId: string | null;
+    nodeType: string | null;
     agent: { id: string; name: string } | null;
     task: {
       id: string;
@@ -41,7 +43,7 @@ function groupExecutionTimeline(
     } | null;
   }>
 ) {
-  const grouped = new Map<number, {
+  const grouped = new Map<string, {
     taskIndex: number;
     taskId: string | null;
     taskTitle: string;
@@ -52,6 +54,8 @@ function groupExecutionTimeline(
     latestOutput: string | null;
     latestError: string | null;
     parallelGroup: string | null;
+    nodeId: string | null;
+    nodeType: string | null;
     attempts: Array<{
       id: string;
       attempt: number;
@@ -65,13 +69,16 @@ function groupExecutionTimeline(
       startedAt: Date | null;
       completedAt: Date | null;
       durationMs: number | null;
+      nodeId: string | null;
+      nodeType: string | null;
       agent: { id: string; name: string } | null;
     }>;
   }>();
 
   for (const log of logs) {
     const runtimeMeta = getTaskRuntimeMeta(log.input);
-    const existing = grouped.get(log.taskIndex) || {
+    const groupKey = log.nodeId || String(log.taskIndex);
+    const existing = grouped.get(groupKey) || {
       taskIndex: log.taskIndex,
       taskId: log.taskId,
       taskTitle: log.taskTitle,
@@ -82,6 +89,8 @@ function groupExecutionTimeline(
       latestOutput: log.output,
       latestError: log.error,
       parallelGroup: log.parallelGroup || null,
+      nodeId: log.nodeId || null,
+      nodeType: log.nodeType || null,
       attempts: [],
     };
 
@@ -100,6 +109,8 @@ function groupExecutionTimeline(
       durationMs: log.startedAt && log.completedAt
         ? log.completedAt.getTime() - log.startedAt.getTime()
         : null,
+      nodeId: log.nodeId || null,
+      nodeType: log.nodeType || null,
       agent: log.agent,
     });
 
@@ -108,7 +119,7 @@ function groupExecutionTimeline(
     existing.latestError = log.error;
     existing.assignedAgentName = log.agent?.name || existing.assignedAgentName;
 
-    grouped.set(log.taskIndex, existing);
+    grouped.set(groupKey, existing);
   }
 
   return Array.from(grouped.values())
@@ -126,6 +137,8 @@ function buildSharedContextTimeline(
     structuredOutput: unknown;
     startedAt: Date | null;
     completedAt: Date | null;
+    nodeId: string | null;
+    nodeType: string | null;
     agent: { id: string; name: string } | null;
   }>
 ) {
@@ -144,7 +157,7 @@ function buildSharedContextTimeline(
         taskIndex: log.taskIndex,
         taskTitle: log.taskTitle,
         addedAt: log.completedAt || log.startedAt,
-        addedBy: log.agent?.name || "Approval Gate",
+        addedBy: log.agent?.name || (log.nodeType ? `${log.nodeType} (${log.nodeId})` : "Approval Gate"),
       }));
     })
     .sort((a, b) => {

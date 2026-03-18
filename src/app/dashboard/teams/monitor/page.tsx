@@ -33,6 +33,8 @@ interface MonitorExecution {
   currentAgent: { id: string; name: string } | null;
   currentStep: string | null;
   currentStepIndex: number;
+  currentNodeType: string | null;
+  currentNodeId: string | null;
   costSoFar: number;
   priority?: number;
   queuePosition?: number | null;
@@ -378,21 +380,31 @@ export default function TeamMonitorPage() {
                         <p className="text-xs text-zinc-500 truncate mb-2">{exec.goal}</p>
                       )}
 
-                      {/* Current step + agent */}
+                      {/* Current step + agent/node */}
                       {(isRunning || isWaiting) && exec.currentStep && (
                         <div className="flex items-center gap-2 mb-2">
-                          {isRunning && exec.currentAgent && (
+                          {isRunning && (exec.currentAgent || exec.currentNodeType) && (
                             <span className="flex items-center gap-1.5 text-xs text-blue-400">
                               <span className="relative flex h-2 w-2">
                                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
                                 <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
                               </span>
-                              {exec.currentAgent.name}
+                              {exec.currentNodeType && exec.currentNodeType !== "agent"
+                                ? exec.currentNodeType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+                                : exec.currentAgent?.name}
                             </span>
                           )}
                           <span className="text-xs text-zinc-500">
-                            Step {exec.currentStepIndex + 1}/{exec.totalTasks}: {exec.currentStep}
+                            {exec.currentNodeType && exec.currentNodeType !== "agent"
+                              ? `Workflow → Step ${exec.currentStepIndex + 1}/${exec.totalTasks}: ${exec.currentStep}`
+                              : `Step ${exec.currentStepIndex + 1}/${exec.totalTasks}: ${exec.currentStep}`}
                           </span>
+                          {isWaiting && exec.currentNodeType === "approval_gate" && (
+                            <span className="text-xs text-amber-400">Waiting for approval</span>
+                          )}
+                          {isWaiting && exec.currentNodeType === "delay" && (
+                            <span className="text-xs text-cyan-400">Delay active</span>
+                          )}
                         </div>
                       )}
 

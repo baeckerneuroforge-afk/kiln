@@ -6,6 +6,7 @@ import type {
   Prisma,
 } from "@prisma/client";
 import { MODEL_PROVIDER_MAP } from "./ai";
+import type { WorkflowNode, WorkflowEdge } from "./workflow-node-types";
 
 type TeamTemplateAction = {
   type: ActionType;
@@ -55,6 +56,10 @@ export type TeamTemplate = {
   marketplace: {
     welcomeMessage: string;
     suggestedQuestions?: string[];
+  };
+  workflow?: {
+    nodes: WorkflowNode[];
+    edges: WorkflowEdge[];
   };
 };
 
@@ -245,6 +250,25 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
         "Can I adapt the sales prompts to my industry?",
       ],
     },
+    workflow: {
+      nodes: [
+        { id: "n1", type: "trigger_lead", label: "Lead Captured", position: { x: 400, y: 0 }, config: { agentFilter: "all" } },
+        { id: "n2", type: "agent", label: "Qualifier", position: { x: 400, y: 160 }, config: { memberId: "qualifier" } },
+        { id: "n3", type: "if_condition", label: "Score > 70?", position: { x: 400, y: 320 }, config: { field: "score", operator: "gt", value: "70" } },
+        { id: "n4", type: "agent", label: "Closer", position: { x: 200, y: 480 }, config: { memberId: "closer" } },
+        { id: "n5", type: "send_email", label: "Meeting Booked", position: { x: 200, y: 640 }, config: { to: "", subject: "meeting booked", body: "" } },
+        { id: "n6", type: "agent", label: "Follow-Up", position: { x: 600, y: 480 }, config: { memberId: "follow-up" } },
+        { id: "n7", type: "set_variable", label: "Set Nurture Status", position: { x: 600, y: 640 }, config: { key: "nurture_status", value: "active" } },
+      ],
+      edges: [
+        { sourceId: "n1", targetId: "n2" },
+        { sourceId: "n2", targetId: "n3" },
+        { sourceId: "n3", targetId: "n4", sourceHandle: "true", condition: "score > 70" },
+        { sourceId: "n3", targetId: "n6", sourceHandle: "false", condition: "score <= 70" },
+        { sourceId: "n4", targetId: "n5" },
+        { sourceId: "n6", targetId: "n7" },
+      ],
+    },
   },
   {
     id: "customer-support-tiers",
@@ -342,6 +366,25 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
         "Can I attach my support knowledge base afterwards?",
       ],
     },
+    workflow: {
+      nodes: [
+        { id: "n1", type: "trigger_chat", label: "Chat Started", position: { x: 400, y: 0 }, config: { agentFilter: "all" } },
+        { id: "n2", type: "agent", label: "Tier 1 Support", position: { x: 400, y: 160 }, config: { memberId: "tier-1" } },
+        { id: "n3", type: "if_condition", label: "Resolved?", position: { x: 400, y: 320 }, config: { field: "resolved", operator: "equals", value: "false" } },
+        { id: "n4", type: "agent", label: "Tier 2 Support", position: { x: 400, y: 480 }, config: { memberId: "tier-2" } },
+        { id: "n5", type: "if_condition", label: "Resolved?", position: { x: 400, y: 640 }, config: { field: "resolved", operator: "equals", value: "false" } },
+        { id: "n6", type: "approval_gate", label: "Approval Gate", position: { x: 400, y: 800 }, config: { approverEmail: "", timeoutMinutes: 60 } },
+        { id: "n7", type: "send_email", label: "Escalation Email", position: { x: 400, y: 960 }, config: { to: "", subject: "escalation", body: "" } },
+      ],
+      edges: [
+        { sourceId: "n1", targetId: "n2" },
+        { sourceId: "n2", targetId: "n3" },
+        { sourceId: "n3", targetId: "n4", sourceHandle: "true", condition: "resolved == false" },
+        { sourceId: "n4", targetId: "n5" },
+        { sourceId: "n5", targetId: "n6", sourceHandle: "true", condition: "resolved == false" },
+        { sourceId: "n6", targetId: "n7" },
+      ],
+    },
   },
   {
     id: "content-creation-pipeline",
@@ -424,6 +467,21 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
         "Can I rename the agents before deploying?",
       ],
     },
+    workflow: {
+      nodes: [
+        { id: "n1", type: "trigger_manual", label: "Manual Trigger", position: { x: 400, y: 0 }, config: {} },
+        { id: "n2", type: "agent", label: "Researcher", position: { x: 400, y: 160 }, config: { memberId: "researcher" } },
+        { id: "n3", type: "agent", label: "Writer", position: { x: 400, y: 320 }, config: { memberId: "writer" } },
+        { id: "n4", type: "agent", label: "Editor", position: { x: 400, y: 480 }, config: { memberId: "editor" } },
+        { id: "n5", type: "send_email", label: "Content Ready", position: { x: 400, y: 640 }, config: { to: "", subject: "content ready", body: "" } },
+      ],
+      edges: [
+        { sourceId: "n1", targetId: "n2" },
+        { sourceId: "n2", targetId: "n3" },
+        { sourceId: "n3", targetId: "n4" },
+        { sourceId: "n4", targetId: "n5" },
+      ],
+    },
   },
   {
     id: "lead-qualification-booking",
@@ -502,6 +560,21 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
         "Which agent asks the BANT questions?",
         "How does the booking handoff work?",
         "Can I connect Google Calendar after deployment?",
+      ],
+    },
+    workflow: {
+      nodes: [
+        { id: "n1", type: "trigger_webhook", label: "Webhook Trigger", position: { x: 400, y: 0 }, config: { method: "POST", path: "" } },
+        { id: "n2", type: "agent", label: "Qualifier", position: { x: 400, y: 160 }, config: { memberId: "qualifier" } },
+        { id: "n3", type: "if_condition", label: "Qualified?", position: { x: 400, y: 320 }, config: { field: "qualified", operator: "equals", value: "true" } },
+        { id: "n4", type: "agent", label: "Booker", position: { x: 400, y: 480 }, config: { memberId: "booker" } },
+        { id: "n5", type: "send_email", label: "Appointment Confirmed", position: { x: 400, y: 640 }, config: { to: "", subject: "appointment confirmed", body: "" } },
+      ],
+      edges: [
+        { sourceId: "n1", targetId: "n2" },
+        { sourceId: "n2", targetId: "n3" },
+        { sourceId: "n3", targetId: "n4", sourceHandle: "true", condition: "qualified == true" },
+        { sourceId: "n4", targetId: "n5" },
       ],
     },
   },
@@ -610,6 +683,27 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
         "Kann ich die Bewertungskriterien anpassen?",
       ],
     },
+    workflow: {
+      nodes: [
+        { id: "n1", type: "trigger_lead", label: "Lead Captured", position: { x: 400, y: 0 }, config: { agentFilter: "all" } },
+        { id: "n2", type: "agent", label: "Qualifier", position: { x: 400, y: 160 }, config: { memberId: "qualifier" } },
+        { id: "n3", type: "if_condition", label: "Score > 80?", position: { x: 400, y: 320 }, config: { field: "score", operator: "gt", value: "80" } },
+        { id: "n4", type: "agent", label: "Booker", position: { x: 200, y: 480 }, config: { memberId: "booker" } },
+        { id: "n5", type: "send_email", label: "Termin bestätigt", position: { x: 200, y: 640 }, config: { to: "", subject: "Termin bestätigt", body: "" } },
+        { id: "n6", type: "agent", label: "Follow-Up", position: { x: 600, y: 480 }, config: { memberId: "follow-up" } },
+        { id: "n7", type: "delay", label: "Warte 2 Tage", position: { x: 600, y: 640 }, config: { duration: 2, unit: "days" } },
+        { id: "n8", type: "send_email", label: "Nachfass", position: { x: 600, y: 800 }, config: { to: "", subject: "Nachfass", body: "" } },
+      ],
+      edges: [
+        { sourceId: "n1", targetId: "n2" },
+        { sourceId: "n2", targetId: "n3" },
+        { sourceId: "n3", targetId: "n4", sourceHandle: "true", condition: "score > 80" },
+        { sourceId: "n3", targetId: "n6", sourceHandle: "false", condition: "score <= 80" },
+        { sourceId: "n4", targetId: "n5" },
+        { sourceId: "n6", targetId: "n7" },
+        { sourceId: "n7", targetId: "n8" },
+      ],
+    },
   },
   {
     id: "immobilienmakler-pipeline",
@@ -712,6 +806,23 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
         "Kann ich eigene Objekte hinterlegen?",
       ],
     },
+    workflow: {
+      nodes: [
+        { id: "n1", type: "trigger_webhook", label: "Webhook Trigger", position: { x: 400, y: 0 }, config: { method: "POST", path: "" } },
+        { id: "n2", type: "agent", label: "Qualifier", position: { x: 400, y: 160 }, config: { memberId: "qualifier" } },
+        { id: "n3", type: "agent", label: "Matcher", position: { x: 400, y: 320 }, config: { memberId: "matcher" } },
+        { id: "n4", type: "if_condition", label: "Matched?", position: { x: 400, y: 480 }, config: { field: "matched", operator: "equals", value: "true" } },
+        { id: "n5", type: "agent", label: "Booker", position: { x: 400, y: 640 }, config: { memberId: "booker" } },
+        { id: "n6", type: "send_email", label: "Besichtigung gebucht", position: { x: 400, y: 800 }, config: { to: "", subject: "Besichtigung gebucht", body: "" } },
+      ],
+      edges: [
+        { sourceId: "n1", targetId: "n2" },
+        { sourceId: "n2", targetId: "n3" },
+        { sourceId: "n3", targetId: "n4" },
+        { sourceId: "n4", targetId: "n5", sourceHandle: "true", condition: "matched == true" },
+        { sourceId: "n5", targetId: "n6" },
+      ],
+    },
   },
   {
     id: "coach-erstgespraech-pipeline",
@@ -792,6 +903,21 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
         "Welche Fragen werden gestellt?",
         "Wie wird der Mehrwert des Erstgesprächs kommuniziert?",
         "Kann ich die Coaching-Themen anpassen?",
+      ],
+    },
+    workflow: {
+      nodes: [
+        { id: "n1", type: "trigger_lead", label: "Lead Captured", position: { x: 400, y: 0 }, config: { agentFilter: "all" } },
+        { id: "n2", type: "agent", label: "Qualifier", position: { x: 400, y: 160 }, config: { memberId: "qualifier" } },
+        { id: "n3", type: "if_condition", label: "Qualified?", position: { x: 400, y: 320 }, config: { field: "qualified", operator: "equals", value: "true" } },
+        { id: "n4", type: "agent", label: "Scheduler", position: { x: 400, y: 480 }, config: { memberId: "scheduler" } },
+        { id: "n5", type: "send_email", label: "Erstgespräch bestätigt", position: { x: 400, y: 640 }, config: { to: "", subject: "Erstgespräch bestätigt", body: "" } },
+      ],
+      edges: [
+        { sourceId: "n1", targetId: "n2" },
+        { sourceId: "n2", targetId: "n3" },
+        { sourceId: "n3", targetId: "n4", sourceHandle: "true", condition: "qualified == true" },
+        { sourceId: "n4", targetId: "n5" },
       ],
     },
   },
@@ -894,6 +1020,21 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
         "Wie werden Küchenwünsche erfasst?",
         "Wie funktioniert die Konzept-Präsentation?",
         "Kann ich eigene Küchen-Konzepte hinterlegen?",
+      ],
+    },
+    workflow: {
+      nodes: [
+        { id: "n1", type: "trigger_chat", label: "Chat Started", position: { x: 400, y: 0 }, config: { agentFilter: "all" } },
+        { id: "n2", type: "agent", label: "Qualifier", position: { x: 400, y: 160 }, config: { memberId: "qualifier" } },
+        { id: "n3", type: "agent", label: "Designer", position: { x: 400, y: 320 }, config: { memberId: "designer" } },
+        { id: "n4", type: "agent", label: "Booker", position: { x: 400, y: 480 }, config: { memberId: "booker" } },
+        { id: "n5", type: "send_email", label: "Beratungstermin", position: { x: 400, y: 640 }, config: { to: "", subject: "Beratungstermin", body: "" } },
+      ],
+      edges: [
+        { sourceId: "n1", targetId: "n2" },
+        { sourceId: "n2", targetId: "n3" },
+        { sourceId: "n3", targetId: "n4" },
+        { sourceId: "n4", targetId: "n5" },
       ],
     },
   },
@@ -1187,6 +1328,37 @@ export async function deployTeamTemplate(
           targetAgentId,
           condition: connection.condition,
           enabled: connection.enabled ?? true,
+        },
+      });
+    }
+
+    // Speichere Workflow-Nodes im Team-Config (falls vorhanden)
+    if (template.workflow) {
+      // Resolve agent keys → real memberId + agentId in workflow nodes
+      const resolvedNodes = template.workflow.nodes.map((node) => {
+        if (node.type === "agent" && node.config.memberId) {
+          const agentKey = String(node.config.memberId);
+          return {
+            ...node,
+            config: {
+              ...node.config,
+              memberId: memberIds.get(agentKey) || agentKey,
+            },
+            agentId: agentIdsByKey.get(agentKey) || undefined,
+          };
+        }
+        return node;
+      });
+
+      await tx.agentTeam.update({
+        where: { id: team.id },
+        data: {
+          config: JSON.parse(JSON.stringify({
+            workflow: {
+              nodes: resolvedNodes,
+              edges: template.workflow.edges,
+            },
+          })),
         },
       });
     }

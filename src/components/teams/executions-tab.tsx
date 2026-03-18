@@ -4,14 +4,25 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
+  Bot,
   Bug,
   CheckCircle2,
   Clock,
   Database,
+  Filter,
+  GitBranch,
+  Globe,
+  Hash,
   Loader2,
+  Mail,
+  Pause,
   Play,
   RotateCcw,
+  ShieldCheck,
+  Timer,
+  Variable,
   XCircle,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExecutionDebugConsole } from "@/components/teams/execution-debug-console";
@@ -74,6 +85,8 @@ interface ExecutionTimelineItem {
   latestOutput: string | null;
   latestError: string | null;
   parallelGroup: string | null;
+  nodeId?: string | null;
+  nodeType?: string | null;
   attempts: ExecutionAttempt[];
 }
 
@@ -153,6 +166,117 @@ function getStrategyLabel(strategy: ExecutionAttempt["strategy"]) {
     default:
       return "Primary";
   }
+}
+
+function getNodeTypeIcon(nodeType: string | null | undefined) {
+  switch (nodeType) {
+    case "trigger_webhook": return <Globe className="h-3.5 w-3.5 text-amber-400" />;
+    case "trigger_schedule": return <Clock className="h-3.5 w-3.5 text-amber-400" />;
+    case "trigger_lead": return <Zap className="h-3.5 w-3.5 text-amber-400" />;
+    case "trigger_chat": return <Zap className="h-3.5 w-3.5 text-amber-400" />;
+    case "trigger_manual": return <Play className="h-3.5 w-3.5 text-amber-400" />;
+    case "if_condition": return <GitBranch className="h-3.5 w-3.5 text-purple-400" />;
+    case "switch": return <GitBranch className="h-3.5 w-3.5 text-purple-400" />;
+    case "filter": return <Filter className="h-3.5 w-3.5 text-purple-400" />;
+    case "http_request": return <Globe className="h-3.5 w-3.5 text-blue-400" />;
+    case "send_email": return <Mail className="h-3.5 w-3.5 text-blue-400" />;
+    case "send_slack": return <Hash className="h-3.5 w-3.5 text-blue-400" />;
+    case "delay": return <Timer className="h-3.5 w-3.5 text-blue-400" />;
+    case "set_variable": return <Variable className="h-3.5 w-3.5 text-blue-400" />;
+    case "approval_gate": return <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" />;
+    case "wait_webhook": return <Pause className="h-3.5 w-3.5 text-cyan-400" />;
+    case "agent": return <Bot className="h-3.5 w-3.5 text-orange-400" />;
+    default: return null;
+  }
+}
+
+function getNodeTypeLabel(nodeType: string | null | undefined): string {
+  const labels: Record<string, string> = {
+    trigger_webhook: "Webhook Trigger",
+    trigger_schedule: "Schedule Trigger",
+    trigger_lead: "Lead Trigger",
+    trigger_chat: "Chat Trigger",
+    trigger_manual: "Manual Trigger",
+    if_condition: "IF Condition",
+    switch: "Switch",
+    filter: "Filter",
+    http_request: "HTTP Request",
+    send_email: "Send Email",
+    send_slack: "Slack Message",
+    delay: "Delay",
+    set_variable: "Set Variable",
+    approval_gate: "Approval Gate",
+    wait_webhook: "Wait Webhook",
+    sub_workflow: "Sub-Workflow",
+    merge: "Merge",
+    agent: "AI Agent",
+  };
+  return nodeType ? labels[nodeType] || nodeType : "Task";
+}
+
+function getNodeTypeCategoryStyle(nodeType: string | null | undefined): string {
+  if (!nodeType) return "border-border bg-zinc-950/30";
+  if (nodeType.startsWith("trigger_")) return "border-amber-500/20 bg-amber-500/5";
+  if (["if_condition", "switch", "filter"].includes(nodeType)) return "border-purple-500/20 bg-purple-500/5";
+  if (["http_request", "send_email", "send_slack", "delay", "set_variable"].includes(nodeType)) return "border-blue-500/20 bg-blue-500/5";
+  if (["approval_gate", "wait_webhook", "sub_workflow", "merge"].includes(nodeType)) return "border-cyan-500/20 bg-cyan-500/5";
+  if (nodeType === "agent") return "border-orange-500/20 bg-orange-500/5";
+  return "border-border bg-zinc-950/30";
+}
+
+function formatNodeOutput(task: ExecutionTimelineItem): string {
+  const { nodeType, latestOutput, latestError } = task;
+  if (latestError) return latestError;
+  if (!latestOutput) return "No output";
+
+  try {
+    const parsed = JSON.parse(latestOutput);
+    if (nodeType === "if_condition" || nodeType === "switch" || nodeType === "filter") {
+      const handle = parsed.outputHandle || parsed.result;
+      const meta = parsed.meta || parsed;
+      const field = meta.field || "";
+      const operator = meta.operator || "";
+      const value = meta.value ?? "";
+      const resolved = meta.fieldResolved ?? "";
+      if (handle && field) {
+        return `${field} (=${JSON.stringify(resolved)}) ${operator} ${JSON.stringify(value)} → ${handle} path`;
+      }
+      return handle ? `→ ${handle} path` : latestOutput;
+    }
+    if (nodeType === "http_request") {
+      const status = parsed.status || parsed.body?.status;
+      const url = parsed.url || (parsed.meta?.url);
+      const method = parsed.method || (parsed.meta?.method);
+      if (status || url) return `${method || "HTTP"} ${status || ""} ${url ? `from ${url}` : ""}`.trim();
+    }
+    if (nodeType === "send_email") {
+      const to = parsed.emailSent?.to || parsed.to || parsed.meta?.to;
+      const subject = parsed.emailSent?.subject || parsed.subject || parsed.meta?.subject;
+      if (to) return `Email sent to ${to}${subject ? ` — "${subject}"` : ""}`;
+    }
+    if (nodeType === "delay") {
+      const duration = parsed._lastDelay?.duration || parsed.duration || parsed.meta?.duration;
+      const unit = parsed._lastDelay?.unit || parsed.unit || parsed.meta?.unit || "seconds";
+      if (duration) return `Waited ${duration} ${unit}`;
+    }
+    if (nodeType === "set_variable") {
+      const key = parsed.meta?.key || Object.keys(parsed)[0];
+      const val = parsed.meta?.value ?? (key ? parsed[key] : undefined);
+      if (key) return `${key} = ${JSON.stringify(val)}`;
+    }
+    if (nodeType?.startsWith("trigger_")) {
+      const triggerType = parsed.trigger?.type || nodeType.replace("trigger_", "");
+      const receivedAt = parsed.trigger?.receivedAt || parsed.trigger?.firedAt || parsed.trigger?.triggeredAt;
+      return `${triggerType} received${receivedAt ? ` at ${new Date(receivedAt).toLocaleTimeString()}` : ""}`;
+    }
+    if (nodeType === "approval_gate") {
+      return parsed.pauseReason || `Awaiting approval`;
+    }
+  } catch {
+    // Not JSON — use raw output
+  }
+
+  return latestOutput.length > 300 ? `${latestOutput.slice(0, 300)}…` : latestOutput;
 }
 
 const PRIORITY_BADGE: Record<number, { label: string; style: string }> = {
@@ -762,10 +886,11 @@ export function TeamExecutionsTab({
                     const loopIteration = loopMatch ? parseInt(loopMatch[2]) : null;
                     const loopMax = loopMatch ? parseInt(loopMatch[3]) : null;
                     const displayTitle = loopMatch ? loopMatch[1] : task.taskTitle;
+                    const isWorkflowNode = Boolean(task.nodeType && task.nodeType !== "agent");
 
                     return (
                       <div
-                        key={`${detail.execution.id}-${task.taskIndex}`}
+                        key={`${detail.execution.id}-${task.nodeId || task.taskIndex}`}
                         className={cn(
                           "rounded-xl border p-4",
                           loopMatch
@@ -775,22 +900,33 @@ export function TeamExecutionsTab({
                               : isAwaitingApproval
                                 ? "border-amber-500/30 bg-amber-500/5"
                                 : task.latestStatus === "COMPLETED"
-                                  ? "border-green-500/20 bg-green-500/5"
+                                  ? isWorkflowNode
+                                    ? getNodeTypeCategoryStyle(task.nodeType)
+                                    : "border-green-500/20 bg-green-500/5"
                                   : "border-border bg-zinc-950/30"
                         )}
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                                Task {task.taskIndex + 1}
-                              </span>
+                              {isWorkflowNode ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                                  {getNodeTypeIcon(task.nodeType)}
+                                  {getNodeTypeLabel(task.nodeType)}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                                  Task {task.taskIndex + 1}
+                                </span>
+                              )}
                               <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase", statusStyles[task.latestStatus] || statusStyles.PENDING)}>
                                 {task.latestStatus}
                               </span>
-                              <span className="rounded-full border border-zinc-700 bg-zinc-800/80 px-2 py-0.5 text-[10px] uppercase text-zinc-300">
-                                {task.priority}
-                              </span>
+                              {!isWorkflowNode && (
+                                <span className="rounded-full border border-zinc-700 bg-zinc-800/80 px-2 py-0.5 text-[10px] uppercase text-zinc-300">
+                                  {task.priority}
+                                </span>
+                              )}
                               {loopIteration !== null && loopMax !== null && (
                                 <span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-medium text-cyan-400">
                                   ↻ Loop {loopIteration}/{loopMax}
@@ -799,7 +935,9 @@ export function TeamExecutionsTab({
                             </div>
                             <p className="mt-2 text-sm font-medium text-zinc-100">{displayTitle}</p>
                             <p className="mt-1 text-xs text-zinc-500">
-                              {task.assignedAgentName ? `Assigned to ${task.assignedAgentName}` : "Unassigned"}
+                              {isWorkflowNode
+                                ? getNodeTypeLabel(task.nodeType)
+                                : task.assignedAgentName ? `Assigned to ${task.assignedAgentName}` : "Unassigned"}
                             </p>
                           </div>
 
@@ -821,25 +959,36 @@ export function TeamExecutionsTab({
                           )}
                         </div>
 
-                        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                          <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Input</p>
-                            <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-zinc-300">
-                              {previewValue(latestAttempt?.input)}
-                            </pre>
-                          </div>
-                          <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
+                        {isWorkflowNode ? (
+                          <div className="mt-3 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
                             <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-                              {isFailed ? "Error" : "Output"}
+                              {isFailed ? "Error" : "Result"}
                             </p>
                             <pre className={cn("mt-2 whitespace-pre-wrap break-words text-xs", isFailed ? "text-red-300" : "text-zinc-300")}>
-                              {isFailed ? (task.latestError || "No error recorded") : (task.latestOutput || "No output recorded")}
+                              {isFailed ? (task.latestError || "No error") : formatNodeOutput(task)}
                             </pre>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
+                              <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Input</p>
+                              <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-zinc-300">
+                                {previewValue(latestAttempt?.input)}
+                              </pre>
+                            </div>
+                            <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
+                              <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                                {isFailed ? "Error" : "Output"}
+                              </p>
+                              <pre className={cn("mt-2 whitespace-pre-wrap break-words text-xs", isFailed ? "text-red-300" : "text-zinc-300")}>
+                                {isFailed ? (task.latestError || "No error recorded") : (task.latestOutput || "No output recorded")}
+                              </pre>
+                            </div>
+                          </div>
+                        )}
 
-                        <div className="mt-4 space-y-2">
-                          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Attempts</p>
+                        {(!isWorkflowNode || task.attempts.length > 1) && <div className="mt-4 space-y-2">
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">{isWorkflowNode ? "Execution Log" : "Attempts"}</p>
                           {task.attempts.map((attempt) => (
                             <div
                               key={attempt.id}
@@ -877,7 +1026,7 @@ export function TeamExecutionsTab({
                               </div>
                             </div>
                           ))}
-                        </div>
+                        </div>}
                       </div>
                     );
                   });

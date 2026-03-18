@@ -83,6 +83,9 @@ import {
   normalizeApprovalGateConfig,
   type ApprovalTimeoutAction,
 } from "@/lib/team-approval";
+import { NodeConfigPanel } from "@/components/workflows/node-config-panel";
+import { DataMapper, type FieldMapping } from "@/components/workflows/data-mapper";
+import { type WorkflowNodeType, getNodeDefinition } from "@/lib/workflow-node-types";
 
 /* ========== Types ========== */
 interface TeamAgent {
@@ -1933,6 +1936,29 @@ function TeamDetailInner() {
   const [queueStatus, setQueueStatus] = useState<{ running: number; queued: number; maxConcurrent: number } | null>(null);
   const [savingQueue, setSavingQueue] = useState(false);
 
+  // Workflow node config panel
+  const [selectedWfNodeId, setSelectedWfNodeId] = useState<string | null>(null);
+  const [selectedWfNodeType, setSelectedWfNodeType] = useState<WorkflowNodeType | null>(null);
+  const [selectedWfNodeConfig, setSelectedWfNodeConfig] = useState<Record<string, unknown>>({});
+
+  // Data mapper panel
+  const [dataMapperEdgeId, setDataMapperEdgeId] = useState<string | null>(null);
+  const [dataMapperSourceId, setDataMapperSourceId] = useState("");
+  const [dataMapperTargetId, setDataMapperTargetId] = useState("");
+
+  // Workflow nodes/edges stored in team config
+  const workflowNodes = useMemo(() => {
+    const cfg = team?.config as Record<string, unknown> | null;
+    const wf = cfg?.workflow as Record<string, unknown> | undefined;
+    return (wf?.nodes as { id: string; type: WorkflowNodeType; label: string; position: { x: number; y: number }; config: Record<string, unknown> }[]) || [];
+  }, [team?.config]);
+
+  const workflowEdges = useMemo(() => {
+    const cfg = team?.config as Record<string, unknown> | null;
+    const wf = cfg?.workflow as Record<string, unknown> | undefined;
+    return (wf?.edges as { sourceId: string; targetId: string; condition?: string; sourceHandle?: string; mappings?: FieldMapping[] }[]) || [];
+  }, [team?.config]);
+
   /* Fetch team data */
   const fetchTeam = useCallback(async () => {
     try {
@@ -2215,6 +2241,71 @@ function TeamDetailInner() {
       // Revert will happen on next fetchTeam
     }
   }, [teamId, fetchTeam]);
+
+  /* --- Workflow node/edge config handlers --- */
+  const updateTeamConfig = useCallback(async (patch: Record<string, unknown>) => {
+    const cfg = (team?.config || {}) as Record<string, unknown>;
+    const merged = { ...cfg, ...patch };
+    try {
+      await fetch(`/api/teams/${teamId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config: merged }),
+      });
+      await fetchTeam();
+    } catch { /* fetchTeam will correct state */ }
+  }, [team?.config, teamId, fetchTeam]);
+
+  const handleWorkflowNodesChange = useCallback((nodes: typeof workflowNodes) => {
+    const cfg = (team?.config || {}) as Record<string, unknown>;
+    const wf = (cfg.workflow || {}) as Record<string, unknown>;
+    updateTeamConfig({ workflow: { ...wf, nodes } });
+  }, [team?.config, updateTeamConfig]);
+
+  const handleWorkflowEdgesChange = useCallback((edges: typeof workflowEdges) => {
+    const cfg = (team?.config || {}) as Record<string, unknown>;
+    const wf = (cfg.workflow || {}) as Record<string, unknown>;
+    updateTeamConfig({ workflow: { ...wf, edges } });
+  }, [team?.config, updateTeamConfig]);
+
+  const handleWorkflowNodeClick = useCallback((nodeId: string, nodeType: WorkflowNodeType, config: Record<string, unknown>) => {
+    setSelectedWfNodeId(nodeId);
+    setSelectedWfNodeType(nodeType);
+    setSelectedWfNodeConfig(config);
+  }, []);
+
+  const handleWorkflowNodeSave = useCallback((nodeId: string, config: Record<string, unknown>) => {
+    const updated = workflowNodes.map((n) => n.id === nodeId ? { ...n, config } : n);
+    handleWorkflowNodesChange(updated);
+    setSelectedWfNodeId(null);
+  }, [workflowNodes, handleWorkflowNodesChange]);
+
+  const handleWorkflowNodeDelete = useCallback((nodeId: string) => {
+    handleWorkflowNodesChange(workflowNodes.filter((n) => n.id !== nodeId));
+    handleWorkflowEdgesChange(workflowEdges.filter((e) => e.sourceId !== nodeId && e.targetId !== nodeId));
+    setSelectedWfNodeId(null);
+  }, [workflowNodes, workflowEdges, handleWorkflowNodesChange, handleWorkflowEdgesChange]);
+
+  const handleWorkflowNodeLabelChange = useCallback((nodeId: string, label: string) => {
+    const updated = workflowNodes.map((n) => n.id === nodeId ? { ...n, label } : n);
+    handleWorkflowNodesChange(updated);
+  }, [workflowNodes, handleWorkflowNodesChange]);
+
+  const handleEdgeClick = useCallback((edgeId: string, sourceNodeId: string, targetNodeId: string) => {
+    setDataMapperEdgeId(edgeId);
+    setDataMapperSourceId(sourceNodeId);
+    setDataMapperTargetId(targetNodeId);
+  }, []);
+
+  const handleDataMapperSave = useCallback((_edgeId: string, mappings: FieldMapping[]) => {
+    const updated = workflowEdges.map((e) => {
+      const eid = `wfe-${e.sourceId}-${e.targetId}`;
+      if (eid === dataMapperEdgeId) return { ...e, mappings };
+      return e;
+    });
+    handleWorkflowEdgesChange(updated);
+    setDataMapperEdgeId(null);
+  }, [workflowEdges, dataMapperEdgeId, handleWorkflowEdgesChange]);
 
   /* Hierarchy graph (list view) */
   const { nodes, edges } = useMemo(() => {
@@ -2726,6 +2817,12 @@ function TeamDetailInner() {
                   savedPositions={nodePositions}
                   onPositionsChange={saveNodePositions}
                   teamKnowledgeCount={teamKnowledgeCount}
+                  workflowNodes={workflowNodes}
+                  workflowEdges={workflowEdges}
+                  onWorkflowNodesChange={handleWorkflowNodesChange}
+                  onWorkflowEdgesChange={handleWorkflowEdgesChange}
+                  onWorkflowNodeClick={handleWorkflowNodeClick}
+                  onEdgeClick={handleEdgeClick}
                 />
               </div>
             ) : (
@@ -3065,6 +3162,47 @@ function TeamDetailInner() {
         onClose={() => setSelectedMemberId(null)}
         onSaved={fetchTeam}
       />
+
+      {/* ===== Workflow Node Config Panel ===== */}
+      <NodeConfigPanel
+        nodeId={selectedWfNodeId}
+        nodeType={selectedWfNodeType}
+        config={selectedWfNodeConfig}
+        teamId={teamId}
+        onSave={handleWorkflowNodeSave}
+        onDelete={handleWorkflowNodeDelete}
+        onClose={() => setSelectedWfNodeId(null)}
+        nodeLabel={workflowNodes.find((n) => n.id === selectedWfNodeId)?.label}
+        onLabelChange={handleWorkflowNodeLabelChange}
+      />
+
+      {/* ===== Data Mapper Panel ===== */}
+      {(() => {
+        const edge = workflowEdges.find((e) => `wfe-${e.sourceId}-${e.targetId}` === dataMapperEdgeId);
+        const sourceNode = workflowNodes.find((n) => n.id === dataMapperSourceId);
+        const targetNode = workflowNodes.find((n) => n.id === dataMapperTargetId);
+        // Also check team members as nodes
+        const sourceMember = team.members.find((m) => m.id === dataMapperSourceId);
+        const targetMember = team.members.find((m) => m.id === dataMapperTargetId);
+        const sourceType: WorkflowNodeType = sourceNode?.type || (sourceMember ? "agent" : "trigger_manual");
+        const targetType: WorkflowNodeType = targetNode?.type || (targetMember ? "agent" : "trigger_manual");
+        const sourceLabel = sourceNode?.label || sourceMember?.agent?.name || "Source";
+        const targetLabel = targetNode?.label || targetMember?.agent?.name || "Target";
+        return (
+          <DataMapper
+            edgeId={dataMapperEdgeId}
+            sourceNodeId={dataMapperSourceId}
+            targetNodeId={dataMapperTargetId}
+            sourceNodeType={sourceType}
+            targetNodeType={targetType}
+            sourceLabel={sourceLabel}
+            targetLabel={targetLabel}
+            mappings={edge?.mappings || []}
+            onSave={handleDataMapperSave}
+            onClose={() => setDataMapperEdgeId(null)}
+          />
+        );
+      })()}
 
       {/* ===== Add Member Modal ===== */}
       {showAddMember && (

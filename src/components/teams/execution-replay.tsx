@@ -90,21 +90,58 @@ function getStrategyLabel(strategy: ReplayStep["strategy"]) {
   }
 }
 
+function getNodeTypeLabel(nodeType: string): string {
+  const labels: Record<string, string> = {
+    trigger_webhook: "Webhook Trigger",
+    trigger_schedule: "Schedule Trigger",
+    trigger_lead: "Lead Trigger",
+    trigger_chat: "Chat Trigger",
+    trigger_manual: "Manual Trigger",
+    if_condition: "IF Condition",
+    switch: "Switch",
+    filter: "Filter",
+    http_request: "HTTP Request",
+    send_email: "Send Email",
+    send_slack: "Slack Message",
+    delay: "Delay",
+    set_variable: "Set Variable",
+    approval_gate: "Approval Gate",
+    wait_webhook: "Wait Webhook",
+    sub_workflow: "Sub-Workflow",
+    merge: "Merge",
+    agent: "AI Agent",
+  };
+  return labels[nodeType] || nodeType;
+}
+
+function getNodeCategoryColor(nodeType: string): string {
+  if (nodeType.startsWith("trigger_")) return "text-violet-300";
+  if (["if_condition", "switch", "filter"].includes(nodeType)) return "text-amber-300";
+  if (["http_request", "send_email", "send_slack"].includes(nodeType)) return "text-blue-300";
+  if (["delay", "set_variable"].includes(nodeType)) return "text-cyan-300";
+  if (["approval_gate", "wait_webhook", "sub_workflow", "merge"].includes(nodeType)) return "text-pink-300";
+  return "text-orange-300";
+}
+
 function buildReplayPhases(steps: ReplayStep[]): ReplayPhase[] {
-  return steps.flatMap((step, stepIndex) => [
-    {
-      id: `${step.id}:start`,
-      stepIndex,
-      type: "start",
-      label: `${step.memberName} started ${step.taskTitle}`,
-    },
-    {
-      id: `${step.id}:finish`,
-      stepIndex,
-      type: "finish",
-      label: `${step.memberName} ${step.status.toLowerCase().replace(/_/g, " ")}`,
-    },
-  ]);
+  return steps.flatMap((step, stepIndex) => {
+    const isWorkflow = step.nodeType && step.nodeType !== "agent";
+    const name = isWorkflow ? getNodeTypeLabel(step.nodeType!) : step.memberName;
+    return [
+      {
+        id: `${step.id}:start`,
+        stepIndex,
+        type: "start",
+        label: `${name} started${isWorkflow ? "" : ` ${step.taskTitle}`}`,
+      },
+      {
+        id: `${step.id}:finish`,
+        stepIndex,
+        type: "finish",
+        label: `${name} ${step.status.toLowerCase().replace(/_/g, " ")}`,
+      },
+    ];
+  });
 }
 
 function buildExecutionStateMap(
@@ -301,11 +338,15 @@ export function ExecutionReplay({
                     <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
                       {currentPhase?.type === "start" ? "Executing" : currentStep.status}
                     </span>
-                    <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-300">
-                      {getStrategyLabel(currentStep.strategy)}
-                    </span>
+                    {(!currentStep.nodeType || currentStep.nodeType === "agent") && (
+                      <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-300">
+                        {getStrategyLabel(currentStep.strategy)}
+                      </span>
+                    )}
                     <span className="text-sm text-zinc-300">
-                      {currentStep.memberName} · Task {currentStep.taskIndex + 1}
+                      {currentStep.nodeType && currentStep.nodeType !== "agent"
+                        ? getNodeTypeLabel(currentStep.nodeType)
+                        : `${currentStep.memberName} · Task ${currentStep.taskIndex + 1}`}
                     </span>
                     <span className="text-xs text-zinc-500">
                       {currentPhase?.label}
@@ -361,11 +402,21 @@ export function ExecutionReplay({
                     Step Detail
                   </p>
                   <h3 className="mt-2 text-lg font-semibold text-zinc-100">
-                    {currentStep.memberName}
+                    {currentStep.nodeType && currentStep.nodeType !== "agent"
+                      ? getNodeTypeLabel(currentStep.nodeType)
+                      : currentStep.memberName}
                   </h3>
                   <p className="mt-1 text-sm text-zinc-400">
                     {currentStep.taskTitle}
                   </p>
+                  {currentStep.nodeType && currentStep.nodeType !== "agent" && (
+                    <p className={cn("mt-1 text-xs", getNodeCategoryColor(currentStep.nodeType))}>
+                      {currentStep.nodeType.startsWith("trigger_") ? "Trigger" :
+                       ["if_condition", "switch", "filter"].includes(currentStep.nodeType) ? "Logic" :
+                       ["http_request", "send_email", "send_slack"].includes(currentStep.nodeType) ? "Action" :
+                       ["delay", "set_variable"].includes(currentStep.nodeType) ? "Utility" : "Control"}
+                    </p>
+                  )}
                   {currentStep.fallbackEvent ? (
                     <p className="mt-2 text-xs text-amber-300">
                       {currentStep.fallbackEvent}
@@ -388,19 +439,97 @@ export function ExecutionReplay({
                     </div>
                     <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
                       <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
-                        Tokens & Cost
+                        {currentStep.nodeType && currentStep.nodeType !== "agent" ? "Node Info" : "Tokens & Cost"}
                       </p>
-                      <p className="mt-2 text-sm text-zinc-200">
-                        {currentStep.metrics.tokensIn} in · {currentStep.metrics.tokensOut} out
-                      </p>
-                      <p className="mt-1 text-sm text-zinc-400">
-                        {currentStep.metrics.model || "Unknown model"}
-                        {typeof currentStep.metrics.estimatedCost === "number"
-                          ? ` · $${currentStep.metrics.estimatedCost.toFixed(6)}`
-                          : ""}
-                      </p>
+                      {currentStep.nodeType && currentStep.nodeType !== "agent" ? (
+                        <>
+                          <p className="mt-2 text-sm text-zinc-200">
+                            {getNodeTypeLabel(currentStep.nodeType)}
+                          </p>
+                          <p className="mt-1 text-sm text-zinc-400">
+                            Status: {currentStep.status}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="mt-2 text-sm text-zinc-200">
+                            {currentStep.metrics.tokensIn} in · {currentStep.metrics.tokensOut} out
+                          </p>
+                          <p className="mt-1 text-sm text-zinc-400">
+                            {currentStep.metrics.model || "Unknown model"}
+                            {typeof currentStep.metrics.estimatedCost === "number"
+                              ? ` · $${currentStep.metrics.estimatedCost.toFixed(6)}`
+                              : ""}
+                          </p>
+                        </>
+                      )}
                     </div>
                   </div>
+
+                  {/* Workflow node-specific detail */}
+                  {currentStep.nodeType === "if_condition" && currentStep.structuredOutput && (
+                    <div className={cn(
+                      "rounded-2xl border p-4",
+                      (currentStep.structuredOutput as Record<string, unknown>)?.result
+                        ? "border-green-500/25 bg-green-500/10"
+                        : "border-red-500/25 bg-red-500/10"
+                    )}>
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                        Condition Result
+                      </p>
+                      <p className="mt-2 text-sm text-zinc-100">
+                        {String((currentStep.structuredOutput as Record<string, unknown>)?.expression || "—")}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-300">
+                        → {(currentStep.structuredOutput as Record<string, unknown>)?.result ? "True path" : "False path"}
+                      </p>
+                    </div>
+                  )}
+
+                  {currentStep.nodeType === "send_email" && currentStep.structuredOutput && (
+                    <div className="rounded-2xl border border-blue-500/25 bg-blue-500/10 p-4">
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                        Email Sent
+                      </p>
+                      <p className="mt-2 text-sm text-zinc-100">
+                        To: {String((currentStep.structuredOutput as Record<string, unknown>)?.to || "—")}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-300">
+                        Subject: {String((currentStep.structuredOutput as Record<string, unknown>)?.subject || "—")}
+                      </p>
+                    </div>
+                  )}
+
+                  {currentStep.nodeType === "delay" && (
+                    <div className="rounded-2xl border border-cyan-500/25 bg-cyan-500/10 p-4">
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                        Delay
+                      </p>
+                      <p className="mt-2 text-sm text-zinc-100">
+                        {currentStep.structuredOutput
+                          ? String((currentStep.structuredOutput as Record<string, unknown>)?.duration || currentStep.output || "Waiting…")
+                          : currentStep.output || "Waiting…"}
+                      </p>
+                    </div>
+                  )}
+
+                  {currentStep.nodeType === "http_request" && currentStep.structuredOutput && (
+                    <div className={cn(
+                      "rounded-2xl border p-4",
+                      currentStep.status === "COMPLETED"
+                        ? "border-green-500/25 bg-green-500/10"
+                        : "border-red-500/25 bg-red-500/10"
+                    )}>
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                        HTTP Result
+                      </p>
+                      <p className="mt-2 text-sm text-zinc-100">
+                        {String((currentStep.structuredOutput as Record<string, unknown>)?.method || "GET")}{" "}
+                        {String((currentStep.structuredOutput as Record<string, unknown>)?.url || "—")}{" "}
+                        → {String((currentStep.structuredOutput as Record<string, unknown>)?.statusCode || "—")}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
                     <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
@@ -628,7 +757,9 @@ export function ExecutionReplay({
                           <CheckCircle2 className="h-3 w-3" />
                         )}
                         <span className="font-medium">
-                          {data.steps[phase.stepIndex]?.memberName}
+                          {data.steps[phase.stepIndex]?.nodeType && data.steps[phase.stepIndex]?.nodeType !== "agent"
+                            ? getNodeTypeLabel(data.steps[phase.stepIndex]!.nodeType!)
+                            : data.steps[phase.stepIndex]?.memberName}
                         </span>
                       </div>
                       <p className="mt-1 truncate">
