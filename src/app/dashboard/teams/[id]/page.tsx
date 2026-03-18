@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { TeamExecutionsTab } from "@/components/teams/executions-tab";
 import { TeamCostDashboard } from "@/components/teams/team-cost-dashboard";
 import { VisualTeamEditor } from "@/components/teams/visual-team-editor";
+import { TeamKnowledgeTab } from "@/components/teams/team-knowledge-tab";
 import { cn } from "@/lib/utils";
 import {
   Users,
@@ -47,6 +48,7 @@ import {
   Database,
   LayoutGrid,
   List,
+  BookOpen,
 } from "lucide-react";
 import {
   PROVIDERS,
@@ -94,6 +96,7 @@ interface TeamMember {
   subordinates?: { id: string; agent: { id: string; name: string } | null }[];
   outputSchema?: OutputSchemaField[] | null;
   enabledActions?: string[];
+  feedbackLoop?: { targetMemberId: string; maxIterations: number; qualityField: string; qualityThreshold: number } | null;
   createdAt: string;
 }
 
@@ -431,11 +434,12 @@ function buildHierarchyGraph(
 }
 
 /* ========== Tabs ========== */
-type TabKey = "hierarchy" | "tasks" | "activity" | "analytics" | "cost" | "executions";
+type TabKey = "hierarchy" | "tasks" | "activity" | "analytics" | "cost" | "knowledge" | "executions";
 
 const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "hierarchy", label: "Hierarchy", icon: <Users className="h-4 w-4" /> },
   { key: "tasks", label: "Tasks", icon: <Target className="h-4 w-4" /> },
+  { key: "knowledge", label: "Knowledge", icon: <BookOpen className="h-4 w-4" /> },
   { key: "activity", label: "Activity", icon: <Activity className="h-4 w-4" /> },
   { key: "analytics", label: "Analytics", icon: <BarChart3 className="h-4 w-4" /> },
   { key: "cost", label: "Cost", icon: <Coins className="h-4 w-4" /> },
@@ -480,6 +484,13 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
   const [agentActions, setAgentActions] = useState<string[]>([]);
   const [enabledActions, setEnabledActions] = useState<string[]>([]);
 
+  // Feedback loop
+  const [loopEnabled, setLoopEnabled] = useState(false);
+  const [loopTargetMemberId, setLoopTargetMemberId] = useState("");
+  const [loopMaxIterations, setLoopMaxIterations] = useState(3);
+  const [loopQualityField, setLoopQualityField] = useState("");
+  const [loopQualityThreshold, setLoopQualityThreshold] = useState(80);
+
   // Fetch full agent data when member changes
   useEffect(() => {
     if (!member) return;
@@ -496,6 +507,20 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
     setOutputType(member.agent?.outputType || "");
     setSchemaFields((member.outputSchema as OutputSchemaField[]) || []);
     setEnabledActions(member.enabledActions || []);
+    const fl = member.feedbackLoop;
+    if (fl) {
+      setLoopEnabled(true);
+      setLoopTargetMemberId(fl.targetMemberId);
+      setLoopMaxIterations(fl.maxIterations);
+      setLoopQualityField(fl.qualityField);
+      setLoopQualityThreshold(fl.qualityThreshold);
+    } else {
+      setLoopEnabled(false);
+      setLoopTargetMemberId("");
+      setLoopMaxIterations(3);
+      setLoopQualityField("");
+      setLoopQualityThreshold(80);
+    }
     const gateConfig = normalizeApprovalGateConfig(member.config, "");
     setApproverEmail(gateConfig.approverEmail);
     setApprovalMessage(gateConfig.approvalMessage);
@@ -578,6 +603,9 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
           reportsToMemberId: reportsToMemberId || null,
           outputSchema: schemaFields.length > 0 ? schemaFields : null,
           enabledActions,
+          feedbackLoop: loopEnabled && loopTargetMemberId && loopQualityField
+            ? { targetMemberId: loopTargetMemberId, maxIterations: loopMaxIterations, qualityField: loopQualityField, qualityThreshold: loopQualityThreshold }
+            : null,
           config:
             role === "APPROVAL_GATE"
               ? {
@@ -1027,6 +1055,90 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                   </div>
                 </div>
               )}
+
+              {/* ── Feedback Loop ── */}
+              <div className="space-y-1.5 border-t border-zinc-800 pt-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-zinc-400">Feedback Loop</label>
+                  <button
+                    type="button"
+                    onClick={() => setLoopEnabled(!loopEnabled)}
+                    className={cn(
+                      "relative w-8 h-4.5 rounded-full transition-colors",
+                      loopEnabled ? "bg-orange-500" : "bg-zinc-700"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-transform",
+                        loopEnabled ? "left-4" : "left-0.5"
+                      )}
+                    />
+                  </button>
+                </div>
+                <p className="text-[10px] text-zinc-500">
+                  Route output back to another agent for revision until quality threshold is met.
+                </p>
+
+                {loopEnabled && (
+                  <div className="space-y-2 mt-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-zinc-500">Target Agent (to revise)</label>
+                      <select
+                        value={loopTargetMemberId}
+                        onChange={(e) => setLoopTargetMemberId(e.target.value)}
+                        className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-md text-xs text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60"
+                      >
+                        <option value="">— Select agent —</option>
+                        {allMembers
+                          .filter((m) => m.id !== member.id && m.role !== "APPROVAL_GATE")
+                          .map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.agent?.name || "Unassigned"} ({m.role})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-zinc-500">Quality Field</label>
+                        <input
+                          value={loopQualityField}
+                          onChange={(e) => setLoopQualityField(e.target.value)}
+                          placeholder="e.g. quality_score"
+                          className="w-full bg-zinc-800 border border-zinc-700 rounded-md text-xs text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60 font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-zinc-500">Threshold</label>
+                        <input
+                          type="number"
+                          value={loopQualityThreshold}
+                          onChange={(e) => setLoopQualityThreshold(Number(e.target.value) || 0)}
+                          className="w-full bg-zinc-800 border border-zinc-700 rounded-md text-xs text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-zinc-500">Max Iterations</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={loopMaxIterations}
+                        onChange={(e) => setLoopMaxIterations(Math.max(1, Math.min(10, Number(e.target.value) || 3)))}
+                        className="w-20 bg-zinc-800 border border-zinc-700 rounded-md text-xs text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60"
+                      />
+                    </div>
+
+                    <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2 mt-1">
+                      <p className="text-[9px] text-zinc-500">
+                        After this agent evaluates, if <code className="text-orange-400">{loopQualityField || "field"}</code> {"<"} {loopQualityThreshold}, output is routed back to the target agent with feedback for revision (max {loopMaxIterations} iterations).
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -1454,6 +1566,7 @@ function TeamDetailInner() {
   // Visual editor view toggle
   const [hierarchyView, setHierarchyView] = useState<"visual" | "list">("visual");
   const [nodePositions, setNodePositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [teamKnowledgeCount, setTeamKnowledgeCount] = useState(0);
 
   /* Fetch team data */
   const fetchTeam = useCallback(async () => {
@@ -1469,6 +1582,11 @@ function TeamDetailInner() {
       if (data.config?.nodePositions) {
         setNodePositions(data.config.nodePositions);
       }
+      // Fetch team knowledge count for visual editor
+      fetch(`/api/teams/${teamId}/knowledge`)
+        .then((r) => (r.ok ? r.json() : []))
+        .then((entries: unknown[]) => setTeamKnowledgeCount(entries.length))
+        .catch(() => {});
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -2040,6 +2158,7 @@ function TeamDetailInner() {
                   onConnectionDelete={handleConnectionDelete}
                   savedPositions={nodePositions}
                   onPositionsChange={saveNodePositions}
+                  teamKnowledgeCount={teamKnowledgeCount}
                 />
               </div>
             ) : (
@@ -2253,6 +2372,12 @@ function TeamDetailInner() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {activeTab === "knowledge" && (
+          <div className="p-6 h-full overflow-auto">
+            <TeamKnowledgeTab teamId={teamId} />
           </div>
         )}
 

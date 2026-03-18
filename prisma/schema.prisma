@@ -252,8 +252,10 @@ model AgentCustomTool {
 // Knowledge Base Einträge
 model KnowledgeBase {
   id              String      @id @default(cuid())
-  agentId         String
-  agent           Agent       @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agentId         String?
+  agent           Agent?      @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  teamId          String?
+  team            AgentTeam?  @relation(fields: [teamId], references: [id], onDelete: Cascade)
   type            KBType
   sourceName      String
   content         String      @db.Text
@@ -263,6 +265,7 @@ model KnowledgeBase {
   createdAt DateTime @default(now())
 
   @@index([agentId])
+  @@index([teamId])
 }
 
 enum KBType {
@@ -836,10 +839,11 @@ model AgentTeam {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
-  members     AgentTeamMember[]
-  tasks       AgentTeamTask[]
-  executions  TeamExecution[]
-  executionLogs TeamExecutionLog[]
+  members        AgentTeamMember[]
+  tasks          AgentTeamTask[]
+  executions     TeamExecution[]
+  executionLogs  TeamExecutionLog[]
+  knowledgeBases KnowledgeBase[]
 
   @@index([userId])
 }
@@ -859,6 +863,7 @@ model AgentTeamMember {
   subordinates       AgentTeamMember[] @relation("TeamHierarchy")
   outputSchema       Json?             // Structured output schema: [{ field, type, description }]
   enabledActions     String[]          // Scoped actions for team context (empty = all agent actions)
+  feedbackLoop       Json?             // { targetMemberId, maxIterations, qualityField, qualityThreshold }
   approvalRequests   ApprovalRequest[]
   createdAt          DateTime          @default(now())
 

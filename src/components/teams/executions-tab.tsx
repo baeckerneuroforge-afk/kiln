@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   AlertTriangle,
+  Bug,
   CheckCircle2,
   Clock,
   Database,
@@ -13,6 +14,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ExecutionDebugConsole } from "@/components/teams/execution-debug-console";
+import { ExecutionReplay } from "@/components/teams/execution-replay";
 import { cn } from "@/lib/utils";
 
 interface ApprovalInfo {
@@ -148,6 +151,8 @@ export function TeamExecutionsTab({
   const [rerunningExecutionId, setRerunningExecutionId] = useState<string | null>(null);
   const [retryingTaskKey, setRetryingTaskKey] = useState<string | null>(null);
   const [approvalActionKey, setApprovalActionKey] = useState<string | null>(null);
+  const [replayExecutionId, setReplayExecutionId] = useState<string | null>(null);
+  const [debugExecutionId, setDebugExecutionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const pendingApproval = detail?.approvalRequests.find((request) => request.status === "PENDING") || null;
@@ -403,47 +408,71 @@ export function TeamExecutionsTab({
             </div>
           ) : (
             executions.map((execution) => (
-              <button
+              <div
                 key={execution.id}
-                type="button"
-                onClick={() => setSelectedExecutionId(execution.id)}
                 className={cn(
-                  "w-full rounded-xl border px-4 py-3 text-left transition-colors",
+                  "w-full rounded-xl border px-4 py-3 transition-colors",
                   selectedExecutionId === execution.id
                     ? "border-orange-500/40 bg-orange-500/10"
                     : "border-border bg-card hover:border-zinc-600"
                 )}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-zinc-100">
-                      {execution.goal?.slice(0, 56) || "Team execution"}
-                    </p>
-                    <p className="mt-1 text-xs text-zinc-500">{formatDateTime(execution.startedAt)}</p>
-                  </div>
-                  <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase", statusStyles[execution.status] || statusStyles.PENDING)}>
-                    {execution.status}
-                  </span>
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-zinc-400">
-                  <span>{execution.completedTasks}/{execution.totalTasks} done</span>
-                  <span>{execution.failedTasks} failed</span>
-                  <span>{formatDuration(execution.durationMs)}</span>
-                  {typeof execution.sharedContextFields === "number" && execution.sharedContextFields > 0 && (
-                    <span className="inline-flex items-center gap-1 text-amber-300">
-                      <Database className="h-3 w-3" />
-                      {execution.sharedContextFields} fields
+                <button
+                  type="button"
+                  onClick={() => setSelectedExecutionId(execution.id)}
+                  className="w-full text-left"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-zinc-100">
+                        {execution.goal?.slice(0, 56) || "Team execution"}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-500">{formatDateTime(execution.startedAt)}</p>
+                    </div>
+                    <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase", statusStyles[execution.status] || statusStyles.PENDING)}>
+                      {execution.status}
                     </span>
-                  )}
-                </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-zinc-400">
+                    <span>{execution.completedTasks}/{execution.totalTasks} done</span>
+                    <span>{execution.failedTasks} failed</span>
+                    <span>{formatDuration(execution.durationMs)}</span>
+                    {typeof execution.sharedContextFields === "number" && execution.sharedContextFields > 0 && (
+                      <span className="inline-flex items-center gap-1 text-amber-300">
+                        <Database className="h-3 w-3" />
+                        {execution.sharedContextFields} fields
+                      </span>
+                    )}
+                  </div>
 
-                {execution.latestApproval && (
-                  <p className="mt-2 text-[11px] text-zinc-500">
-                    Approval: {execution.latestApproval.status.toLowerCase()} · {execution.latestApproval.approverEmail}
-                  </p>
-                )}
-              </button>
+                  {execution.latestApproval && (
+                    <p className="mt-2 text-[11px] text-zinc-500">
+                      Approval: {execution.latestApproval.status.toLowerCase()} · {execution.latestApproval.approverEmail}
+                    </p>
+                  )}
+                </button>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setReplayExecutionId(execution.id)}
+                    className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    Replay
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setDebugExecutionId(execution.id)}
+                    className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                  >
+                    <Bug className="mr-2 h-4 w-4" />
+                    Debug
+                  </Button>
+                </div>
+              </div>
             ))
           )}
         </div>
@@ -490,6 +519,24 @@ export function TeamExecutionsTab({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setReplayExecutionId(detail.execution.id)}
+                    className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    Replay
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setDebugExecutionId(detail.execution.id)}
+                    className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                  >
+                    <Bug className="mr-2 h-4 w-4" />
+                    Debug
+                  </Button>
                   {pendingApproval && detail.execution.status === "AWAITING_APPROVAL" && (
                     <>
                       <Button
@@ -597,19 +644,25 @@ export function TeamExecutionsTab({
                     const latestAttempt = task.attempts[task.attempts.length - 1];
                     const isFailed = task.latestStatus === "FAILED" || task.latestStatus === "REJECTED";
                     const isAwaitingApproval = task.latestStatus === "AWAITING_APPROVAL";
+                    const loopMatch = task.taskTitle.match(/^(.+?) — Revision (\d+)\/(\d+)$/);
+                    const loopIteration = loopMatch ? parseInt(loopMatch[2]) : null;
+                    const loopMax = loopMatch ? parseInt(loopMatch[3]) : null;
+                    const displayTitle = loopMatch ? loopMatch[1] : task.taskTitle;
 
                     return (
                       <div
                         key={`${detail.execution.id}-${task.taskIndex}`}
                         className={cn(
                           "rounded-xl border p-4",
-                          isFailed
-                            ? "border-red-500/30 bg-red-500/5"
-                            : isAwaitingApproval
-                              ? "border-amber-500/30 bg-amber-500/5"
-                              : task.latestStatus === "COMPLETED"
-                                ? "border-green-500/20 bg-green-500/5"
-                                : "border-border bg-zinc-950/30"
+                          loopMatch
+                            ? "border-cyan-500/20 bg-cyan-500/5"
+                            : isFailed
+                              ? "border-red-500/30 bg-red-500/5"
+                              : isAwaitingApproval
+                                ? "border-amber-500/30 bg-amber-500/5"
+                                : task.latestStatus === "COMPLETED"
+                                  ? "border-green-500/20 bg-green-500/5"
+                                  : "border-border bg-zinc-950/30"
                         )}
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -624,8 +677,13 @@ export function TeamExecutionsTab({
                               <span className="rounded-full border border-zinc-700 bg-zinc-800/80 px-2 py-0.5 text-[10px] uppercase text-zinc-300">
                                 {task.priority}
                               </span>
+                              {loopIteration !== null && loopMax !== null && (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-medium text-cyan-400">
+                                  ↻ Loop {loopIteration}/{loopMax}
+                                </span>
+                              )}
                             </div>
-                            <p className="mt-2 text-sm font-medium text-zinc-100">{task.taskTitle}</p>
+                            <p className="mt-2 text-sm font-medium text-zinc-100">{displayTitle}</p>
                             <p className="mt-1 text-xs text-zinc-500">
                               {task.assignedAgentName ? `Assigned to ${task.assignedAgentName}` : "Unassigned"}
                             </p>
@@ -705,6 +763,20 @@ export function TeamExecutionsTab({
           )}
         </div>
       </div>
+
+      <ExecutionReplay
+        teamId={teamId}
+        executionId={replayExecutionId}
+        open={Boolean(replayExecutionId)}
+        onClose={() => setReplayExecutionId(null)}
+      />
+
+      <ExecutionDebugConsole
+        teamId={teamId}
+        executionId={debugExecutionId}
+        open={Boolean(debugExecutionId)}
+        onClose={() => setDebugExecutionId(null)}
+      />
     </div>
   );
 }

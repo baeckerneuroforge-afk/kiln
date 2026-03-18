@@ -18,7 +18,7 @@ import { decrypt } from "@/lib/encryption";
 import { sendTeamApprovalRequestEmail } from "@/lib/email-notifications";
 import { emitEvent } from "@/lib/events";
 import { prisma } from "@/lib/prisma";
-import { searchRelevantChunks } from "@/lib/rag";
+import { searchRelevantChunksMulti } from "@/lib/rag";
 import {
   normalizeApprovalGateConfig,
 } from "@/lib/team-approval";
@@ -61,6 +61,41 @@ interface TeamTaskResult {
   output: string;
   structuredOutput: TeamSharedContext;
   model: string;
+}
+
+export interface FeedbackLoopConfig {
+  targetMemberId: string;
+  maxIterations: number;
+  qualityField: string;
+  qualityThreshold: number;
+}
+
+function parseFeedbackLoop(config: unknown): FeedbackLoopConfig | null {
+  if (!config || typeof config !== "object" || Array.isArray(config)) return null;
+  const c = config as Record<string, unknown>;
+  if (!c.targetMemberId || !c.qualityField || typeof c.qualityThreshold !== "number") return null;
+  return {
+    targetMemberId: String(c.targetMemberId),
+    maxIterations: typeof c.maxIterations === "number" ? c.maxIterations : 3,
+    qualityField: String(c.qualityField),
+    qualityThreshold: c.qualityThreshold,
+  };
+}
+
+function evaluateQuality(
+  structuredOutput: TeamSharedContext,
+  qualityField: string,
+  threshold: number
+): { passed: boolean; score: number | null } {
+  const value = structuredOutput[qualityField];
+  if (value === undefined || value === null) {
+    return { passed: false, score: null };
+  }
+  const score = typeof value === "number" ? value : Number(value);
+  if (isNaN(score)) {
+    return { passed: false, score: null };
+  }
+  return { passed: score >= threshold, score };
 }
 
 interface ExecuteTeamExecutionOptions {
@@ -114,7 +149,7 @@ function mergeExecutionContext(
   };
 }
 
-function getMemberDisplayName(
+export function getMemberDisplayName(
   member: TeamExecutionRuntimeTeam["members"][number] | null
 ) {
   if (!member) return "Unassigned";
@@ -167,7 +202,7 @@ function buildTaskInput(
   };
 }
 
-function buildTaskMessage(
+export function buildTaskMessage(
   goal: string,
   task: TeamExecutionTaskInput,
   member: TeamExecutionRuntimeTeam["members"][number],
@@ -218,7 +253,7 @@ Instructions:
 - If the task cannot be completed, clearly explain what is blocking it.`;
 }
 
-function getRoleDirective(role: AgentTeamRole) {
+export function getRoleDirective(role: AgentTeamRole) {
   switch (role) {
     case "HEAD":
       return "You are the team lead. Focus on coordination, decision quality, and clarity for the next agent.";
@@ -336,18 +371,25 @@ async function runTeamMemberTask(
     executionContext
   );
 
+  // Search both agent KB and team KB
   let knowledgeContext = "";
-  if (agent.knowledgeBases.length > 0) {
+  const hasAgentKB = agent.knowledgeBases.length > 0;
+  const teamHasKB = await prisma.knowledgeBase.count({
+    where: { teamId: team.id, embeddingStatus: "READY" },
+  }).catch(() => 0);
+
+  if (hasAgentKB || teamHasKB > 0) {
     try {
-      const chunks = await searchRelevantChunks(
+      const chunks = await searchRelevantChunksMulti(
         agent.id,
+        team.id,
         `${task.title}\n${task.description || ""}\n${JSON.stringify(executionContext)}`,
-        5
+        8
       );
       if (chunks.length > 0) {
         knowledgeContext =
           "\n\n---\nRELEVANT KNOWLEDGE:\n" +
-          chunks.map((chunk, index) => `[${index + 1}] ${chunk.content}`).join("\n\n");
+          chunks.map((chunk, index) => `[${index + 1}]${chunk.sourceType === "team" ? " [Team KB]" : ""} ${chunk.content}`).join("\n\n");
       }
     } catch {
       // Ignore RAG failures for team execution.
@@ -863,6 +905,110 @@ export async function executeTeamExecution({
 
       if (!succeeded) {
         continue;
+      }
+
+      // ── Feedback Loop: check if this member has a loop config ──
+      const feedbackLoop = parseFeedbackLoop(member.feedbackLoop);
+      if (feedbackLoop && succeeded) {
+        const loopKey = `_loop_${member.id}`;
+        const iterationCount = (typeof executionContext[loopKey] === "number" ? executionContext[loopKey] as number : 0);
+        const lastOutput = previousOutputs[previousOutputs.length - 1];
+
+        // Evaluate quality from the structured output (which is now in executionContext)
+        const quality = evaluateQuality(executionContext, feedbackLoop.qualityField, feedbackLoop.qualityThreshold);
+
+        if (!quality.passed && iterationCount < feedbackLoop.maxIterations) {
+          // Route back to target member with feedback
+          const targetMember = team.members.find((m) => m.id === feedbackLoop.targetMemberId);
+          if (targetMember && targetMember.agent) {
+            const newIteration = iterationCount + 1;
+            executionContext = mergeExecutionContext(executionContext, { [loopKey]: newIteration });
+
+            // Build feedback task
+            const feedbackTaskId = `${task.id}_loop_${newIteration}`;
+            const feedbackTask: TeamExecutionTaskInput = {
+              id: feedbackTaskId,
+              title: `${task.title} — Revision ${newIteration}/${feedbackLoop.maxIterations}`,
+              description: `Your previous output was reviewed. The quality score for "${feedbackLoop.qualityField}" was ${quality.score ?? "N/A"}, which is below the threshold of ${feedbackLoop.qualityThreshold}. Please revise your work based on the following feedback:\n\n${lastOutput?.output?.slice(0, 3000) || "No feedback provided."}\n\nIteration ${newIteration} of ${feedbackLoop.maxIterations}.`,
+              priority: task.priority,
+              assignedToId: targetMember.id,
+              taskIndex: task.taskIndex + 0.1 * newIteration,
+            };
+
+            // Create log for loop iteration
+            const loopLogId = (await prisma.teamExecutionLog.create({
+              data: {
+                teamId: team.id,
+                executionId,
+                taskId: task.id,
+                taskIndex: task.taskIndex,
+                taskTitle: feedbackTask.title,
+                agentId: targetMember.agent.id,
+                attempt: 1,
+                status: TeamExecutionTaskStatus.RUNNING,
+                startedAt: new Date(),
+                input: toJsonValue({
+                  feedbackLoop: true,
+                  iteration: newIteration,
+                  maxIterations: feedbackLoop.maxIterations,
+                  qualityField: feedbackLoop.qualityField,
+                  qualityScore: quality.score,
+                  qualityThreshold: feedbackLoop.qualityThreshold,
+                }),
+              },
+            })).id;
+
+            try {
+              const loopResult = await runTeamMemberTask(
+                team,
+                targetMember,
+                feedbackTask,
+                goal,
+                previousOutputs,
+                executionContext
+              );
+
+              const loopDelta = cleanContextDelta(loopResult.structuredOutput, executionContext);
+              executionContext = mergeExecutionContext(executionContext, loopDelta);
+
+              await prisma.teamExecutionLog.update({
+                where: { id: loopLogId },
+                data: {
+                  status: TeamExecutionTaskStatus.COMPLETED,
+                  output: loopResult.output,
+                  structuredOutput: toJsonValue(loopDelta),
+                  model: loopResult.model,
+                  completedAt: new Date(),
+                },
+              });
+
+              // Replace the previous output with revised version
+              previousOutputs[previousOutputs.length - 1] = {
+                taskIndex: task.taskIndex,
+                title: feedbackTask.title,
+                output: loopResult.output,
+              };
+
+              await updateExecutionProgress(executionId, completedTasks, failedTasks, executionContext);
+
+              // Re-run current evaluator task (the one that checks quality)
+              // by decrementing the loop index so the for-loop re-processes this task
+              index -= 1;
+              continue;
+            } catch (loopError) {
+              const loopMsg = loopError instanceof Error ? loopError.message : "Loop iteration failed";
+              await prisma.teamExecutionLog.update({
+                where: { id: loopLogId },
+                data: {
+                  status: TeamExecutionTaskStatus.FAILED,
+                  error: loopMsg,
+                  completedAt: new Date(),
+                },
+              });
+              // Continue to next task on loop failure
+            }
+          }
+        }
       }
     }
 

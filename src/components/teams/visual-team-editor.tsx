@@ -28,6 +28,7 @@ import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
 import {
   AlertCircle,
+  BookOpen,
   Database,
   Loader2,
   MessageSquare,
@@ -72,12 +73,19 @@ interface TeamMember {
   subordinates?: { id: string; agent: { id: string; name: string } | null }[];
   outputSchema?: OutputSchemaField[] | null;
   enabledActions?: string[];
+  feedbackLoop?: { targetMemberId: string; maxIterations: number; qualityField: string; qualityThreshold: number } | null;
   createdAt: string;
 }
 
 interface ExecutionStep {
   memberId: string;
-  status: "pending" | "running" | "completed" | "failed" | "skipped";
+  status:
+    | "pending"
+    | "running"
+    | "completed"
+    | "failed"
+    | "skipped"
+    | "awaiting_approval";
 }
 
 interface VisualTeamEditorProps {
@@ -89,6 +97,7 @@ interface VisualTeamEditorProps {
   executionSteps?: ExecutionStep[];
   savedPositions?: Record<string, { x: number; y: number }>;
   onPositionsChange?: (positions: Record<string, { x: number; y: number }>) => void;
+  teamKnowledgeCount?: number;
 }
 
 /* ========== Constants ========== */
@@ -152,8 +161,15 @@ type VisualNodeData = {
   agentMode?: string;
   enabledActionsCount?: number;
   hasOutputSchema?: boolean;
+  hasFeedbackLoop?: boolean;
   schemaFields?: string[];
-  executionStatus?: "pending" | "running" | "completed" | "failed" | "skipped";
+  executionStatus?:
+    | "pending"
+    | "running"
+    | "completed"
+    | "failed"
+    | "skipped"
+    | "awaiting_approval";
   [key: string]: unknown;
 };
 
@@ -166,6 +182,8 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
     ? "ring-2 ring-blue-400 ring-offset-2 ring-offset-[#0C0A09]"
     : execStatus === "completed"
       ? "ring-2 ring-green-400 ring-offset-2 ring-offset-[#0C0A09]"
+      : execStatus === "awaiting_approval"
+        ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-[#0C0A09]"
       : execStatus === "failed"
         ? "ring-2 ring-red-400 ring-offset-2 ring-offset-[#0C0A09]"
         : "";
@@ -177,7 +195,7 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
         rc.border,
         selected && `${rc.glow} shadow-lg scale-[1.02]`,
         statusRing,
-        execStatus === "running" && "animate-pulse",
+        (execStatus === "running" || execStatus === "awaiting_approval") && "animate-pulse",
       )}
     >
       {/* Target handles — top and left */}
@@ -201,6 +219,7 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
               "text-[9px] font-medium px-1.5 py-0.5 rounded-full flex items-center gap-1 ml-auto",
               execStatus === "running" && "bg-blue-500/20 text-blue-400",
               execStatus === "completed" && "bg-green-500/20 text-green-400",
+              execStatus === "awaiting_approval" && "bg-amber-500/20 text-amber-300",
               execStatus === "failed" && "bg-red-500/20 text-red-400",
               execStatus === "pending" && "bg-zinc-700/60 text-zinc-500",
               execStatus === "skipped" && "bg-zinc-700/40 text-zinc-600",
@@ -208,6 +227,7 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
           >
             {execStatus === "running" && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
             {execStatus === "completed" && <Check className="h-2.5 w-2.5" />}
+            {execStatus === "awaiting_approval" && <AlertCircle className="h-2.5 w-2.5" />}
             {execStatus === "failed" && <X className="h-2.5 w-2.5" />}
             {execStatus}
           </span>
@@ -269,6 +289,13 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
             JSON
           </span>
         )}
+
+        {data.hasFeedbackLoop && (
+          <span className="inline-flex items-center gap-1 text-[9px] bg-cyan-500/10 text-cyan-400 px-1.5 py-0.5 rounded-full">
+            <GitBranch className="h-2 w-2" />
+            Loop
+          </span>
+        )}
       </div>
 
       {/* Schema fields preview on node */}
@@ -293,6 +320,37 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
         position={Position.Bottom}
         className="!bg-zinc-500 !w-3 !h-3 !border-2 !border-zinc-800 hover:!bg-orange-400 transition-colors !-bottom-1.5"
       />
+    </div>
+  );
+}
+
+/* ========== Team Knowledge Node ========== */
+type KnowledgeNodeData = {
+  label: string;
+  docCount: number;
+  [key: string]: unknown;
+};
+
+function TeamKnowledgeNode({ data }: NodeProps<Node<KnowledgeNodeData>>) {
+  return (
+    <div className="rounded-2xl border-2 border-cyan-500/30 bg-zinc-900/95 backdrop-blur-md px-4 py-3 shadow-xl min-w-[180px] max-w-[200px]">
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!bg-cyan-500 !w-3 !h-3 !border-2 !border-zinc-800 !-bottom-1.5"
+      />
+      <div className="flex items-center gap-2 mb-1.5">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/15">
+          <BookOpen className="h-3.5 w-3.5 text-cyan-400" />
+        </div>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400">
+          Shared KB
+        </span>
+      </div>
+      <p className="text-sm font-semibold text-zinc-200">Team Knowledge</p>
+      <p className="text-[11px] text-zinc-500 mt-0.5">
+        {data.docCount} {data.docCount === 1 ? "Dokument" : "Dokumente"}
+      </p>
     </div>
   );
 }
@@ -376,16 +434,30 @@ function AnimatedConnectionEdge({
 }
 
 /* ========== Node & Edge types ========== */
-const nodeTypes = { visualAgent: VisualAgentNode };
+const nodeTypes = { visualAgent: VisualAgentNode, teamKnowledge: TeamKnowledgeNode };
 const edgeTypes = { animated: AnimatedConnectionEdge };
 
 /* ========== Helper: members to flow elements ========== */
 function membersToFlowElements(
   members: TeamMember[],
   executionSteps?: ExecutionStep[],
-  savedPositions?: Record<string, { x: number; y: number }>
+  savedPositions?: Record<string, { x: number; y: number }>,
+  teamKnowledgeCount?: number
 ) {
   const execMap = new Map(executionSteps?.map((s) => [s.memberId, s.status]) || []);
+  const getNodeName = (member: TeamMember) => {
+    if (member.agent?.name) return member.agent.name;
+    const config =
+      member.config && typeof member.config === "object" && !Array.isArray(member.config)
+        ? (member.config as Record<string, unknown>)
+        : null;
+
+    return typeof config?.label === "string" && config.label.trim()
+      ? config.label.trim()
+      : member.role === "APPROVAL_GATE"
+        ? "Approval Gate"
+        : "Unassigned";
+  };
 
   const nodes: Node<VisualNodeData>[] = members.map((m) => {
     const schemaFields = (m.outputSchema as OutputSchemaField[] | null)?.map((s) => s.field) || [];
@@ -396,14 +468,15 @@ function membersToFlowElements(
       type: "visualAgent",
       position: savedPositions?.[m.id] || { x: 0, y: 0 },
       data: {
-        label: m.agent?.name || (m.role === "APPROVAL_GATE" ? "Approval Gate" : "Unassigned"),
+        label: getNodeName(m),
         role: m.role,
-        agentName: m.agent?.name || (m.role === "APPROVAL_GATE" ? "Approval Gate" : "Unassigned"),
+        agentName: getNodeName(m),
         responsibilities: m.responsibilities || "",
         llmModel: m.agent?.llmModel || undefined,
         agentMode,
         enabledActionsCount: m.enabledActions?.length || 0,
         hasOutputSchema: Array.isArray(m.outputSchema) && m.outputSchema.length > 0,
+        hasFeedbackLoop: !!m.feedbackLoop,
         schemaFields,
         executionStatus: execMap.get(m.id),
       },
@@ -436,6 +509,62 @@ function membersToFlowElements(
       };
     });
 
+  // Add feedback loop edges (curved back arrows)
+  members.forEach((m) => {
+    const fl = m.feedbackLoop as { targetMemberId: string; maxIterations: number; qualityField: string; qualityThreshold: number } | null;
+    if (!fl) return;
+    edges.push({
+      id: `loop-${m.id}-${fl.targetMemberId}`,
+      source: m.id,
+      target: fl.targetMemberId,
+      type: "animated",
+      animated: true,
+      data: {
+        label: `Loop: ${fl.qualityField} < ${fl.qualityThreshold} (max ${fl.maxIterations}x)`,
+        executionActive: false,
+      },
+      style: { strokeDasharray: "6 3", stroke: "#06B6D4" },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: "#06B6D4",
+        width: 14,
+        height: 14,
+      },
+    });
+  });
+
+  // Add shared team knowledge node if documents exist
+  if (teamKnowledgeCount && teamKnowledgeCount > 0) {
+    const kbNodeId = "__team_kb__";
+    nodes.push({
+      id: kbNodeId,
+      type: "teamKnowledge",
+      position: savedPositions?.[kbNodeId] || { x: 0, y: 0 },
+      data: { label: "Team Knowledge", docCount: teamKnowledgeCount, role: "KB", agentName: "Team Knowledge", responsibilities: "" },
+      draggable: true,
+      selectable: false,
+    });
+
+    // Connect KB node to all agent members (dashed cyan lines, no labels)
+    members.forEach((m) => {
+      edges.push({
+        id: `kb-${kbNodeId}-${m.id}`,
+        source: kbNodeId,
+        target: m.id,
+        type: "animated",
+        animated: false,
+        data: {},
+        style: { strokeDasharray: "4 4", stroke: "#06B6D4", opacity: 0.35 },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: "#06B6D4",
+          width: 10,
+          height: 10,
+        },
+      });
+    });
+  }
+
   return { nodes, edges };
 }
 
@@ -456,6 +585,7 @@ function VisualTeamEditorInner({
   executionSteps,
   savedPositions,
   onPositionsChange,
+  teamKnowledgeCount,
 }: VisualTeamEditorProps) {
   const reactFlowInstance = useReactFlow();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -476,7 +606,7 @@ function VisualTeamEditorInner({
 
   // Build initial elements
   const initial = useMemo(() => {
-    const { nodes: rawNodes, edges: rawEdges } = membersToFlowElements(members, executionSteps, savedPositions);
+    const { nodes: rawNodes, edges: rawEdges } = membersToFlowElements(members, executionSteps, savedPositions, teamKnowledgeCount);
 
     // Apply dagre layout only if no saved positions
     const hasSaved = savedPositions && Object.keys(savedPositions).length > 0;
@@ -484,14 +614,14 @@ function VisualTeamEditorInner({
       return { nodes: rawNodes, edges: rawEdges };
     }
     return getLayoutedElements(rawNodes, rawEdges, "TB");
-  }, [members, executionSteps, savedPositions]);
+  }, [members, executionSteps, savedPositions, teamKnowledgeCount]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
 
   // Update nodes/edges when members or execution steps change
   useEffect(() => {
-    const { nodes: rawNodes, edges: rawEdges } = membersToFlowElements(members, executionSteps, savedPositions);
+    const { nodes: rawNodes, edges: rawEdges } = membersToFlowElements(members, executionSteps, savedPositions, teamKnowledgeCount);
     const hasSaved = savedPositions && Object.keys(savedPositions).length > 0;
 
     if (hasSaved) {
@@ -502,7 +632,7 @@ function VisualTeamEditorInner({
       setNodes(layouted.nodes);
       setEdges(layouted.edges);
     }
-  }, [members, executionSteps, savedPositions, setNodes, setEdges]);
+  }, [members, executionSteps, savedPositions, teamKnowledgeCount, setNodes, setEdges]);
 
   // Save positions on drag end (debounced)
   const handleNodeDragStop = useCallback(

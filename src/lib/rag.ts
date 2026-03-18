@@ -114,6 +114,77 @@ export async function searchRelevantChunks(
   }));
 }
 
+// Search chunks from both agent KB and team KB (combined, deduplicated)
+export async function searchRelevantChunksMulti(
+  agentId: string,
+  teamId: string | null,
+  query: string,
+  limit: number = 8
+): Promise<{ content: string; similarity: number; sourceType: "agent" | "team" }[]> {
+  if (!teamId) {
+    const results = await searchRelevantChunks(agentId, query, limit);
+    return results.map((r) => ({ ...r, sourceType: "agent" as const }));
+  }
+
+  const supabase = getSupabaseAdmin();
+  const queryEmbedding = await generateEmbedding(query);
+
+  const { data, error } = await supabase.rpc("match_knowledge_chunks_multi", {
+    query_embedding: JSON.stringify(queryEmbedding),
+    match_agent_id: agentId,
+    match_team_id: teamId,
+    match_threshold: 0.7,
+    match_count: limit,
+  });
+
+  if (error) {
+    console.error("RAG multi-search failed:", error.message);
+    // Fallback to agent-only search
+    const results = await searchRelevantChunks(agentId, query, limit);
+    return results.map((r) => ({ ...r, sourceType: "agent" as const }));
+  }
+
+  // Deduplicate by content
+  const seen = new Set<string>();
+  return (data || [])
+    .filter((row: { content: string }) => {
+      const key = row.content.slice(0, 200);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((row: { content: string; similarity: number; source_type: string }) => ({
+      content: row.content,
+      similarity: row.similarity,
+      sourceType: (row.source_type === "team" ? "team" : "agent") as "agent" | "team",
+    }));
+}
+
+// Store chunks with team_id for team-level KB
+export async function storeTeamChunks(
+  knowledgeBaseId: string,
+  teamId: string,
+  chunks: string[],
+  embeddings: number[][]
+): Promise<void> {
+  const supabase = getSupabaseAdmin();
+
+  const rows = chunks.map((content, i) => ({
+    knowledge_base_id: knowledgeBaseId,
+    agent_id: `team_${teamId}`,
+    team_id: teamId,
+    content,
+    embedding: JSON.stringify(embeddings[i]),
+    chunk_index: i,
+  }));
+
+  const { error } = await supabase.from("knowledge_chunks").insert(rows);
+
+  if (error) {
+    throw new Error(`Error saving team chunks: ${error.message}`);
+  }
+}
+
 // Fetch URL content (with SSRF protection)
 export async function fetchUrlContent(url: string): Promise<string> {
   const { safeFetch, readResponseWithLimit } = await import("@/lib/url-validation");

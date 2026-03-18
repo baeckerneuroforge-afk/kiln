@@ -196,6 +196,7 @@ export async function PATCH(
       outputSchema,
       enabledActions,
       config,
+      feedbackLoop,
     } = body;
     const levelMap = {
       HEAD: 0,
@@ -251,6 +252,7 @@ export async function PATCH(
     if (outputSchema !== undefined) updateData.outputSchema = outputSchema;
     if (enabledActions !== undefined) updateData.enabledActions = enabledActions;
     if (config !== undefined) updateData.config = config;
+    if (feedbackLoop !== undefined) updateData.feedbackLoop = feedbackLoop;
     if (role !== undefined && role in levelMap) {
       updateData.level = levelMap[role as keyof typeof levelMap];
     }
