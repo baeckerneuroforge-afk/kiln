@@ -72,6 +72,9 @@ type Summary = {
 interface Props {
   agentId: string;
   currentConfig: CompareConfig;
+  initialTestConfig?: CompareConfig | null;
+  initialTestLabel?: string;
+  initialTestKey?: string | null;
   onApplyVersion: (config: CompareConfig) => Promise<void>;
 }
 
@@ -200,7 +203,14 @@ function ResponseCard({
   );
 }
 
-export function TestLab({ agentId, currentConfig, onApplyVersion }: Props) {
+export function TestLab({
+  agentId,
+  currentConfig,
+  initialTestConfig,
+  initialTestLabel,
+  initialTestKey,
+  onApplyVersion,
+}: Props) {
   const { toast } = useToast();
   const [testPrompt, setTestPrompt] = useState(currentConfig.systemPrompt);
   const [testModel, setTestModel] = useState(currentConfig.llmModel);
@@ -223,10 +233,25 @@ export function TestLab({ agentId, currentConfig, onApplyVersion }: Props) {
   }), [testModel, testPrompt, testTemperature]);
 
   useEffect(() => {
-    setTestPrompt(currentConfig.systemPrompt);
-    setTestModel(currentConfig.llmModel);
-    setTestTemperature(currentConfig.temperature || 0.7);
-  }, [agentId]); // eslint-disable-line react-hooks/exhaustive-deps
+    const seedSystemPrompt = initialTestConfig?.systemPrompt ?? currentConfig.systemPrompt;
+    const seedModel = initialTestConfig?.llmModel ?? currentConfig.llmModel;
+    const seedTemperature = initialTestConfig?.temperature ?? currentConfig.temperature ?? 0.7;
+
+    setTestPrompt(seedSystemPrompt);
+    setTestModel(seedModel);
+    setTestTemperature(seedTemperature);
+  }, [
+    agentId,
+    currentConfig.llmModel,
+    currentConfig.modelProvider,
+    currentConfig.systemPrompt,
+    currentConfig.temperature,
+    initialTestConfig?.llmModel,
+    initialTestConfig?.modelProvider,
+    initialTestConfig?.systemPrompt,
+    initialTestConfig?.temperature,
+    initialTestKey,
+  ]);
 
   useEffect(() => {
     void loadHistory();
@@ -387,6 +412,9 @@ export function TestLab({ agentId, currentConfig, onApplyVersion }: Props) {
                 <h3 className="mt-2 text-lg font-semibold text-foreground">
                   {testModelDef?.label || testModel}
                 </h3>
+                {initialTestLabel && (
+                  <p className="mt-1 text-xs text-kiln-orange/80">{initialTestLabel}</p>
+                )}
               </div>
               <Button
                 variant="outline"

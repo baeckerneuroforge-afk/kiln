@@ -5,6 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { fireWebhookEvent } from "@/lib/webhooks";
 import { emitEvent } from "@/lib/events";
 import { sanitizeCss } from "@/lib/css-sanitizer";
+import {
+  applyAgentUpdateToVersionConfig,
+  createVersion,
+  getCurrentVersionNumber,
+  snapshotAgentConfig,
+} from "@/lib/agent-versioning";
 
 // Load agent details
 export async function GET(
@@ -30,7 +36,12 @@ export async function GET(
       return Response.json({ error: "Agent not found" }, { status: 404 });
     }
 
-    return Response.json(agent);
+    const currentVersion = await getCurrentVersionNumber(params.id, snapshotAgentConfig(agent));
+
+    return Response.json({
+      ...agent,
+      currentVersion,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });
@@ -57,52 +68,6 @@ export async function PATCH(
       return Response.json({ error: "Agent not found" }, { status: 404 });
     }
 
-    // Snapshot VOR dem Update erstellen
-    const configSnapshot = {
-      name: existing.name,
-      systemPrompt: existing.systemPrompt,
-      personality: existing.personality,
-      welcomeMessage: existing.welcomeMessage,
-      suggestedQuestions: existing.suggestedQuestions,
-      llmModel: existing.llmModel,
-      temperature: existing.temperature,
-      modelProvider: existing.modelProvider,
-      status: existing.status,
-      whiteLabel: existing.whiteLabel,
-      showPoweredBy: existing.showPoweredBy,
-      autoDetectLanguage: existing.autoDetectLanguage,
-      memoryEnabled: existing.memoryEnabled,
-      imageAnalysisEnabled: existing.imageAnalysisEnabled,
-      showAiDisclaimer: existing.showAiDisclaimer,
-      promptBranches: existing.promptBranches,
-      actions: existing.actions.map((a) => ({
-        type: a.type,
-        enabled: a.enabled,
-        config: a.config,
-      })),
-    };
-
-    // Nächste Version-Nummer ermitteln
-    const lastVersion = await prisma.agentVersion.findFirst({
-      where: { agentId: params.id },
-      orderBy: { versionNumber: "desc" },
-      select: { versionNumber: true },
-    });
-    const nextVersion = (lastVersion?.versionNumber || 0) + 1;
-
-    // Version speichern (non-blocking für Performance)
-    waitUntil(
-      prisma.agentVersion.create({
-        data: {
-          agentId: params.id,
-          versionNumber: nextVersion,
-          configSnapshot,
-        },
-      }).catch((err) => {
-        console.error("Agent version snapshot failed:", err);
-      })
-    );
-
     const body = await request.json();
     const sanitizedBody =
       body?.whiteLabel &&
@@ -116,6 +81,16 @@ export async function PATCH(
             },
           }
         : body;
+
+    const previousConfig = snapshotAgentConfig(existing);
+    const nextConfig = applyAgentUpdateToVersionConfig(
+      previousConfig,
+      sanitizedBody && typeof sanitizedBody === "object"
+        ? (sanitizedBody as Record<string, unknown>)
+        : {}
+    );
+    const versionMeta = await createVersion(params.id, userId, previousConfig, nextConfig);
+
     const agent = await prisma.agent.update({
       where: { id: params.id },
       data: sanitizedBody,
@@ -139,7 +114,10 @@ export async function PATCH(
       })
     );
 
-    return Response.json(agent);
+    return Response.json({
+      ...agent,
+      currentVersion: versionMeta.currentVersion,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });

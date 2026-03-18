@@ -1,123 +1,151 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  Loader2,
-  RotateCcw,
-  ChevronDown,
-  ChevronUp,
-  MessageSquarePlus,
-  Check,
-  History,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronDown, ChevronUp, History, Loader2, RotateCcw, SplitSquareVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-interface ConfigSnapshot {
+type SnapshotAction = {
+  type: string;
+  enabled: boolean;
+  config: unknown;
+};
+
+type ConfigSnapshot = {
   name?: string;
   systemPrompt?: string;
-  personality?: Record<string, string> | null;
+  personality?: Record<string, unknown> | null;
   welcomeMessage?: string | null;
   suggestedQuestions?: string[];
   llmModel?: string;
+  temperature?: number;
+  modelProvider?: string;
   status?: string;
   whiteLabel?: Record<string, unknown> | null;
   showPoweredBy?: boolean;
+  autoDetectLanguage?: boolean;
   memoryEnabled?: boolean;
+  visitorMemoryEnabled?: boolean;
   imageAnalysisEnabled?: boolean;
-  actions?: { type: string; enabled: boolean; config: unknown }[];
-}
+  showAiDisclaimer?: boolean;
+  promptBranches?: unknown;
+  agentType?: string;
+  customDomain?: string | null;
+  actions?: SnapshotAction[];
+};
 
-interface AgentVersion {
+type AgentVersion = {
   id: string;
-  versionNumber: number;
-  configSnapshot: ConfigSnapshot;
-  note: string | null;
+  version: number;
+  config: ConfigSnapshot;
+  changelog: string;
   createdAt: string;
-}
+  createdBy: string;
+};
 
-// Felder die wir im Diff anzeigen, mit lesbaren Labels
+type ComparePreset = {
+  versionId: string;
+  version: number;
+  config: {
+    systemPrompt: string;
+    llmModel: string;
+    modelProvider: string;
+    temperature: number;
+  };
+};
+
+type VersionResponse = {
+  currentVersion: number;
+  versions: AgentVersion[];
+};
+
 const DIFF_FIELDS: { key: keyof ConfigSnapshot; label: string }[] = [
   { key: "name", label: "Name" },
   { key: "systemPrompt", label: "System Prompt" },
-  { key: "welcomeMessage", label: "Welcome Message" },
-  { key: "suggestedQuestions", label: "Suggested Questions" },
+  { key: "welcomeMessage", label: "Greeting" },
   { key: "llmModel", label: "Model" },
-  { key: "status", label: "Status" },
+  { key: "temperature", label: "Temperature" },
   { key: "personality", label: "Personality" },
   { key: "whiteLabel", label: "White-Label" },
-  { key: "showPoweredBy", label: "Show Powered By" },
-  { key: "memoryEnabled", label: "Memory" },
-  { key: "imageAnalysisEnabled", label: "Image Analysis" },
+  { key: "status", label: "Status" },
   { key: "actions", label: "Actions" },
+  { key: "promptBranches", label: "Prompt Branches" },
+  { key: "customDomain", label: "Custom Domain" },
 ];
 
-function serialize(val: unknown): string {
-  if (val === null || val === undefined) return "";
-  if (typeof val === "string") return val;
-  return JSON.stringify(val, null, 2);
+function serialize(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  return JSON.stringify(value, null, 2);
 }
 
-// Berechnet welche Felder sich zwischen zwei Versionen geändert haben
 function computeChanges(
-  prev: ConfigSnapshot | null,
-  curr: ConfigSnapshot
+  previousConfig: ConfigSnapshot,
+  nextConfig: ConfigSnapshot
 ): { key: string; label: string; oldVal: string; newVal: string }[] {
-  const changes: { key: string; label: string; oldVal: string; newVal: string }[] = [];
-
-  for (const { key, label } of DIFF_FIELDS) {
-    const oldStr = prev ? serialize(prev[key]) : "";
-    const newStr = serialize(curr[key]);
-    if (oldStr !== newStr) {
-      changes.push({ key, label, oldVal: oldStr, newVal: newStr });
+  return DIFF_FIELDS.reduce<
+    { key: string; label: string; oldVal: string; newVal: string }[]
+  >((changes, { key, label }) => {
+    const oldVal = serialize(previousConfig[key]);
+    const newVal = serialize(nextConfig[key]);
+    if (oldVal !== newVal) {
+      changes.push({ key, label, oldVal, newVal });
     }
-  }
-
-  return changes;
+    return changes;
+  }, []);
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function truncate(value: string, maxLength = 600) {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength)}…`;
 }
 
-// Kürzt lange Strings für die Diff-Anzeige
-function truncate(str: string, max: number): string {
-  if (str.length <= max) return str;
-  return str.slice(0, max) + "…";
+function formatRelativeTime(dateString: string) {
+  const diff = Date.now() - new Date(dateString).getTime();
+  const seconds = Math.max(1, Math.floor(diff / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }
 
 interface Props {
   agentId: string;
+  currentVersion: number;
+  currentConfig: ConfigSnapshot;
+  onCompare: (preset: ComparePreset) => void;
   onRestore?: () => void;
 }
 
-export function VersionsTab({ agentId, onRestore }: Props) {
+export function VersionsTab({
+  agentId,
+  currentVersion,
+  currentConfig,
+  onCompare,
+  onRestore,
+}: Props) {
   const [versions, setVersions] = useState<AgentVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [restoreTarget, setRestoreTarget] = useState<AgentVersion | null>(null);
   const [restoring, setRestoring] = useState(false);
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
-  const [noteText, setNoteText] = useState("");
-  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
-    fetchVersions();
+    void fetchVersions();
   }, [agentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchVersions() {
+    setLoading(true);
     try {
       const res = await fetch(`/api/agents/${agentId}/versions`);
-      if (res.ok) {
-        setVersions(await res.json());
-      }
+      if (!res.ok) return;
+      const data: VersionResponse = await res.json();
+      setVersions(Array.isArray(data.versions) ? data.versions : []);
     } catch {
-      // Fehler
+      // silent
     } finally {
       setLoading(false);
     }
@@ -126,42 +154,21 @@ export function VersionsTab({ agentId, onRestore }: Props) {
   async function handleRestore(version: AgentVersion) {
     setRestoring(true);
     try {
-      const res = await fetch(`/api/agents/${agentId}/versions`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ versionId: version.id, action: "restore" }),
+      const res = await fetch(`/api/agents/${agentId}/versions/${version.id}`, {
+        method: "PUT",
       });
-      if (res.ok) {
-        setRestoreTarget(null);
-        await fetchVersions();
-        onRestore?.();
+
+      if (!res.ok) {
+        return;
       }
+
+      setRestoreTarget(null);
+      await fetchVersions();
+      onRestore?.();
     } catch {
-      // Fehler
+      // silent
     } finally {
       setRestoring(false);
-    }
-  }
-
-  async function handleSaveNote(versionId: string) {
-    setSavingNote(true);
-    try {
-      const res = await fetch(`/api/agents/${agentId}/versions`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ versionId, action: "annotate", note: noteText.trim() || null }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setVersions((prev) =>
-          prev.map((v) => (v.id === versionId ? { ...v, note: updated.note } : v))
-        );
-        setEditingNoteId(null);
-      }
-    } catch {
-      // Fehler
-    } finally {
-      setSavingNote(false);
     }
   }
 
@@ -175,11 +182,16 @@ export function VersionsTab({ agentId, onRestore }: Props) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">Version History</h2>
-        <p className="text-sm text-muted-foreground">
-          Every save creates a new version. Restore any previous configuration.
-        </p>
+      <div className="flex flex-col gap-3 rounded-2xl border border-white/[0.08] bg-card/60 p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Version History</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Current version is v{currentVersion}. Every save snapshots the previous config so you can roll back safely.
+          </p>
+        </div>
+        <div className="rounded-full border border-kiln-orange/20 bg-kiln-orange/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-kiln-orange">
+          {versions.length} rollback point{versions.length === 1 ? "" : "s"}
+        </div>
       </div>
 
       {versions.length === 0 ? (
@@ -187,178 +199,121 @@ export function VersionsTab({ agentId, onRestore }: Props) {
           <History className="mb-3 h-8 w-8 text-muted-foreground/50" />
           <p className="text-sm font-medium text-foreground">No versions yet</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Versions are created automatically when you save the agent.
+            Save the agent once and KILN will start building a rollback timeline.
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {versions.map((version, index) => {
-            const isLatest = index === 0;
-            const prevVersion = index < versions.length - 1 ? versions[index + 1] : null;
-            const changes = computeChanges(
-              prevVersion?.configSnapshot ?? null,
-              version.configSnapshot
-            );
+            const nextConfig = index === 0 ? currentConfig : versions[index - 1].config;
+            const nextVersion = index === 0 ? currentVersion : versions[index - 1].version;
+            const changes = computeChanges(version.config, nextConfig);
             const isExpanded = expandedId === version.id;
 
             return (
               <div
                 key={version.id}
-                className={cn(
-                  "rounded-xl border bg-card/50 overflow-hidden",
-                  isLatest ? "border-green-500/30" : "border-border"
-                )}
+                className="overflow-hidden rounded-2xl border border-white/[0.08] bg-card/60"
               >
-                {/* Hauptzeile */}
-                <div className="flex items-center gap-3 px-4 py-3">
-                  {/* Version-Nummer */}
-                  <div
-                    className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold",
-                      isLatest
-                        ? "bg-green-500/10 text-green-400"
-                        : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    v{version.versionNumber}
-                  </div>
+                <div className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex min-w-0 flex-1 items-start gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-kiln-orange/10 text-sm font-bold text-kiln-orange">
+                      v{version.version}
+                    </div>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-foreground">
-                        Version {version.versionNumber}
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">
+                          v{version.version} → v{nextVersion}
+                        </p>
+                        <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                          {formatRelativeTime(version.createdAt)}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-foreground/90">{version.changelog}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {changes.length} change{changes.length === 1 ? "" : "s"} recorded
                       </p>
-                      {isLatest && (
-                        <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold text-green-400">
-                          Current
-                        </span>
-                      )}
-                      {version.note && !isLatest && (
-                        <span className="truncate rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground max-w-[200px]">
-                          {version.note}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{formatDate(version.createdAt)}</span>
-                      {changes.length > 0 && (
-                        <span className="text-kiln-orange">
-                          {changes.length} field{changes.length !== 1 ? "s" : ""} changed
-                        </span>
-                      )}
-                      {changes.length === 0 && prevVersion && (
-                        <span>No changes</span>
-                      )}
                     </div>
                   </div>
 
-                  {/* Note-Button */}
-                  <button
-                    onClick={() => {
-                      setEditingNoteId(editingNoteId === version.id ? null : version.id);
-                      setNoteText(version.note || "");
-                    }}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                    title="Add note"
-                  >
-                    <MessageSquarePlus className="h-3.5 w-3.5" />
-                  </button>
-
-                  {/* Expand */}
-                  <button
-                    onClick={() => setExpandedId(isExpanded ? null : version.id)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                  >
-                    {isExpanded ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </button>
-
-                  {/* Restore */}
-                  {!isLatest && (
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setRestoreTarget(version)}
-                      className="text-xs"
+                      onClick={() =>
+                        onCompare({
+                          versionId: version.id,
+                          version: version.version,
+                          config: {
+                            systemPrompt: version.config.systemPrompt || "",
+                            llmModel: version.config.llmModel || "",
+                            modelProvider: version.config.modelProvider || "ANTHROPIC",
+                            temperature:
+                              typeof version.config.temperature === "number"
+                                ? version.config.temperature
+                                : 0.7,
+                          },
+                        })
+                      }
                     >
-                      <RotateCcw className="mr-1.5 h-3 w-3" />
-                      Restore
+                      <SplitSquareVertical className="mr-1.5 h-3.5 w-3.5" />
+                      Compare with current
                     </Button>
-                  )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setExpandedId(isExpanded ? null : version.id)}
+                    >
+                      {isExpanded ? (
+                        <ChevronUp className="mr-1.5 h-3.5 w-3.5" />
+                      ) : (
+                        <ChevronDown className="mr-1.5 h-3.5 w-3.5" />
+                      )}
+                      {isExpanded ? "Hide diff" : "Show diff"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => setRestoreTarget(version)}
+                      className="bg-kiln-orange hover:bg-kiln-orange/90"
+                    >
+                      <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                      Rollback to this version
+                    </Button>
+                  </div>
                 </div>
 
-                {/* Note Editor */}
-                {editingNoteId === version.id && (
-                  <div className="border-t border-border px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={noteText}
-                        onChange={(e) => setNoteText(e.target.value)}
-                        placeholder="e.g. Fixed pricing response"
-                        className="flex-1 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleSaveNote(version.id);
-                        }}
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => handleSaveNote(version.id)}
-                        disabled={savingNote}
-                      >
-                        {savingNote ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Check className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Expanded Diff View */}
                 {isExpanded && (
-                  <div className="border-t border-border px-4 py-3 space-y-2">
-                    {version.note && (
-                      <p className="text-xs italic text-muted-foreground mb-3">
-                        &quot;{version.note}&quot;
-                      </p>
-                    )}
-                    {changes.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        {prevVersion ? "No changes from previous version." : "Initial version."}
-                      </p>
-                    ) : (
-                      changes.map((change) => (
-                        <div key={change.key} className="rounded-lg border border-border overflow-hidden">
-                          <div className="bg-muted/50 px-3 py-1.5">
-                            <p className="text-xs font-semibold text-foreground">
-                              {change.label}
-                            </p>
-                          </div>
-                          <div className="divide-y divide-border">
-                            {change.oldVal && (
-                              <div className="px-3 py-2 bg-red-500/5">
-                                <pre className="text-[11px] text-red-400 whitespace-pre-wrap font-mono leading-relaxed">
-                                  - {truncate(change.oldVal, 500)}
+                  <div className="border-t border-white/[0.08] px-5 py-4">
+                    <div className="space-y-3">
+                      {changes.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No config differences to show.</p>
+                      ) : (
+                        changes.map((change) => (
+                          <div key={change.key} className="overflow-hidden rounded-xl border border-white/[0.08]">
+                            <div className="bg-white/[0.04] px-4 py-2">
+                              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                                {change.label}
+                              </p>
+                            </div>
+                            <div className="grid gap-px bg-white/[0.08] lg:grid-cols-2">
+                              <div className="bg-red-500/5 px-4 py-3">
+                                <p className="mb-2 text-[11px] uppercase tracking-[0.14em] text-red-300">Before</p>
+                                <pre className="whitespace-pre-wrap text-[12px] leading-5 text-red-100/90">
+                                  {truncate(change.oldVal || "—")}
                                 </pre>
                               </div>
-                            )}
-                            {change.newVal && (
-                              <div className="px-3 py-2 bg-green-500/5">
-                                <pre className="text-[11px] text-green-400 whitespace-pre-wrap font-mono leading-relaxed">
-                                  + {truncate(change.newVal, 500)}
+                              <div className="bg-emerald-500/5 px-4 py-3">
+                                <p className="mb-2 text-[11px] uppercase tracking-[0.14em] text-emerald-300">After</p>
+                                <pre className="whitespace-pre-wrap text-[12px] leading-5 text-emerald-100/90">
+                                  {truncate(change.newVal || "—")}
                                 </pre>
                               </div>
-                            )}
+                            </div>
                           </div>
-                        </div>
-                      ))
-                    )}
+                        ))
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -367,44 +322,39 @@ export function VersionsTab({ agentId, onRestore }: Props) {
         </div>
       )}
 
-      {/* Restore Confirmation Modal */}
       {restoreTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setRestoreTarget(null)}
           />
-          <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-[#1C1917] p-6 shadow-2xl mx-4">
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              Restore Version {restoreTarget.versionNumber}?
+          <div className="relative z-10 mx-4 w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#1C1917] p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-foreground">
+              Roll back to v{restoreTarget.version}?
             </h3>
-            <p className="text-sm text-muted-foreground mb-1">
-              This will replace the current config with version {restoreTarget.versionNumber}.
+            <p className="mt-2 text-sm text-muted-foreground">
+              KILN will restore the selected config and save the current state as a fresh rollback point first.
             </p>
-            <p className="text-xs text-muted-foreground mb-5">
-              The current config will be auto-saved as a new version before restoring.
+            <p className="mt-3 rounded-xl border border-kiln-orange/20 bg-kiln-orange/10 px-4 py-3 text-sm text-kiln-orange">
+              {restoreTarget.changelog}
             </p>
 
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setRestoreTarget(null)}
-              >
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" size="sm" onClick={() => setRestoreTarget(null)}>
                 Cancel
               </Button>
               <Button
                 size="sm"
                 onClick={() => handleRestore(restoreTarget)}
                 disabled={restoring}
-                className="bg-kiln-orange hover:bg-kiln-orange/90"
+                className={cn("bg-kiln-orange hover:bg-kiln-orange/90", restoring && "opacity-80")}
               >
                 {restoring ? (
                   <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
                 )}
-                Restore
+                Roll back
               </Button>
             </div>
           </div>

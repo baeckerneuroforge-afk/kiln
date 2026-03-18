@@ -124,6 +124,7 @@ model Agent {
 
   // Persistent Memory
   memoryEnabled      Boolean     @default(false)
+  visitorMemoryEnabled Boolean   @default(true)
 
   // Multimodal — Bildanalyse
   imageAnalysisEnabled Boolean   @default(false)
@@ -147,6 +148,7 @@ model Agent {
   conversations  Conversation[]
   analytics      AgentAnalytics[]
   memories       AgentMemory[]
+  visitorMemories VisitorMemory[]
   automations    AutomationRule[]
   versions       AgentVersion[]
   testCases      AgentTestCase[]
@@ -369,6 +371,26 @@ model AgentMemory {
   @@index([agentId, sessionHash])
 }
 
+// Visitor Memory — persistent visitor profiles with enriched context
+model VisitorMemory {
+  id                String   @id @default(cuid())
+  agentId           String
+  agent             Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  visitorId         String   // Browser fingerprint or stable identifier
+  displayName       String?  // Gesammelter Name (aus Gespräch oder COLLECT_EMAIL)
+  email             String?  // Gesammelte E-Mail (aus COLLECT_EMAIL)
+  memoryContext     Json     @default("{}") // LLM-extrahierte Fakten: { interests, questions, stage, objections, ... }
+  tags              String[] // z.B. ["interested-in-pro", "asked-about-pricing"]
+  conversationCount Int      @default(0)
+  firstVisitAt      DateTime @default(now())
+  lastVisitAt       DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([agentId, visitorId])
+  @@index([agentId])
+  @@index([agentId, email])
+}
+
 // API Access Keys — programmatischer Zugang zu KILN API
 model ApiAccessKey {
   id         String    @id @default(cuid())
@@ -455,15 +477,16 @@ model AutomationRule {
 
 // Agent Version History — Config-Snapshots bei jedem Speichern
 model AgentVersion {
-  id              String   @id @default(cuid())
-  agentId         String
-  agent           Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  versionNumber   Int
-  configSnapshot  Json     // { systemPrompt, personality, welcomeMessage, suggestedQuestions, llmModel, actions, whiteLabel, ... }
-  note            String?  @db.Text
-  createdAt       DateTime @default(now())
+  id        String   @id @default(cuid())
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  version   Int
+  config    Json     // Snapshot of the saved agent configuration for rollback and comparison
+  changelog String   @db.Text
+  createdAt DateTime @default(now())
+  createdBy String
 
-  @@unique([agentId, versionNumber])
+  @@unique([agentId, version])
   @@index([agentId])
 }
 

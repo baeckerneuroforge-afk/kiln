@@ -28,6 +28,65 @@ interface PublicAgentChatProps {
   customCss?: string | null;
 }
 
+/**
+ * Generiert eine stabile visitorId basierend auf Browser-Eigenschaften.
+ * Wird in localStorage gespeichert für Wiedererkennung.
+ */
+function getOrCreateVisitorId(): string {
+  const STORAGE_KEY = "kiln_visitor_id";
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) return stored;
+  } catch {
+    // localStorage nicht verfügbar (z.B. in iframe ohne Storage-Zugriff)
+  }
+
+  // Einfacher Fingerprint aus Browser-Eigenschaften
+  const parts = [
+    typeof screen !== "undefined" ? `${screen.width}x${screen.height}` : "0x0",
+    Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    navigator.language || "en",
+    navigator.hardwareConcurrency?.toString() || "0",
+    new Date().getTimezoneOffset().toString(),
+  ];
+
+  // Canvas-basierter Fingerprint (leichtgewichtig)
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 16;
+    canvas.height = 16;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.fillStyle = "#F97316";
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.fillStyle = "#0C0A09";
+      ctx.font = "6px sans-serif";
+      ctx.fillText("K", 2, 12);
+      parts.push(canvas.toDataURL().slice(-20));
+    }
+  } catch {
+    // Canvas nicht verfügbar
+  }
+
+  // Einfacher Hash aus den Parts
+  let hash = 0;
+  const str = parts.join("|");
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0; // 32-bit integer
+  }
+  const id = `v_${Math.abs(hash).toString(36)}_${Date.now().toString(36)}`;
+
+  try {
+    localStorage.setItem(STORAGE_KEY, id);
+  } catch {
+    // Kann nicht speichern — wird bei jedem Besuch neu generiert
+  }
+
+  return id;
+}
+
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 const RESPONSE_PING =
@@ -68,6 +127,7 @@ export function PublicAgentChat({
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID());
+  const [visitorId] = useState(() => getOrCreateVisitorId());
   const [pendingImage, setPendingImage] = useState<{ dataUrl: string; mediaType: string } | null>(null);
   const lastHumanPollRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -225,7 +285,7 @@ export function PublicAgentChat({
       const res = await fetch(`/api/agents/${agentId}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages, sessionId, channel: "WEB" }),
+        body: JSON.stringify({ messages: apiMessages, sessionId, channel: "WEB", visitorId }),
       });
 
       if (!res.ok) throw new Error("Chat error");

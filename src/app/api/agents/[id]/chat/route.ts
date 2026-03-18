@@ -23,6 +23,7 @@ import { Redis } from "@upstash/redis";
 
 import { extractTextContent, hashSession, extractAndSaveMemories, evaluateOrchestrationHandoff } from "@/lib/services/chat-service";
 import { buildTools, executeChatTool } from "@/lib/services/action-service";
+import { getOrCreateVisitor, generateMemoryPrefix, updateVisitorMemory, linkEmailToVisitor } from "@/lib/visitor-memory";
 
 const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
 const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -72,7 +73,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { messages, sessionId: clientSessionId, channel, debug } = body;
+    const { messages, sessionId: clientSessionId, channel, debug, visitorId: clientVisitorId } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return Response.json(
@@ -262,6 +263,22 @@ export async function POST(
         }
       } catch {
         // Memory-Laden fehlgeschlagen — weiter ohne
+      }
+    }
+
+    // Visitor Memory: Returning visitor context
+    const visitorId = clientVisitorId || null;
+    let activeVisitorId: string | null = null;
+    if (agent.visitorMemoryEnabled && visitorId) {
+      try {
+        const visitor = await getOrCreateVisitor(params.id, visitorId);
+        activeVisitorId = visitor.visitorId;
+        if (visitor.conversationCount > 1) {
+          const prefix = generateMemoryPrefix(visitor);
+          systemPrompt += prefix;
+        }
+      } catch {
+        // Visitor memory lookup failed — continue without
       }
     }
 
@@ -528,6 +545,12 @@ export async function POST(
                       conversationId,
                     })
                   );
+                  // Link email to visitor memory
+                  if (activeVisitorId && toolInput.email) {
+                    waitUntil(
+                      linkEmailToVisitor(params.id, activeVisitorId, toolInput.email as string, toolInput.name as string | null).catch(() => {})
+                    );
+                  }
                 }
                 if (fnCall.function.name === "book_appointment" && parsedToolResult?.action === "booked") {
                   waitUntil(
@@ -738,6 +761,12 @@ export async function POST(
                       conversationId,
                     })
                   );
+                  // Link email to visitor memory
+                  if (activeVisitorId && input.email) {
+                    waitUntil(
+                      linkEmailToVisitor(params.id, activeVisitorId, input.email as string, input.name as string | null).catch(() => {})
+                    );
+                  }
                 }
                 if (block.name === "book_appointment" && parsedToolResult?.action === "booked") {
                   const input = block.input as Record<string, unknown>;
@@ -926,6 +955,25 @@ export async function POST(
                 selectedModel.startsWith("claude") ? selectedModel : "claude-sonnet-4-20250514"
               ).catch((err) => {
                 console.error("Memory extraction failed:", err);
+              })
+            );
+          }
+
+          // Visitor Memory: LLM-basierte Profil-Aktualisierung (Anthropic only)
+          if (agent.visitorMemoryEnabled && activeVisitorId && claudeMessages.length >= 2 && anthropicClient && isAnthropic) {
+            const allMsgs = claudeMessages
+              .filter((m) => typeof m.content === "string")
+              .map((m) => ({ role: m.role as string, content: m.content as string }));
+
+            waitUntil(
+              updateVisitorMemory(
+                params.id,
+                activeVisitorId,
+                allMsgs,
+                anthropicClient,
+                selectedModel.startsWith("claude") ? selectedModel : "claude-sonnet-4-20250514"
+              ).catch((err) => {
+                console.error("Visitor memory update failed:", err);
               })
             );
           }

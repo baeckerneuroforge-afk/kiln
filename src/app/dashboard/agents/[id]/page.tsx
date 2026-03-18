@@ -54,6 +54,7 @@ import { AnalyticsTab } from "@/components/agents/analytics-tab";
 import { EvalTab } from "@/components/agents/eval-tab";
 import { LogsTab } from "@/components/agents/logs-tab";
 import { MemoryTab } from "@/components/agents/memory-tab";
+import { VisitorMemoryTab } from "@/components/agents/visitor-memory-tab";
 import { CustomToolsTab } from "@/components/agents/custom-tools-tab";
 import { AutomationsTab } from "@/components/agents/automations-tab";
 import { VersionsTab } from "@/components/agents/versions-tab";
@@ -88,6 +89,7 @@ interface Agent {
   showPoweredBy: boolean;
   autoDetectLanguage: boolean;
   memoryEnabled: boolean;
+  visitorMemoryEnabled: boolean;
   imageAnalysisEnabled: boolean;
   showAiDisclaimer: boolean;
   customDomain: string | null;
@@ -103,10 +105,25 @@ interface Agent {
   clonedFromId: string | null;
   clonedFromName: string | null;
   createdAt: string;
+  updatedAt: string;
+  currentVersion?: number;
   actions: { id: string; type: string; enabled: boolean; config: Record<string, string> | null }[];
   knowledgeBases: { id: string; type: string; sourceName: string; embeddingStatus: string; chunkCount: number; createdAt: string }[];
   _count: { conversations: number };
 }
+
+type CompareConfig = {
+  systemPrompt: string;
+  llmModel: string;
+  modelProvider: string;
+  temperature: number;
+};
+
+type VersionComparePreset = {
+  versionId: string;
+  version: number;
+  config: CompareConfig;
+};
 
 type ProactiveRule = {
   match: string;
@@ -119,13 +136,14 @@ type WidgetSettings = {
   soundEnabled: boolean;
 };
 
-type Tab = "config" | "knowledge" | "actions" | "analytics" | "eval" | "embed" | "channels" | "integrations" | "tools" | "debug" | "logs" | "memory" | "automations" | "versions" | "testing" | "testlab" | "webhooks" | "runs";
+type Tab = "config" | "knowledge" | "actions" | "analytics" | "eval" | "embed" | "channels" | "integrations" | "tools" | "debug" | "logs" | "memory" | "visitor-memories" | "automations" | "versions" | "testing" | "testlab" | "webhooks" | "runs";
 
 const chatBaseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "config", label: "Configuration", icon: Settings2 },
   { id: "knowledge", label: "Knowledge", icon: BookOpen },
   { id: "actions", label: "Actions", icon: Zap },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
+  { id: "visitor-memories", label: "Visitors", icon: Users },
   { id: "eval", label: "Eval", icon: Gauge },
   { id: "embed", label: "Embed Code", icon: Code2 },
   { id: "channels", label: "Channels", icon: Radio },
@@ -151,7 +169,7 @@ const statusOptions = [
   { value: "PAUSED", label: "Paused" },
 ];
 
-const fullWidthTabs: Tab[] = ["analytics", "eval", "tools", "logs", "memory", "automations", "versions", "testing", "testlab", "runs"];
+const fullWidthTabs: Tab[] = ["analytics", "eval", "visitor-memories", "tools", "logs", "memory", "automations", "versions", "testing", "testlab", "runs"];
 
 function normalizeProactiveRules(input: unknown): ProactiveRule[] {
   if (!Array.isArray(input)) return [];
@@ -208,6 +226,21 @@ function getWidgetSettings(whiteLabel: Record<string, unknown> | null | undefine
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function formatRelativeTime(dateString: string | null | undefined) {
+  if (!dateString) return "just now";
+
+  const diff = Date.now() - new Date(dateString).getTime();
+  const seconds = Math.max(1, Math.floor(diff / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 export default function AgentDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -232,6 +265,7 @@ export default function AgentDetailPage() {
   const [modelProvider, setModelProvider] = useState("ANTHROPIC");
   const [autoDetectLanguage, setAutoDetectLanguage] = useState(true);
   const [memoryEnabled, setMemoryEnabled] = useState(false);
+  const [visitorMemoryEnabled, setVisitorMemoryEnabled] = useState(true);
   const [imageAnalysisEnabled, setImageAnalysisEnabled] = useState(false);
   const [showAiDisclaimer, setShowAiDisclaimer] = useState(true);
   const [agentType, setAgentType] = useState<"PUBLIC" | "INTERNAL">("PUBLIC");
@@ -267,42 +301,51 @@ export default function AgentDetailPage() {
 
   // Test case pre-fill from logs
   const [testCasePrefill, setTestCasePrefill] = useState<{ input: string; response: string } | null>(null);
+  const [versionComparePreset, setVersionComparePreset] = useState<VersionComparePreset | null>(null);
+
+  function applyAgentState(data: Agent) {
+    setAgent(data);
+    setName(data.name);
+    setSystemPrompt(data.systemPrompt);
+    setWelcomeMessage(data.welcomeMessage || "");
+    setStatus(data.status);
+    setLlmModel(data.llmModel || "claude-sonnet-4-20250514");
+    setTemperature(typeof data.temperature === "number" ? data.temperature : 0.7);
+    setModelProvider(data.modelProvider || "ANTHROPIC");
+    setAutoDetectLanguage(data.autoDetectLanguage !== false);
+    setMemoryEnabled(data.memoryEnabled || false);
+    setVisitorMemoryEnabled(data.visitorMemoryEnabled !== false);
+    setImageAnalysisEnabled(data.imageAnalysisEnabled || false);
+    setShowAiDisclaimer(data.showAiDisclaimer !== false);
+    setAgentType(data.agentType || "PUBLIC");
+    setPromptBranches(Array.isArray(data.promptBranches) ? data.promptBranches : []);
+    setCustomDomain(data.customDomain || "");
+    const wl = (data.whiteLabel || {}) as Record<string, unknown>;
+    const proactive = getProactiveSettings(wl);
+    const widget = getWidgetSettings(wl);
+    setPrimaryColor(typeof wl.primaryColor === "string" ? wl.primaryColor : "#F97316");
+    setLogoUrl(typeof wl.logo === "string" ? wl.logo : "");
+    setAvatarUrl(widget.avatarUrl);
+    setWidgetAutoTheme(widget.autoTheme);
+    setWidgetSoundEnabled(widget.soundEnabled);
+    setProactiveEnabled(proactive.enabled);
+    setProactiveDelay(proactive.delay);
+    setProactiveRules(proactive.rules);
+  }
+
+  async function loadAgent() {
+    const res = await fetch(`/api/agents/${params.id}`);
+    if (!res.ok) {
+      throw new Error("Failed to load agent");
+    }
+
+    const data: Agent = await res.json();
+    applyAgentState(data);
+  }
 
 
   useEffect(() => {
-    fetch(`/api/agents/${params.id}`)
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then((data: Agent) => {
-        setAgent(data);
-        setName(data.name);
-        setSystemPrompt(data.systemPrompt);
-        setWelcomeMessage(data.welcomeMessage || "");
-        setStatus(data.status);
-        setLlmModel(data.llmModel || "claude-sonnet-4-20250514");
-        setTemperature(typeof data.temperature === "number" ? data.temperature : 0.7);
-        setModelProvider(data.modelProvider || "ANTHROPIC");
-        setAutoDetectLanguage(data.autoDetectLanguage !== false);
-        setMemoryEnabled(data.memoryEnabled || false);
-        setImageAnalysisEnabled(data.imageAnalysisEnabled || false);
-        setShowAiDisclaimer(data.showAiDisclaimer !== false);
-        setAgentType(data.agentType || "PUBLIC");
-        setPromptBranches(Array.isArray(data.promptBranches) ? data.promptBranches : []);
-        setCustomDomain(data.customDomain || "");
-        const wl = (data.whiteLabel || {}) as Record<string, unknown>;
-        const proactive = getProactiveSettings(wl);
-        const widget = getWidgetSettings(wl);
-        setPrimaryColor(typeof wl.primaryColor === "string" ? wl.primaryColor : "#F97316");
-        setLogoUrl(typeof wl.logo === "string" ? wl.logo : "");
-        setAvatarUrl(widget.avatarUrl);
-        setWidgetAutoTheme(widget.autoTheme);
-        setWidgetSoundEnabled(widget.soundEnabled);
-        setProactiveEnabled(proactive.enabled);
-        setProactiveDelay(proactive.delay);
-        setProactiveRules(proactive.rules);
-      })
+    void loadAgent()
       .catch(() => router.push("/dashboard/agents"))
       .finally(() => setLoading(false));
 
@@ -311,7 +354,7 @@ export default function AgentDetailPage() {
       .then((res) => res.json())
       .then((data) => setUserPlan(data.plan || "FREE"))
       .catch(() => {});
-  }, [params.id, router]);
+  }, [params.id, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   async function handleSave() {
@@ -332,6 +375,7 @@ export default function AgentDetailPage() {
           modelProvider,
           autoDetectLanguage,
           memoryEnabled,
+          visitorMemoryEnabled,
           imageAnalysisEnabled,
           showAiDisclaimer,
           agentType,
@@ -358,7 +402,8 @@ export default function AgentDetailPage() {
       });
       if (res.ok) {
         const updated = await res.json();
-        setAgent({ ...agent, ...updated });
+        applyAgentState({ ...agent, ...updated });
+        setVersionComparePreset(null);
         toast("Agent saved");
       } else {
         toast("Failed to save agent", "error");
@@ -419,7 +464,8 @@ export default function AgentDetailPage() {
       }
 
       const updated = await res.json();
-      setAgent((prev) => (prev ? { ...prev, ...updated } : prev));
+      applyAgentState({ ...agent, ...updated });
+      setVersionComparePreset(null);
       setSystemPrompt(updated.systemPrompt || config.systemPrompt);
       setLlmModel(updated.llmModel || config.llmModel);
       setTemperature(
@@ -552,6 +598,7 @@ export default function AgentDetailPage() {
       temperature: agent.temperature,
       modelProvider: agent.modelProvider,
       memoryEnabled: agent.memoryEnabled,
+      visitorMemoryEnabled: agent.visitorMemoryEnabled,
       imageAnalysisEnabled: agent.imageAnalysisEnabled,
       showAiDisclaimer: agent.showAiDisclaimer,
       agentType: agent.agentType,
@@ -669,6 +716,9 @@ export default function AgentDetailPage() {
             <h1 className="font-serif text-2xl text-foreground">{agent.name}</h1>
             <div className="flex items-center gap-2">
               <p className="text-sm text-muted-foreground">/{agent.slug}</p>
+              <span className="text-xs text-muted-foreground">
+                v{agent.currentVersion || 1} · Last edited {formatRelativeTime(agent.updatedAt)}
+              </span>
               {agent.clonedFromName && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-400">
                   <GitFork className="h-2.5 w-2.5" />
@@ -1106,6 +1156,39 @@ export default function AgentDetailPage() {
               </div>
               )}
 
+              {/* Visitor Memory Toggle */}
+              <div className="rounded-xl border border-border bg-card/50 p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10">
+                      <Users className="h-4 w-4 text-purple-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Visitor Memory
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Recognize returning visitors and personalize greetings.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setVisitorMemoryEnabled(!visitorMemoryEnabled)}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                      visitorMemoryEnabled ? "bg-purple-500" : "bg-muted"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform",
+                        visitorMemoryEnabled ? "translate-x-5" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </div>
+              </div>
+
               {/* Image Analysis Toggle — nur im Advanced Mode */}
               {advancedMode && (
               <div className="rounded-xl border border-border bg-card/50 p-5">
@@ -1394,6 +1477,10 @@ export default function AgentDetailPage() {
             <MemoryTab agentId={agent.id} />
           )}
 
+          {activeTab === "visitor-memories" && (
+            <VisitorMemoryTab agentId={agent.id} />
+          )}
+
           {activeTab === "automations" && (
             <AutomationsTab agentId={agent.id} />
           )}
@@ -1401,36 +1488,52 @@ export default function AgentDetailPage() {
           {activeTab === "versions" && (
             <VersionsTab
               agentId={agent.id}
+              currentVersion={agent.currentVersion || 1}
+              currentConfig={{
+                name,
+                systemPrompt,
+                personality: agent.personality,
+                welcomeMessage,
+                suggestedQuestions: agent.suggestedQuestions,
+                llmModel,
+                temperature,
+                modelProvider,
+                status: status as Agent["status"],
+                whiteLabel: {
+                  ...(agent.whiteLabel || {}),
+                  primaryColor,
+                  logo: logoUrl || null,
+                  avatarUrl: avatarUrl.trim() || null,
+                  autoTheme: widgetAutoTheme,
+                  soundEnabled: widgetSoundEnabled,
+                  proactive: {
+                    enabled: proactiveEnabled,
+                    delay: proactiveEnabled ? Math.max(0, proactiveDelay) : 0,
+                    rules: proactiveRules,
+                  },
+                },
+                showPoweredBy: agent.showPoweredBy,
+                autoDetectLanguage,
+                memoryEnabled,
+                visitorMemoryEnabled,
+                imageAnalysisEnabled,
+                showAiDisclaimer,
+                promptBranches: promptBranches.length > 0 ? promptBranches : null,
+                agentType,
+                customDomain: customDomain.trim() || null,
+                actions: agent.actions.map((action) => ({
+                  type: action.type,
+                  enabled: action.enabled,
+                  config: action.config,
+                })),
+              }}
+              onCompare={(preset) => {
+                setVersionComparePreset(preset);
+                setActiveTab("testlab");
+              }}
               onRestore={() => {
-                // Agent neu laden nach Restore
-                fetch(`/api/agents/${agent.id}`)
-                  .then((res) => res.json())
-                  .then((data: Agent) => {
-                    setAgent(data);
-                    setName(data.name);
-                    setSystemPrompt(data.systemPrompt);
-                    setWelcomeMessage(data.welcomeMessage || "");
-                    setStatus(data.status);
-                    setLlmModel(data.llmModel || "claude-sonnet-4-20250514");
-                    setTemperature(typeof data.temperature === "number" ? data.temperature : 0.7);
-                    setModelProvider(data.modelProvider || "ANTHROPIC");
-                    setAutoDetectLanguage(data.autoDetectLanguage !== false);
-                    setMemoryEnabled(data.memoryEnabled || false);
-                    setImageAnalysisEnabled(data.imageAnalysisEnabled || false);
-                    setCustomDomain(data.customDomain || "");
-                    const wl = (data.whiteLabel || {}) as Record<string, unknown>;
-                    const proactive = getProactiveSettings(wl);
-                    const widget = getWidgetSettings(wl);
-                    setPrimaryColor(typeof wl.primaryColor === "string" ? wl.primaryColor : "#F97316");
-                    setLogoUrl(typeof wl.logo === "string" ? wl.logo : "");
-                    setAvatarUrl(widget.avatarUrl);
-                    setWidgetAutoTheme(widget.autoTheme);
-                    setWidgetSoundEnabled(widget.soundEnabled);
-                    setProactiveEnabled(proactive.enabled);
-                    setProactiveDelay(proactive.delay);
-                    setProactiveRules(proactive.rules);
-                  })
-                  .catch(() => {});
+                setVersionComparePreset(null);
+                void loadAgent();
               }}
             />
           )}
@@ -1452,6 +1555,11 @@ export default function AgentDetailPage() {
                 modelProvider,
                 temperature,
               }}
+              initialTestConfig={versionComparePreset?.config}
+              initialTestLabel={
+                versionComparePreset ? `Loaded from v${versionComparePreset.version}` : undefined
+              }
+              initialTestKey={versionComparePreset?.versionId || null}
               onApplyVersion={handleApplyTestVersion}
             />
           )}
