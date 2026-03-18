@@ -12,6 +12,9 @@ import {
   Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SkeletonRow } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/error-state";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 
 interface ConversationMessage {
@@ -143,6 +146,7 @@ export default function ConversationsPage() {
   const [dateTo, setDateTo] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [fetchKey, setFetchKey] = useState(0);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -186,7 +190,7 @@ export default function ConversationsPage() {
     }
 
     loadConversations();
-  }, [agentId, dateFrom, dateTo, page, search, status]);
+  }, [agentId, dateFrom, dateTo, page, search, status, fetchKey]);
 
   const activeFilterCount = useMemo(() => {
     return [agentId, status, dateFrom, dateTo, search].filter(Boolean).length;
@@ -343,14 +347,11 @@ export default function ConversationsPage() {
         </div>
 
         {loading ? (
-          <div className="flex h-64 items-center justify-center">
-            <Loader2 className="h-7 w-7 animate-spin text-kiln-orange" />
+          <div className="rounded-xl border border-border bg-card/50 overflow-hidden">
+            {Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)}
           </div>
         ) : error ? (
-          <div className="px-5 py-10 text-center">
-            <p className="text-sm font-medium text-foreground">{error}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Reload the page or adjust your filters.</p>
-          </div>
+          <ErrorState message={error} onRetry={() => setFetchKey((k) => k + 1)} />
         ) : data && data.conversations.length > 0 ? (
           <div className="divide-y divide-border">
             {data.conversations.map((conversation) => {
@@ -456,7 +457,7 @@ export default function ConversationsPage() {
               );
             })}
           </div>
-        ) : (
+        ) : activeFilterCount > 0 ? (
           <div className="px-5 py-12 text-center">
             <MessageSquare className="mx-auto h-8 w-8 text-muted-foreground" />
             <p className="mt-3 text-sm font-medium text-foreground">No conversations found</p>
@@ -464,6 +465,14 @@ export default function ConversationsPage() {
               Try widening your filters or wait for new conversations to come in.
             </p>
           </div>
+        ) : (
+          <EmptyState
+            icon={<MessageSquare className="h-7 w-7 text-muted-foreground" />}
+            title="Noch keine Gespräche"
+            description="Dein Agent hatte noch keine Gespräche. Binde ihn auf deiner Website ein, um loszulegen."
+            actionLabel="Zum Agent"
+            actionHref="/dashboard/agents"
+          />
         )}
       </div>
 

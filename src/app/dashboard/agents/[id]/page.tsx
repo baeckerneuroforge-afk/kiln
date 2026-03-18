@@ -68,6 +68,7 @@ import { TeamAccess } from "@/components/agents/team-access";
 import { AgentScheduleSection } from "@/components/agents/agent-schedule-section";
 import { PromptEditor } from "@/components/agents/prompt-editor";
 import { LivePreviewPanel } from "@/components/agents/live-preview-panel";
+import { Skeleton, SkeletonTab } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { PROVIDERS, getModelsForProvider, getModelDef, type ProviderKey } from "@/lib/ai";
 import {
@@ -712,38 +713,26 @@ export default function AgentDetailPage() {
 
   if (loading || !agent) {
     return (
-      <div className="mx-auto max-w-6xl">
-        {/* Header skeleton */}
-        <div className="mb-6 flex items-center justify-between">
+      <div className="flex h-full">
+        {/* Left panel skeleton */}
+        <div className="flex-1 overflow-auto p-6 space-y-4">
+          <div className="flex items-center gap-3 mb-6">
+            <Skeleton className="h-5 w-5" />
+            <Skeleton className="h-6 w-48" />
+          </div>
           <div className="flex items-center gap-3">
-            <div className="skeleton h-8 w-8 rounded-lg" />
-            <div className="skeleton h-10 w-10 rounded-lg" />
-            <div>
-              <div className="skeleton h-7 w-48 rounded" />
-              <div className="skeleton mt-1.5 h-4 w-24 rounded" />
+            <Skeleton className="h-12 w-12 rounded-xl" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-3 w-24" />
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="skeleton h-9 w-24 rounded-lg" />
-            <div className="skeleton h-9 w-20 rounded-lg" />
-          </div>
+          <SkeletonTab />
         </div>
-        {/* Tab bar skeleton */}
-        <div className="mb-6 flex gap-1 border-b border-border pb-0.5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="skeleton h-10 w-28 rounded-lg" />
-          ))}
-        </div>
-        {/* Content skeleton */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-          <div className="lg:col-span-3 space-y-5">
-            <div className="skeleton h-10 w-full rounded-lg" />
-            <div className="skeleton h-24 w-full rounded-lg" />
-            <div className="skeleton h-48 w-full rounded-lg" />
-          </div>
-          <div className="lg:col-span-2">
-            <div className="skeleton h-[500px] w-full rounded-xl" />
-          </div>
+        {/* Right panel skeleton */}
+        <div className="hidden lg:block w-[400px] border-l border-border p-4 space-y-3">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-[500px] w-full rounded-xl" />
         </div>
       </div>
     );

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Skeleton, SkeletonStat, SkeletonRow } from "@/components/ui/skeleton";
 
 interface MonitorExecution {
   id: string;
@@ -119,8 +120,15 @@ export default function TeamMonitorPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-6 w-6 animate-spin text-orange-400" />
+      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+        <Skeleton className="h-6 w-40" />
+        <div className="grid grid-cols-5 gap-4">
+          {Array.from({ length: 5 }).map((_, i) => <SkeletonStat key={i} />)}
+        </div>
+        <Skeleton className="h-32 w-full rounded-xl" />
+        <div className="rounded-xl border border-border overflow-hidden">
+          {Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)}
+        </div>
       </div>
     );
   }

@@ -41,6 +41,8 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { SkeletonCard } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   PROVIDERS,
   getModelsForProvider,
@@ -293,25 +295,6 @@ function newManualMember(overrides: Partial<ManualMember> = {}): ManualMember {
     expanded: true,
     ...overrides,
   };
-}
-
-/* ---------- Skeleton ---------- */
-function CardSkeleton() {
-  return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <div className="mb-4 flex items-start justify-between">
-        <div className="skeleton h-10 w-10 rounded-lg" />
-        <div className="skeleton h-5 w-14 rounded-full" />
-      </div>
-      <div className="skeleton mb-2 h-5 w-2/3 rounded" />
-      <div className="skeleton mb-1 h-4 w-full rounded" />
-      <div className="skeleton mb-4 h-4 w-4/5 rounded" />
-      <div className="flex items-center gap-4">
-        <div className="skeleton h-4 w-24 rounded" />
-        <div className="skeleton h-4 w-20 rounded" />
-      </div>
-    </div>
-  );
 }
 
 /* ---------- Step Indicator ---------- */
@@ -1748,9 +1731,9 @@ export default function TeamsPage() {
           <div className="skeleton h-9 w-32 rounded-lg" />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
         </div>
       </div>
     );
@@ -1896,20 +1879,13 @@ export default function TeamsPage() {
 
       {/* Error state */}
       {error ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 py-12">
-          <p className="mb-2 text-sm font-medium text-destructive">
-            Error: {error}
-          </p>
-          <button
-            onClick={() => {
-              setError(null);
-              fetchTeams();
-            }}
-            className="text-sm text-muted-foreground underline hover:text-foreground"
-          >
-            Reload page
-          </button>
-        </div>
+        <ErrorState
+          message={error}
+          onRetry={() => {
+            setError(null);
+            fetchTeams();
+          }}
+        />
       ) : teams.length === 0 ? (
         /* Empty state */
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 py-16">

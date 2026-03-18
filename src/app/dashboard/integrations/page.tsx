@@ -34,6 +34,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/toast";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
+import { SkeletonCard } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 
 /* ---------- Types ---------- */
 interface IntegrationConnection {
@@ -526,11 +528,11 @@ export default function IntegrationsPage() {
           <div className="space-y-1.5"><div className="skeleton h-5 w-36 rounded" /><div className="skeleton h-3 w-56 rounded" /></div>
         </div>
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {[...Array(3)].map((_, i) => <div key={i} className="skeleton h-24 rounded-xl" />)}
+          {[...Array(3)].map((_, i) => <SkeletonCard key={i} />)}
         </div>
         <div className="mb-6 skeleton h-10 w-full rounded-lg" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {[...Array(8)].map((_, i) => <div key={i} className="skeleton h-48 rounded-xl" />)}
+          {[...Array(8)].map((_, i) => <SkeletonCard key={i} />)}
         </div>
       </div>
     );
@@ -918,18 +920,12 @@ export default function IntegrationsPage() {
 
       {/* Empty state */}
       {connections.length === 0 && !search && activeCategory === "All" && (
-        <div className="mt-8 flex flex-col items-center justify-center rounded-2xl border border-dashed border-border p-10 text-center">
-          <div className="mb-4 flex items-center gap-2">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10"><Calendar className="h-5 w-5 text-blue-400" /></div>
-            <div className="h-px w-6 bg-gradient-to-r from-blue-400/40 to-purple-400/40" />
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10"><MessageSquare className="h-5 w-5 text-purple-400" /></div>
-            <div className="h-px w-6 bg-gradient-to-r from-purple-400/40 to-green-400/40" />
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-500/10"><Zap className="h-5 w-5 text-green-400" /></div>
-          </div>
-          <h3 className="text-base font-semibold text-foreground">Connect your tools</h3>
-          <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-            Supercharge your agents by connecting the services they need. Start with Google Calendar or Slack.
-          </p>
+        <div className="mt-8">
+          <EmptyState
+            icon={<Plug className="h-7 w-7 text-muted-foreground" />}
+            title="Verbinde deine Tools"
+            description="Integriere Kalender, CRM, E-Mail und mehr mit deinen AI Agents."
+          />
         </div>
       )}
 

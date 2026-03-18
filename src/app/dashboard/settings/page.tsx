@@ -56,6 +56,7 @@ import {
 } from "@/lib/api-access-keys";
 import { cn } from "@/lib/utils";
 import { CreditUsageChart } from "@/components/credit-usage-chart";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface UserPlan {
   plan: "FREE" | "STARTER" | "PRO" | "AGENCY" | "ENTERPRISE" | "ADMIN";
@@ -601,20 +602,17 @@ function SettingsContent() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-8">
-          <div className="skeleton h-9 w-32 rounded-lg" />
-          <div className="skeleton mt-3 h-4 w-64 rounded" />
+      <div className="max-w-2xl mx-auto space-y-6 py-8 px-6">
+        <Skeleton className="h-7 w-32" />
+        <div className="rounded-xl border border-border bg-card/50 p-6 space-y-4">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-10 w-full rounded-lg" />
         </div>
-        <div className="flex gap-1 border-b border-border mb-6">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="skeleton h-10 w-24 rounded-lg" />
-          ))}
-        </div>
-        <div className="space-y-4">
-          <div className="skeleton h-48 w-full rounded-xl" />
-          <div className="skeleton h-32 w-full rounded-xl" />
-        </div>
+        <Skeleton className="h-10 w-24 rounded-lg" />
       </div>
     );
   }

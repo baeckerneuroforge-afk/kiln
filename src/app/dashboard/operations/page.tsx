@@ -29,6 +29,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/toast";
 import { cn } from "@/lib/utils";
+import { SkeletonCard, SkeletonStat } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/error-state";
 
 interface OperationsData {
   eligible: boolean;
@@ -223,20 +225,36 @@ export default function OperationsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[70vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-kiln-orange" />
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <div className="skeleton h-3 w-28 rounded" />
+            <div className="skeleton h-7 w-56 rounded" />
+            <div className="skeleton h-4 w-72 rounded" />
+          </div>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-5">
+          {[...Array(5)].map((_, i) => <SkeletonStat key={i} />)}
+        </div>
+        <div className="grid gap-4 xl:grid-cols-[1.6fr,1fr]">
+          <SkeletonCard className="h-[320px]" />
+          <SkeletonCard className="h-[320px]" />
+        </div>
+        <div className="grid gap-4 xl:grid-cols-[1.15fr,0.85fr]">
+          <SkeletonCard className="h-[240px]" />
+          <SkeletonCard className="h-[240px]" />
+        </div>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="mx-auto max-w-4xl rounded-2xl border border-red-500/20 bg-red-500/5 p-8 text-center">
-        <AlertTriangle className="mx-auto h-10 w-10 text-red-400" />
-        <p className="mt-4 text-lg font-medium text-foreground">{error || "Operations data unavailable"}</p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Reload the page or try again in a moment.
-        </p>
+      <div className="mx-auto max-w-4xl py-12">
+        <ErrorState
+          message={error || "Operations-Daten konnten nicht geladen werden."}
+          onRetry={() => fetchOperations(true)}
+        />
       </div>
     );
   }

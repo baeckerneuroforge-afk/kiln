@@ -3,6 +3,8 @@
 import { Bot, Globe, Zap, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { GettingStartedSection } from "@/components/onboarding-checklist";
+import { SkeletonStat } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/error-state";
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -125,8 +127,12 @@ export default function DashboardPage() {
     leads: 0,
     estimatedValue: 0,
   });
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState<string | null>(null);
 
   const fetchStats = useCallback(async () => {
+    setStatsLoading(true);
+    setStatsError(null);
     try {
       const [agentsRes, analyticsRes] = await Promise.allSettled([
         fetch("/api/agents"),
@@ -151,7 +157,9 @@ export default function DashboardPage() {
 
       setStats({ agents, conversations, leads, estimatedValue });
     } catch {
-      // Fehler stillschweigend behandeln, Stats bleiben auf 0
+      setStatsError("Stats konnten nicht geladen werden.");
+    } finally {
+      setStatsLoading(false);
     }
   }, []);
 
@@ -240,11 +248,23 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="mt-8 grid gap-4 md:grid-cols-4">
-        <StatCard label="Agents" value={stats.agents} />
-        <StatCard label="Conversations" value={stats.conversations} />
-        <StatCard label="Leads" value={stats.leads} />
-        <StatCard label="Est. Value" value={stats.estimatedValue} prefix="€" />
+      <div className="mt-8">
+        {statsLoading ? (
+          <div className="grid gap-4 md:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonStat key={i} />
+            ))}
+          </div>
+        ) : statsError ? (
+          <ErrorState message={statsError} onRetry={fetchStats} compact />
+        ) : (
+          <div className="grid gap-4 md:grid-cols-4">
+            <StatCard label="Agents" value={stats.agents} />
+            <StatCard label="Conversations" value={stats.conversations} />
+            <StatCard label="Leads" value={stats.leads} />
+            <StatCard label="Est. Value" value={stats.estimatedValue} prefix="€" />
+          </div>
+        )}
       </div>
     </div>
   );

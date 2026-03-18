@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { SkeletonCard } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/error-state";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/toast";
 import { getModelDef } from "@/lib/ai";
@@ -53,30 +56,15 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
-function CardSkeleton() {
-  return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <div className="mb-4 flex items-start justify-between">
-        <div className="skeleton h-10 w-10 rounded-lg" />
-        <div className="skeleton h-5 w-14 rounded-full" />
-      </div>
-      <div className="skeleton mb-2 h-5 w-2/3 rounded" />
-      <div className="skeleton mb-4 h-4 w-full rounded" />
-      <div className="flex items-center gap-4">
-        <div className="skeleton h-4 w-24 rounded" />
-        <div className="skeleton h-4 w-16 rounded" />
-      </div>
-    </div>
-  );
-}
-
 export default function AgentsPage() {
   const [agents, setAgents] = useState<AgentWithCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
+  function fetchAgents() {
+    setLoading(true);
+    setError(null);
     fetch("/api/agents")
       .then(async (res) => {
         if (!res.ok) {
@@ -94,6 +82,10 @@ export default function AgentsPage() {
         setError(err.message || "Error loading agents");
       })
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    fetchAgents();
   }, []);
 
   async function handleDelete(id: string, name: string, e: React.MouseEvent) {
@@ -120,9 +112,9 @@ export default function AgentsPage() {
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
         </div>
       </div>
     );
@@ -158,50 +150,15 @@ export default function AgentsPage() {
       )}
 
       {error ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/30 bg-destructive/5 py-12">
-          <p className="mb-2 text-sm font-medium text-destructive">
-            Error: {error}
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="text-sm text-muted-foreground underline hover:text-foreground"
-          >
-            Reload page
-          </button>
-        </div>
+        <ErrorState message={error} onRetry={fetchAgents} />
       ) : agents.length === 0 ? (
-        /* Empty State */
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 py-20">
-          <div className="relative mb-6">
-            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-kiln-orange/10">
-              <Bot className="h-10 w-10 text-kiln-orange" />
-            </div>
-            <div className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-kiln-orange shadow-lg">
-              <Plus className="h-3.5 w-3.5 text-white" />
-            </div>
-          </div>
-          <h2 className="mb-2 text-xl font-semibold text-foreground">
-            Create your first agent in 2 minutes
-          </h2>
-          <p className="mb-8 max-w-md text-center text-sm text-muted-foreground">
-            Describe what your agent should do in natural language — KILN generates the
-            config, knowledge base, and actions automatically.
-          </p>
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard/agents/templates">
-              <Button variant="outline">
-                <Sparkles className="mr-2 h-4 w-4" />
-                Start from Template
-              </Button>
-            </Link>
-            <Link href="/dashboard/agents/new">
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Custom Agent
-              </Button>
-            </Link>
-          </div>
-        </div>
+        <EmptyState
+          icon={<Bot className="h-7 w-7 text-muted-foreground" />}
+          title="Erstelle deinen ersten AI Agent"
+          description="Agents beantworten Fragen, qualifizieren Leads und buchen Termine — rund um die Uhr."
+          actionLabel="Agent erstellen"
+          actionHref="/dashboard/agents/new"
+        />
       ) : (
         /* Agent Cards Grid */
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -29,6 +29,8 @@ import { TeamWebhooksTab } from "@/components/teams/team-webhooks-tab";
 import { TeamPermissionsTab } from "@/components/teams/team-permissions-tab";
 import { TeamCostCalculator } from "@/components/teams/team-cost-calculator";
 import { cn } from "@/lib/utils";
+import { Skeleton, SkeletonTab } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   Users,
   ArrowLeft,
@@ -2281,8 +2283,18 @@ function TeamDetailInner() {
   /* ---- Loading / Error states ---- */
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[80vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+      <div className="h-full overflow-auto">
+        <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-5 w-5" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+          </div>
+          <Skeleton className="h-[400px] w-full rounded-xl" />
+          <SkeletonTab />
+        </div>
       </div>
     );
   }
@@ -2290,8 +2302,7 @@ function TeamDetailInner() {
   if (error || !team) {
     return (
       <div className="flex flex-col items-center justify-center h-[80vh] gap-4">
-        <AlertTriangle className="h-10 w-10 text-red-500" />
-        <p className="text-zinc-400">{error || "Team not found"}</p>
+        <ErrorState message={error || "Team not found"} />
         <Link href="/dashboard/teams">
           <Button variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Teams
