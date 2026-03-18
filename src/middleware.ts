@@ -42,6 +42,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/automations/run",   // Cron-Endpoint (eigene Secret-Auth)
   "/marketplace",            // Public Marketplace
   "/landing-v2",             // Landing V2 Preview
+  "/developers",             // Developer Docs
 ]);
 
 export default clerkMiddleware(async (auth, request) => {

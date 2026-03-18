@@ -11,6 +11,7 @@ interface ChatMessage {
   role: "user" | "assistant" | "human";
   content: string;
   imageUrl?: string;
+  createdAt: string;
 }
 
 interface PublicAgentChatProps {
@@ -20,6 +21,8 @@ interface PublicAgentChatProps {
   suggestedQuestions?: string[];
   primaryColor: string;
   logoUrl?: string | null;
+  avatarUrl?: string | null;
+  soundEnabled?: boolean;
   showPoweredBy: boolean;
   imageAnalysisEnabled?: boolean;
   customCss?: string | null;
@@ -27,6 +30,21 @@ interface PublicAgentChatProps {
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+const RESPONSE_PING =
+  "data:audio/wav;base64,UklGRuQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YcADAACAmaeijnNeWGR9l6ajkHZgWGN7laWkknhhWWJ4kqSklHtjWWB2kKKlln1lWl90jqGlmH9nWl5yi5+lmYJpW15wiZ6lm4RsXF1uhpyknIZuXV1shJqknYlwX1xqgpijnotyYFxpgJajn410YVxnfZSin493Y1xme5KhoJB5ZV1leZCgoJJ7Zl1kd46eoZR9aF5jdYydoZWAal5ic4qcoZaCbF9hcYiaoZiEbmBhcIaZoJmGcGFhboSXoJqIcmJgbYKVn5qJdGRga4CUn5uLdmVgan6SnpyNeGZhaXyQnZyOemhhaHqOnJyQfGlhZ3iMm52RfmtiZnaKmp2Sf21jZnWJmJ2UgW5jZXOHl5yVg3BkZXKFlpyVhXJlZXCDlJyWhnRmZG+Bk5uXiHVnZG5/kZqXindoZW1+j5qYi3lqZWx8jpmYjHtrZWt7jJiYjnxsZWp5i5eZj35uZmp4iZaZkIBvZ2l2h5WYkYFxZ2l1hpSYkoNyaGl0hJKYkoR0aWlzg5GXk4V1amhygZCXk4d3a2hxgI6WlIh4bGlwfo2WlIl6bWlvfYyVlIp7bmlue4qUlYt9b2pueomTlYx+cWpteYeSlI1/cmtteIaRlI6Bc2ttd4WQlI6CdWxtdoOPlI+Ddm1sdYKOk5CEd25sdIGNk5CFeG9tc4CMkpCGenBtc36LkpCHe3Btcn2JkZGIfHJtcnyIkJGJfXNucXuHj5CKfnRucXqGj5CKf3VvcXmFjpCLgXZvcHiEjZCLgndwcHiDjJCMgnhxcHeBi4+Mg3lxcXaAio+MhHpycXZ/iY6NhXtzcXV/iI6Nhnx0cXV+h42Nhn11cnV9hoyNh352cnV8hYyMh392cnR7hIuMiH93c3R7g4qMiIB4c3R6g4mMiIF5dHR6gomLiYJ6dXR5gYiLiYJ7dXV5gIeLiYN7dnV5f4aKiYN8d3V4f4aKiYR9d3V4foWJiYR+eHZ4foSIiYV+eXZ4fYOIiIV/eXd4fYOHiIV/end4fIKHiIWAe3d4fIKGiIWBe3h4fIGFh4WBfHh4fICFh4WBfHl5e4CEhoWCfXp5e4CEhoWCfnp5e3+DhoWCfnt6e3+DhYWCfnt6e36ChYWCf3x6e36ChISCf3x7e36BhISCf317fH6Bg4SCgH18fH6Ag4OCgH18fH6AgoOCgH58fH6AgoOCgH59fX6AgYKCgH99fX6AgYKCgH9+fX5/gYGBgH9+fn5/gIGBgH9+fn5/gIGBgH9/fn9/gICAgH9/f39/gICAgH9/f39/gICAgIA=";
+
+function formatRelativeTime(value: string) {
+  const diffMs = Date.now() - new Date(value).getTime();
+  const seconds = Math.max(0, Math.floor(diffMs / 1000));
+  if (seconds < 15) return "Just now";
+  if (seconds < 60) return `${seconds} sec ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
 
 export function PublicAgentChat({
   agentId,
@@ -35,6 +53,8 @@ export function PublicAgentChat({
   suggestedQuestions,
   primaryColor,
   logoUrl,
+  avatarUrl,
+  soundEnabled = false,
   showPoweredBy,
   imageAnalysisEnabled = false,
   customCss,
@@ -42,7 +62,7 @@ export function PublicAgentChat({
   const sanitizedCustomCss = customCss ? sanitizeCss(customCss) : "";
   const [messages, setMessages] = useState<ChatMessage[]>(
     welcomeMessage
-      ? [{ id: "welcome", role: "assistant", content: welcomeMessage }]
+      ? [{ id: "welcome", role: "assistant", content: welcomeMessage, createdAt: new Date().toISOString() }]
       : []
   );
   const [input, setInput] = useState("");
@@ -52,6 +72,7 @@ export function PublicAgentChat({
   const lastHumanPollRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -73,6 +94,7 @@ export function PublicAgentChat({
           id: m.id,
           role: "human" as const,
           content: m.content,
+          createdAt: m.createdAt,
         }));
         setMessages((prev) => {
           // Deduplicate
@@ -94,6 +116,42 @@ export function PublicAgentChat({
     const interval = setInterval(pollForHumanReplies, 5000);
     return () => clearInterval(interval);
   }, [messages, pollForHumanReplies]);
+
+  function playNotificationSound() {
+    if (!soundEnabled || !document.hidden) return;
+    try {
+      if (!audioRef.current) {
+        audioRef.current = new Audio(RESPONSE_PING);
+        audioRef.current.preload = "auto";
+      }
+      audioRef.current.currentTime = 0;
+      void audioRef.current.play().catch(() => {});
+    } catch {
+      // noop
+    }
+  }
+
+  function renderAgentAvatar(sizeClass: string, iconClass: string) {
+    if (avatarUrl) {
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={avatarUrl}
+          alt={agentName}
+          className={cn(sizeClass, "rounded-full object-cover")}
+        />
+      );
+    }
+
+    return (
+      <div
+        className={cn("flex shrink-0 items-center justify-center rounded-full font-semibold text-white", sizeClass)}
+        style={{ backgroundColor: primaryColor }}
+      >
+        <span className={iconClass}>{agentName.charAt(0).toUpperCase()}</span>
+      </div>
+    );
+  }
 
   function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -124,6 +182,7 @@ export function PublicAgentChat({
       role: "user",
       content: content.trim() || (pendingImage ? "Analyze this image." : ""),
       imageUrl: pendingImage?.dataUrl,
+      createdAt: new Date().toISOString(),
     };
 
     const currentImage = pendingImage;
@@ -136,7 +195,7 @@ export function PublicAgentChat({
     const assistantId = crypto.randomUUID();
     setMessages((prev) => [
       ...prev,
-      { id: assistantId, role: "assistant", content: "" },
+      { id: assistantId, role: "assistant", content: "", createdAt: new Date().toISOString() },
     ]);
 
     try {
@@ -201,6 +260,10 @@ export function PublicAgentChat({
           }
         }
       }
+
+      if (fullText) {
+        playNotificationSound();
+      }
     } catch {
       setMessages((prev) =>
         prev.map((m) =>
@@ -235,7 +298,9 @@ export function PublicAgentChat({
           borderBottom: `1px solid ${primaryColor}15`,
         }}
       >
-        {logoUrl ? (
+        {avatarUrl ? (
+          renderAgentAvatar("h-10 w-10", "text-sm")
+        ) : logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={logoUrl}
@@ -270,16 +335,19 @@ export function PublicAgentChat({
           <div
             key={msg.id}
             className={cn(
-              "flex gap-2.5",
-              msg.role === "user" ? "justify-end" : "justify-start"
+              "group flex flex-col gap-1",
+              msg.role === "user" ? "items-end" : "items-start"
             )}
           >
+            <div
+              className={cn(
+                "flex gap-2.5",
+              msg.role === "user" ? "justify-end" : "justify-start"
+            )}
+            >
             {msg.role === "assistant" && (
-              <div
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full mt-0.5"
-                style={{ backgroundColor: `${primaryColor}20` }}
-              >
-                <Bot className="h-4 w-4" style={{ color: primaryColor }} />
+              <div className="mt-0.5 shrink-0">
+                {renderAgentAvatar("h-7 w-7", "text-xs")}
               </div>
             )}
             {msg.role === "human" && (
@@ -318,10 +386,17 @@ export function PublicAgentChat({
               {msg.content ? (
                 <MarkdownMessage content={msg.content} />
               ) : (
-                <Loader2
-                  className="h-4 w-4 animate-spin"
-                  style={{ color: "#A8A29E" }}
-                />
+                <span className="inline-flex items-center gap-1.5 py-1">
+                  <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-[#A8A29E]" />
+                  <span
+                    className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-[#A8A29E]"
+                    style={{ animationDelay: "120ms" }}
+                  />
+                  <span
+                    className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-[#A8A29E]"
+                    style={{ animationDelay: "240ms" }}
+                  />
+                </span>
               )}
             </div>
             {msg.role === "user" && (
@@ -329,6 +404,15 @@ export function PublicAgentChat({
                 <User className="h-4 w-4" style={{ color: "#A8A29E" }} />
               </div>
             )}
+          </div>
+            <div
+              className={cn(
+                "px-10 text-[10px] text-[#78716C] opacity-0 transition-opacity duration-150 group-hover:opacity-100",
+                msg.role === "user" ? "text-right" : "text-left"
+              )}
+            >
+              {formatRelativeTime(msg.createdAt)}
+            </div>
           </div>
         ))}
 

@@ -113,6 +113,12 @@ type ProactiveRule = {
   message: string;
 };
 
+type WidgetSettings = {
+  avatarUrl: string;
+  autoTheme: boolean;
+  soundEnabled: boolean;
+};
+
 type Tab = "config" | "knowledge" | "actions" | "analytics" | "eval" | "embed" | "channels" | "integrations" | "tools" | "debug" | "logs" | "memory" | "automations" | "versions" | "testing" | "testlab" | "webhooks" | "runs";
 
 const chatBaseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
@@ -187,6 +193,21 @@ function encodeRulesForAttribute(rules: ProactiveRule[]) {
   return JSON.stringify(rules).replace(/'/g, "&apos;");
 }
 
+function getWidgetSettings(whiteLabel: Record<string, unknown> | null | undefined): WidgetSettings {
+  return {
+    avatarUrl:
+      whiteLabel && typeof whiteLabel.avatarUrl === "string" ? whiteLabel.avatarUrl : "",
+    autoTheme:
+      whiteLabel && typeof whiteLabel.autoTheme === "boolean"
+        ? whiteLabel.autoTheme
+        : true,
+    soundEnabled:
+      whiteLabel && typeof whiteLabel.soundEnabled === "boolean"
+        ? whiteLabel.soundEnabled
+        : false,
+  };
+}
+
 export default function AgentDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -219,6 +240,9 @@ export default function AgentDetailPage() {
   const [proactiveEnabled, setProactiveEnabled] = useState(true);
   const [proactiveDelay, setProactiveDelay] = useState(15);
   const [proactiveRules, setProactiveRules] = useState<ProactiveRule[]>([]);
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [widgetAutoTheme, setWidgetAutoTheme] = useState(true);
+  const [widgetSoundEnabled, setWidgetSoundEnabled] = useState(false);
   const [domainVerified, setDomainVerified] = useState<boolean | null>(null);
   const [domainMessage, setDomainMessage] = useState("");
   const [verifyingDomain, setVerifyingDomain] = useState(false);
@@ -269,8 +293,12 @@ export default function AgentDetailPage() {
         setCustomDomain(data.customDomain || "");
         const wl = (data.whiteLabel || {}) as Record<string, unknown>;
         const proactive = getProactiveSettings(wl);
+        const widget = getWidgetSettings(wl);
         setPrimaryColor(typeof wl.primaryColor === "string" ? wl.primaryColor : "#F97316");
         setLogoUrl(typeof wl.logo === "string" ? wl.logo : "");
+        setAvatarUrl(widget.avatarUrl);
+        setWidgetAutoTheme(widget.autoTheme);
+        setWidgetSoundEnabled(widget.soundEnabled);
         setProactiveEnabled(proactive.enabled);
         setProactiveDelay(proactive.delay);
         setProactiveRules(proactive.rules);
@@ -313,6 +341,9 @@ export default function AgentDetailPage() {
             ...existingWhiteLabel,
             primaryColor,
             logo: logoUrl || null,
+            avatarUrl: avatarUrl.trim() || null,
+            autoTheme: widgetAutoTheme,
+            soundEnabled: widgetSoundEnabled,
             position:
               typeof existingWhiteLabel.position === "string"
                 ? existingWhiteLabel.position
@@ -413,6 +444,8 @@ export default function AgentDetailPage() {
       "<script",
       `  src="${host}/api/embed/widget.js"`,
       `  data-agent-id="${agent.id}"`,
+      `  data-auto-theme="${widgetAutoTheme ? "true" : "false"}"`,
+      `  data-sound="${widgetSoundEnabled ? "true" : "false"}"`,
       `  data-proactive-delay="${proactiveEnabled ? Math.max(0, proactiveDelay) : 0}"`,
     ];
 
@@ -1387,8 +1420,12 @@ export default function AgentDetailPage() {
                     setCustomDomain(data.customDomain || "");
                     const wl = (data.whiteLabel || {}) as Record<string, unknown>;
                     const proactive = getProactiveSettings(wl);
+                    const widget = getWidgetSettings(wl);
                     setPrimaryColor(typeof wl.primaryColor === "string" ? wl.primaryColor : "#F97316");
                     setLogoUrl(typeof wl.logo === "string" ? wl.logo : "");
+                    setAvatarUrl(widget.avatarUrl);
+                    setWidgetAutoTheme(widget.autoTheme);
+                    setWidgetSoundEnabled(widget.soundEnabled);
                     setProactiveEnabled(proactive.enabled);
                     setProactiveDelay(proactive.delay);
                     setProactiveRules(proactive.rules);
@@ -1438,6 +1475,85 @@ export default function AgentDetailPage() {
 
           {activeTab === "embed" && (
             <div className="space-y-6">
+              <div className="rounded-xl border border-border bg-card/40 p-5">
+                <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr),220px]">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">Widget Identity & Theme</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Control how the widget looks on external websites without breaking the default embed flow.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                        Avatar URL
+                      </label>
+                      <input
+                        type="url"
+                        value={avatarUrl}
+                        onChange={(event) => setAvatarUrl(event.target.value)}
+                        placeholder="https://cdn.example.com/agent-avatar.png"
+                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+                      />
+                      <p className="mt-2 text-[11px] text-muted-foreground">
+                        Used in the widget bubble and beside agent messages. If empty, KILN generates a letter avatar automatically.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/[0.08] bg-black/10 px-3 py-2 text-sm text-foreground">
+                        <input
+                          type="checkbox"
+                          checked={widgetAutoTheme}
+                          onChange={(event) => setWidgetAutoTheme(event.target.checked)}
+                          className="h-3.5 w-3.5 rounded border-border bg-card text-kiln-orange"
+                        />
+                        Auto-theme from host site
+                      </label>
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/[0.08] bg-black/10 px-3 py-2 text-sm text-foreground">
+                        <input
+                          type="checkbox"
+                          checked={widgetSoundEnabled}
+                          onChange={(event) => setWidgetSoundEnabled(event.target.checked)}
+                          className="h-3.5 w-3.5 rounded border-border bg-card text-kiln-orange"
+                        />
+                        Play response sound
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-white/[0.08] bg-black/20 p-4">
+                    <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      Preview
+                    </p>
+                    <div className="mt-4 flex items-center gap-3">
+                      <div
+                        className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full text-lg font-semibold text-white shadow-lg"
+                        style={{ backgroundColor: primaryColor }}
+                      >
+                        {avatarUrl.trim() ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={avatarUrl}
+                            alt={agent.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          agent.name.charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{agent.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Bubble/avatar will inherit the host color when auto-theme is enabled.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="rounded-xl border border-border bg-card/40 p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -1622,6 +1738,8 @@ export default function AgentDetailPage() {
                   <div className="space-y-1 font-mono text-[11px] text-muted-foreground">
                     <p><span className="text-kiln-orange">data-position</span>=&quot;bottom-left&quot; — Place bubble on the left</p>
                     <p><span className="text-kiln-orange">data-greeting</span>=&quot;Hi! Need help?&quot; — Override the default proactive message</p>
+                    <p><span className="text-kiln-orange">data-auto-theme</span>=&quot;true&quot; — Detect the host website accent color automatically</p>
+                    <p><span className="text-kiln-orange">data-sound</span>=&quot;true&quot; — Play a subtle response ping when the tab is unfocused</p>
                     <p><span className="text-kiln-orange">data-proactive-delay</span>=&quot;15&quot; — Delay before the proactive popup appears</p>
                     <p><span className="text-kiln-orange">data-proactive-rules</span>=&apos;[&#123;&quot;match&quot;:&quot;pricing&quot;,&quot;message&quot;:&quot;Looking at pricing?&quot;&#125;]&apos; — Custom URL pattern rules</p>
                   </div>

@@ -54,6 +54,15 @@ export async function GET(
     greeting: agent.welcomeMessage || "",
     color: typeof wl.primaryColor === "string" ? wl.primaryColor : "#F97316",
     logo: typeof wl.logo === "string" ? wl.logo : null,
+    avatarUrl: typeof wl.avatarUrl === "string" ? wl.avatarUrl : null,
+    autoTheme:
+      typeof wl.autoTheme === "boolean"
+        ? wl.autoTheme
+        : true,
+    soundEnabled:
+      typeof wl.soundEnabled === "boolean"
+        ? wl.soundEnabled
+        : false,
     position: typeof wl.position === "string" ? wl.position : "bottom-right",
     proactive: {
       enabled: proactive?.enabled !== false,

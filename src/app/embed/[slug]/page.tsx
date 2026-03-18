@@ -4,10 +4,15 @@ import { PublicAgentChat } from "@/components/agents/public-agent-chat";
 
 interface Props {
   params: { slug: string };
+  searchParams?: { theme?: string; sound?: string };
+}
+
+function isValidHexColor(value: string | undefined): value is string {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
 }
 
 // Embed-Seite — wird im iframe geladen, kein Layout nötig
-export default async function EmbedPage({ params }: Props) {
+export default async function EmbedPage({ params, searchParams }: Props) {
   const agent = await prisma.agent.findUnique({
     where: { slug: params.slug },
     select: {
@@ -28,8 +33,16 @@ export default async function EmbedPage({ params }: Props) {
     notFound();
   }
 
-  const whiteLabel = (agent.whiteLabel as Record<string, string>) || {};
-  const primaryColor = whiteLabel.primaryColor || "#F97316";
+  const whiteLabel = (agent.whiteLabel as Record<string, unknown>) || {};
+  const primaryColor = isValidHexColor(searchParams?.theme)
+    ? searchParams!.theme
+    : (typeof whiteLabel.primaryColor === "string" ? whiteLabel.primaryColor : "#F97316");
+  const soundEnabled =
+    searchParams?.sound === "1"
+      ? true
+      : typeof whiteLabel.soundEnabled === "boolean"
+      ? whiteLabel.soundEnabled
+      : false;
 
   const effectiveWelcome = agent.showAiDisclaimer
     ? `I am an AI assistant.${agent.welcomeMessage ? ` ${agent.welcomeMessage}` : ""}`
@@ -42,10 +55,12 @@ export default async function EmbedPage({ params }: Props) {
       welcomeMessage={effectiveWelcome}
       suggestedQuestions={agent.suggestedQuestions}
       primaryColor={primaryColor}
-      logoUrl={whiteLabel.logo || null}
+      logoUrl={typeof whiteLabel.logo === "string" ? whiteLabel.logo : null}
+      avatarUrl={typeof whiteLabel.avatarUrl === "string" ? whiteLabel.avatarUrl : null}
+      soundEnabled={soundEnabled}
       showPoweredBy={agent.showPoweredBy}
       imageAnalysisEnabled={agent.imageAnalysisEnabled}
-      customCss={whiteLabel.customCss || null}
+      customCss={typeof whiteLabel.customCss === "string" ? whiteLabel.customCss : null}
     />
   );
 }

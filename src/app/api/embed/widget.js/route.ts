@@ -23,6 +23,8 @@ export async function GET(request: NextRequest) {
 
   var configuredPosition = scriptTag.getAttribute('data-position') || '';
   var greetingOverride = scriptTag.getAttribute('data-greeting') || '';
+  var autoThemeAttr = scriptTag.getAttribute('data-auto-theme');
+  var soundAttr = scriptTag.getAttribute('data-sound');
   var proactiveDelayAttr = scriptTag.getAttribute('data-proactive-delay');
   var proactiveRulesAttr = scriptTag.getAttribute('data-proactive-rules');
 
@@ -59,6 +61,11 @@ export async function GET(request: NextRequest) {
 
   var customRules = parseRules(proactiveRulesAttr);
 
+  function isTruthy(value, fallbackValue) {
+    if (value === null || value === undefined || value === '') return fallbackValue;
+    return String(value).toLowerCase() !== 'false';
+  }
+
   // Fetch agent config (slug, color, name)
   fetch('${origin}/api/embed/config/' + agentId)
     .then(function(res) {
@@ -71,8 +78,10 @@ export async function GET(request: NextRequest) {
   function buildWidget(config) {
     var color = config.color || '#F97316';
     var slug = config.slug;
-    var embedUrl = '${origin}/embed/' + slug;
     var position = configuredPosition || config.position || 'bottom-right';
+    var avatarUrl = config.avatarUrl || '';
+    var autoThemeEnabled = isTruthy(autoThemeAttr, config.autoTheme !== false);
+    var soundEnabled = isTruthy(soundAttr, config.soundEnabled === true);
     var proactiveConfig = config.proactive || {};
     var proactiveEnabled = proactiveConfig.enabled !== false;
     var proactiveDelay = proactiveDelayAttr !== null
@@ -86,10 +95,87 @@ export async function GET(request: NextRequest) {
     var hasInteracted = false;
     var proactiveVisible = false;
 
+    function parseColorValue(value) {
+      if (!value || typeof value !== 'string') return null;
+      var trimmed = value.trim();
+      if (!trimmed || trimmed === 'transparent') return null;
+      if (trimmed.charAt(0) === '#') {
+        if (trimmed.length === 4) {
+          return {
+            r: parseInt(trimmed.charAt(1) + trimmed.charAt(1), 16),
+            g: parseInt(trimmed.charAt(2) + trimmed.charAt(2), 16),
+            b: parseInt(trimmed.charAt(3) + trimmed.charAt(3), 16),
+          };
+        }
+        if (trimmed.length === 7) {
+          return {
+            r: parseInt(trimmed.slice(1, 3), 16),
+            g: parseInt(trimmed.slice(3, 5), 16),
+            b: parseInt(trimmed.slice(5, 7), 16),
+          };
+        }
+      }
+      var match = trimmed.match(/rgba?\\(([^)]+)\\)/i);
+      if (!match) return null;
+      var parts = match[1].split(',').map(function(part) { return parseFloat(part.trim()); });
+      if (parts.length < 3) return null;
+      if (parts.length > 3 && parts[3] === 0) return null;
+      return {
+        r: Math.max(0, Math.min(255, Math.round(parts[0]))),
+        g: Math.max(0, Math.min(255, Math.round(parts[1]))),
+        b: Math.max(0, Math.min(255, Math.round(parts[2]))),
+      };
+    }
+
+    function rgbToHex(rgb) {
+      return '#' + [rgb.r, rgb.g, rgb.b]
+        .map(function(channel) { return channel.toString(16).padStart(2, '0'); })
+        .join('');
+    }
+
+    function scoreColor(rgb, weight) {
+      var max = Math.max(rgb.r, rgb.g, rgb.b);
+      var min = Math.min(rgb.r, rgb.g, rgb.b);
+      var saturation = max - min;
+      var brightness = (rgb.r + rgb.g + rgb.b) / 3;
+      if (brightness > 245 || brightness < 20) return -1;
+      if (saturation < 18) return -1;
+      return saturation * 2 + Math.abs(128 - brightness) + weight;
+    }
+
+    function pickColorFromElements(selector, property, weight, limit) {
+      var best = null;
+      var nodes = document.querySelectorAll(selector);
+      for (var i = 0; i < nodes.length && i < limit; i++) {
+        var styles = window.getComputedStyle(nodes[i]);
+        var rgb = parseColorValue(styles[property]);
+        if (!rgb) continue;
+        var score = scoreColor(rgb, weight);
+        if (score < 0) continue;
+        if (!best || score > best.score) {
+          best = { score: score, value: rgbToHex(rgb) };
+        }
+      }
+      return best ? best.value : null;
+    }
+
+    function detectHostAccentColor(fallback) {
+      var candidates = [
+        pickColorFromElements('button, [role="button"], input[type="submit"], input[type="button"], .btn, [class*="button"]', 'backgroundColor', 28, 8),
+        pickColorFromElements('a, [class*="link"]', 'color', 18, 10),
+        pickColorFromElements('header, nav, [class*="header"], [class*="nav"]', 'backgroundColor', 12, 6),
+        pickColorFromElements('body, main', 'backgroundColor', 4, 2),
+      ].filter(Boolean);
+      return candidates[0] || fallback;
+    }
+
+    var effectiveColor = autoThemeEnabled ? detectHostAccentColor(color) : color;
+    var embedUrl = '${origin}/embed/' + slug + '?theme=' + encodeURIComponent(effectiveColor) + '&sound=' + (soundEnabled ? '1' : '0');
+
     // Parse color to RGB for shadows
-    var r = parseInt(color.slice(1, 3), 16) || 249;
-    var g = parseInt(color.slice(3, 5), 16) || 115;
-    var b = parseInt(color.slice(5, 7), 16) || 22;
+    var r = parseInt(effectiveColor.slice(1, 3), 16) || 249;
+    var g = parseInt(effectiveColor.slice(3, 5), 16) || 115;
+    var b = parseInt(effectiveColor.slice(5, 7), 16) || 22;
 
     // Inject styles
     var style = document.createElement('style');
@@ -178,7 +264,7 @@ export async function GET(request: NextRequest) {
     bubble.setAttribute('aria-label', 'Open chat');
     bubble.style.cssText = [
       'width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;',
-      'background:' + color + ';color:#fff;',
+      'background:' + effectiveColor + ';color:#fff;',
       'display:flex;align-items:center;justify-content:center;',
       'box-shadow:0 4px 24px rgba(' + r + ',' + g + ',' + b + ',0.4);',
       'transition:transform 0.2s ease,box-shadow 0.2s ease;',
@@ -188,7 +274,29 @@ export async function GET(request: NextRequest) {
 
     var chatIcon = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
     var closeIcon = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-    bubble.innerHTML = chatIcon;
+
+    function getInitial() {
+      return String(config.name || 'K').trim().charAt(0).toUpperCase() || 'K';
+    }
+
+    function setBubbleClosedContent() {
+      bubble.innerHTML = '';
+      if (avatarUrl) {
+        var avatar = document.createElement('img');
+        avatar.src = avatarUrl;
+        avatar.alt = config.name || 'Agent';
+        avatar.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;';
+        bubble.appendChild(avatar);
+        return;
+      }
+
+      var label = document.createElement('span');
+      label.textContent = getInitial();
+      label.style.cssText = 'font-size:20px;font-weight:700;letter-spacing:-0.03em;';
+      bubble.appendChild(label);
+    }
+
+    setBubbleClosedContent();
 
     bubble.onmouseenter = function() { markInteraction(); bubble.style.transform = 'scale(1.1)'; bubble.style.boxShadow = '0 6px 32px rgba(' + r + ',' + g + ',' + b + ',0.55)'; };
     bubble.onmouseleave = function() { if (!isOpen) { bubble.style.transform = 'scale(1)'; bubble.style.boxShadow = '0 4px 24px rgba(' + r + ',' + g + ',' + b + ',0.4)'; } };
@@ -302,7 +410,7 @@ export async function GET(request: NextRequest) {
         bubble.setAttribute('aria-label', 'Close chat');
       } else {
         frameWrap.className = 'kiln-closing';
-        bubble.innerHTML = chatIcon;
+        setBubbleClosedContent();
         bubble.classList.remove('kiln-open');
         bubble.setAttribute('aria-label', 'Open chat');
         setTimeout(function() {

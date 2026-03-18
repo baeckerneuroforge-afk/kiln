@@ -492,7 +492,7 @@ export default function LandingPageV2() {
             <a href="#features" className="transition-colors hover:text-white">Features</a>
             <a href="#pricing" className="transition-colors hover:text-white">Pricing</a>
             <Link href="/marketplace" className="transition-colors hover:text-white">Marketplace</Link>
-            <a href="#developers" className="transition-colors hover:text-white">Developers</a>
+            <Link href="/developers" className="transition-colors hover:text-white">Developers</Link>
           </div>
           <div className="flex items-center gap-3">
             <Link href="/sign-in" className="text-[13px] text-neutral-400 transition-colors hover:text-white">
@@ -1305,7 +1305,7 @@ export default function LandingPageV2() {
                 <li><a href="#features" className="hover:text-neutral-300">Features</a></li>
                 <li><a href="#pricing" className="hover:text-neutral-300">Pricing</a></li>
                 <li><Link href="/marketplace" className="hover:text-neutral-300">Marketplace</Link></li>
-                <li><a href="#developers" className="hover:text-neutral-300">Developers</a></li>
+                <li><Link href="/developers" className="hover:text-neutral-300">Developers</Link></li>
               </ul>
             </div>
             <div>
