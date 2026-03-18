@@ -100,6 +100,8 @@ export interface ReplayStep {
   sharedContextBefore: Record<string, unknown>;
   sharedContextAfter: Record<string, unknown>;
   sharedContextDelta: Record<string, unknown>;
+  strategy: "primary" | "fallback_agent" | "fallback_model";
+  fallbackEvent: string | null;
   prompt: ReplayPromptData;
   routing: ReplayRoutingData;
   metrics: ReplayMetrics;
@@ -119,6 +121,7 @@ export interface TeamExecutionReplayResponse {
     completedTasks: number;
     failedTasks: number;
     executionContext: Record<string, unknown>;
+    trigger: "manual" | "scheduled" | null;
   };
   team: {
     id: string;

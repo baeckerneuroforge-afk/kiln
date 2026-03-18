@@ -24,6 +24,9 @@ export async function GET(
       where: { teamId: params.id },
       include: {
         agent: { select: { id: true, name: true, slug: true, description: true } },
+        fallbackAgent: {
+          select: { id: true, name: true, slug: true, description: true },
+        },
         reportsTo: {
           include: {
             agent: { select: { id: true, name: true } },
@@ -75,6 +78,11 @@ export async function POST(
       outputSchema,
       enabledActions,
       config,
+      executionMode,
+      fallbackAgentId,
+      fallbackModel,
+      fallbackEnabled,
+      maxRetries,
     } = body;
     const levelMap = {
       HEAD: 0,
@@ -145,6 +153,13 @@ export async function POST(
         reportsToMemberId: reportsToMemberId || null,
         outputSchema: outputSchema || undefined,
         enabledActions: enabledActions || [],
+        executionMode: executionMode || "sequential",
+        fallbackAgentId: fallbackAgentId || null,
+        fallbackModel: fallbackModel || null,
+        fallbackEnabled:
+          typeof fallbackEnabled === "boolean" ? fallbackEnabled : true,
+        maxRetries:
+          typeof maxRetries === "number" && maxRetries >= 0 ? maxRetries : 2,
         config:
           role === "APPROVAL_GATE"
             ? {
@@ -157,6 +172,7 @@ export async function POST(
       },
       include: {
         agent: { select: { id: true, name: true, slug: true } },
+        fallbackAgent: { select: { id: true, name: true, slug: true } },
       },
     });
 
@@ -197,6 +213,11 @@ export async function PATCH(
       enabledActions,
       config,
       feedbackLoop,
+      executionMode,
+      fallbackAgentId,
+      fallbackModel,
+      fallbackEnabled,
+      maxRetries,
     } = body;
     const levelMap = {
       HEAD: 0,
@@ -253,6 +274,11 @@ export async function PATCH(
     if (enabledActions !== undefined) updateData.enabledActions = enabledActions;
     if (config !== undefined) updateData.config = config;
     if (feedbackLoop !== undefined) updateData.feedbackLoop = feedbackLoop;
+    if (executionMode !== undefined) updateData.executionMode = executionMode;
+    if (fallbackAgentId !== undefined) updateData.fallbackAgentId = fallbackAgentId || null;
+    if (fallbackModel !== undefined) updateData.fallbackModel = fallbackModel || null;
+    if (fallbackEnabled !== undefined) updateData.fallbackEnabled = fallbackEnabled;
+    if (maxRetries !== undefined) updateData.maxRetries = Math.max(0, Number(maxRetries) || 0);
     if (role !== undefined && role in levelMap) {
       updateData.level = levelMap[role as keyof typeof levelMap];
     }
@@ -262,6 +288,7 @@ export async function PATCH(
       data: updateData,
       include: {
         agent: { select: { id: true, name: true, slug: true } },
+        fallbackAgent: { select: { id: true, name: true, slug: true } },
         reportsTo: {
           include: { agent: { select: { id: true, name: true } } },
         },

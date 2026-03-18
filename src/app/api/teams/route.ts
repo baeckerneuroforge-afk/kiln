@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { deployTeamTemplate } from "@/lib/team-templates";
 import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
+import { describeTeamSchedule, normalizeTeamScheduleConfig } from "@/lib/team-schedule";
 
 // List all teams for the user
 export async function GET() {
@@ -25,7 +26,20 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return Response.json(teams);
+    return Response.json(
+      teams.map((team) => {
+        const schedule = normalizeTeamScheduleConfig(
+          team.config && typeof team.config === "object"
+            ? (team.config as Record<string, unknown>).schedule
+            : null
+        );
+
+        return {
+          ...team,
+          scheduleSummary: describeTeamSchedule(schedule),
+        };
+      })
+    );
   } catch (err) {
     console.error("GET /api/teams error:", err);
     const message = err instanceof Error ? err.message : "Server error";

@@ -69,6 +69,7 @@ interface ExecutionTimelineItem {
   latestStatus: string;
   latestOutput: string | null;
   latestError: string | null;
+  parallelGroup: string | null;
   attempts: ExecutionAttempt[];
 }
 
@@ -640,7 +641,70 @@ export function TeamExecutionsTab({
                     No task logs recorded for this execution.
                   </div>
                 ) : (
-                  detail.timeline.map((task) => {
+                  (() => {
+                    // Group parallel tasks for side-by-side rendering
+                    const rendered = new Set<number>();
+                    return detail.timeline.map((task, tIdx) => {
+                      if (rendered.has(tIdx)) return null;
+
+                      // Find parallel siblings
+                      const parallelSiblings = task.parallelGroup
+                        ? detail.timeline
+                            .map((t, i) => ({ t, i }))
+                            .filter(({ t, i }) => t.parallelGroup === task.parallelGroup && i >= tIdx)
+                        : [{ t: task, i: tIdx }];
+
+                      parallelSiblings.forEach(({ i }) => rendered.add(i));
+
+                      if (parallelSiblings.length > 1) {
+                        return (
+                          <div key={`pg-${task.parallelGroup}`} className="space-y-2">
+                            <div className="flex items-center gap-2 px-1">
+                              <div className="h-px flex-1 bg-indigo-500/20" />
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-400">⚡ Parallel Branch</span>
+                              <div className="h-px flex-1 bg-indigo-500/20" />
+                            </div>
+                            <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(parallelSiblings.length, 3)}, 1fr)` }}>
+                              {parallelSiblings.map(({ t: pTask }) => {
+                                const pAttempt = pTask.attempts[pTask.attempts.length - 1];
+                                const pFailed = pTask.latestStatus === "FAILED" || pTask.latestStatus === "REJECTED";
+                                return (
+                                  <div
+                                    key={`${detail.execution.id}-${pTask.taskIndex}`}
+                                    className={cn(
+                                      "rounded-xl border p-3",
+                                      pFailed ? "border-red-500/30 bg-red-500/5" : pTask.latestStatus === "COMPLETED" ? "border-green-500/20 bg-green-500/5" : "border-indigo-500/20 bg-indigo-500/5"
+                                    )}
+                                  >
+                                    <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                                      <span className="text-[9px] uppercase tracking-wider text-zinc-500">Task {pTask.taskIndex + 1}</span>
+                                      <span className={cn("rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase", statusStyles[pTask.latestStatus] || statusStyles.PENDING)}>{pTask.latestStatus}</span>
+                                    </div>
+                                    <p className="text-xs font-medium text-zinc-100 mb-1">{pTask.taskTitle}</p>
+                                    <p className="text-[10px] text-zinc-500 mb-2">{pTask.assignedAgentName || "Unassigned"}</p>
+                                    <div className="rounded-md border border-zinc-800 bg-zinc-950/60 p-2">
+                                      <pre className={cn("whitespace-pre-wrap break-words text-[10px]", pFailed ? "text-red-300" : "text-zinc-300")}>
+                                        {pFailed ? (pTask.latestError || "Error") : (pTask.latestOutput?.slice(0, 300) || "No output")}
+                                        {!pFailed && pTask.latestOutput && pTask.latestOutput.length > 300 ? "…" : ""}
+                                      </pre>
+                                    </div>
+                                    {pAttempt && (
+                                      <p className="text-[9px] text-zinc-600 mt-1">{formatDuration(pAttempt.startedAt && pAttempt.completedAt ? new Date(pAttempt.completedAt).getTime() - new Date(pAttempt.startedAt).getTime() : null)}</p>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return task;
+                    }).map((taskOrElement, idx) => {
+                      if (!taskOrElement || typeof taskOrElement !== "object" || !("taskIndex" in taskOrElement)) return taskOrElement;
+                      const task = taskOrElement as ExecutionTimelineItem;
+                      // Original sequential task rendering
+                      void idx;
                     const latestAttempt = task.attempts[task.attempts.length - 1];
                     const isFailed = task.latestStatus === "FAILED" || task.latestStatus === "REJECTED";
                     const isAwaitingApproval = task.latestStatus === "AWAITING_APPROVAL";
@@ -756,7 +820,8 @@ export function TeamExecutionsTab({
                         </div>
                       </div>
                     );
-                  })
+                  });
+                  })()
                 )}
               </div>
             </div>

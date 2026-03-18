@@ -74,6 +74,7 @@ interface TeamMember {
   outputSchema?: OutputSchemaField[] | null;
   enabledActions?: string[];
   feedbackLoop?: { targetMemberId: string; maxIterations: number; qualityField: string; qualityThreshold: number } | null;
+  executionMode?: string;
   createdAt: string;
 }
 
@@ -162,6 +163,7 @@ type VisualNodeData = {
   enabledActionsCount?: number;
   hasOutputSchema?: boolean;
   hasFeedbackLoop?: boolean;
+  isParallel?: boolean;
   schemaFields?: string[];
   executionStatus?:
     | "pending"
@@ -287,6 +289,13 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
           <span className="inline-flex items-center gap-1 text-[9px] bg-violet-500/10 text-violet-400 px-1.5 py-0.5 rounded-full">
             <Database className="h-2 w-2" />
             JSON
+          </span>
+        )}
+
+        {data.isParallel && (
+          <span className="inline-flex items-center gap-1 text-[9px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded-full">
+            <Zap className="h-2 w-2" />
+            Parallel
           </span>
         )}
 
@@ -476,6 +485,7 @@ function membersToFlowElements(
         agentMode,
         enabledActionsCount: m.enabledActions?.length || 0,
         hasOutputSchema: Array.isArray(m.outputSchema) && m.outputSchema.length > 0,
+        isParallel: m.executionMode === "parallel",
         hasFeedbackLoop: !!m.feedbackLoop,
         schemaFields,
         executionStatus: execMap.get(m.id),

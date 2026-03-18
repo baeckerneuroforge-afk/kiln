@@ -219,6 +219,38 @@ export async function sendWeeklySummaryEmail(userId: string, stats: {
   await sendEmail(email, subject, html);
 }
 
+export async function sendTeamScheduleCompletionEmail(params: {
+  to: string;
+  teamName: string;
+  goal: string;
+  executionId: string;
+  status: string;
+  completedTasks: number;
+  failedTasks: number;
+}) {
+  if (!params.to) return;
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
+  const subject = `Scheduled team run finished: ${params.teamName}`;
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;color:#1a1a1a">
+      <p>Your scheduled team run for <strong>${escapeHtml(params.teamName)}</strong> has finished.</p>
+      <div style="background:#f5f5f5;border-radius:8px;padding:12px 16px;margin:16px 0;font-size:14px;color:#333">
+        <p style="margin:0"><strong>Status:</strong> ${escapeHtml(params.status)}</p>
+        <p style="margin:8px 0 0"><strong>Completed tasks:</strong> ${params.completedTasks}</p>
+        <p style="margin:8px 0 0"><strong>Failed tasks:</strong> ${params.failedTasks}</p>
+        <p style="margin:8px 0 0"><strong>Input:</strong> ${escapeHtml(params.goal)}</p>
+      </div>
+      <a href="${appUrl}/dashboard/teams" style="display:inline-block;background:#F97316;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500">
+        Open Team Executions
+      </a>
+      <p style="color:#888;font-size:12px;margin-top:24px">Execution ID: ${escapeHtml(params.executionId)}</p>
+      <p style="color:#888;font-size:12px">— The KILN Team</p>
+    </div>`;
+
+  await sendEmail(params.to, subject, html);
+}
+
 export async function sendTeamApprovalRequestEmail(params: {
   approverEmail: string;
   teamName: string;

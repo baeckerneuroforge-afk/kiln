@@ -2,6 +2,10 @@ import { NextRequest } from "next/server";
 import { waitUntil } from "@vercel/functions";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import {
+  getExecutionContextMeta,
+  stripExecutionContextMeta,
+} from "@/lib/team-execution-metadata";
 import { resolveTimedOutApprovalIfNeeded } from "@/lib/services/team-approval-runtime";
 
 export async function GET(
@@ -57,9 +61,14 @@ export async function GET(
         totalTasks: execution.totalTasks,
         completedTasks: execution.completedTasks,
         failedTasks: execution.failedTasks,
+        trigger: getExecutionContextMeta(execution.executionContext).trigger || null,
         sharedContextFields:
           execution.executionContext && typeof execution.executionContext === "object"
-            ? Object.keys(execution.executionContext as Record<string, unknown>).length
+            ? Object.keys(
+                stripExecutionContextMeta(
+                  execution.executionContext as Record<string, unknown>
+                )
+              ).length
             : 0,
         latestApproval: execution.approvalRequests[0]
           ? {

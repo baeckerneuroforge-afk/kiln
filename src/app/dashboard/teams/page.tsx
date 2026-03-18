@@ -26,6 +26,9 @@ import {
   Wand2,
   Wrench,
   Check,
+  Heart,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -1534,6 +1537,7 @@ export default function TeamsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [creatingTemplate, setCreatingTemplate] = useState<string | null>(null);
+  const [healthScores, setHealthScores] = useState<Record<string, { overall: number; color: "green" | "yellow" | "red"; direction: "up" | "down" | "stable" }>>({});
 
   function fetchTeams() {
     setLoading(true);
@@ -1546,8 +1550,23 @@ export default function TeamsPage() {
         return res.json();
       })
       .then((data) => {
-        if (Array.isArray(data)) setTeams(data);
-        else throw new Error("Unexpected API response");
+        if (Array.isArray(data)) {
+          setTeams(data);
+          // Fetch health scores for all teams
+          for (const t of data as Team[]) {
+            fetch(`/api/teams/${t.id}/health`)
+              .then((r) => (r.ok ? r.json() : null))
+              .then((hs) => {
+                if (hs && typeof hs.overall === "number") {
+                  setHealthScores((prev) => ({
+                    ...prev,
+                    [t.id]: { overall: hs.overall, color: hs.color, direction: hs.trend?.direction || "stable" },
+                  }));
+                }
+              })
+              .catch(() => {});
+          }
+        } else throw new Error("Unexpected API response");
       })
       .catch((err) => {
         console.error("Failed to load teams:", err);
@@ -1794,22 +1813,40 @@ export default function TeamsPage() {
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10 transition-colors group-hover:bg-kiln-orange/15">
                       <Users className="h-5 w-5 text-kiln-orange" />
                     </div>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                        team.status === "ACTIVE"
-                          ? "bg-kiln-green/10 text-kiln-green"
-                          : "bg-amber-500/10 text-amber-500"
-                      }`}
-                    >
-                      <span className="inline-flex items-center gap-1">
-                        {team.status === "ACTIVE" ? (
-                          <Play className="h-2.5 w-2.5" />
-                        ) : (
-                          <Pause className="h-2.5 w-2.5" />
-                        )}
-                        {team.status === "ACTIVE" ? "Active" : "Paused"}
+                    <div className="flex items-center gap-1.5">
+                      {healthScores[team.id] && (
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            healthScores[team.id].color === "green"
+                              ? "bg-kiln-green/10 text-kiln-green"
+                              : healthScores[team.id].color === "yellow"
+                              ? "bg-amber-500/10 text-amber-400"
+                              : "bg-red-500/10 text-red-400"
+                          }`}
+                        >
+                          <Heart className="h-2.5 w-2.5" />
+                          {healthScores[team.id].overall}%
+                          {healthScores[team.id].direction === "up" && <TrendingUp className="h-2.5 w-2.5" />}
+                          {healthScores[team.id].direction === "down" && <TrendingDown className="h-2.5 w-2.5" />}
+                        </span>
+                      )}
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                          team.status === "ACTIVE"
+                            ? "bg-kiln-green/10 text-kiln-green"
+                            : "bg-amber-500/10 text-amber-500"
+                        }`}
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          {team.status === "ACTIVE" ? (
+                            <Play className="h-2.5 w-2.5" />
+                          ) : (
+                            <Pause className="h-2.5 w-2.5" />
+                          )}
+                          {team.status === "ACTIVE" ? "Active" : "Paused"}
+                        </span>
                       </span>
-                    </span>
+                    </div>
                   </div>
 
                   {/* Name + Goal */}

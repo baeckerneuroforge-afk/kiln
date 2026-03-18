@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { TeamExecutionTaskStatus } from "@prisma/client";
 import { estimateCost, singleAgentEquivalentCost, MODEL_PRICING } from "@/lib/model-pricing";
+import { getTaskRuntimeMeta } from "@/lib/team-execution-metadata";
 import { getModelDef } from "@/lib/ai";
 
 export async function GET(
@@ -43,6 +44,8 @@ export async function GET(
         model: true,
         estimatedCost: true,
         executionId: true,
+        input: true,
+        completedAt: true,
       },
     });
 
@@ -61,6 +64,11 @@ export async function GET(
     let totalTeamTokensIn = 0;
     let totalTeamTokensOut = 0;
     let totalTeamCost = 0;
+    let fallbackCostThisMonth = 0;
+    let fallbackActivationsThisMonth = 0;
+    const startOfMonth = new Date();
+    startOfMonth.setUTCDate(1);
+    startOfMonth.setUTCHours(0, 0, 0, 0);
 
     for (const log of logs) {
       const agentId = log.agentId || "unknown";
@@ -72,6 +80,17 @@ export async function GET(
       totalTeamTokensIn += tokensIn;
       totalTeamTokensOut += tokensOut;
       totalTeamCost += cost;
+
+      const runtimeMeta = getTaskRuntimeMeta(log.input);
+      if (
+        runtimeMeta.strategy &&
+        runtimeMeta.strategy !== "primary" &&
+        log.completedAt &&
+        log.completedAt >= startOfMonth
+      ) {
+        fallbackCostThisMonth += cost;
+        fallbackActivationsThisMonth += 1;
+      }
 
       const existing = agentStats.get(agentId);
       if (existing) {
@@ -147,6 +166,8 @@ export async function GET(
       costPerExecution: Number(costPerExecution.toFixed(6)),
       singleAgentEquivalent: Number(singleAgentCost.toFixed(6)),
       savingsPercent: Math.max(0, savingsPercent),
+      fallbackCostThisMonth: Number(fallbackCostThisMonth.toFixed(6)),
+      fallbackActivationsThisMonth,
       agentBreakdown,
       modelsUsed,
     });

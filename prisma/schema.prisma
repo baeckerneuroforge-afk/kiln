@@ -162,6 +162,7 @@ model Agent {
   channels           AgentChannel[]
   teamMembers        TeamMember[]
   agentTeamMembers   AgentTeamMember[] @relation("AgentTeamMembers")
+  fallbackForMembers AgentTeamMember[] @relation("TeamFallbackAgent")
   teamExecutionLogs  TeamExecutionLog[]
   runs               AgentRun[]
 
@@ -854,6 +855,11 @@ model AgentTeamMember {
   team               AgentTeam         @relation(fields: [teamId], references: [id], onDelete: Cascade)
   agentId            String?
   agent              Agent?            @relation("AgentTeamMembers", fields: [agentId], references: [id], onDelete: Cascade)
+  fallbackAgentId    String?
+  fallbackAgent      Agent?            @relation("TeamFallbackAgent", fields: [fallbackAgentId], references: [id], onDelete: SetNull)
+  fallbackModel      String?
+  fallbackEnabled    Boolean           @default(true)
+  maxRetries         Int               @default(2)
   role               AgentTeamRole
   level              Int               @default(0) // 0 = top (HEAD), 1 = COORDINATOR, 2 = EXECUTOR/REPORTER
   responsibilities   String?           @db.Text
@@ -864,11 +870,13 @@ model AgentTeamMember {
   outputSchema       Json?             // Structured output schema: [{ field, type, description }]
   enabledActions     String[]          // Scoped actions for team context (empty = all agent actions)
   feedbackLoop       Json?             // { targetMemberId, maxIterations, qualityField, qualityThreshold }
+  executionMode      String            @default("sequential") // "sequential" | "parallel"
   approvalRequests   ApprovalRequest[]
   createdAt          DateTime          @default(now())
 
   @@index([teamId])
   @@index([agentId])
+  @@index([fallbackAgentId])
 }
 
 model AgentTeamTask {
@@ -929,6 +937,7 @@ model TeamExecutionLog {
   agent         Agent?                  @relation(fields: [agentId], references: [id], onDelete: SetNull)
   attempt       Int                     @default(1)
   status        TeamExecutionTaskStatus @default(PENDING)
+  parallelGroup String?                 // Groups logs that ran in parallel
   input         Json?
   output        String?                 @db.Text
   structuredOutput Json?                // Extracted JSON from agent output

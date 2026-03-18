@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getTeamSchedulePreview } from "@/lib/team-schedule";
 
 // Get single team with members, tasks, and hierarchy
 export async function GET(
@@ -19,6 +20,7 @@ export async function GET(
         members: {
           include: {
             agent: { select: { id: true, name: true, slug: true, description: true, llmModel: true, modelProvider: true, agentMode: true, systemPrompt: true } },
+            fallbackAgent: { select: { id: true, name: true, slug: true, description: true, llmModel: true, modelProvider: true } },
             reportsTo: {
               include: {
                 agent: { select: { id: true, name: true } },
@@ -43,7 +45,14 @@ export async function GET(
       return Response.json({ error: "Team not found" }, { status: 404 });
     }
 
-    return Response.json(team);
+    return Response.json({
+      ...team,
+      schedulePreview: getTeamSchedulePreview(
+        team.config && typeof team.config === "object"
+          ? (team.config as Record<string, unknown>).schedule
+          : null
+      ),
+    });
   } catch (err) {
     console.error("GET /api/teams/[id] error:", err);
     const message = err instanceof Error ? err.message : "Server error";

@@ -5,6 +5,11 @@ import type { AgentTeamRole, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
 import { estimateCost } from "@/lib/model-pricing";
+import {
+  getExecutionContextMeta,
+  getTaskRuntimeMeta,
+  stripExecutionContextMeta,
+} from "@/lib/team-execution-metadata";
 import { resolveTimedOutApprovalIfNeeded } from "@/lib/services/team-approval-runtime";
 import {
   buildTaskMessage,
@@ -398,6 +403,11 @@ export async function GET(
                     knowledgeBases: { where: { embeddingStatus: "READY" } },
                   },
                 },
+                fallbackAgent: {
+                  include: {
+                    knowledgeBases: { where: { embeddingStatus: "READY" } },
+                  },
+                },
               },
               orderBy: { level: "asc" },
             },
@@ -515,6 +525,7 @@ export async function GET(
     const rawSteps = await Promise.all(
       execution.logs.map(async (log) => {
         const inputRecord = toPlainObject(log.input);
+        const runtimeMeta = getTaskRuntimeMeta(log.input);
         const task = toTaskInput(log, inputRecord);
         const previousOutputs = parsePreviousOutputs(inputRecord.previousOutputs);
         const sharedContextBefore = toPlainObject(inputRecord.sharedContext);
@@ -628,6 +639,8 @@ export async function GET(
           previousOutputs,
           sharedContextBefore,
           sharedContextAfter,
+          strategy: runtimeMeta.strategy || "primary",
+          fallbackEvent: runtimeMeta.fallbackEvent || null,
           prompt,
           metrics: {
             tokensIn: log.tokensIn || 0,
@@ -716,7 +729,10 @@ export async function GET(
         totalTasks: execution.totalTasks,
         completedTasks: execution.completedTasks,
         failedTasks: execution.failedTasks,
-        executionContext: toPlainObject(execution.executionContext),
+        executionContext: stripExecutionContextMeta(
+          toPlainObject(execution.executionContext)
+        ),
+        trigger: getExecutionContextMeta(execution.executionContext).trigger || null,
       },
       team: {
         id: execution.team.id,

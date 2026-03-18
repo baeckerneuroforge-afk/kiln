@@ -49,6 +49,9 @@ import {
   LayoutGrid,
   List,
   BookOpen,
+  Heart,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import {
   PROVIDERS,
@@ -97,6 +100,7 @@ interface TeamMember {
   outputSchema?: OutputSchemaField[] | null;
   enabledActions?: string[];
   feedbackLoop?: { targetMemberId: string; maxIterations: number; qualityField: string; qualityThreshold: number } | null;
+  executionMode?: string;
   createdAt: string;
 }
 
@@ -484,6 +488,9 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
   const [agentActions, setAgentActions] = useState<string[]>([]);
   const [enabledActions, setEnabledActions] = useState<string[]>([]);
 
+  // Execution mode
+  const [executionMode, setExecutionMode] = useState<"sequential" | "parallel">("sequential");
+
   // Feedback loop
   const [loopEnabled, setLoopEnabled] = useState(false);
   const [loopTargetMemberId, setLoopTargetMemberId] = useState("");
@@ -507,6 +514,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
     setOutputType(member.agent?.outputType || "");
     setSchemaFields((member.outputSchema as OutputSchemaField[]) || []);
     setEnabledActions(member.enabledActions || []);
+    setExecutionMode((member.executionMode as "sequential" | "parallel") || "sequential");
     const fl = member.feedbackLoop;
     if (fl) {
       setLoopEnabled(true);
@@ -603,6 +611,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
           reportsToMemberId: reportsToMemberId || null,
           outputSchema: schemaFields.length > 0 ? schemaFields : null,
           enabledActions,
+          executionMode,
           feedbackLoop: loopEnabled && loopTargetMemberId && loopQualityField
             ? { targetMemberId: loopTargetMemberId, maxIterations: loopMaxIterations, qualityField: loopQualityField, qualityThreshold: loopQualityThreshold }
             : null,
@@ -1055,6 +1064,42 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                   </div>
                 </div>
               )}
+
+              {/* ── Execution Mode ── */}
+              <div className="space-y-1.5 border-t border-zinc-800 pt-4">
+                <label className="text-xs font-medium text-zinc-400">Execution Mode</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setExecutionMode("sequential")}
+                    className={cn(
+                      "flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
+                      executionMode === "sequential"
+                        ? "border-orange-500/40 bg-orange-500/10 text-orange-400"
+                        : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
+                    )}
+                  >
+                    Sequential
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExecutionMode("parallel")}
+                    className={cn(
+                      "flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
+                      executionMode === "parallel"
+                        ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-400"
+                        : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
+                    )}
+                  >
+                    ⚡ Parallel
+                  </button>
+                </div>
+                <p className="text-[10px] text-zinc-500">
+                  {executionMode === "parallel"
+                    ? "This agent runs simultaneously with sibling agents that share the same parent and are also set to parallel."
+                    : "This agent runs sequentially in the execution order."}
+                </p>
+              </div>
 
               {/* ── Feedback Loop ── */}
               <div className="space-y-1.5 border-t border-zinc-800 pt-4">
@@ -1568,6 +1613,17 @@ function TeamDetailInner() {
   const [nodePositions, setNodePositions] = useState<Record<string, { x: number; y: number }>>({});
   const [teamKnowledgeCount, setTeamKnowledgeCount] = useState(0);
 
+  // Health score
+  const [healthScore, setHealthScore] = useState<{
+    overall: number;
+    color: "green" | "yellow" | "red";
+    categories: { name: string; score: number; weight: number; explanation: string }[];
+    weakestLink: { agentName: string; memberId: string; errorRate: number; suggestion: string } | null;
+    trend: { current: number; previous: number; direction: "up" | "down" | "stable" };
+    suggestions: string[];
+  } | null>(null);
+  const [showHealthBreakdown, setShowHealthBreakdown] = useState(false);
+
   /* Fetch team data */
   const fetchTeam = useCallback(async () => {
     try {
@@ -1586,6 +1642,11 @@ function TeamDetailInner() {
       fetch(`/api/teams/${teamId}/knowledge`)
         .then((r) => (r.ok ? r.json() : []))
         .then((entries: unknown[]) => setTeamKnowledgeCount(entries.length))
+        .catch(() => {});
+      // Fetch health score
+      fetch(`/api/teams/${teamId}/health`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((hs) => { if (hs && typeof hs.overall === "number") setHealthScore(hs); })
         .catch(() => {});
       setError(null);
     } catch (err) {
@@ -1935,6 +1996,24 @@ function TeamDetailInner() {
           >
             {team.status}
           </span>
+
+          {/* Health badge */}
+          {healthScore && (
+            <button
+              onClick={() => setShowHealthBreakdown(!showHealthBreakdown)}
+              className={cn(
+                "flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all hover:scale-105",
+                healthScore.color === "green" && "bg-green-500/15 text-green-400 border-green-500/30",
+                healthScore.color === "yellow" && "bg-amber-500/15 text-amber-400 border-amber-500/30",
+                healthScore.color === "red" && "bg-red-500/15 text-red-400 border-red-500/30"
+              )}
+            >
+              <Heart className="h-3 w-3" />
+              {healthScore.overall}%
+              {healthScore.trend.direction === "up" && <TrendingUp className="h-3 w-3" />}
+              {healthScore.trend.direction === "down" && <TrendingDown className="h-3 w-3" />}
+            </button>
+          )}
         </div>
 
         {/* Action buttons */}
@@ -1994,6 +2073,70 @@ function TeamDetailInner() {
           </div>
         </div>
       </div>
+
+      {/* ===== Health Score Breakdown ===== */}
+      {showHealthBreakdown && healthScore && (
+        <div className="mx-6 mt-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 animate-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
+              <Heart className="h-4 w-4 text-orange-400" />
+              Team Health Score
+            </h3>
+            <button onClick={() => setShowHealthBreakdown(false)} className="text-zinc-500 hover:text-zinc-300">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-5 gap-3 mb-3">
+            {healthScore.categories.map((cat) => {
+              const catColor = cat.score >= 80 ? "green" : cat.score >= 50 ? "amber" : "red";
+              return (
+                <div key={cat.name} className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-medium text-zinc-400 truncate">{cat.name}</span>
+                    <span className="text-[10px] text-zinc-500">{Math.round(cat.weight * 100)}%</span>
+                  </div>
+                  <div className={cn(
+                    "text-lg font-bold",
+                    catColor === "green" && "text-green-400",
+                    catColor === "amber" && "text-amber-400",
+                    catColor === "red" && "text-red-400"
+                  )}>{cat.score}</div>
+                  <div className="mt-1.5 h-1 rounded-full bg-zinc-800 overflow-hidden">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        catColor === "green" && "bg-green-500",
+                        catColor === "amber" && "bg-amber-500",
+                        catColor === "red" && "bg-red-500"
+                      )}
+                      style={{ width: `${cat.score}%` }}
+                    />
+                  </div>
+                  <p className="text-[9px] text-zinc-500 mt-1.5 line-clamp-2">{cat.explanation}</p>
+                </div>
+              );
+            })}
+          </div>
+          {healthScore.weakestLink && (
+            <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 mb-2">
+              <p className="text-[11px] text-red-400">
+                <AlertTriangle className="h-3 w-3 inline mr-1" />
+                <strong>Schwachstelle:</strong> {healthScore.weakestLink.suggestion}
+              </p>
+            </div>
+          )}
+          {healthScore.suggestions.length > 0 && (
+            <div className="space-y-1">
+              {healthScore.suggestions.map((s, i) => (
+                <p key={i} className="text-[10px] text-zinc-400 flex items-start gap-1.5">
+                  <Sparkles className="h-3 w-3 text-orange-400 mt-0.5 shrink-0" />
+                  {s}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ===== Tab navigation ===== */}
       <div className="flex items-center gap-1 px-6 pt-3 border-b border-border">

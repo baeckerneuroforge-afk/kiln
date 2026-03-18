@@ -106,6 +106,11 @@ async function loadLatestApprovalExecution(
                   knowledgeBases: { where: { embeddingStatus: "READY" } },
                 },
               },
+              fallbackAgent: {
+                include: {
+                  knowledgeBases: { where: { embeddingStatus: "READY" } },
+                },
+              },
             },
             orderBy: { level: "asc" },
           },

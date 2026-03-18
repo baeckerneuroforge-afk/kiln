@@ -2,6 +2,11 @@ import { NextRequest } from "next/server";
 import { waitUntil } from "@vercel/functions";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import {
+  getExecutionContextMeta,
+  getTaskRuntimeMeta,
+  stripExecutionContextMeta,
+} from "@/lib/team-execution-metadata";
 import { resolveTimedOutApprovalIfNeeded } from "@/lib/services/team-approval-runtime";
 import {
   executeTeamExecution,
@@ -23,6 +28,7 @@ function groupExecutionTimeline(
     startedAt: Date | null;
     completedAt: Date | null;
     error: string | null;
+    parallelGroup: string | null;
     agent: { id: string; name: string } | null;
     task: {
       id: string;
@@ -45,6 +51,7 @@ function groupExecutionTimeline(
     latestStatus: string;
     latestOutput: string | null;
     latestError: string | null;
+    parallelGroup: string | null;
     attempts: Array<{
       id: string;
       attempt: number;
@@ -53,6 +60,8 @@ function groupExecutionTimeline(
       output: string | null;
       structuredOutput: unknown;
       error: string | null;
+      strategy: string;
+      fallbackEvent: string | null;
       startedAt: Date | null;
       completedAt: Date | null;
       durationMs: number | null;
@@ -61,6 +70,7 @@ function groupExecutionTimeline(
   }>();
 
   for (const log of logs) {
+    const runtimeMeta = getTaskRuntimeMeta(log.input);
     const existing = grouped.get(log.taskIndex) || {
       taskIndex: log.taskIndex,
       taskId: log.taskId,
@@ -71,6 +81,7 @@ function groupExecutionTimeline(
       latestStatus: log.status,
       latestOutput: log.output,
       latestError: log.error,
+      parallelGroup: log.parallelGroup || null,
       attempts: [],
     };
 
@@ -82,6 +93,8 @@ function groupExecutionTimeline(
       output: log.output,
       structuredOutput: log.structuredOutput,
       error: log.error,
+      strategy: runtimeMeta.strategy || "primary",
+      fallbackEvent: runtimeMeta.fallbackEvent || null,
       startedAt: log.startedAt,
       completedAt: log.completedAt,
       durationMs: log.startedAt && log.completedAt
@@ -234,10 +247,12 @@ export async function GET(
         totalTasks: execution.totalTasks,
         completedTasks: execution.completedTasks,
         failedTasks: execution.failedTasks,
-        executionContext:
+        executionContext: stripExecutionContextMeta(
           execution.executionContext && typeof execution.executionContext === "object"
-            ? execution.executionContext
-            : {},
+            ? (execution.executionContext as Record<string, unknown>)
+            : {}
+        ),
+        trigger: getExecutionContextMeta(execution.executionContext).trigger || null,
         durationMs: execution.completedAt
           ? execution.completedAt.getTime() - execution.startedAt.getTime()
           : null,

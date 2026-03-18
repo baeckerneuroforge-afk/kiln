@@ -11,14 +11,23 @@ import {
 import {
   getClaudeClient,
   getClaudeClientWithKey,
+  getModelDef,
   MODEL_PROVIDER_MAP,
 } from "@/lib/ai";
 import { deductCredits } from "@/lib/credits";
 import { decrypt } from "@/lib/encryption";
 import { sendTeamApprovalRequestEmail } from "@/lib/email-notifications";
 import { emitEvent } from "@/lib/events";
+import { estimateCost } from "@/lib/model-pricing";
 import { prisma } from "@/lib/prisma";
 import { searchRelevantChunksMulti } from "@/lib/rag";
+import {
+  getExecutionContextMeta,
+  setExecutionContextMeta,
+  setTaskRuntimeMeta,
+  stripExecutionContextMeta,
+  type TeamExecutionRuntimeStrategy,
+} from "@/lib/team-execution-metadata";
 import {
   normalizeApprovalGateConfig,
 } from "@/lib/team-approval";
@@ -27,6 +36,11 @@ const teamExecutionRuntimeInclude = {
   members: {
     include: {
       agent: {
+        include: {
+          knowledgeBases: { where: { embeddingStatus: "READY" } },
+        },
+      },
+      fallbackAgent: {
         include: {
           knowledgeBases: { where: { embeddingStatus: "READY" } },
         },
@@ -61,6 +75,9 @@ interface TeamTaskResult {
   output: string;
   structuredOutput: TeamSharedContext;
   model: string;
+  tokensIn: number;
+  tokensOut: number;
+  estimatedCost: number;
 }
 
 export interface FeedbackLoopConfig {
@@ -122,17 +139,22 @@ function toPlainObject(value: unknown): TeamSharedContext {
   return JSON.parse(JSON.stringify(value)) as TeamSharedContext;
 }
 
+function getVisibleExecutionContext(context: TeamSharedContext) {
+  return stripExecutionContextMeta(context);
+}
+
 function cleanContextDelta(
   input: unknown,
   currentContext: TeamSharedContext
 ): TeamSharedContext {
+  const visibleContext = getVisibleExecutionContext(currentContext);
   const record = toPlainObject(input);
   const next: TeamSharedContext = {};
 
   for (const [key, value] of Object.entries(record)) {
     if (!key.trim()) continue;
     if (value === undefined) continue;
-    if (JSON.stringify(currentContext[key]) === JSON.stringify(value)) continue;
+    if (JSON.stringify(visibleContext[key]) === JSON.stringify(value)) continue;
     next[key] = value;
   }
 
@@ -147,6 +169,32 @@ function mergeExecutionContext(
     ...currentContext,
     ...delta,
   };
+}
+
+function getMemberMaxRetries(
+  member: TeamExecutionRuntimeTeam["members"][number]
+) {
+  return typeof member.maxRetries === "number" && member.maxRetries >= 0
+    ? member.maxRetries
+    : 2;
+}
+
+function shouldStopOnFailure(team: TeamExecutionRuntimeTeam) {
+  const config = toPlainObject(team.config);
+  const execution = toPlainObject(config.execution);
+  return execution.stopOnFailure === true;
+}
+
+function describeFallbackTarget(params: {
+  agentName: string;
+  model: string | null | undefined;
+}) {
+  if (!params.model) {
+    return params.agentName;
+  }
+
+  const modelDef = getModelDef(params.model);
+  return `${params.agentName} (${modelDef?.shortLabel || params.model})`;
 }
 
 export function getMemberDisplayName(
@@ -172,6 +220,8 @@ function buildTaskInput(
   previousOutputs: PriorExecutionOutput[],
   executionContext: TeamSharedContext
 ) {
+  const sharedContext = getVisibleExecutionContext(executionContext);
+
   return {
     teamId: team.id,
     teamName: team.name,
@@ -193,7 +243,7 @@ function buildTaskInput(
           agentMode: member.agent?.agentMode || null,
         }
       : null,
-    sharedContext: executionContext,
+    sharedContext,
     previousOutputs: previousOutputs.map((item) => ({
       taskIndex: item.taskIndex,
       title: item.title,
@@ -209,6 +259,7 @@ export function buildTaskMessage(
   previousOutputs: PriorExecutionOutput[],
   executionContext: TeamSharedContext
 ) {
+  const sharedContext = getVisibleExecutionContext(executionContext);
   const previousOutputText =
     previousOutputs.length > 0
       ? previousOutputs
@@ -221,8 +272,8 @@ export function buildTaskMessage(
       : "No previous task outputs yet.";
 
   const sharedContextText =
-    Object.keys(executionContext).length > 0
-      ? JSON.stringify(executionContext, null, 2)
+    Object.keys(sharedContext).length > 0
+      ? JSON.stringify(sharedContext, null, 2)
       : "{}";
 
   return `You are executing a sub-task as part of the team workflow.
@@ -273,6 +324,7 @@ async function extractStructuredContextDelta(
   output: string,
   currentContext: TeamSharedContext
 ) {
+  const visibleContext = getVisibleExecutionContext(currentContext);
   const trimmed = output.trim();
   if (!trimmed) {
     return {};
@@ -281,7 +333,7 @@ async function extractStructuredContextDelta(
   try {
     const parsed = JSON.parse(trimmed);
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return cleanContextDelta(parsed, currentContext);
+      return cleanContextDelta(parsed, visibleContext);
     }
   } catch {
     // Fall back to model-based extraction.
@@ -301,7 +353,7 @@ Return a valid JSON object only.
 - If there is no new information, return {}.
 
 Existing shared context:
-${JSON.stringify(currentContext, null, 2)}`,
+${JSON.stringify(visibleContext, null, 2)}`,
       messages: [
         {
           role: "user",
@@ -322,7 +374,7 @@ ${JSON.stringify(currentContext, null, 2)}`,
 
     return cleanContextDelta(
       JSON.parse(text.replace(/```json?\n?/g, "").replace(/```/g, "").trim()),
-      currentContext
+      visibleContext
     );
   } catch {
     return {};
@@ -335,14 +387,19 @@ async function runTeamMemberTask(
   task: TeamExecutionTaskInput,
   goal: string,
   previousOutputs: PriorExecutionOutput[],
-  executionContext: TeamSharedContext
+  executionContext: TeamSharedContext,
+  options?: {
+    agentOverride?: TeamExecutionRuntimeTeam["members"][number]["agent"] | null;
+    modelOverride?: string | null;
+  }
 ): Promise<TeamTaskResult> {
-  const agent = member.agent;
+  const agent = options?.agentOverride || member.agent;
   if (!agent) {
     throw new Error("This team member is not linked to an AI agent.");
   }
 
-  const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+  const selectedModel =
+    options?.modelOverride || agent.llmModel || "claude-sonnet-4-20250514";
   const modelProvider =
     MODEL_PROVIDER_MAP[selectedModel] || agent.modelProvider || "ANTHROPIC";
 
@@ -370,6 +427,7 @@ async function runTeamMemberTask(
     previousOutputs,
     executionContext
   );
+  const visibleExecutionContext = getVisibleExecutionContext(executionContext);
 
   // Search both agent KB and team KB
   let knowledgeContext = "";
@@ -383,7 +441,7 @@ async function runTeamMemberTask(
       const chunks = await searchRelevantChunksMulti(
         agent.id,
         team.id,
-        `${task.title}\n${task.description || ""}\n${JSON.stringify(executionContext)}`,
+        `${task.title}\n${task.description || ""}\n${JSON.stringify(visibleExecutionContext)}`,
         8
       );
       if (chunks.length > 0) {
@@ -400,11 +458,13 @@ async function runTeamMemberTask(
 
 ${getRoleDirective(member.role)}
 You are working inside the team "${team.name}".
-Shared team context: ${JSON.stringify(executionContext, null, 2)}.
+Shared team context: ${JSON.stringify(visibleExecutionContext, null, 2)}.
 Use this information. After completing your task, include any new information you learned.
 Respond with the execution result only.${knowledgeContext}`;
 
   let output = "";
+  let tokensIn = 0;
+  let tokensOut = 0;
 
   if (modelProvider === "GOOGLE") {
     if (!userApiKey) {
@@ -435,6 +495,11 @@ Respond with the execution result only.${knowledgeContext}`;
 
     const data = await response.json();
     output = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    tokensIn = data?.usageMetadata?.promptTokenCount || 0;
+    tokensOut =
+      data?.usageMetadata?.candidatesTokenCount ||
+      data?.usageMetadata?.outputTokenCount ||
+      0;
   } else if (
     modelProvider === "OPENAI" ||
     modelProvider === "PERPLEXITY" ||
@@ -472,6 +537,8 @@ Respond with the execution result only.${knowledgeContext}`;
     });
 
     output = response.choices[0]?.message?.content || "";
+    tokensIn = response.usage?.prompt_tokens || 0;
+    tokensOut = response.usage?.completion_tokens || 0;
   } else {
     const client = userApiKey
       ? getClaudeClientWithKey(userApiKey)
@@ -487,6 +554,8 @@ Respond with the execution result only.${knowledgeContext}`;
       .filter((block): block is Anthropic.TextBlock => block.type === "text")
       .map((block) => block.text)
       .join("\n");
+    tokensIn = response.usage?.input_tokens || 0;
+    tokensOut = response.usage?.output_tokens || 0;
   }
 
   if (!output.trim()) {
@@ -504,10 +573,22 @@ Respond with the execution result only.${knowledgeContext}`;
     executionContext
   );
 
+  if (!tokensIn) {
+    tokensIn =
+      Math.ceil(taskMessage.length / 4) + Math.ceil(systemPrompt.length / 4);
+  }
+  if (!tokensOut) {
+    tokensOut = Math.ceil(output.length / 4);
+  }
+  const cost = estimateCost(selectedModel, tokensIn, tokensOut);
+
   return {
     output: output.trim(),
     structuredOutput,
     model: selectedModel,
+    tokensIn,
+    tokensOut,
+    estimatedCost: cost,
   };
 }
 
@@ -666,6 +747,348 @@ export async function loadTeamExecutionRuntimeContext(teamId: string, userId: st
   });
 }
 
+interface TeamExecutionAttemptPlan {
+  attempt: number;
+  strategy: TeamExecutionRuntimeStrategy;
+  agent: TeamExecutionRuntimeTeam["members"][number]["agent"];
+  modelOverride?: string | null;
+  fallbackEvent?: string | null;
+}
+
+interface TeamExecutionAttemptResult {
+  succeeded: boolean;
+  output?: string;
+  model?: string;
+  contextDelta: TeamSharedContext;
+  executionContext: TeamSharedContext;
+  error?: string;
+  attempt: number;
+  strategy: TeamExecutionRuntimeStrategy;
+  fallbackEvent?: string | null;
+}
+
+function buildExecutionAttemptPlans(
+  member: TeamExecutionRuntimeTeam["members"][number]
+) {
+  const plans: TeamExecutionAttemptPlan[] = [];
+  const retryCount = getMemberMaxRetries(member);
+
+  for (let retryIndex = 0; retryIndex <= retryCount; retryIndex += 1) {
+    plans.push({
+      attempt: retryIndex + 1,
+      strategy: "primary",
+      agent: member.agent,
+      modelOverride: null,
+      fallbackEvent: null,
+    });
+  }
+
+  if (!member.fallbackEnabled) {
+    return plans;
+  }
+
+  let nextAttempt = plans.length + 1;
+
+  if (member.fallbackAgent) {
+    plans.push({
+      attempt: nextAttempt,
+      strategy: "fallback_agent",
+      agent: member.fallbackAgent,
+      fallbackEvent: `Primary agent failed after ${retryCount} retries. Falling back to ${describeFallbackTarget({
+        agentName: member.fallbackAgent.name,
+        model: member.fallbackAgent.llmModel,
+      })}.`,
+    });
+    nextAttempt += 1;
+  }
+
+  if (member.fallbackModel && member.agent) {
+    plans.push({
+      attempt: nextAttempt,
+      strategy: "fallback_model",
+      agent: member.agent,
+      modelOverride: member.fallbackModel,
+      fallbackEvent: member.fallbackAgent
+        ? `Fallback agent failed. Falling back to ${describeFallbackTarget({
+            agentName: member.agent.name,
+            model: member.fallbackModel,
+          })}.`
+        : `Primary agent failed after ${retryCount} retries. Falling back to ${describeFallbackTarget({
+            agentName: member.agent.name,
+            model: member.fallbackModel,
+          })}.`,
+    });
+  }
+
+  return plans;
+}
+
+async function executeTaskWithFallback({
+  executionId,
+  team,
+  member,
+  task,
+  goal,
+  previousOutputs,
+  executionContext,
+  parallelGroupId,
+}: {
+  executionId: string;
+  team: TeamExecutionRuntimeTeam;
+  member: TeamExecutionRuntimeTeam["members"][number];
+  task: TeamExecutionTaskInput;
+  goal: string;
+  previousOutputs: PriorExecutionOutput[];
+  executionContext: TeamSharedContext;
+  parallelGroupId?: string | null;
+}): Promise<TeamExecutionAttemptResult> {
+  const plans = buildExecutionAttemptPlans(member);
+  let currentExecutionContext = { ...executionContext };
+  let lastError = "Task execution failed";
+
+  await prisma.agentTeamTask.update({
+    where: { id: task.id },
+    data: {
+      status: TeamExecutionTaskStatus.RUNNING,
+      result: null,
+    },
+  });
+
+  for (const plan of plans) {
+    const baseInputPayload = buildTaskInput(
+      team,
+      task,
+      member,
+      previousOutputs,
+      currentExecutionContext
+    );
+
+    const attemptInput = setTaskRuntimeMeta(baseInputPayload, {
+      strategy: plan.strategy,
+      fallbackEvent: plan.fallbackEvent || null,
+      fallbackAgentId: plan.agent?.id || null,
+      fallbackAgentName: plan.agent?.name || null,
+      fallbackModel: plan.modelOverride || plan.agent?.llmModel || null,
+      maxRetries: getMemberMaxRetries(member),
+    });
+
+    const log = await prisma.teamExecutionLog.create({
+      data: {
+        teamId: team.id,
+        executionId,
+        taskId: task.id,
+        taskIndex: task.taskIndex,
+        taskTitle: task.title,
+        agentId: plan.agent?.id || null,
+        ...(parallelGroupId ? { parallelGroup: parallelGroupId } : {}),
+        attempt: plan.attempt,
+        status: TeamExecutionTaskStatus.RUNNING,
+        startedAt: new Date(),
+        input: toJsonValue(attemptInput),
+      },
+    });
+
+    try {
+      const result = await runTeamMemberTask(
+        team,
+        member,
+        task,
+        goal,
+        previousOutputs,
+        currentExecutionContext,
+        {
+          agentOverride: plan.agent,
+          modelOverride: plan.modelOverride,
+        }
+      );
+
+      const contextDelta = cleanContextDelta(
+        result.structuredOutput,
+        currentExecutionContext
+      );
+      currentExecutionContext = mergeExecutionContext(
+        currentExecutionContext,
+        contextDelta
+      );
+
+      await prisma.$transaction([
+        prisma.teamExecutionLog.update({
+          where: { id: log.id },
+          data: {
+            status: TeamExecutionTaskStatus.COMPLETED,
+            output: result.output,
+            structuredOutput: toJsonValue(contextDelta),
+            model: result.model,
+            tokensIn: result.tokensIn,
+            tokensOut: result.tokensOut,
+            estimatedCost: result.estimatedCost,
+            completedAt: new Date(),
+            input: toJsonValue({
+              ...attemptInput,
+              sharedContextAfter: getVisibleExecutionContext(currentExecutionContext),
+              sharedContextDelta: contextDelta,
+            }),
+          },
+        }),
+        prisma.agentTeamTask.update({
+          where: { id: task.id },
+          data: {
+            status: TeamExecutionTaskStatus.COMPLETED,
+            result: result.output.slice(0, 5000),
+          },
+        }),
+      ]);
+
+      return {
+        succeeded: true,
+        output: result.output,
+        model: result.model,
+        contextDelta,
+        executionContext: currentExecutionContext,
+        attempt: plan.attempt,
+        strategy: plan.strategy,
+        fallbackEvent: plan.fallbackEvent || null,
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Task execution failed";
+      lastError = message;
+
+      await prisma.teamExecutionLog.update({
+        where: { id: log.id },
+        data: {
+          status: TeamExecutionTaskStatus.FAILED,
+          error: message,
+          completedAt: new Date(),
+        },
+      });
+    }
+  }
+
+  await prisma.agentTeamTask.update({
+    where: { id: task.id },
+    data: {
+      status: TeamExecutionTaskStatus.FAILED,
+      result: lastError.slice(0, 5000),
+    },
+  });
+
+  return {
+    succeeded: false,
+    contextDelta: {},
+    executionContext: currentExecutionContext,
+    error: lastError,
+    attempt: plans[plans.length - 1]?.attempt || 1,
+    strategy: plans[plans.length - 1]?.strategy || "primary",
+    fallbackEvent: plans[plans.length - 1]?.fallbackEvent || null,
+  };
+}
+
+/* ── Parallel execution helpers ── */
+
+interface ParallelBranchResult {
+  memberId: string;
+  taskIndex: number;
+  taskTitle: string;
+  output: string;
+  structuredOutput: TeamSharedContext;
+  model: string;
+  succeeded: boolean;
+  error?: string;
+}
+
+/**
+ * Detect which tasks in the ordered list can run in parallel.
+ * Tasks are parallel if they share the same reportsToMemberId AND
+ * the reporting member has executionMode === "parallel".
+ * Returns groups of consecutive task indices that should be executed together.
+ */
+function detectParallelGroups(
+  orderedTasks: TeamExecutionTaskInput[],
+  team: TeamExecutionRuntimeTeam
+): Map<number, number[]> {
+  // Build map of memberId → executionMode
+  const memberModeMap = new Map<string, string>();
+  const memberParentMap = new Map<string, string | null>();
+  for (const m of team.members) {
+    memberModeMap.set(m.id, (m.executionMode as string) || "sequential");
+    memberParentMap.set(m.id, m.reportsToMemberId);
+  }
+
+  // Group tasks by their assigned member's reportsToMemberId
+  const groups = new Map<number, number[]>(); // startIndex → [indices]
+  let i = 0;
+  while (i < orderedTasks.length) {
+    const task = orderedTasks[i];
+    const memberId = task.assignedToId;
+    if (!memberId) { i++; continue; }
+
+    const parentId = memberParentMap.get(memberId);
+    if (!parentId) { i++; continue; }
+
+    // Check if THIS member has executionMode "parallel"
+    const memberMode = memberModeMap.get(memberId);
+    if (memberMode !== "parallel") { i++; continue; }
+
+    // Find all consecutive tasks at the same level with same parent and parallel mode
+    const parallelIndices = [i];
+    let j = i + 1;
+    while (j < orderedTasks.length) {
+      const nextTask = orderedTasks[j];
+      const nextMemberId = nextTask.assignedToId;
+      if (!nextMemberId) break;
+      const nextParent = memberParentMap.get(nextMemberId);
+      const nextMode = memberModeMap.get(nextMemberId);
+      if (nextParent === parentId && nextMode === "parallel") {
+        parallelIndices.push(j);
+        j++;
+      } else {
+        break;
+      }
+    }
+
+    if (parallelIndices.length > 1) {
+      groups.set(i, parallelIndices);
+      i = j; // Skip past the parallel group
+    } else {
+      i++;
+    }
+  }
+
+  return groups;
+}
+
+/**
+ * Merge context updates from parallel branches.
+ * Last-write-wins for conflicting keys, but we track conflicts.
+ */
+function mergeParallelContexts(
+  baseContext: TeamSharedContext,
+  branchDeltas: { memberId: string; delta: TeamSharedContext }[]
+): { merged: TeamSharedContext; conflicts: { field: string; writers: string[] }[] } {
+  const fieldWriters = new Map<string, string[]>();
+  const merged = { ...baseContext };
+
+  for (const { memberId, delta } of branchDeltas) {
+    for (const [key, value] of Object.entries(delta)) {
+      if (!fieldWriters.has(key)) {
+        fieldWriters.set(key, []);
+      }
+      fieldWriters.get(key)!.push(memberId);
+      merged[key] = value;
+    }
+  }
+
+  const conflicts: { field: string; writers: string[] }[] = [];
+  fieldWriters.forEach((writers, field) => {
+    if (writers.length > 1) {
+      conflicts.push({ field, writers });
+    }
+  });
+
+  return { merged, conflicts };
+}
+
 export async function executeTeamExecution({
   executionId,
   team,
@@ -680,13 +1103,139 @@ export async function executeTeamExecution({
   const previousOutputs = [...priorOutputs];
   let completedTasks = initialCompletedTasks;
   let failedTasks = initialFailedTasks;
-  let executionContext = { ...initialExecutionContext };
+  let executionContext = getExecutionContextMeta(initialExecutionContext).trigger
+    ? { ...initialExecutionContext }
+    : setExecutionContextMeta(
+        { ...initialExecutionContext },
+        { trigger: "manual" }
+      );
   let pausedForApproval = false;
+  const stopOnFailure = shouldStopOnFailure(team);
 
   try {
     const orderedTasks = [...tasks].sort((a, b) => a.taskIndex - b.taskIndex);
+    const parallelGroups = detectParallelGroups(orderedTasks, team);
 
     for (let index = 0; index < orderedTasks.length; index += 1) {
+      // ── Check if this index starts a parallel group ──
+      const parallelIndices = parallelGroups.get(index);
+      if (parallelIndices && parallelIndices.length > 1) {
+        const parallelGroupId = crypto.randomBytes(8).toString("hex");
+        const contextSnapshot = { ...executionContext };
+        const branchOutputsCopy = [...previousOutputs];
+
+        // Run all parallel tasks simultaneously
+        const branchPromises = parallelIndices.map(async (taskIdx) => {
+          const pTask = orderedTasks[taskIdx];
+          const pMember = team.members.find((item) => item.id === pTask.assignedToId) || null;
+
+          if (!pMember || !pMember.agent) {
+            return { memberId: pMember?.id || "", taskIndex: pTask.taskIndex, taskTitle: pTask.title, output: "", structuredOutput: {}, model: "", succeeded: false, error: "No agent assigned" } satisfies ParallelBranchResult;
+          }
+          if (pMember.role === "APPROVAL_GATE") {
+            return {
+              memberId: pMember.id,
+              taskIndex: pTask.taskIndex,
+              taskTitle: pTask.title,
+              output: "",
+              structuredOutput: {},
+              model: "",
+              succeeded: false,
+              error: "Approval gates cannot run inside a parallel branch.",
+            } satisfies ParallelBranchResult;
+          }
+
+          const result = await executeTaskWithFallback({
+            executionId,
+            team,
+            member: pMember,
+            task: pTask,
+            goal,
+            previousOutputs: branchOutputsCopy,
+            executionContext: contextSnapshot,
+            parallelGroupId,
+          });
+
+          if (result.succeeded) {
+            await emitEvent("task.completed", userId, pMember.agent?.id, {
+              teamId: team.id,
+              executionId,
+              taskId: pTask.id,
+              taskIndex: pTask.taskIndex,
+              taskTitle: pTask.title,
+              parallelGroup: parallelGroupId,
+              sharedContextDelta: result.contextDelta,
+              strategy: result.strategy,
+              fallbackEvent: result.fallbackEvent || null,
+            });
+
+            return {
+              memberId: pMember.id,
+              taskIndex: pTask.taskIndex,
+              taskTitle: pTask.title,
+              output: result.output || "",
+              structuredOutput: result.contextDelta,
+              model: result.model || "",
+              succeeded: true,
+            } satisfies ParallelBranchResult;
+          }
+
+          return {
+            memberId: pMember.id,
+            taskIndex: pTask.taskIndex,
+            taskTitle: pTask.title,
+            output: "",
+            structuredOutput: {},
+            model: "",
+            succeeded: false,
+            error: result.error || "Parallel task failed",
+          } satisfies ParallelBranchResult;
+        });
+
+        const branchResults = await Promise.all(branchPromises);
+
+        // Merge context from all branches
+        const branchDeltas = branchResults
+          .filter((r) => r.succeeded)
+          .map((r) => ({ memberId: r.memberId, delta: r.structuredOutput }));
+        const { merged, conflicts } = mergeParallelContexts(contextSnapshot, branchDeltas);
+        executionContext = merged;
+
+        // Store merge conflicts in context for debug visibility
+        if (conflicts.length > 0) {
+          executionContext._parallelConflicts = conflicts;
+        }
+
+        // Update counters and previous outputs
+        for (const result of branchResults) {
+          if (result.succeeded) {
+            completedTasks += 1;
+            previousOutputs.push({ taskIndex: result.taskIndex, title: result.taskTitle, output: result.output });
+          } else {
+            failedTasks += 1;
+            await emitEvent("task.failed", userId, undefined, {
+              teamId: team.id,
+              executionId,
+              taskIndex: result.taskIndex,
+              taskTitle: result.taskTitle,
+              error: result.error || "Parallel task failed",
+              parallelGroup: parallelGroupId,
+            });
+          }
+        }
+
+        await updateExecutionProgress(executionId, completedTasks, failedTasks, executionContext);
+
+        if (stopOnFailure && branchResults.some((result) => !result.succeeded)) {
+          break;
+        }
+
+        // Skip past all parallel indices
+        index = parallelIndices[parallelIndices.length - 1];
+        continue;
+      }
+
+      // ── Sequential execution (unchanged) ──
       const task = orderedTasks[index];
       const nextTask = orderedTasks[index + 1] || null;
       const member =
@@ -755,161 +1304,74 @@ export async function executeTeamExecution({
         break;
       }
 
-      await prisma.agentTeamTask.update({
-        where: { id: task.id },
-        data: {
-          status: TeamExecutionTaskStatus.RUNNING,
-          result: null,
-        },
+      await prisma.teamExecutionLog.delete({
+        where: { id: firstLog.id },
       });
 
-      let succeeded = false;
+      const result = await executeTaskWithFallback({
+        executionId,
+        team,
+        member,
+        task,
+        goal,
+        previousOutputs,
+        executionContext,
+      });
 
-      for (let attempt = 1; attempt <= 2; attempt += 1) {
-        const logId =
-          attempt === 1
-            ? firstLog.id
-            : (
-                await prisma.teamExecutionLog.create({
-                  data: {
-                    teamId: team.id,
-                    executionId,
-                    taskId: task.id,
-                    taskIndex: task.taskIndex,
-                    taskTitle: task.title,
-                    agentId: member.agent?.id || null,
-                    attempt,
-                    status: TeamExecutionTaskStatus.PENDING,
-                    input: toJsonValue(inputPayload),
-                  },
-                })
-              ).id;
-
-        const startedAt = new Date();
-
-        await prisma.teamExecutionLog.update({
-          where: { id: logId },
-          data: {
-            status: TeamExecutionTaskStatus.RUNNING,
-            startedAt,
-            error: null,
-          },
+      if (!result.succeeded) {
+        failedTasks += 1;
+        await updateExecutionProgress(
+          executionId,
+          completedTasks,
+          failedTasks,
+          result.executionContext
+        );
+        await emitEvent("task.failed", userId, member.agent?.id, {
+          teamId: team.id,
+          executionId,
+          taskId: task.id,
+          taskIndex: task.taskIndex,
+          taskTitle: task.title,
+          error: result.error || "Task execution failed",
+          strategy: result.strategy,
+          fallbackEvent: result.fallbackEvent || null,
         });
-
-        try {
-          const result = await runTeamMemberTask(
-            team,
-            member,
-            task,
-            goal,
-            previousOutputs,
-            executionContext
-          );
-          const completedAt = new Date();
-          const contextDelta = cleanContextDelta(
-            result.structuredOutput,
-            executionContext
-          );
-          executionContext = mergeExecutionContext(executionContext, contextDelta);
-
-          await prisma.$transaction([
-            prisma.teamExecutionLog.update({
-              where: { id: logId },
-              data: {
-                status: TeamExecutionTaskStatus.COMPLETED,
-                output: result.output,
-                structuredOutput: toJsonValue(contextDelta),
-                model: result.model,
-                completedAt,
-                input: toJsonValue({
-                  ...inputPayload,
-                  sharedContextAfter: executionContext,
-                  sharedContextDelta: contextDelta,
-                }),
-              },
-            }),
-            prisma.agentTeamTask.update({
-              where: { id: task.id },
-              data: {
-                status: TeamExecutionTaskStatus.COMPLETED,
-                result: result.output.slice(0, 5000),
-              },
-            }),
-          ]);
-
-          completedTasks += 1;
-          previousOutputs.push({
-            taskIndex: task.taskIndex,
-            title: task.title,
-            output: result.output,
-          });
-
-          await updateExecutionProgress(
-            executionId,
-            completedTasks,
-            failedTasks,
-            executionContext
-          );
-          await emitEvent("task.completed", userId, member.agent?.id, {
-            teamId: team.id,
-            executionId,
-            taskId: task.id,
-            taskIndex: task.taskIndex,
-            taskTitle: task.title,
-            attempt,
-            sharedContextDelta: contextDelta,
-          });
-
-          succeeded = true;
+        executionContext = result.executionContext;
+        if (stopOnFailure) {
           break;
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : "Task execution failed";
-
-          await prisma.teamExecutionLog.update({
-            where: { id: logId },
-            data: {
-              status: TeamExecutionTaskStatus.FAILED,
-              error: message,
-              completedAt: new Date(),
-            },
-          });
-
-          if (attempt === 2) {
-            failedTasks += 1;
-            await prisma.agentTeamTask.update({
-              where: { id: task.id },
-              data: {
-                status: TeamExecutionTaskStatus.FAILED,
-                result: message.slice(0, 5000),
-              },
-            });
-
-            await updateExecutionProgress(
-              executionId,
-              completedTasks,
-              failedTasks,
-              executionContext
-            );
-            await emitEvent("task.failed", userId, member.agent?.id, {
-              teamId: team.id,
-              executionId,
-              taskId: task.id,
-              taskIndex: task.taskIndex,
-              taskTitle: task.title,
-              error: message,
-            });
-          }
         }
-      }
-
-      if (!succeeded) {
         continue;
       }
 
+      executionContext = result.executionContext;
+      completedTasks += 1;
+      previousOutputs.push({
+        taskIndex: task.taskIndex,
+        title: task.title,
+        output: result.output || "",
+      });
+
+      await updateExecutionProgress(
+        executionId,
+        completedTasks,
+        failedTasks,
+        executionContext
+      );
+      await emitEvent("task.completed", userId, member.agent?.id, {
+        teamId: team.id,
+        executionId,
+        taskId: task.id,
+        taskIndex: task.taskIndex,
+        taskTitle: task.title,
+        attempt: result.attempt,
+        sharedContextDelta: result.contextDelta,
+        strategy: result.strategy,
+        fallbackEvent: result.fallbackEvent || null,
+      });
+
       // ── Feedback Loop: check if this member has a loop config ──
       const feedbackLoop = parseFeedbackLoop(member.feedbackLoop);
-      if (feedbackLoop && succeeded) {
+      if (feedbackLoop) {
         const loopKey = `_loop_${member.id}`;
         const iterationCount = (typeof executionContext[loopKey] === "number" ? executionContext[loopKey] as number : 0);
         const lastOutput = previousOutputs[previousOutputs.length - 1];
