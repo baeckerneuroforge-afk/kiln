@@ -81,9 +81,19 @@ export async function GET(request: NextRequest) {
     var position = configuredPosition || config.position || 'bottom-right';
     var avatarUrl = config.avatarUrl || '';
     var schedule = config.schedule || null;
+    var widgetTheme = config.theme || 'modern';
     var autoThemeEnabled = isTruthy(autoThemeAttr, config.autoTheme !== false);
     var soundEnabled = isTruthy(soundAttr, config.soundEnabled === true);
     var proactiveConfig = config.proactive || {};
+
+    // Theme definitions (bubble size, radius, animation, trigger type)
+    var themes = {
+      modern: { bubbleSize: 60, bubbleRadius: '50%', bubbleAnim: 'kiln-fade-in 0.3s ease-out', triggerType: 'icon', windowRadius: '16px', openAnim: 'kiln-slide-up 0.3s cubic-bezier(0.16,1,0.3,1)' },
+      classic: { bubbleSize: 56, bubbleRadius: '8px', bubbleAnim: 'kiln-fade-in 0.2s ease', triggerType: 'icon', windowRadius: '8px', openAnim: 'kiln-fade-in 0.2s ease' },
+      minimal: { bubbleSize: 0, bubbleRadius: '0', bubbleAnim: 'kiln-fade-in 0.3s ease', triggerType: 'text', triggerText: 'Chat with us \\u2192', windowRadius: '12px', openAnim: 'kiln-fade-in 0.25s ease' },
+      playful: { bubbleSize: 70, bubbleRadius: '50%', bubbleAnim: 'kiln-bounce 0.5s cubic-bezier(0.34,1.56,0.64,1), kiln-pulse 2s ease-out 1s', triggerType: 'icon', windowRadius: '24px', openAnim: 'kiln-bounce 0.4s cubic-bezier(0.34,1.56,0.64,1)' }
+    };
+    var t = themes[widgetTheme] || themes.modern;
     var proactiveEnabled = proactiveConfig.enabled !== false;
     var proactiveDelay = proactiveDelayAttr !== null
       ? Math.max(0, parseInt(proactiveDelayAttr, 10) || 0)
@@ -175,7 +185,7 @@ export async function GET(request: NextRequest) {
     }
 
     var effectiveColor = autoThemeEnabled ? detectHostAccentColor(color) : color;
-    var embedUrl = '${origin}/embed/' + slug + '?theme=' + encodeURIComponent(effectiveColor) + '&sound=' + (soundEnabled ? '1' : '0');
+    var embedUrl = '${origin}/embed/' + slug + '?theme=' + encodeURIComponent(effectiveColor) + '&sound=' + (soundEnabled ? '1' : '0') + '&widgetTheme=' + encodeURIComponent(widgetTheme);
 
     // Parse color to RGB for shadows
     var r = parseInt(effectiveColor.slice(1, 3), 16) || 249;
@@ -187,10 +197,11 @@ export async function GET(request: NextRequest) {
     style.textContent = [
       '@keyframes kiln-fade-in { from { opacity: 0; transform: scale(0.9) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }',
       '@keyframes kiln-fade-out { from { opacity: 1; transform: scale(1) translateY(0); } to { opacity: 0; transform: scale(0.9) translateY(10px); } }',
-      '@keyframes kiln-bounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }',
+      '@keyframes kiln-bounce { 0% { opacity: 0; transform: scale(0.3); } 50% { opacity: 1; transform: scale(1.05); } 70% { transform: scale(0.95); } 100% { transform: scale(1); } }',
       '@keyframes kiln-pulse { 0% { box-shadow: 0 0 0 0 rgba(' + r + ',' + g + ',' + b + ',0.5); } 70% { box-shadow: 0 0 0 12px rgba(' + r + ',' + g + ',' + b + ',0); } 100% { box-shadow: 0 0 0 0 rgba(' + r + ',' + g + ',' + b + ',0); } }',
-      '#kiln-widget-bubble { animation: kiln-bounce 0.4s ease-out, kiln-pulse 2s ease-out 1s; }',
-      '#kiln-widget-frame-wrap.kiln-opening { animation: kiln-fade-in 0.25s ease-out forwards; }',
+      '@keyframes kiln-slide-up { from { opacity: 0; transform: translateY(20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }',
+      '#kiln-widget-bubble { animation: ' + t.bubbleAnim + '; }',
+      '#kiln-widget-frame-wrap.kiln-opening { animation: ' + t.openAnim + ' forwards; }',
       '#kiln-widget-frame-wrap.kiln-closing { animation: kiln-fade-out 0.2s ease-in forwards; }',
       '#kiln-widget-tooltip { opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity 0.25s ease, transform 0.25s ease; }',
       '#kiln-widget-tooltip.kiln-visible { opacity: 1; transform: translateY(0); pointer-events: auto; }',
@@ -263,19 +274,33 @@ export async function GET(request: NextRequest) {
       return defaultGreeting;
     }
 
-    // Chat bubble button
+    // Chat trigger (bubble or text depending on theme)
     var bubble = document.createElement('button');
     bubble.id = 'kiln-widget-bubble';
     bubble.setAttribute('aria-label', 'Open chat');
-    bubble.style.cssText = [
-      'width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;',
-      'background:' + effectiveColor + ';color:#fff;',
-      'display:flex;align-items:center;justify-content:center;',
-      'box-shadow:0 4px 24px rgba(' + r + ',' + g + ',' + b + ',0.4);',
-      'transition:transform 0.2s ease,box-shadow 0.2s ease;',
-      'position:fixed;bottom:20px;' + posX,
-      'z-index:100000;outline:none;',
-    ].join('');
+
+    if (t.triggerType === 'text') {
+      bubble.style.cssText = [
+        'border:none;cursor:pointer;background:none;',
+        'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;',
+        'font-size:14px;font-weight:500;color:' + effectiveColor + ';',
+        'padding:8px 16px;border-radius:8px;',
+        'transition:background 0.2s ease;',
+        'position:fixed;bottom:20px;' + posX,
+        'z-index:100000;outline:none;',
+      ].join('');
+      bubble.textContent = t.triggerText || 'Chat with us \\u2192';
+    } else {
+      bubble.style.cssText = [
+        'width:' + t.bubbleSize + 'px;height:' + t.bubbleSize + 'px;border-radius:' + t.bubbleRadius + ';border:none;cursor:pointer;',
+        'background:' + effectiveColor + ';color:#fff;',
+        'display:flex;align-items:center;justify-content:center;',
+        'box-shadow:0 4px 24px rgba(' + r + ',' + g + ',' + b + ',0.4);',
+        'transition:transform 0.2s ease,box-shadow 0.2s ease;',
+        'position:fixed;bottom:20px;' + posX,
+        'z-index:100000;outline:none;',
+      ].join('');
+    }
 
     var chatIcon = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
     var closeIcon = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
@@ -285,41 +310,51 @@ export async function GET(request: NextRequest) {
     }
 
     function setBubbleClosedContent() {
+      if (t.triggerType === 'text') {
+        bubble.textContent = t.triggerText || 'Chat with us \\u2192';
+        return;
+      }
       bubble.innerHTML = '';
       if (avatarUrl) {
         var avatar = document.createElement('img');
         avatar.src = avatarUrl;
         avatar.alt = config.name || 'Agent';
-        avatar.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;';
+        avatar.style.cssText = 'width:100%;height:100%;border-radius:' + t.bubbleRadius + ';object-fit:cover;';
         bubble.appendChild(avatar);
         return;
       }
 
       var label = document.createElement('span');
       label.textContent = getInitial();
-      label.style.cssText = 'font-size:20px;font-weight:700;letter-spacing:-0.03em;';
+      label.style.cssText = 'font-size:' + Math.round(t.bubbleSize * 0.33) + 'px;font-weight:700;letter-spacing:-0.03em;';
       bubble.appendChild(label);
     }
 
     setBubbleClosedContent();
 
-    bubble.onmouseenter = function() { markInteraction(); bubble.style.transform = 'scale(1.1)'; bubble.style.boxShadow = '0 6px 32px rgba(' + r + ',' + g + ',' + b + ',0.55)'; };
-    bubble.onmouseleave = function() { if (!isOpen) { bubble.style.transform = 'scale(1)'; bubble.style.boxShadow = '0 4px 24px rgba(' + r + ',' + g + ',' + b + ',0.4)'; } };
+    if (t.triggerType === 'text') {
+      bubble.onmouseenter = function() { markInteraction(); bubble.style.background = 'rgba(0,0,0,0.04)'; };
+      bubble.onmouseleave = function() { bubble.style.background = 'none'; };
+    } else {
+      bubble.onmouseenter = function() { markInteraction(); bubble.style.transform = 'scale(1.1)'; bubble.style.boxShadow = '0 6px 32px rgba(' + r + ',' + g + ',' + b + ',0.55)'; };
+      bubble.onmouseleave = function() { if (!isOpen) { bubble.style.transform = 'scale(1)'; bubble.style.boxShadow = '0 4px 24px rgba(' + r + ',' + g + ',' + b + ',0.4)'; } };
+    }
 
     // Frame wrapper (hidden initially)
     var frameWrap = document.createElement('div');
     frameWrap.id = 'kiln-widget-frame-wrap';
+    var frameBottom = t.triggerType === 'text' ? '60px' : (t.bubbleSize + 30) + 'px';
     frameWrap.style.cssText = [
-      'display:none;position:fixed;bottom:90px;' + posX,
+      'display:none;position:fixed;bottom:' + frameBottom + ';' + posX,
       'width:400px;height:600px;',
-      'border-radius:16px;overflow:hidden;',
+      'border-radius:' + t.windowRadius + ';overflow:hidden;',
       'box-shadow:0 12px 48px rgba(0,0,0,0.25),0 0 0 1px rgba(255,255,255,0.05);',
       'z-index:99999;',
     ].join('');
 
     // iframe (lazy-loaded on first open)
     var frame = document.createElement('iframe');
-    frame.style.cssText = 'width:100%;height:100%;border:none;border-radius:16px;background:#0C0A09;';
+    frame.style.cssText = 'width:100%;height:100%;border:none;border-radius:' + t.windowRadius + ';background:#0C0A09;';
     frame.allow = 'clipboard-write';
     frame.title = config.name || 'Chat';
     frameWrap.appendChild(frame);
@@ -409,7 +444,11 @@ export async function GET(request: NextRequest) {
 
         frameWrap.style.display = 'block';
         frameWrap.className = 'kiln-opening';
-        bubble.innerHTML = closeIcon;
+        if (t.triggerType === 'text') {
+          bubble.textContent = '\\u2715 Close';
+        } else {
+          bubble.innerHTML = closeIcon;
+        }
         bubble.classList.add('kiln-open');
         bubble.style.transform = 'scale(1)';
         bubble.setAttribute('aria-label', 'Close chat');

@@ -69,6 +69,7 @@ import {
   Network,
   Layers,
   Shield,
+  Share2,
 } from "lucide-react";
 import {
   PROVIDERS,
@@ -2449,6 +2450,25 @@ function TeamDetailInner() {
                     className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
                   >
                     <FlaskConical className="h-4 w-4" /> A/B Test
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setShowSettings(false);
+                      try {
+                        const res = await fetch("/api/marketplace/submit-template", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ teamId }),
+                        });
+                        if (!res.ok) throw new Error("Fehler beim Einreichen");
+                        alert("Template erfolgreich eingereicht!");
+                      } catch {
+                        alert("Template konnte nicht eingereicht werden.");
+                      }
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+                  >
+                    <Share2 className="h-4 w-4" /> Als Template teilen
                   </button>
                   <div className="my-1 border-t border-zinc-800" />
                   <button

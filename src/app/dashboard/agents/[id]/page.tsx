@@ -76,6 +76,7 @@ import {
   normalizeAgentSchedule,
 } from "@/lib/agent-scheduling";
 import { getCreditCost } from "@/lib/credits";
+import { EMBED_THEME_LIST, type EmbedThemeId } from "@/lib/embed-themes";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 import { useToast } from "@/components/toast";
 
@@ -289,6 +290,7 @@ export default function AgentDetailPage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [widgetAutoTheme, setWidgetAutoTheme] = useState(true);
   const [widgetSoundEnabled, setWidgetSoundEnabled] = useState(false);
+  const [widgetTheme, setWidgetTheme] = useState<EmbedThemeId>("modern");
   const [scheduleConfig, setScheduleConfig] = useState<AgentScheduleConfig>(
     () => normalizeAgentSchedule(null)
   );
@@ -349,6 +351,11 @@ export default function AgentDetailPage() {
     setAvatarUrl(widget.avatarUrl);
     setWidgetAutoTheme(widget.autoTheme);
     setWidgetSoundEnabled(widget.soundEnabled);
+    setWidgetTheme(
+      typeof wl.theme === "string" && ["modern", "classic", "minimal", "playful"].includes(wl.theme)
+        ? (wl.theme as EmbedThemeId)
+        : "modern"
+    );
     setScheduleConfig(schedule);
     setProactiveEnabled(proactive.enabled);
     setProactiveDelay(proactive.delay);
@@ -425,6 +432,7 @@ export default function AgentDetailPage() {
             avatarUrl: avatarUrl.trim() || null,
             autoTheme: widgetAutoTheme,
             soundEnabled: widgetSoundEnabled,
+            theme: widgetTheme,
             schedule: scheduleConfig,
             position:
               typeof existingWhiteLabel.position === "string"
@@ -1691,6 +1699,124 @@ export default function AgentDetailPage() {
 
           {activeTab === "embed" && (
             <div className="space-y-6">
+              {/* Theme Selector */}
+              <div className="rounded-xl border border-border bg-card/40 p-5">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Widget Theme</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Choose a pre-designed theme. Custom CSS still works on top of the selected theme.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    {EMBED_THEME_LIST.map((theme) => (
+                      <button
+                        key={theme.id}
+                        onClick={() => setWidgetTheme(theme.id)}
+                        className={cn(
+                          "group relative rounded-xl border p-3 text-left transition-all",
+                          widgetTheme === theme.id
+                            ? "border-orange-500/50 bg-orange-500/5 ring-1 ring-orange-500/20"
+                            : "border-border bg-card/40 hover:border-border/80 hover:bg-card/60"
+                        )}
+                      >
+                        {/* Mini Preview */}
+                        <div className="mb-2.5 overflow-hidden rounded-lg border border-white/[0.06] bg-white">
+                          {/* Mini header */}
+                          <div
+                            className="h-5 flex items-center px-2"
+                            style={{
+                              background: theme.chat.headerStyle === "none"
+                                ? "transparent"
+                                : theme.chat.headerStyle === "gradient"
+                                  ? `linear-gradient(135deg, ${primaryColor}, ${primaryColor}dd)`
+                                  : primaryColor,
+                              borderRadius: `${parseInt(theme.chat.windowRadius) || 0}px ${parseInt(theme.chat.windowRadius) || 0}px 0 0`,
+                            }}
+                          >
+                            {theme.chat.headerStyle !== "none" && (
+                              <div className="h-1 w-10 rounded-full bg-white/60" />
+                            )}
+                          </div>
+                          {/* Mini messages */}
+                          <div className="space-y-1 p-1.5">
+                            <div className="flex">
+                              <div
+                                className="h-2 rounded-full"
+                                style={{
+                                  width: "60%",
+                                  background: theme.chat.messageBubbleStyle === "plain" ? "transparent" : "#f0f0f0",
+                                  borderBottom: theme.chat.messageBubbleStyle === "plain" ? "1px solid #f0f0f0" : "none",
+                                  borderRadius: theme.chat.messageBubbleRadius,
+                                }}
+                              />
+                            </div>
+                            <div className="flex justify-end">
+                              <div
+                                className="h-2 rounded-full"
+                                style={{
+                                  width: "45%",
+                                  background: theme.chat.messageBubbleStyle === "plain" ? "transparent" : primaryColor,
+                                  borderBottom: theme.chat.messageBubbleStyle === "plain" ? "1px solid #f0f0f0" : "none",
+                                  borderRadius: theme.chat.messageBubbleRadius,
+                                  opacity: theme.chat.messageBubbleStyle === "plain" ? 1 : 0.85,
+                                }}
+                              />
+                            </div>
+                            <div className="flex">
+                              <div
+                                className="h-2 rounded-full"
+                                style={{
+                                  width: "50%",
+                                  background: theme.chat.messageBubbleStyle === "plain" ? "transparent" : "#f0f0f0",
+                                  borderBottom: theme.chat.messageBubbleStyle === "plain" ? "1px solid #f0f0f0" : "none",
+                                  borderRadius: theme.chat.messageBubbleRadius,
+                                }}
+                              />
+                            </div>
+                          </div>
+                          {/* Mini input */}
+                          <div className="border-t border-gray-100 p-1.5">
+                            <div
+                              className="h-2.5 rounded bg-gray-50 border border-gray-100"
+                              style={{ borderRadius: theme.chat.inputRadius }}
+                            />
+                          </div>
+                        </div>
+                        {/* Mini bubble preview */}
+                        <div className="absolute -bottom-1 -right-1">
+                          {theme.bubble.triggerType === "icon" ? (
+                            <div
+                              className="flex items-center justify-center text-white text-[6px] font-bold shadow-sm"
+                              style={{
+                                width: Math.max(theme.bubble.size * 0.35, 16),
+                                height: Math.max(theme.bubble.size * 0.35, 16),
+                                borderRadius: theme.bubble.borderRadius,
+                                background: primaryColor,
+                              }}
+                            >
+                              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            </div>
+                          ) : (
+                            <span className="text-[7px] font-medium" style={{ color: primaryColor }}>
+                              {theme.bubble.triggerText}
+                            </span>
+                          )}
+                        </div>
+                        {/* Label */}
+                        <p className="text-xs font-medium text-foreground">{theme.name}</p>
+                        <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{theme.description}</p>
+                        {widgetTheme === theme.id && (
+                          <div className="absolute top-2 right-2 h-4 w-4 rounded-full bg-orange-500 flex items-center justify-center">
+                            <Check className="h-2.5 w-2.5 text-white" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               <div className="rounded-xl border border-border bg-card/40 p-5">
                 <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr),220px]">
                   <div className="space-y-4">

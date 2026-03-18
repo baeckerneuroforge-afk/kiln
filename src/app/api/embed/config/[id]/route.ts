@@ -70,6 +70,7 @@ export async function GET(
         ? wl.soundEnabled
         : false,
     position: typeof wl.position === "string" ? wl.position : "bottom-right",
+    theme: typeof wl.theme === "string" ? wl.theme : "modern",
     schedule: {
       ...schedule,
       isOnline: scheduleStatus.isOnline,

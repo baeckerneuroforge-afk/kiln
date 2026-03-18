@@ -104,6 +104,15 @@ const allModules = [
     requiresPro: true,
   },
   {
+    name: "Marketplace",
+    href: "/marketplace",
+    icon: Store,
+    color: "text-muted-foreground",
+    activeColor: "text-kiln-orange",
+    badge: "NEW" as string | null,
+    minAgents: 0,
+  },
+  {
     name: "Integrations",
     href: "/dashboard/integrations",
     icon: Plug,
@@ -310,7 +319,11 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                   />
                   <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>{item.name}</span>
                   {item.badge && (
-                    <span className={cn("ml-auto rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground", isCollapsed && "lg:hidden")}>
+                    <span className={cn(
+                      "ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium",
+                      item.badge === "NEW" ? "bg-kiln-orange/15 text-kiln-orange" : "bg-muted text-muted-foreground",
+                      isCollapsed && "lg:hidden"
+                    )}>
                       {item.badge}
                     </span>
                   )}
@@ -322,27 +335,6 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
 
         {/* Bottom Section */}
         <div className={cn("flex flex-col gap-1 pb-2 border-t border-white/[0.06] pt-2", isCollapsed ? "lg:px-1.5" : "px-3")}>
-          {/* Marketplace */}
-          <NavTooltip label="Marketplace" show={isCollapsed}>
-            <Link
-              href="/marketplace"
-              onClick={onClose}
-              className={cn(
-                "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
-                isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2.5",
-                pathname === "/marketplace"
-                  ? "bg-sidebar-accent/80 backdrop-blur-sm text-foreground"
-                  : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
-              )}
-            >
-              {pathname === "/marketplace" && (
-                <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-kiln-orange to-kiln-ember" />
-              )}
-              <Store className="h-[18px] w-[18px] shrink-0" />
-              <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>Marketplace</span>
-            </Link>
-          </NavTooltip>
-
           {/* Community */}
           <NavTooltip label="Community" show={isCollapsed}>
             <a
