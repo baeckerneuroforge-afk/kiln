@@ -20,6 +20,7 @@ model User {
   companyName      String?
   advancedMode          Boolean  @default(false)
   onboardingCompleted   Boolean  @default(false)
+  onboardingState       Json?
   referralCode     String?  @unique // KILN-XXXX
   referredBy       String?  // userId des Referrers
   createdAt        DateTime @default(now())

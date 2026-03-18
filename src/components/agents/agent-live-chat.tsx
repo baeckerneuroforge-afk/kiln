@@ -212,6 +212,12 @@ export function AgentLiveChat({
           }
         }
       }
+
+      void fetch("/api/user/onboarding-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step: "agent_tested" }),
+      }).catch(() => {});
     } catch {
       setMessages((prev) =>
         prev.map((m) =>

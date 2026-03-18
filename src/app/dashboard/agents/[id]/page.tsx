@@ -66,6 +66,7 @@ import { IntegrationsTab } from "@/components/agents/integrations-tab";
 import { ChannelsTab } from "@/components/agents/channels-tab";
 import { TeamAccess } from "@/components/agents/team-access";
 import { PromptEditor } from "@/components/agents/prompt-editor";
+import { LivePreviewPanel } from "@/components/agents/live-preview-panel";
 import { cn } from "@/lib/utils";
 import { PROVIDERS, getModelsForProvider, getModelDef, type ProviderKey } from "@/lib/ai";
 import { getCreditCost } from "@/lib/credits";
@@ -299,6 +300,9 @@ export default function AgentDetailPage() {
   const [publishPrice, setPublishPrice] = useState("");
   const [publishing, setPublishing] = useState(false);
 
+  // Saved version flash
+  const [savedVersion, setSavedVersion] = useState<number | null>(null);
+
   // Test case pre-fill from logs
   const [testCasePrefill, setTestCasePrefill] = useState<{ input: string; response: string } | null>(null);
   const [versionComparePreset, setVersionComparePreset] = useState<VersionComparePreset | null>(null);
@@ -404,6 +408,11 @@ export default function AgentDetailPage() {
         const updated = await res.json();
         applyAgentState({ ...agent, ...updated });
         setVersionComparePreset(null);
+        // Flash saved version
+        if (updated.currentVersion) {
+          setSavedVersion(updated.currentVersion);
+          setTimeout(() => setSavedVersion(null), 3000);
+        }
         toast("Agent saved");
       } else {
         toast("Failed to save agent", "error");
@@ -509,6 +518,11 @@ export default function AgentDetailPage() {
     const host = typeof window !== "undefined" ? window.location.origin : "https://kilnbase.com";
     const code = buildWidgetCodeSnippet(host);
     navigator.clipboard.writeText(code);
+    void fetch("/api/user/onboarding-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ step: "embed_copied" }),
+    }).catch(() => {});
     setCopiedWidget(true);
     setTimeout(() => setCopiedWidget(false), 2000);
   }
@@ -517,6 +531,11 @@ export default function AgentDetailPage() {
     if (!agent) return;
     const code = `<iframe src="${window.location.origin}/embed/${agent.slug}" width="400" height="600" style="border:none;border-radius:16px" allow="clipboard-write"></iframe>`;
     navigator.clipboard.writeText(code);
+    void fetch("/api/user/onboarding-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ step: "embed_copied" }),
+    }).catch(() => {});
     setCopiedIframe(true);
     setTimeout(() => setCopiedIframe(false), 2000);
   }
@@ -777,14 +796,21 @@ export default function AgentDetailPage() {
             <Download className="mr-2 h-3.5 w-3.5" />
             Export
           </Button>
-          <Button onClick={handleSave} disabled={saving} size="sm">
-            {saving ? (
-              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-3.5 w-3.5" />
+          <div className="relative">
+            {savedVersion && (
+              <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-400 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                Saved as v{savedVersion}
+              </span>
             )}
-            Save
-          </Button>
+            <Button onClick={handleSave} disabled={saving} size="sm">
+              {saving ? (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-3.5 w-3.5" />
+              )}
+              Save
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -1898,21 +1924,34 @@ export default function AgentDetailPage() {
           )}
         </div>
 
-        {/* Rechte Seite: Live-Chat (versteckt bei Full-Width-Tabs) */}
+        {/* Rechte Seite: Preview oder Live-Chat (versteckt bei Full-Width-Tabs) */}
         {!isFullWidth && (
         <div className="lg:col-span-2">
-          <div className="sticky top-6 h-[600px]">
-            <AgentLiveChat
+          {activeTab === "config" ? (
+            <LivePreviewPanel
               agentId={agent.id}
-              agentName={agent.name}
-              welcomeMessage={showAiDisclaimer
-                ? `I am an AI assistant.${agent.welcomeMessage ? ` ${agent.welcomeMessage}` : ""}`
-                : agent.welcomeMessage}
-              suggestedQuestions={agent.suggestedQuestions}
-              debugMode={isDebugTab}
-              imageAnalysisEnabled={imageAnalysisEnabled}
+              config={{
+                name,
+                systemPrompt,
+                model: llmModel,
+                modelProvider,
+                temperature,
+              }}
             />
-          </div>
+          ) : (
+            <div className="sticky top-6 h-[600px]">
+              <AgentLiveChat
+                agentId={agent.id}
+                agentName={agent.name}
+                welcomeMessage={showAiDisclaimer
+                  ? `I am an AI assistant.${agent.welcomeMessage ? ` ${agent.welcomeMessage}` : ""}`
+                  : agent.welcomeMessage}
+                suggestedQuestions={agent.suggestedQuestions}
+                debugMode={isDebugTab}
+                imageAnalysisEnabled={imageAnalysisEnabled}
+              />
+            </div>
+          )}
         </div>
         )}
       </div>

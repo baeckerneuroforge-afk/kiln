@@ -2,7 +2,7 @@
 
 import { Bot, Globe, Zap, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { GettingStartedBanner } from "@/components/getting-started-banner";
+import { GettingStartedSection } from "@/components/onboarding-checklist";
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -174,9 +174,6 @@ export default function DashboardPage() {
         <div className="absolute left-0 bottom-0 h-[300px] w-[400px] rounded-full bg-kiln-green/[0.02] blur-[100px]" />
       </div>
 
-      {/* Getting Started Banner (shows only for new users with 0 agents) */}
-      <GettingStartedBanner />
-
       {/* Header */}
       <div className="mb-8">
         <h1 className="font-serif text-3xl text-foreground">
@@ -186,6 +183,10 @@ export default function DashboardPage() {
         <p className="mt-2 text-muted-foreground">
           Create AI Agents, Websites & Workflows — all in one place.
         </p>
+      </div>
+
+      <div className="mb-8">
+        <GettingStartedSection />
       </div>
 
       {/* Module Cards */}

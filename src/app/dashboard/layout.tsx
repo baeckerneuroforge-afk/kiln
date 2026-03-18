@@ -11,6 +11,7 @@ import { LegalFooter } from "@/components/legal-footer";
 import { CookieBanner } from "@/components/cookie-banner";
 import { ToastProvider } from "@/components/toast";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
+import { OnboardingChecklist } from "@/components/onboarding-checklist";
 
 export default function DashboardLayout({
   children,
@@ -78,6 +79,7 @@ export default function DashboardLayout({
             <LegalFooter />
           </div>
         </div>
+        {showOnboarding === false && <OnboardingChecklist />}
         <CookieBanner />
       </ToastProvider>
     </AdvancedModeProvider>
