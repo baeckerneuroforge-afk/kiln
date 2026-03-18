@@ -556,19 +556,22 @@ model TestComparison {
 
 // Webhook Endpoints — Event-Benachrichtigungen per HTTP POST
 model WebhookEndpoint {
-  id         String   @id @default(cuid())
+  id         String     @id @default(cuid())
   userId     String
-  agentId    String?  // Optional: agent-spezifische Subscriptions
+  agentId    String?    // Optional: agent-spezifische Subscriptions
+  teamId     String?    // Optional: team-spezifische Subscriptions
+  team       AgentTeam? @relation(fields: [teamId], references: [id], onDelete: Cascade)
   url        String
-  events     Json     // String-Array: ["conversation.started", "lead.captured", ...]
-  secret     String   // HMAC-SHA256 Signing Secret
-  active     Boolean  @default(true)
-  createdAt  DateTime @default(now())
+  events     Json       // String-Array: ["team.execution.started", ...]
+  secret     String     // HMAC-SHA256 Signing Secret
+  active     Boolean    @default(true)
+  createdAt  DateTime   @default(now())
 
   deliveries WebhookDelivery[]
 
   @@index([userId])
   @@index([agentId])
+  @@index([teamId])
   @@index([active])
 }
 
@@ -845,6 +848,7 @@ model AgentTeam {
   executions     TeamExecution[]
   executionLogs  TeamExecutionLog[]
   knowledgeBases KnowledgeBase[]
+  webhooks       WebhookEndpoint[]
 
   @@index([userId])
 }

@@ -14,6 +14,10 @@ import {
   PenTool,
   Sparkles,
   Users,
+  Wrench,
+  Building2,
+  GraduationCap,
+  CookingPot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/toast";
@@ -37,6 +41,7 @@ type TemplateSummary = {
   name: string;
   description: string;
   category: string;
+  industry?: string;
   agentCount: number;
   agents: TemplateAgent[];
   orchestration: {
@@ -46,7 +51,10 @@ type TemplateSummary = {
   };
 };
 
-const TEMPLATE_VISUALS = {
+const TEMPLATE_VISUALS: Record<
+  string,
+  { icon: typeof Briefcase; accent: string; bg: string; border: string; ring: string }
+> = {
   "sales-pipeline": {
     icon: Briefcase,
     accent: "text-kiln-orange",
@@ -75,10 +83,44 @@ const TEMPLATE_VISUALS = {
     border: "border-violet-500/25",
     ring: "ring-violet-500/30",
   },
-} satisfies Record<
-  string,
-  { icon: typeof Briefcase; accent: string; bg: string; border: string; ring: string }
->;
+  "shk-betrieb-lead-pipeline": {
+    icon: Wrench,
+    accent: "text-amber-400",
+    bg: "bg-amber-500/10",
+    border: "border-amber-500/25",
+    ring: "ring-amber-500/30",
+  },
+  "immobilienmakler-pipeline": {
+    icon: Building2,
+    accent: "text-sky-400",
+    bg: "bg-sky-500/10",
+    border: "border-sky-500/25",
+    ring: "ring-sky-500/30",
+  },
+  "coach-erstgespraech-pipeline": {
+    icon: GraduationCap,
+    accent: "text-pink-400",
+    bg: "bg-pink-500/10",
+    border: "border-pink-500/25",
+    ring: "ring-pink-500/30",
+  },
+  "kuechenstudio-pipeline": {
+    icon: CookingPot,
+    accent: "text-rose-400",
+    bg: "bg-rose-500/10",
+    border: "border-rose-500/25",
+    ring: "ring-rose-500/30",
+  },
+};
+
+const INDUSTRY_FILTERS = [
+  { key: "Alle", label: "Alle" },
+  { key: "Handwerk", label: "Handwerk" },
+  { key: "Immobilien", label: "Immobilien" },
+  { key: "Beratung", label: "Beratung" },
+  { key: "E-Commerce", label: "E-Commerce" },
+  { key: "Allgemein", label: "Allgemein" },
+];
 
 const INDUSTRY_OPTIONS = [
   "SaaS",
@@ -165,6 +207,7 @@ export default function NewTeamTemplatePage() {
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [industryFilter, setIndustryFilter] = useState("Alle");
   const [deploying, setDeploying] = useState(false);
   const [businessName, setBusinessName] = useState("");
   const [industry, setIndustry] = useState("SaaS");
@@ -223,6 +266,14 @@ export default function NewTeamTemplatePage() {
       )
     );
   }, [selectedTemplate]);
+
+  const filteredTemplates = useMemo(
+    () =>
+      industryFilter === "Alle"
+        ? templates
+        : templates.filter((t) => t.industry === industryFilter),
+    [templates, industryFilter]
+  );
 
   const resolvedIndustry =
     industry === "Other" ? customIndustry.trim() : industry.trim();
@@ -319,10 +370,29 @@ export default function NewTeamTemplatePage() {
               </div>
             </div>
 
+            {/* Industry filter chips */}
+            <div className="flex flex-wrap gap-2">
+              {INDUSTRY_FILTERS.map((filter) => (
+                <button
+                  key={filter.key}
+                  type="button"
+                  onClick={() => setIndustryFilter(filter.key)}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
+                    industryFilter === filter.key
+                      ? "border-kiln-orange/40 bg-kiln-orange/10 text-kiln-orange"
+                      : "border-border bg-background/50 text-muted-foreground hover:border-foreground/15 hover:text-foreground"
+                  )}
+                >
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
-              {templates.map((template) => {
+              {filteredTemplates.map((template) => {
                 const visual =
-                  TEMPLATE_VISUALS[template.id as keyof typeof TEMPLATE_VISUALS] || TEMPLATE_VISUALS["sales-pipeline"];
+                  TEMPLATE_VISUALS[template.id] || TEMPLATE_VISUALS["sales-pipeline"];
                 const Icon = visual.icon;
                 const isSelected = template.id === selectedTemplateId;
 
@@ -348,8 +418,15 @@ export default function NewTeamTemplatePage() {
                       >
                         <Icon className={cn("h-5 w-5", visual.accent)} />
                       </div>
-                      <div className="rounded-full border border-border bg-background/70 px-3 py-1 text-[11px] font-medium text-muted-foreground">
-                        {template.agentCount} agents
+                      <div className="flex items-center gap-1.5">
+                        {template.industry && template.industry !== "Allgemein" && (
+                          <div className={cn("rounded-full px-2.5 py-1 text-[10px] font-medium", visual.bg, visual.accent)}>
+                            {template.industry}
+                          </div>
+                        )}
+                        <div className="rounded-full border border-border bg-background/70 px-3 py-1 text-[11px] font-medium text-muted-foreground">
+                          {template.agentCount} agents
+                        </div>
                       </div>
                     </div>
 

@@ -115,6 +115,8 @@ export async function emitEvent(
   agentId: string | undefined,
   data: Record<string, unknown>
 ): Promise<void> {
+  const teamId = typeof data.teamId === "string" ? data.teamId : undefined;
+
   const payload: EventPayload = {
     event: eventType,
     timestamp: new Date().toISOString(),
@@ -123,14 +125,17 @@ export async function emitEvent(
   };
 
   try {
+    const orConditions: Array<Record<string, unknown>> = [
+      { agentId: null, teamId: null },
+    ];
+    if (agentId) orConditions.push({ agentId });
+    if (teamId) orConditions.push({ teamId });
+
     const webhooks = await prisma.webhookEndpoint.findMany({
       where: {
         userId,
         active: true,
-        OR: [
-          { agentId: null },
-          ...(agentId ? [{ agentId }] : []),
-        ],
+        OR: orConditions,
       },
     });
 

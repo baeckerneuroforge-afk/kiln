@@ -36,6 +36,8 @@ type TeamTemplateConnection = {
   enabled?: boolean;
 };
 
+export type TeamTemplateIndustry = "Handwerk" | "Immobilien" | "Beratung" | "E-Commerce" | "Allgemein";
+
 export type TeamTemplate = {
   id: string;
   legacyAliases?: string[];
@@ -43,6 +45,7 @@ export type TeamTemplate = {
   description: string;
   goal: string;
   category: "Workflow Templates";
+  industry?: TeamTemplateIndustry;
   orchestration: {
     mode: string;
     description: string;
@@ -113,6 +116,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
     goal:
       "Run a sales workflow for {{businessName}} in the {{industry}} industry that qualifies leads, routes hot prospects to closing, and keeps colder leads engaged.",
     category: "Workflow Templates",
+    industry: "Allgemein",
     orchestration: {
       mode: "Qualification with conditional routing",
       description:
@@ -251,6 +255,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
     goal:
       "Run a support workflow for {{businessName}} in the {{industry}} industry that resolves easy issues fast and escalates only when necessary.",
     category: "Workflow Templates",
+    industry: "Allgemein",
     orchestration: {
       mode: "Tiered support escalation",
       description:
@@ -347,6 +352,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
     goal:
       "Run a content workflow for {{businessName}} in the {{industry}} industry that turns raw ideas into publication-ready assets.",
     category: "Workflow Templates",
+    industry: "Allgemein",
     orchestration: {
       mode: "Sequential production pipeline",
       description:
@@ -427,6 +433,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
     goal:
       "Run a qualification and booking workflow for {{businessName}} in the {{industry}} industry that books meetings only with qualified prospects.",
     category: "Workflow Templates",
+    industry: "Allgemein",
     orchestration: {
       mode: "Qualification before booking",
       description:
@@ -498,6 +505,398 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
       ],
     },
   },
+
+  // ── Branchenspezifische Templates ──
+
+  {
+    id: "shk-betrieb-lead-pipeline",
+    legacyAliases: ["shk", "plumbing-hvac"],
+    name: "SHK-Betrieb Lead Pipeline",
+    description:
+      "Qualifiziert Anfragen für SHK-Betriebe, bewertet Dringlichkeit und Auftragsart, und vereinbart Besichtigungstermine mit automatischem Follow-Up.",
+    goal:
+      "Lead-Pipeline für {{businessName}} im Bereich SHK/Handwerk: Anfragen qualifizieren, nach Dringlichkeit priorisieren und Besichtigungstermine buchen.",
+    category: "Workflow Templates",
+    industry: "Handwerk",
+    orchestration: {
+      mode: "Qualifikation mit Dringlichkeits-Routing",
+      description:
+        "Qualifier bewertet die Anfrage. Notfälle (Score 90+) werden direkt zum Booker geroutet, Standard-Anfragen erhalten erst ein Follow-Up.",
+      connections: [
+        {
+          from: "qualifier",
+          to: "booker",
+          condition:
+            "Wenn der Lead-Score über 70 liegt oder es sich um einen Notfall handelt (Rohrbruch, Heizungsausfall), direkt zum Termin-Agenten weiterleiten.",
+        },
+        {
+          from: "qualifier",
+          to: "follow-up",
+          condition:
+            "Wenn der Lead-Score 70 oder darunter liegt (Standard-Installation, Beratungswunsch), eine Nachfass-Email mit Zusammenfassung senden.",
+        },
+      ],
+    },
+    agents: [
+      {
+        key: "qualifier",
+        name: "SHK-Qualifier",
+        description:
+          "Begrüßt Kunden, fragt nach Art der Arbeit, Dringlichkeit und Gebäudetyp, bewertet den Lead.",
+        responsibilities:
+          "Anfrage qualifizieren, Kontaktdaten erfassen, Lead-Score vergeben und an den richtigen nächsten Schritt weiterleiten.",
+        systemPrompt:
+          "Sie sind ein freundlicher Assistent für einen SHK-Betrieb ({{businessName}}). Fragen Sie nach: Art der Arbeit (Heizung, Sanitär, Klima), Dringlichkeit, PLZ-Gebiet, Gebäudetyp (Einfamilienhaus, Mehrfamilienhaus, Gewerbe). Bewerten Sie den Lead 1-100. Notfälle wie Rohrbruch oder Heizungsausfall im Winter erhalten automatisch Score 90+. Standard-Installationen liegen bei 50-70. Reine Informationsanfragen bei 20-40. Erfassen Sie die E-Mail-Adresse des Kunden.",
+        agentMode: "CHAT",
+        role: "COORDINATOR",
+        llmModel: PRIMARY_MODEL,
+        welcomeMessage:
+          "Willkommen bei {{businessName}}! Wie können wir Ihnen helfen? Beschreiben Sie kurz Ihr Anliegen — ob Heizung, Sanitär oder Klima.",
+        suggestedQuestions: [
+          "Ich habe ein Problem mit meiner Heizung",
+          "Wir planen eine Badsanierung",
+          "Ich brauche einen Notdienst",
+          "Was kostet eine Wärmepumpe?",
+        ],
+        actions: [
+          { type: "COLLECT_EMAIL", enabled: true, config: {} },
+          { type: "SCORE_LEAD", enabled: true, config: {} },
+        ],
+      },
+      {
+        key: "booker",
+        name: "SHK-Terminplaner",
+        description:
+          "Vereinbart Besichtigungstermine für qualifizierte Anfragen.",
+        responsibilities:
+          "Verfügbare Zeitfenster anbieten, Adresse bestätigen, Termin buchen und Bestätigung senden.",
+        systemPrompt:
+          "Sie sind der Terminplaner von {{businessName}}, einem SHK-Betrieb. Vereinbaren Sie einen Besichtigungstermin. Fragen Sie nach dem bevorzugten Zeitfenster (vormittags/nachmittags). Bestätigen Sie die vollständige Adresse. Bei Notfällen betonen Sie, dass ein Techniker schnellstmöglich kommt. Fassen Sie den Termin am Ende zusammen.",
+        agentMode: "CHAT",
+        role: "EXECUTOR",
+        reportsTo: "qualifier",
+        llmModel: FAST_MODEL,
+        welcomeMessage:
+          "Lassen Sie uns einen passenden Termin für die Besichtigung finden.",
+        suggestedQuestions: [
+          "Welcher Tag passt Ihnen am besten?",
+          "Vormittags oder nachmittags?",
+          "Wie lautet die Adresse für den Besuch?",
+        ],
+        actions: [{ type: "BOOK_APPOINTMENT", enabled: true, config: {} }],
+      },
+      {
+        key: "follow-up",
+        name: "SHK-Follow-Up",
+        description:
+          "Sendet eine freundliche Nachfass-Email mit Zusammenfassung des Anliegens.",
+        responsibilities:
+          "Anfrage zusammenfassen, hilfreiche Informationen zu Förderungen oder Kosten mitgeben und zum Rückruf einladen.",
+        systemPrompt:
+          "Sie sind der Follow-Up-Spezialist von {{businessName}}, einem SHK-Betrieb. Senden Sie eine freundliche Nachfass-Email. Fassen Sie das Anliegen des Kunden zusammen, geben Sie erste Informationen zu Kosten oder Fördermöglichkeiten (z.B. BAFA/KfW bei Wärmepumpen) und laden Sie zum Rückruf oder zur Terminvereinbarung ein.",
+        agentMode: "TASK",
+        role: "EXECUTOR",
+        reportsTo: "qualifier",
+        llmModel: FAST_MODEL,
+        actions: [{ type: "COLLECT_EMAIL", enabled: true, config: {} }],
+      },
+    ],
+    marketplace: {
+      welcomeMessage:
+        "SHK-Lead-Pipeline mit Dringlichkeits-Bewertung, Terminbuchung und automatischem Follow-Up.",
+      suggestedQuestions: [
+        "Wie werden Notfälle priorisiert?",
+        "Welche Informationen werden abgefragt?",
+        "Kann ich die Bewertungskriterien anpassen?",
+      ],
+    },
+  },
+  {
+    id: "immobilienmakler-pipeline",
+    legacyAliases: ["immobilien", "real-estate-pipeline"],
+    name: "Immobilienmakler Besichtigungs-Pipeline",
+    description:
+      "Qualifiziert Immobilien-Interessenten nach Kriterien, schlägt passende Objekte vor und vereinbart Besichtigungstermine.",
+    goal:
+      "Besichtigungs-Pipeline für {{businessName}}: Interessenten qualifizieren, passende Objekte matchen und Besichtigungstermine buchen.",
+    category: "Workflow Templates",
+    industry: "Immobilien",
+    orchestration: {
+      mode: "Qualifikation → Matching → Besichtigung",
+      description:
+        "Qualifier erfasst Suchkriterien, Matcher schlägt passende Objekte vor, Booker vereinbart die Besichtigung.",
+      connections: [
+        {
+          from: "qualifier",
+          to: "matcher",
+          condition:
+            "Sobald Budget, Lage, Zimmeranzahl und Einzugszeitpunkt erfasst sind, an den Objekt-Matcher weiterleiten.",
+        },
+        {
+          from: "matcher",
+          to: "booker",
+          condition:
+            "Wenn der Interessent sich für ein oder mehrere Objekte interessiert, an den Besichtigungs-Planer weiterleiten.",
+        },
+      ],
+    },
+    agents: [
+      {
+        key: "qualifier",
+        name: "Immobilien-Qualifier",
+        description:
+          "Erfasst die Suchkriterien des Interessenten: Kauf/Miete, Budget, Lage, Größe.",
+        responsibilities:
+          "Suchprofil erstellen, Kontaktdaten erfassen und Interessenten an den Matcher weiterleiten.",
+        systemPrompt:
+          "Sie sind Assistent eines Immobilienmaklers ({{businessName}}). Fragen Sie nach: Kauf oder Miete, Budget-Rahmen (monatlich oder Kaufpreis), gewünschte Lage/Stadtteil, Zimmeranzahl und Mindestgröße, gewünschter Einzugszeitpunkt. Erfassen Sie die E-Mail-Adresse. Bewerten Sie den Lead: Klares Budget + zeitnaher Einzug = hoher Score. Nur Informationssuche = niedriger Score.",
+        agentMode: "CHAT",
+        role: "COORDINATOR",
+        llmModel: PRIMARY_MODEL,
+        welcomeMessage:
+          "Willkommen bei {{businessName}}! Suchen Sie eine Immobilie zum Kauf oder zur Miete? Ich helfe Ihnen, das passende Objekt zu finden.",
+        suggestedQuestions: [
+          "Ich suche eine Wohnung zur Miete",
+          "Was gibt es im Bereich 3-Zimmer?",
+          "Welche Häuser sind aktuell verfügbar?",
+          "Ich möchte eine Immobilie kaufen",
+        ],
+        actions: [
+          { type: "COLLECT_EMAIL", enabled: true, config: {} },
+          { type: "SCORE_LEAD", enabled: true, config: {} },
+        ],
+      },
+      {
+        key: "matcher",
+        name: "Objekt-Matcher",
+        description:
+          "Schlägt passende Objekte basierend auf den Suchkriterien vor.",
+        responsibilities:
+          "Kriterien auswerten, 2-3 passende Objekte vorschlagen, Highlights beschreiben und Interesse abfragen.",
+        systemPrompt:
+          "Sie sind der Objekt-Matching-Spezialist von {{businessName}}. Basierend auf den Kriterien des Interessenten (Kauf/Miete, Budget, Lage, Zimmer, Einzug), schlagen Sie 2-3 passende Objekte vor. Beschreiben Sie die Highlights jedes Objekts: Lage-Vorteile, Ausstattung, Preis-Leistung. Fragen Sie, welches Objekt besichtigt werden soll.",
+        agentMode: "TASK",
+        role: "EXECUTOR",
+        reportsTo: "qualifier",
+        llmModel: PRIMARY_MODEL,
+      },
+      {
+        key: "booker",
+        name: "Besichtigungs-Planer",
+        description:
+          "Vereinbart Besichtigungstermine für ausgewählte Objekte.",
+        responsibilities:
+          "Terminwünsche erfassen, Besichtigung koordinieren und Bestätigung mit Objekt-Details senden.",
+        systemPrompt:
+          "Sie sind der Besichtigungs-Planer von {{businessName}}. Vereinbaren Sie einen Besichtigungstermin für das gewünschte Objekt. Fragen Sie nach bevorzugtem Tag und Uhrzeit. Bestätigen Sie Objekt-Adresse, Zeitpunkt und was der Interessent mitbringen sollte (Ausweis, ggf. Einkommensnachweise bei Miete).",
+        agentMode: "CHAT",
+        role: "EXECUTOR",
+        reportsTo: "matcher",
+        llmModel: FAST_MODEL,
+        welcomeMessage:
+          "Wunderbar! Lassen Sie uns einen Besichtigungstermin vereinbaren.",
+        suggestedQuestions: [
+          "Wann hätten Sie Zeit für eine Besichtigung?",
+          "Soll ich mehrere Termine vorschlagen?",
+          "Kommen Sie alleine oder zu zweit?",
+        ],
+        actions: [{ type: "BOOK_APPOINTMENT", enabled: true, config: {} }],
+      },
+    ],
+    marketplace: {
+      welcomeMessage:
+        "Immobilien-Pipeline mit Interessenten-Qualifikation, Objekt-Matching und Besichtigungsbuchung.",
+      suggestedQuestions: [
+        "Wie werden Interessenten qualifiziert?",
+        "Wie funktioniert das Objekt-Matching?",
+        "Kann ich eigene Objekte hinterlegen?",
+      ],
+    },
+  },
+  {
+    id: "coach-erstgespraech-pipeline",
+    legacyAliases: ["coach", "coaching-pipeline"],
+    name: "Coach/Berater Erstgespräch-Pipeline",
+    description:
+      "Qualifiziert Coaching-Interessenten, identifiziert Herausforderungen und vereinbart kostenlose Erstgespräche.",
+    goal:
+      "Erstgespräch-Pipeline für {{businessName}}: Coaching-Interessenten qualifizieren und Erstgespräche buchen.",
+    category: "Workflow Templates",
+    industry: "Beratung",
+    orchestration: {
+      mode: "Qualifikation → Erstgespräch-Buchung",
+      description:
+        "Qualifier erfasst Herausforderung und Coaching-Erfahrung, Scheduler bucht das kostenlose Erstgespräch.",
+      connections: [
+        {
+          from: "qualifier",
+          to: "scheduler",
+          condition:
+            "Wenn die Herausforderung klar ist und Interesse an einem Erstgespräch besteht, an den Scheduler weiterleiten.",
+        },
+      ],
+    },
+    agents: [
+      {
+        key: "qualifier",
+        name: "Coaching-Qualifier",
+        description:
+          "Erfasst die Herausforderung und den Coaching-Bedarf des Interessenten.",
+        responsibilities:
+          "Bedarf analysieren, Erfahrung mit Coaching erfragen, Budget-Vorstellung klären und zum Erstgespräch einladen.",
+        systemPrompt:
+          "Sie sind Assistent eines Business-Coaches ({{businessName}}). Fragen Sie nach: Aktuelle Herausforderung (Führung, Skalierung, Work-Life-Balance, Karriere), Unternehmensgröße (Solo/KMU/Konzern), bisherige Erfahrung mit Coaching, Budget-Vorstellung (grober Rahmen). Hören Sie aktiv zu. Zeigen Sie Verständnis für die Situation. Betonen Sie, dass ein kostenloses 15-Minuten Erstgespräch der beste nächste Schritt ist, um zu prüfen ob Coaching passt.",
+        agentMode: "CHAT",
+        role: "COORDINATOR",
+        llmModel: PRIMARY_MODEL,
+        welcomeMessage:
+          "Willkommen bei {{businessName}}! Ich helfe Ihnen herauszufinden, wie Business-Coaching Sie weiterbringen kann. Was beschäftigt Sie gerade am meisten?",
+        suggestedQuestions: [
+          "Ich brauche Hilfe beim Führen meines Teams",
+          "Wie kann Coaching mir bei der Skalierung helfen?",
+          "Was kostet Business-Coaching?",
+          "Kann ich ein Erstgespräch buchen?",
+        ],
+        actions: [
+          { type: "COLLECT_EMAIL", enabled: true, config: {} },
+          { type: "SCORE_LEAD", enabled: true, config: {} },
+        ],
+      },
+      {
+        key: "scheduler",
+        name: "Erstgespräch-Planer",
+        description:
+          "Vereinbart ein kostenloses 15-Minuten Erstgespräch und betont den Mehrwert.",
+        responsibilities:
+          "Erstgespräch buchen, Vorteile des Gesprächs betonen, Erwartungen setzen und Bestätigung senden.",
+        systemPrompt:
+          "Sie sind der Erstgespräch-Planer von {{businessName}}. Vereinbaren Sie ein kostenloses 15-Minuten Erstgespräch. Betonen Sie den Mehrwert: Im Gespräch wird die aktuelle Situation analysiert, erste Impulse gegeben und geprüft ob ein Coaching-Programm sinnvoll ist — alles unverbindlich. Fragen Sie nach bevorzugtem Tag und Uhrzeit. Bestätigen Sie den Termin mit einer kurzen Zusammenfassung der besprochenen Herausforderung.",
+        agentMode: "CHAT",
+        role: "EXECUTOR",
+        reportsTo: "qualifier",
+        llmModel: FAST_MODEL,
+        welcomeMessage:
+          "Lassen Sie uns einen passenden Termin für Ihr kostenloses Erstgespräch finden.",
+        suggestedQuestions: [
+          "Welcher Tag passt Ihnen?",
+          "Lieber vormittags oder nachmittags?",
+          "Wie lange dauert das Erstgespräch?",
+        ],
+        actions: [{ type: "BOOK_APPOINTMENT", enabled: true, config: {} }],
+      },
+    ],
+    marketplace: {
+      welcomeMessage:
+        "Coaching-Pipeline mit Bedarfsanalyse und automatischer Erstgespräch-Buchung.",
+      suggestedQuestions: [
+        "Welche Fragen werden gestellt?",
+        "Wie wird der Mehrwert des Erstgesprächs kommuniziert?",
+        "Kann ich die Coaching-Themen anpassen?",
+      ],
+    },
+  },
+  {
+    id: "kuechenstudio-pipeline",
+    legacyAliases: ["kueche", "kitchen-pipeline"],
+    name: "Küchenstudio Beratungs-Pipeline",
+    description:
+      "Erfasst Küchenwünsche, präsentiert passende Konzepte mit Preisrahmen und vereinbart Showroom-Besuche.",
+    goal:
+      "Beratungs-Pipeline für {{businessName}}: Küchenwünsche qualifizieren, Konzepte präsentieren und Showroom-Termine buchen.",
+    category: "Workflow Templates",
+    industry: "Handwerk",
+    orchestration: {
+      mode: "Bedarfsanalyse → Konzept-Vorschlag → Showroom-Termin",
+      description:
+        "Qualifier erfasst Wünsche, Designer präsentiert Konzepte, Booker vereinbart den Showroom-Besuch.",
+      connections: [
+        {
+          from: "qualifier",
+          to: "designer",
+          condition:
+            "Sobald Küchentyp, Budget und Stil-Vorstellung erfasst sind, an den Küchen-Designer weiterleiten.",
+        },
+        {
+          from: "designer",
+          to: "booker",
+          condition:
+            "Wenn der Kunde sich für ein Konzept interessiert oder eine persönliche Beratung wünscht, an den Showroom-Planer weiterleiten.",
+        },
+      ],
+    },
+    agents: [
+      {
+        key: "qualifier",
+        name: "Küchen-Berater",
+        description:
+          "Erfasst die Küchenwünsche: Neubau/Renovierung, Budget, Stil, Zeitrahmen.",
+        responsibilities:
+          "Bedarf analysieren, Kontaktdaten erfassen und an den Küchen-Designer weiterleiten.",
+        systemPrompt:
+          "Sie sind Berater in einem Küchenstudio ({{businessName}}). Fragen Sie nach: Küchentyp (Neubau oder Renovierung), Budget-Rahmen (grobe Vorstellung reicht), Stil-Vorstellung (modern, klassisch, Landhausstil, minimalistisch), gewünschter Zeitrahmen für Umsetzung, besondere Wünsche (Kochinsel, bestimmte Geräte, Stauraum). Seien Sie begeistert und inspirierend. Erfassen Sie die E-Mail-Adresse.",
+        agentMode: "CHAT",
+        role: "COORDINATOR",
+        llmModel: PRIMARY_MODEL,
+        welcomeMessage:
+          "Willkommen bei {{businessName}}! Planen Sie eine neue Küche oder möchten Sie Ihre bestehende Küche renovieren? Erzählen Sie mir von Ihrem Traum-Küchenprojekt!",
+        suggestedQuestions: [
+          "Wir planen eine neue Küche für unseren Neubau",
+          "Was kostet eine Küche mit Kochinsel?",
+          "Welche Küchenstile sind aktuell beliebt?",
+          "Können wir einen Showroom-Termin vereinbaren?",
+        ],
+        actions: [
+          { type: "COLLECT_EMAIL", enabled: true, config: {} },
+          { type: "SCORE_LEAD", enabled: true, config: {} },
+        ],
+      },
+      {
+        key: "designer",
+        name: "Küchen-Designer",
+        description:
+          "Präsentiert 2-3 passende Küchen-Konzepte mit Preisrahmen basierend auf den Wünschen.",
+        responsibilities:
+          "Konzepte erstellen, Preisrahmen kommunizieren, Highlights hervorheben und Interesse für Showroom-Besuch wecken.",
+        systemPrompt:
+          "Sie sind der Küchen-Design-Spezialist von {{businessName}}. Basierend auf den Wünschen des Kunden (Typ, Budget, Stil, Zeitrahmen), beschreiben Sie 2-3 passende Küchen-Konzepte. Für jedes Konzept: Name/Stil, Highlights (Materialien, Geräte, besondere Features), realistischer Preisrahmen, Umsetzungsdauer. Empfehlen Sie einen Showroom-Besuch für die persönliche Beratung und haptische Erfahrung der Materialien.",
+        agentMode: "TASK",
+        role: "EXECUTOR",
+        reportsTo: "qualifier",
+        llmModel: PRIMARY_MODEL,
+      },
+      {
+        key: "booker",
+        name: "Showroom-Planer",
+        description:
+          "Vereinbart einen Showroom-Besuch mit persönlicher Beratung.",
+        responsibilities:
+          "Termin koordinieren, Erwartungen setzen und Bestätigung mit Anfahrt und Vorbereitung senden.",
+        systemPrompt:
+          "Sie sind der Showroom-Planer von {{businessName}}. Vereinbaren Sie einen Showroom-Besuch mit persönlicher Beratung. Fragen Sie nach bevorzugtem Tag und Uhrzeit. Erwähnen Sie: Im Showroom können Materialien und Geräte live erlebt werden, ein Küchenplaner erstellt ein 3D-Konzept, und es gibt unverbindliche Angebote. Senden Sie eine Bestätigung mit Adresse und Parkmöglichkeiten.",
+        agentMode: "CHAT",
+        role: "EXECUTOR",
+        reportsTo: "designer",
+        llmModel: FAST_MODEL,
+        welcomeMessage:
+          "Wunderbar! Vereinbaren wir einen Showroom-Besuch, damit Sie Ihre Traumküche live erleben können.",
+        suggestedQuestions: [
+          "Wann kann ich den Showroom besuchen?",
+          "Wie lange dauert eine Beratung?",
+          "Muss ich etwas mitbringen?",
+        ],
+        actions: [{ type: "BOOK_APPOINTMENT", enabled: true, config: {} }],
+      },
+    ],
+    marketplace: {
+      welcomeMessage:
+        "Küchenstudio-Pipeline mit Bedarfsanalyse, Konzept-Präsentation und Showroom-Buchung.",
+      suggestedQuestions: [
+        "Wie werden Küchenwünsche erfasst?",
+        "Wie funktioniert die Konzept-Präsentation?",
+        "Kann ich eigene Küchen-Konzepte hinterlegen?",
+      ],
+    },
+  },
 ];
 
 function normalizeTemplateId(templateId: string) {
@@ -528,6 +927,7 @@ export function getTeamTemplateSummaries() {
     description: template.description,
     goal: template.goal,
     category: template.category,
+    industry: template.industry || "Allgemein",
     agentCount: template.agents.filter((agent) => agent.role !== "APPROVAL_GATE").length,
     agents: template.agents.map((agent) => ({
       key: agent.key,

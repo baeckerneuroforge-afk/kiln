@@ -25,6 +25,8 @@ import {
 } from "@/components/teams/team-schedule-tab";
 import { VisualTeamEditor } from "@/components/teams/visual-team-editor";
 import { TeamKnowledgeTab } from "@/components/teams/team-knowledge-tab";
+import { TeamWebhooksTab } from "@/components/teams/team-webhooks-tab";
+import { TeamCostCalculator } from "@/components/teams/team-cost-calculator";
 import { cn } from "@/lib/utils";
 import {
   Users,
@@ -58,6 +60,8 @@ import {
   Heart,
   TrendingUp,
   TrendingDown,
+  Globe,
+  Download,
 } from "lucide-react";
 import {
   PROVIDERS,
@@ -453,7 +457,7 @@ function buildHierarchyGraph(
 }
 
 /* ========== Tabs ========== */
-type TabKey = "hierarchy" | "tasks" | "activity" | "analytics" | "cost" | "knowledge" | "executions" | "schedule";
+type TabKey = "hierarchy" | "tasks" | "activity" | "analytics" | "cost" | "knowledge" | "executions" | "schedule" | "webhooks";
 
 const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "hierarchy", label: "Hierarchy", icon: <Users className="h-4 w-4" /> },
@@ -464,6 +468,7 @@ const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "cost", label: "Cost", icon: <Coins className="h-4 w-4" /> },
   { key: "executions", label: "Executions", icon: <Clock className="h-4 w-4" /> },
   { key: "schedule", label: "Schedule", icon: <CalendarDays className="h-4 w-4" /> },
+  { key: "webhooks", label: "Webhooks", icon: <Globe className="h-4 w-4" /> },
 ];
 
 /* ========== Edit Member Panel ========== */
@@ -2214,6 +2219,16 @@ function TeamDetailInner() {
                   <button
                     onClick={() => {
                       setShowSettings(false);
+                      window.location.href = `/api/teams/${teamId}/export?format=yaml`;
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+                  >
+                    <Download className="h-4 w-4" /> Export YAML
+                  </button>
+                  <div className="my-1 border-t border-zinc-800" />
+                  <button
+                    onClick={() => {
+                      setShowSettings(false);
                       deleteTeam();
                     }}
                     className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2"
@@ -2678,7 +2693,8 @@ function TeamDetailInner() {
         )}
 
         {activeTab === "cost" && (
-          <div className="p-6 h-full overflow-auto">
+          <div className="p-6 h-full overflow-auto space-y-6">
+            <TeamCostCalculator teamId={teamId} />
             <TeamCostDashboard teamId={teamId} />
           </div>
         )}
@@ -2699,6 +2715,12 @@ function TeamDetailInner() {
             initialPreview={team.schedulePreview || null}
             onSaved={fetchTeam}
           />
+        )}
+
+        {activeTab === "webhooks" && (
+          <div className="p-6 h-full overflow-auto">
+            <TeamWebhooksTab teamId={teamId} />
+          </div>
         )}
       </div>
 

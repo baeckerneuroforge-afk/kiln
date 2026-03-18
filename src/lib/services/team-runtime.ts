@@ -1116,6 +1116,16 @@ export async function executeTeamExecution({
     const orderedTasks = [...tasks].sort((a, b) => a.taskIndex - b.taskIndex);
     const parallelGroups = detectParallelGroups(orderedTasks, team);
 
+    // Emit team.execution.started webhook
+    await emitEvent("team.execution.started", userId, undefined, {
+      teamId: team.id,
+      executionId,
+      teamName: team.name,
+      goal,
+      totalTasks: tasks.length,
+      taskPlan: orderedTasks.map((t) => ({ taskIndex: t.taskIndex, title: t.title, assignedToId: t.assignedToId })),
+    });
+
     for (let index = 0; index < orderedTasks.length; index += 1) {
       // ── Check if this index starts a parallel group ──
       const parallelIndices = parallelGroups.get(index);
@@ -1167,6 +1177,19 @@ export async function executeTeamExecution({
               sharedContextDelta: result.contextDelta,
               strategy: result.strategy,
               fallbackEvent: result.fallbackEvent || null,
+            });
+
+            // Emit step_completed für parallele Branches
+            await emitEvent("team.execution.step_completed", userId, pMember.agent?.id, {
+              teamId: team.id,
+              executionId,
+              stepIndex: pTask.taskIndex,
+              agentName: pMember.agent?.name || "Unknown",
+              agentRole: pMember.role,
+              output: result.output || "",
+              structuredData: result.contextDelta,
+              parallelGroup: parallelGroupId,
+              cost: { model: result.model || "", tokensIn: 0, tokensOut: 0, estimatedCost: 0 },
             });
 
             return {
@@ -1300,6 +1323,19 @@ export async function executeTeamExecution({
           logId: firstLog.id,
           nextTask,
         });
+
+        // Emit team.execution.approval_needed webhook
+        await emitEvent("team.execution.approval_needed", userId, undefined, {
+          teamId: team.id,
+          executionId,
+          stepIndex: task.taskIndex,
+          gateName: member.agent?.name || "Approval Gate",
+          taskTitle: task.title,
+          completedSteps: completedTasks,
+          totalSteps: tasks.length,
+          sharedMemory: getVisibleExecutionContext(executionContext),
+        });
+
         pausedForApproval = true;
         break;
       }
@@ -1367,6 +1403,30 @@ export async function executeTeamExecution({
         sharedContextDelta: result.contextDelta,
         strategy: result.strategy,
         fallbackEvent: result.fallbackEvent || null,
+      });
+
+      // Emit team.execution.step_completed webhook mit vollem Payload
+      const nextMember = nextTask ? team.members.find((m) => m.id === nextTask.assignedToId) : null;
+      await emitEvent("team.execution.step_completed", userId, member.agent?.id, {
+        teamId: team.id,
+        executionId,
+        stepIndex: task.taskIndex,
+        agentName: member.agent?.name || "Unknown",
+        agentRole: member.role,
+        input: buildTaskInput(team, task, member, previousOutputs.slice(0, -1), executionContext),
+        output: result.output || "",
+        structuredData: result.contextDelta,
+        sharedMemory: getVisibleExecutionContext(executionContext),
+        routingDecision: result.strategy,
+        cost: {
+          model: result.model || "",
+          tokensIn: 0,
+          tokensOut: 0,
+          estimatedCost: 0,
+        },
+        nextAgent: nextMember
+          ? { name: nextMember.agent?.name || "Unknown", role: nextMember.role, taskTitle: nextTask?.title || "" }
+          : null,
       });
 
       // ── Feedback Loop: check if this member has a loop config ──
@@ -1507,6 +1567,22 @@ export async function executeTeamExecution({
       status: finalStatus,
       executionContext,
     });
+
+    // Emit granulare team.execution.completed / team.execution.failed webhooks
+    const teamExecEventType = finalStatus === TeamExecutionStatus.FAILED
+      ? "team.execution.failed" as const
+      : "team.execution.completed" as const;
+    await emitEvent(teamExecEventType, userId, undefined, {
+      teamId: team.id,
+      executionId,
+      teamName: team.name,
+      goal,
+      totalTasks: tasks.length,
+      completedTasks,
+      failedTasks,
+      status: finalStatus,
+      sharedMemory: getVisibleExecutionContext(executionContext),
+    });
   } catch (error) {
     console.error("Team execution runtime failed:", error);
     const finalStatus =
@@ -1526,6 +1602,18 @@ export async function executeTeamExecution({
       .catch((updateError) => {
         console.error("Failed to mark team execution as failed:", updateError);
       });
+
+    // Emit team.execution.failed webhook
+    await emitEvent("team.execution.failed", userId, undefined, {
+      teamId: team.id,
+      executionId,
+      teamName: team.name,
+      goal,
+      error: error instanceof Error ? error.message : "Unknown error",
+      completedTasks,
+      failedTasks: failedTasks > 0 ? failedTasks : 1,
+      status: finalStatus,
+    }).catch(() => {});
   }
 }
 

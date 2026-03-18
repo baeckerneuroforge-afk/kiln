@@ -29,6 +29,14 @@ import {
   Heart,
   TrendingUp,
   TrendingDown,
+  Upload,
+  FileText,
+  Eye,
+  AlertCircle,
+  Hammer,
+  Building2,
+  GraduationCap,
+  CookingPot,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -172,6 +180,54 @@ const TEAM_TEMPLATE_SHOWCASE = [
     color: "text-violet-400",
     bg: "bg-violet-500/10",
     border: "border-violet-500/25",
+  },
+  {
+    id: "shk-betrieb-lead-pipeline",
+    label: "SHK-Betrieb Pipeline",
+    description: "Qualifiziert Anfragen für SHK-Betriebe mit Dringlichkeits-Bewertung.",
+    agents: "3 agents",
+    flow: "Qualifier → Booker / Follow-Up",
+    icon: Hammer,
+    color: "text-amber-400",
+    bg: "bg-amber-500/10",
+    border: "border-amber-500/25",
+    industry: "Handwerk",
+  },
+  {
+    id: "immobilienmakler-pipeline",
+    label: "Immobilienmakler Pipeline",
+    description: "Qualifiziert Interessenten, matcht Objekte und bucht Besichtigungen.",
+    agents: "3 agents",
+    flow: "Qualifier → Matcher → Booker",
+    icon: Building2,
+    color: "text-sky-400",
+    bg: "bg-sky-500/10",
+    border: "border-sky-500/25",
+    industry: "Immobilien",
+  },
+  {
+    id: "coach-erstgespraech-pipeline",
+    label: "Coach Erstgespräch",
+    description: "Qualifiziert Coaching-Interessenten und bucht Erstgespräche.",
+    agents: "2 agents",
+    flow: "Qualifier → Scheduler",
+    icon: GraduationCap,
+    color: "text-pink-400",
+    bg: "bg-pink-500/10",
+    border: "border-pink-500/25",
+    industry: "Beratung",
+  },
+  {
+    id: "kuechenstudio-pipeline",
+    label: "Küchenstudio Pipeline",
+    description: "Erfasst Küchenwünsche, präsentiert Konzepte, bucht Showroom-Besuche.",
+    agents: "3 agents",
+    flow: "Berater → Designer → Booker",
+    icon: CookingPot,
+    color: "text-rose-400",
+    bg: "bg-rose-500/10",
+    border: "border-rose-500/25",
+    industry: "Handwerk",
   },
 ];
 
@@ -1540,6 +1596,19 @@ export default function TeamsPage() {
   const [creatingTemplate, setCreatingTemplate] = useState<string | null>(null);
   const [healthScores, setHealthScores] = useState<Record<string, { overall: number; color: "green" | "yellow" | "red"; direction: "up" | "down" | "stable" }>>({});
 
+  // Import YAML state
+  const [showImport, setShowImport] = useState(false);
+  const [importYaml, setImportYaml] = useState("");
+  const [importPreview, setImportPreview] = useState<{
+    name: string;
+    description?: string;
+    agentCount: number;
+    agents: { name: string; role: string; model: string }[];
+    orchestrationRules: number;
+  } | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
   function fetchTeams() {
     setLoading(true);
     fetch("/api/teams")
@@ -1610,6 +1679,60 @@ export default function TeamsPage() {
   }
 
   /* Loading state */
+  async function previewImport() {
+    if (!importYaml.trim()) return;
+    setImportLoading(true);
+    setImportError(null);
+    try {
+      const res = await fetch("/api/teams/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ yaml: importYaml, preview: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Preview failed");
+      setImportPreview(data);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : "Preview failed");
+    } finally {
+      setImportLoading(false);
+    }
+  }
+
+  async function executeImport() {
+    if (!importYaml.trim()) return;
+    setImportLoading(true);
+    setImportError(null);
+    try {
+      const res = await fetch("/api/teams/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ yaml: importYaml }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Import failed");
+      setShowImport(false);
+      setImportYaml("");
+      setImportPreview(null);
+      router.push(data.detailUrl || `/dashboard/teams/${data.teamId}`);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : "Import failed");
+    } finally {
+      setImportLoading(false);
+    }
+  }
+
+  function handleYamlFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      setImportYaml(content);
+      setImportPreview(null);
+      setImportError(null);
+    };
+    reader.readAsText(file);
+  }
+
   if (loading) {
     return (
       <div className="mx-auto max-w-5xl">
@@ -1639,10 +1762,16 @@ export default function TeamsPage() {
             Coordinate groups of AI agents working toward shared goals.
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowCreate(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Create Team
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setShowImport(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            Import YAML
+          </Button>
+          <Button size="sm" onClick={() => setShowCreate(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Team
+          </Button>
+        </div>
       </div>
 
       <div className="mb-8 rounded-2xl border border-border bg-card/60 p-5">
@@ -1686,9 +1815,16 @@ export default function TeamsPage() {
                   >
                     <Icon className={cn("h-4 w-4", template.color)} />
                   </div>
-                  <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
-                    {template.agents}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {"industry" in template && template.industry && (
+                      <span className={cn("rounded-full px-2 py-0.5 text-[9px] font-medium", template.bg, template.color)}>
+                        {template.industry}
+                      </span>
+                    )}
+                    <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
+                      {template.agents}
+                    </span>
+                  </div>
                 </div>
                 <h3 className="text-sm font-semibold text-foreground">
                   {template.label}
@@ -1907,6 +2043,164 @@ export default function TeamsPage() {
         onClose={() => setShowCreate(false)}
         onCreated={fetchTeams}
       />
+
+      {/* Import YAML Modal */}
+      {showImport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-2xl rounded-2xl border border-border bg-zinc-900 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-kiln-orange/10">
+                  <Upload className="h-5 w-5 text-kiln-orange" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">Import Team from YAML</h2>
+                  <p className="text-sm text-muted-foreground">Upload a .yaml file or paste YAML content</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowImport(false);
+                  setImportYaml("");
+                  setImportPreview(null);
+                  setImportError(null);
+                }}
+                className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 p-6">
+              {/* File upload */}
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-background/50 px-4 py-3 text-sm text-muted-foreground transition-colors hover:border-kiln-orange/30 hover:text-foreground">
+                <FileText className="h-4 w-4" />
+                <span>Drop or click to upload .yaml file</span>
+                <input
+                  type="file"
+                  accept=".yaml,.yml"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleYamlFile(file);
+                  }}
+                />
+              </label>
+
+              {/* YAML editor */}
+              <textarea
+                value={importYaml}
+                onChange={(e) => {
+                  setImportYaml(e.target.value);
+                  setImportPreview(null);
+                  setImportError(null);
+                }}
+                placeholder={`name: My Team\ndescription: Team description\nagents:\n  - name: Qualifier\n    role: COORDINATOR\n    model: claude-sonnet-4-6\n    systemPrompt: |\n      You are a lead qualifier...`}
+                rows={10}
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 font-mono text-sm text-foreground placeholder:text-muted-foreground/30 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/30"
+              />
+
+              {/* Error */}
+              {importError && (
+                <div className="flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  {importError}
+                </div>
+              )}
+
+              {/* Preview */}
+              {importPreview && (
+                <div className="rounded-xl border border-border bg-background/60 p-4">
+                  <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
+                    <Eye className="h-4 w-4 text-kiln-orange" />
+                    Import Preview
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <p className="text-foreground">
+                      <span className="text-muted-foreground">Team:</span>{" "}
+                      <span className="font-medium">{importPreview.name}</span>
+                    </p>
+                    {importPreview.description && (
+                      <p className="text-muted-foreground">{importPreview.description}</p>
+                    )}
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                        {importPreview.agentCount} Agents
+                      </span>
+                      <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                        {importPreview.orchestrationRules} Orchestration Rules
+                      </span>
+                    </div>
+                    <div className="mt-2 space-y-1">
+                      {importPreview.agents.map((agent) => (
+                        <div
+                          key={agent.name}
+                          className="flex items-center gap-2 rounded-lg border border-border/70 bg-card/70 px-3 py-2 text-xs"
+                        >
+                          <span className={cn(
+                            "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
+                            roleColors[agent.role]?.bg || "bg-zinc-700/60",
+                            roleColors[agent.role]?.text || "text-zinc-400"
+                          )}>
+                            {agent.role}
+                          </span>
+                          <span className="font-medium text-foreground">{agent.name}</span>
+                          <span className="ml-auto text-muted-foreground">{agent.model}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-between border-t border-border px-6 py-4">
+              <button
+                onClick={() => {
+                  setShowImport(false);
+                  setImportYaml("");
+                  setImportPreview(null);
+                  setImportError(null);
+                }}
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
+              <div className="flex items-center gap-2">
+                {!importPreview ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={previewImport}
+                    disabled={!importYaml.trim() || importLoading}
+                  >
+                    {importLoading ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Eye className="mr-2 h-4 w-4" />
+                    )}
+                    Preview
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={executeImport}
+                    disabled={importLoading}
+                  >
+                    {importLoading ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="mr-2 h-4 w-4" />
+                    )}
+                    Import Team
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1071,11 +1071,12 @@ function createMcpServer(userId: string) {
 
   server.tool(
     "kiln_export_agent_config",
-    "Export an agent's full configuration as JSON. Includes all settings, actions, prompt branches, and task config. Does NOT include conversations, knowledge base content, or API keys.",
+    "Export an agent's full configuration as JSON or YAML. Includes all settings, actions, prompt branches, and task config. Does NOT include conversations, knowledge base content, or API keys.",
     {
       id: z.string().describe("Agent ID to export"),
+      format: z.enum(["json", "yaml"]).optional().default("json").describe("Export format: json (default) or yaml"),
     },
-    async ({ id }) => {
+    async ({ id, format }) => {
       const agent = await prisma.agent.findFirst({
         where: { id, userId },
         include: {
@@ -1119,6 +1120,12 @@ function createMcpServer(userId: string) {
         exportData.outputConfig = agent.outputConfig;
         exportData.preProcessConfig = agent.preProcessConfig;
         exportData.postProcessConfig = agent.postProcessConfig;
+      }
+
+      if (format === "yaml") {
+        const yaml = await import("js-yaml");
+        const yamlContent = yaml.dump(exportData, { lineWidth: 120, noRefs: true });
+        return ok({ yaml: yamlContent });
       }
 
       return ok(exportData);
@@ -2193,6 +2200,44 @@ Return ONLY a JSON array: [{"title": "...", "description": "...", "assignTo": "A
           createdAt: r.createdAt.toISOString(),
         })),
       });
+    }
+  );
+
+  // ── kiln_export_team_yaml ──
+  server.tool(
+    "kiln_export_team_yaml",
+    "Export a team's full configuration as YAML. Returns the team name, agents, orchestration rules, and schedule in a portable YAML format that can be imported later.",
+    { teamId: z.string().describe("The team ID to export") },
+    async ({ teamId }) => {
+      try {
+        const team = await prisma.agentTeam.findFirst({
+          where: { id: teamId, userId },
+          select: { id: true },
+        });
+        if (!team) return err("Team not found or not owned by you.");
+
+        const { exportTeamAsYaml } = await import("@/lib/team-yaml");
+        const yamlContent = await exportTeamAsYaml(teamId);
+        return ok({ yaml: yamlContent });
+      } catch (e) {
+        return err(e instanceof Error ? e.message : "Export failed");
+      }
+    }
+  );
+
+  // ── kiln_import_team_yaml ──
+  server.tool(
+    "kiln_import_team_yaml",
+    "Import a team from YAML configuration. Creates the team, all agents, actions, orchestration rules, and hierarchy from a YAML definition.",
+    { yaml: z.string().describe("The YAML content defining the team") },
+    async ({ yaml: yamlContent }) => {
+      try {
+        const { importTeamFromYaml } = await import("@/lib/team-yaml");
+        const result = await importTeamFromYaml(userId, yamlContent);
+        return ok(result);
+      } catch (e) {
+        return err(e instanceof Error ? e.message : "Import failed");
+      }
     }
   );
 
