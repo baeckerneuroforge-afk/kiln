@@ -831,6 +831,7 @@ model AgentTeam {
   name        String
   description String?         @db.Text
   goal        String?         @db.Text
+  config      Json?
   status      AgentTeamStatus @default(ACTIVE)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt

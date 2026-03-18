@@ -18,6 +18,7 @@ import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
 import { TeamExecutionsTab } from "@/components/teams/executions-tab";
 import { TeamCostDashboard } from "@/components/teams/team-cost-dashboard";
+import { VisualTeamEditor } from "@/components/teams/visual-team-editor";
 import { cn } from "@/lib/utils";
 import {
   Users,
@@ -44,6 +45,8 @@ import {
   Coins,
   AlertCircle,
   Database,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import {
   PROVIDERS,
@@ -121,6 +124,7 @@ interface Team {
   name: string;
   description?: string;
   goal?: string;
+  config?: { nodePositions?: Record<string, { x: number; y: number }> } | null;
   status: "ACTIVE" | "PAUSED";
   createdAt: string;
   updatedAt: string;
@@ -162,7 +166,21 @@ function normalizeTaskStatus(status: TeamTask["status"]) {
 }
 
 function getMemberDisplayName(member: TeamMember) {
-  return member.agent?.name || (member.role === "APPROVAL_GATE" ? "Approval Gate" : "Unassigned member");
+  if (member.agent?.name) {
+    return member.agent.name;
+  }
+
+  if (member.role === "APPROVAL_GATE") {
+    const config =
+      member.config && typeof member.config === "object" && !Array.isArray(member.config)
+        ? (member.config as Record<string, unknown>)
+        : null;
+    return typeof config?.label === "string" && config.label.trim()
+      ? config.label.trim()
+      : "Approval Gate";
+  }
+
+  return "Unassigned member";
 }
 
 /* ========== Custom ReactFlow Node ========== */
@@ -1433,6 +1451,10 @@ function TeamDetailInner() {
   // Add member modal
   const [showAddMember, setShowAddMember] = useState(false);
 
+  // Visual editor view toggle
+  const [hierarchyView, setHierarchyView] = useState<"visual" | "list">("visual");
+  const [nodePositions, setNodePositions] = useState<Record<string, { x: number; y: number }>>({});
+
   /* Fetch team data */
   const fetchTeam = useCallback(async () => {
     try {
@@ -1444,6 +1466,9 @@ function TeamDetailInner() {
       const data: Team = await res.json();
       setTeam(data);
       setNameValue(data.name);
+      if (data.config?.nodePositions) {
+        setNodePositions(data.config.nodePositions);
+      }
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -1617,7 +1642,49 @@ function TeamDetailInner() {
     }
   };
 
-  /* Hierarchy graph */
+  /* Save node positions to team config */
+  const saveNodePositions = useCallback(async (positions: Record<string, { x: number; y: number }>) => {
+    setNodePositions(positions);
+    try {
+      await fetch(`/api/teams/${teamId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config: { nodePositions: positions } }),
+      });
+    } catch {
+      // Silently fail — positions are still in local state
+    }
+  }, [teamId]);
+
+  /* Handle connection creation (update reportsTo) */
+  const handleConnectionCreate = useCallback(async (sourceMemberId: string, targetMemberId: string) => {
+    try {
+      await fetch(`/api/teams/${teamId}/members`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId: targetMemberId, reportsToMemberId: sourceMemberId }),
+      });
+      await fetchTeam();
+    } catch {
+      // Revert will happen on next fetchTeam
+    }
+  }, [teamId, fetchTeam]);
+
+  /* Handle connection deletion (remove reportsTo) */
+  const handleConnectionDelete = useCallback(async (_sourceMemberId: string, targetMemberId: string) => {
+    try {
+      await fetch(`/api/teams/${teamId}/members`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId: targetMemberId, reportsToMemberId: null }),
+      });
+      await fetchTeam();
+    } catch {
+      // Revert will happen on next fetchTeam
+    }
+  }, [teamId, fetchTeam]);
+
+  /* Hierarchy graph (list view) */
   const { nodes, edges } = useMemo(() => {
     if (!team) return { nodes: [], edges: [] };
     return buildHierarchyGraph(team.members, team.tasks, Object.keys(sharedContextPreview));
@@ -1828,9 +1895,37 @@ function TeamDetailInner() {
           </button>
         ))}
 
-        {/* Add Member button — only shown in hierarchy tab */}
+        {/* Hierarchy tab controls */}
         {activeTab === "hierarchy" && (
-          <div className="ml-auto pb-1">
+          <div className="ml-auto pb-1 flex items-center gap-2">
+            {/* View toggle */}
+            <div className="flex rounded-lg border border-zinc-700 overflow-hidden">
+              <button
+                onClick={() => setHierarchyView("visual")}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium transition-colors",
+                  hierarchyView === "visual"
+                    ? "bg-orange-500/15 text-orange-400"
+                    : "text-zinc-500 hover:text-zinc-300"
+                )}
+              >
+                <LayoutGrid className="h-3 w-3" />
+                Visual
+              </button>
+              <button
+                onClick={() => setHierarchyView("list")}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium transition-colors border-l border-zinc-700",
+                  hierarchyView === "list"
+                    ? "bg-orange-500/15 text-orange-400"
+                    : "text-zinc-500 hover:text-zinc-300"
+                )}
+              >
+                <List className="h-3 w-3" />
+                Tree
+              </button>
+            </div>
+
             <Button
               size="sm"
               variant="outline"
@@ -1934,7 +2029,21 @@ function TeamDetailInner() {
                   </Button>
                 </div>
               </div>
+            ) : hierarchyView === "visual" ? (
+              /* ---- Visual Editor ---- */
+              <div className="flex-1 min-h-0">
+                <VisualTeamEditor
+                  teamId={teamId}
+                  members={team.members}
+                  onNodeClick={(memberId) => setSelectedMemberId(memberId)}
+                  onConnectionCreate={handleConnectionCreate}
+                  onConnectionDelete={handleConnectionDelete}
+                  savedPositions={nodePositions}
+                  onPositionsChange={saveNodePositions}
+                />
+              </div>
             ) : (
+              /* ---- Tree View (original ReactFlow) ---- */
               <div className="flex-1 min-h-0">
                 <ReactFlow
                   nodes={nodes}
@@ -2158,6 +2267,7 @@ function TeamDetailInner() {
             teamId={teamId}
             focusExecutionId={focusedExecutionId}
             onRefreshTeam={fetchTeam}
+            onExecutionContextChange={setSharedContextPreview}
           />
         )}
       </div>

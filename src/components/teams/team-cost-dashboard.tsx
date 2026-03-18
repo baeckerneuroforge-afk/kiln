@@ -20,7 +20,6 @@ import {
   TrendingDown,
   Zap,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface AgentCostBreakdown {
   agentId: string;

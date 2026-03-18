@@ -38,7 +38,7 @@ import {
 /* ---------- Types ---------- */
 interface TeamMember {
   id: string;
-  role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER";
+  role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER" | "APPROVAL_GATE";
 }
 
 interface Team {
@@ -128,9 +128,9 @@ const TEAM_TEMPLATE_SHOWCASE = [
   {
     id: "sales-pipeline",
     label: "Sales Pipeline",
-    description: "Qualifier routes hot leads to Closer and colder leads to Follow-Up.",
-    agents: "3 agents",
-    flow: "Qualifier → Closer / Follow-Up",
+    description: "Qualifier routes hot leads through a human approval gate before Closer, while colder leads go to Follow-Up.",
+    agents: "3 agents + gate",
+    flow: "Qualifier → Approval → Closer / Follow-Up",
     icon: Briefcase,
     color: "text-kiln-orange",
     bg: "bg-kiln-orange/10",
@@ -183,11 +183,13 @@ function formatDate(dateStr: string): string {
 function roleCounts(members: TeamMember[]): string {
   const heads = members.filter((m) => m.role === "HEAD").length;
   const coordinators = members.filter((m) => m.role === "COORDINATOR").length;
+  const approvalGates = members.filter((m) => m.role === "APPROVAL_GATE").length;
   const executors = members.filter((m) => m.role === "EXECUTOR").length;
   const reporters = members.filter((m) => m.role === "REPORTER").length;
   const parts: string[] = [];
   if (heads > 0) parts.push(`${heads} Head`);
   if (coordinators > 0) parts.push(`${coordinators} Coord.`);
+  if (approvalGates > 0) parts.push(`${approvalGates} Gate`);
   if (executors > 0) parts.push(`${executors} Exec.`);
   if (reporters > 0) parts.push(`${reporters} Reporter`);
   return parts.join(" · ") || "No members";
@@ -196,6 +198,7 @@ function roleCounts(members: TeamMember[]): string {
 const roleColors: Record<string, { bg: string; text: string }> = {
   HEAD: { bg: "bg-orange-500/15", text: "text-orange-400" },
   COORDINATOR: { bg: "bg-blue-500/15", text: "text-blue-400" },
+  APPROVAL_GATE: { bg: "bg-amber-500/15", text: "text-amber-300" },
   EXECUTOR: { bg: "bg-green-500/15", text: "text-green-400" },
   REPORTER: { bg: "bg-purple-500/15", text: "text-purple-400" },
 };

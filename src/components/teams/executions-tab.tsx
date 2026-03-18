@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  AlertCircle,
   AlertTriangle,
   CheckCircle2,
   Clock,
+  Database,
   Loader2,
   Play,
   RotateCcw,
@@ -12,6 +14,19 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+interface ApprovalInfo {
+  id: string;
+  token: string;
+  taskIndex: number;
+  status: string;
+  approverEmail: string;
+  requestedAt: string;
+  respondedAt: string | null;
+  respondedBy: string | null;
+  note: string | null;
+  gateMember: { id: string; role: string; name: string } | null;
+}
 
 interface ExecutionSummary {
   id: string;
@@ -23,6 +38,8 @@ interface ExecutionSummary {
   completedTasks: number;
   failedTasks: number;
   durationMs: number | null;
+  sharedContextFields?: number;
+  latestApproval?: Omit<ApprovalInfo, "token" | "taskIndex" | "note" | "gateMember"> | null;
 }
 
 interface ExecutionAttempt {
@@ -31,6 +48,7 @@ interface ExecutionAttempt {
   status: string;
   input: unknown;
   output: string | null;
+  structuredOutput?: unknown;
   error: string | null;
   startedAt: string | null;
   completedAt: string | null;
@@ -51,22 +69,39 @@ interface ExecutionTimelineItem {
   attempts: ExecutionAttempt[];
 }
 
+interface SharedContextTimelineItem {
+  key: string;
+  value: unknown;
+  taskIndex: number;
+  taskTitle: string;
+  addedAt: string | null;
+  addedBy: string;
+}
+
 interface ExecutionDetail {
-  execution: ExecutionSummary & { teamId: string };
+  execution: ExecutionSummary & {
+    teamId: string;
+    executionContext: Record<string, unknown>;
+  };
   timeline: ExecutionTimelineItem[];
+  sharedContextTimeline: SharedContextTimelineItem[];
+  approvalRequests: ApprovalInfo[];
 }
 
 interface TeamExecutionsTabProps {
   teamId: string;
   focusExecutionId?: string | null;
   onRefreshTeam?: () => Promise<void> | void;
+  onExecutionContextChange?: (context: Record<string, unknown>) => void;
 }
 
 const statusStyles: Record<string, string> = {
   RUNNING: "border-blue-500/30 bg-blue-500/10 text-blue-300",
+  AWAITING_APPROVAL: "border-amber-500/30 bg-amber-500/10 text-amber-300",
   COMPLETED: "border-green-500/30 bg-green-500/10 text-green-300",
   PARTIAL: "border-amber-500/30 bg-amber-500/10 text-amber-300",
   FAILED: "border-red-500/30 bg-red-500/10 text-red-300",
+  REJECTED: "border-red-500/30 bg-red-500/10 text-red-200",
   PENDING: "border-zinc-700 bg-zinc-800/80 text-zinc-300",
   SKIPPED: "border-zinc-700 bg-zinc-800/80 text-zinc-400",
 };
@@ -94,10 +129,16 @@ function previewValue(value: unknown) {
   return serialized.length > 500 ? `${serialized.slice(0, 500)}…` : serialized;
 }
 
+function formatContextValue(value: unknown) {
+  if (typeof value === "string") return value;
+  return JSON.stringify(value);
+}
+
 export function TeamExecutionsTab({
   teamId,
   focusExecutionId,
   onRefreshTeam,
+  onExecutionContextChange,
 }: TeamExecutionsTabProps) {
   const [executions, setExecutions] = useState<ExecutionSummary[]>([]);
   const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(focusExecutionId || null);
@@ -106,12 +147,26 @@ export function TeamExecutionsTab({
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [rerunningExecutionId, setRerunningExecutionId] = useState<string | null>(null);
   const [retryingTaskKey, setRetryingTaskKey] = useState<string | null>(null);
+  const [approvalActionKey, setApprovalActionKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const pendingApproval = detail?.approvalRequests.find((request) => request.status === "PENDING") || null;
+  const resolvedApproval = useMemo(
+    () =>
+      detail?.approvalRequests.find(
+        (request) => request.status === "APPROVED" || request.status === "REJECTED" || request.status === "SKIPPED"
+      ) || null,
+    [detail?.approvalRequests]
+  );
 
   useEffect(() => {
     if (!focusExecutionId) return;
     setSelectedExecutionId(focusExecutionId);
   }, [focusExecutionId]);
+
+  useEffect(() => {
+    onExecutionContextChange?.(detail?.execution.executionContext || {});
+  }, [detail?.execution.executionContext, onExecutionContextChange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -150,7 +205,7 @@ export function TeamExecutionsTab({
     return () => {
       cancelled = true;
     };
-  }, [teamId, selectedExecutionId]);
+  }, [selectedExecutionId, teamId]);
 
   useEffect(() => {
     if (!selectedExecutionId) {
@@ -189,21 +244,27 @@ export function TeamExecutionsTab({
     return () => {
       cancelled = true;
     };
-  }, [teamId, selectedExecutionId]);
+  }, [selectedExecutionId, teamId]);
 
   useEffect(() => {
-    const hasRunningExecution =
-      executions.some((execution) => execution.status === "RUNNING") ||
-      detail?.execution.status === "RUNNING";
+    const hasLiveExecution =
+      executions.some(
+        (execution) =>
+          execution.status === "RUNNING" || execution.status === "AWAITING_APPROVAL"
+      ) ||
+      detail?.execution.status === "RUNNING" ||
+      detail?.execution.status === "AWAITING_APPROVAL";
 
-    if (!hasRunningExecution) {
+    if (!hasLiveExecution) {
       return;
     }
 
     const interval = setInterval(async () => {
       const [listResponse, detailResponse] = await Promise.all([
         fetch(`/api/teams/${teamId}/executions`),
-        selectedExecutionId ? fetch(`/api/teams/${teamId}/executions/${selectedExecutionId}`) : Promise.resolve(null),
+        selectedExecutionId
+          ? fetch(`/api/teams/${teamId}/executions/${selectedExecutionId}`)
+          : Promise.resolve(null),
       ]);
 
       if (listResponse.ok) {
@@ -246,10 +307,48 @@ export function TeamExecutionsTab({
       const nextExecutionId = data.executionId as string;
       setSelectedExecutionId(nextExecutionId);
       await onRefreshTeam?.();
+    } catch (rerunError) {
+      setError(rerunError instanceof Error ? rerunError.message : "Failed to re-run execution");
+    } finally {
+      setRerunningExecutionId(null);
+      setRetryingTaskKey(null);
+    }
+  }
+
+  async function handleApprovalDecision(decision: "approve" | "reject") {
+    if (!detail || !pendingApproval) return;
+
+    const actionKey = `${decision}:${detail.execution.id}`;
+    setApprovalActionKey(actionKey);
+
+    try {
+      const note =
+        decision === "reject"
+          ? window.prompt("Optional rejection note", "") || ""
+          : "";
+      const endpoint =
+        decision === "approve"
+          ? `/api/teams/${teamId}/executions/${detail.execution.id}/approve`
+          : `/api/teams/${teamId}/executions/${detail.execution.id}/reject`;
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: pendingApproval.token,
+          note,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to resolve approval request");
+      }
+
+      await onRefreshTeam?.();
 
       const [listResponse, detailResponse] = await Promise.all([
         fetch(`/api/teams/${teamId}/executions`),
-        fetch(`/api/teams/${teamId}/executions/${nextExecutionId}`),
+        fetch(`/api/teams/${teamId}/executions/${detail.execution.id}`),
       ]);
 
       if (listResponse.ok) {
@@ -263,11 +362,14 @@ export function TeamExecutionsTab({
         const detailData = await detailResponse.json();
         setDetail(detailData);
       }
-    } catch (rerunError) {
-      setError(rerunError instanceof Error ? rerunError.message : "Failed to re-run execution");
+    } catch (approvalError) {
+      setError(
+        approvalError instanceof Error
+          ? approvalError.message
+          : "Failed to resolve approval request"
+      );
     } finally {
-      setRerunningExecutionId(null);
-      setRetryingTaskKey(null);
+      setApprovalActionKey(null);
     }
   }
 
@@ -284,7 +386,9 @@ export function TeamExecutionsTab({
           <div className="rounded-xl border border-border bg-card p-4">
             <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Execution History</p>
             <p className="mt-2 text-2xl font-semibold text-zinc-100">{executions.length}</p>
-            <p className="mt-1 text-xs text-zinc-500">Operational runs with task-level state and retries.</p>
+            <p className="mt-1 text-xs text-zinc-500">
+              Operational runs with retries, approval gates, and shared memory.
+            </p>
           </div>
 
           {loadingList ? (
@@ -326,7 +430,19 @@ export function TeamExecutionsTab({
                   <span>{execution.completedTasks}/{execution.totalTasks} done</span>
                   <span>{execution.failedTasks} failed</span>
                   <span>{formatDuration(execution.durationMs)}</span>
+                  {typeof execution.sharedContextFields === "number" && execution.sharedContextFields > 0 && (
+                    <span className="inline-flex items-center gap-1 text-amber-300">
+                      <Database className="h-3 w-3" />
+                      {execution.sharedContextFields} fields
+                    </span>
+                  )}
                 </div>
+
+                {execution.latestApproval && (
+                  <p className="mt-2 text-[11px] text-zinc-500">
+                    Approval: {execution.latestApproval.status.toLowerCase()} · {execution.latestApproval.approverEmail}
+                  </p>
+                )}
               </button>
             ))
           )}
@@ -366,26 +482,112 @@ export function TeamExecutionsTab({
                     <span>{detail.execution.completedTasks}/{detail.execution.totalTasks} completed</span>
                     <span>{detail.execution.failedTasks} failed</span>
                   </div>
+                  {resolvedApproval && resolvedApproval.respondedAt && (
+                    <p className="mt-2 text-xs text-zinc-500">
+                      {resolvedApproval.status === "APPROVED" ? "Approved" : resolvedApproval.status === "SKIPPED" ? "Skipped" : "Rejected"} by {resolvedApproval.respondedBy || resolvedApproval.approverEmail} at {formatDateTime(resolvedApproval.respondedAt)}
+                    </p>
+                  )}
                 </div>
 
-                {detail.execution.failedTasks > 0 && detail.execution.status !== "RUNNING" && (
-                  <Button
-                    size="sm"
-                    onClick={() => triggerRerun(detail.execution.id)}
-                    disabled={rerunningExecutionId === detail.execution.id}
-                    className="bg-orange-600 hover:bg-orange-700 text-white"
-                  >
-                    {rerunningExecutionId === detail.execution.id ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <RotateCcw className="mr-2 h-4 w-4" />
-                    )}
-                    Re-run Failed Tasks
-                  </Button>
-                )}
+                <div className="flex flex-wrap gap-2">
+                  {pendingApproval && detail.execution.status === "AWAITING_APPROVAL" && (
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => handleApprovalDecision("approve")}
+                        disabled={approvalActionKey === `approve:${detail.execution.id}`}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        {approvalActionKey === `approve:${detail.execution.id}` ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                        )}
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleApprovalDecision("reject")}
+                        disabled={approvalActionKey === `reject:${detail.execution.id}`}
+                        className="border-red-500/30 text-red-300 hover:bg-red-500/10 hover:text-red-200"
+                      >
+                        {approvalActionKey === `reject:${detail.execution.id}` ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <XCircle className="mr-2 h-4 w-4" />
+                        )}
+                        Reject
+                      </Button>
+                    </>
+                  )}
+
+                  {detail.execution.failedTasks > 0 && detail.execution.status !== "RUNNING" && detail.execution.status !== "AWAITING_APPROVAL" && (
+                    <Button
+                      size="sm"
+                      onClick={() => triggerRerun(detail.execution.id)}
+                      disabled={rerunningExecutionId === detail.execution.id}
+                      className="bg-orange-600 hover:bg-orange-700 text-white"
+                    >
+                      {rerunningExecutionId === detail.execution.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                      )}
+                      Re-run Failed Tasks
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-4 overflow-auto p-5">
+                <div className="rounded-xl border border-border bg-zinc-950/40 p-4">
+                  <div className="flex items-center gap-2">
+                    <Database className="h-4 w-4 text-amber-300" />
+                    <p className="text-sm font-semibold text-zinc-100">Team Knowledge</p>
+                  </div>
+                  {Object.keys(detail.execution.executionContext || {}).length === 0 ? (
+                    <p className="mt-3 text-sm text-zinc-500">No shared context fields have been captured yet.</p>
+                  ) : (
+                    <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Current Context</p>
+                        <div className="mt-3 space-y-2">
+                          {Object.entries(detail.execution.executionContext).map(([key, value]) => (
+                            <div key={key} className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2">
+                              <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">{key}</p>
+                              <p className="mt-1 text-xs text-zinc-200 break-words">{formatContextValue(value)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Field Timeline</p>
+                        <div className="mt-3 space-y-2">
+                          {detail.sharedContextTimeline.length === 0 ? (
+                            <p className="text-xs text-zinc-500">No field-level additions recorded yet.</p>
+                          ) : (
+                            detail.sharedContextTimeline.map((item, index) => (
+                              <div
+                                key={`${item.key}-${index}`}
+                                className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2"
+                              >
+                                <p className="text-xs text-zinc-200">
+                                  <span className="font-medium">{item.key}</span>: {formatContextValue(item.value)}
+                                </p>
+                                <p className="mt-1 text-[11px] text-zinc-500">
+                                  Added by {item.addedBy} on task {item.taskIndex + 1} · {item.taskTitle}
+                                  {item.addedAt ? ` · ${formatDateTime(item.addedAt)}` : ""}
+                                </p>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {detail.timeline.length === 0 ? (
                   <div className="flex h-48 items-center justify-center text-zinc-500">
                     No task logs recorded for this execution.
@@ -393,7 +595,8 @@ export function TeamExecutionsTab({
                 ) : (
                   detail.timeline.map((task) => {
                     const latestAttempt = task.attempts[task.attempts.length - 1];
-                    const isFailed = task.latestStatus === "FAILED";
+                    const isFailed = task.latestStatus === "FAILED" || task.latestStatus === "REJECTED";
+                    const isAwaitingApproval = task.latestStatus === "AWAITING_APPROVAL";
 
                     return (
                       <div
@@ -402,9 +605,11 @@ export function TeamExecutionsTab({
                           "rounded-xl border p-4",
                           isFailed
                             ? "border-red-500/30 bg-red-500/5"
-                            : task.latestStatus === "COMPLETED"
-                              ? "border-green-500/20 bg-green-500/5"
-                              : "border-border bg-zinc-950/30"
+                            : isAwaitingApproval
+                              ? "border-amber-500/30 bg-amber-500/5"
+                              : task.latestStatus === "COMPLETED"
+                                ? "border-green-500/20 bg-green-500/5"
+                                : "border-border bg-zinc-950/30"
                         )}
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -426,7 +631,7 @@ export function TeamExecutionsTab({
                             </p>
                           </div>
 
-                          {isFailed && detail.execution.status !== "RUNNING" && (
+                          {isFailed && detail.execution.status !== "RUNNING" && detail.execution.status !== "AWAITING_APPROVAL" && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -471,10 +676,12 @@ export function TeamExecutionsTab({
                               <div className="flex items-center gap-2 text-xs text-zinc-300">
                                 {attempt.status === "COMPLETED" ? (
                                   <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
-                                ) : attempt.status === "FAILED" ? (
+                                ) : attempt.status === "FAILED" || attempt.status === "REJECTED" ? (
                                   <XCircle className="h-3.5 w-3.5 text-red-400" />
                                 ) : attempt.status === "RUNNING" ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
+                                ) : attempt.status === "AWAITING_APPROVAL" ? (
+                                  <AlertCircle className="h-3.5 w-3.5 text-amber-300" />
                                 ) : (
                                   <AlertTriangle className="h-3.5 w-3.5 text-zinc-500" />
                                 )}

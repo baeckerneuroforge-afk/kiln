@@ -35,7 +35,7 @@ interface Template {
     suggestedQuestions?: string[];
     actions?: { type: string; enabled: boolean }[];
     workflowTemplateId?: string;
-    workflowAgents?: { name: string; agentMode: "CHAT" | "TASK" }[];
+    workflowAgents?: { name: string; agentMode: "CHAT" | "TASK" | "APPROVAL"; role?: string }[];
     orchestration?: { mode?: string; description?: string };
   };
   createdAt: string;
@@ -375,7 +375,7 @@ export default function MarketplacePage() {
                   <div className="flex flex-wrap gap-1.5">
                     {previewTemplate.agentConfigSnapshot.workflowAgents.map((agent, i) => (
                       <span key={i} className="rounded-full bg-muted px-2.5 py-1 text-[10px] text-foreground">
-                        {agent.name} ({agent.agentMode})
+                        {agent.name} ({agent.agentMode === "APPROVAL" ? "Approval Gate" : agent.agentMode})
                       </span>
                     ))}
                   </div>

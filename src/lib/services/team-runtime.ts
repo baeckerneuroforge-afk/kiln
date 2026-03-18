@@ -21,7 +21,6 @@ import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
 import {
   normalizeApprovalGateConfig,
-  type ApprovalGateConfig,
 } from "@/lib/team-approval";
 
 const teamExecutionRuntimeInclude = {
@@ -119,7 +118,15 @@ function getMemberDisplayName(
   member: TeamExecutionRuntimeTeam["members"][number] | null
 ) {
   if (!member) return "Unassigned";
-  if (member.role === "APPROVAL_GATE") return "Approval Gate";
+  if (member.role === "APPROVAL_GATE") {
+    const config =
+      member.config && typeof member.config === "object" && !Array.isArray(member.config)
+        ? (member.config as Record<string, unknown>)
+        : null;
+    return typeof config?.label === "string" && config.label.trim()
+      ? config.label.trim()
+      : "Approval Gate";
+  }
   return member.agent?.name || "Unnamed agent";
 }
 
@@ -978,7 +985,7 @@ export async function resolveApprovalTimeoutIfNeeded(
     return null;
   }
 
-  const { execution, team, approvalRequest } = loaded;
+  const { execution, approvalRequest } = loaded;
   if (
     execution.status !== TeamExecutionStatus.AWAITING_APPROVAL ||
     approvalRequest.status !== ApprovalRequestStatus.PENDING

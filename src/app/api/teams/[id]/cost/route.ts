@@ -80,11 +80,11 @@ export async function GET(
         existing.totalCost += cost;
         existing.executionCount += 1;
       } else {
-        const member = team.members.find((m) => m.agent.id === agentId);
+        const member = team.members.find((m) => m.agent?.id === agentId);
         const modelDef = getModelDef(model);
         agentStats.set(agentId, {
           agentId,
-          agentName: member?.agent.name || "Unknown Agent",
+          agentName: member?.agent?.name || "Unknown Agent",
           model,
           modelLabel: modelDef?.shortLabel || model,
           totalTokensIn: tokensIn,

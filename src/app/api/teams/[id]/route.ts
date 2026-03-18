@@ -70,7 +70,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, description, goal, status } = body;
+    const { name, description, goal, status, config } = body;
 
     const team = await prisma.agentTeam.update({
       where: { id: params.id },
@@ -79,6 +79,7 @@ export async function PATCH(
         ...(description !== undefined && { description }),
         ...(goal !== undefined && { goal }),
         ...(status !== undefined && { status }),
+        ...(config !== undefined && { config }),
       },
     });
 

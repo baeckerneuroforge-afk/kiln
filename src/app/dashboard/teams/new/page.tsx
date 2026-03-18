@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 type TemplateAgent = {
   key: string;
   name: string;
-  role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER";
+  role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER" | "APPROVAL_GATE";
   agentMode: "CHAT" | "TASK";
 };
 
@@ -97,6 +97,7 @@ const ROLE_LABELS: Record<TemplateAgent["role"], string> = {
   COORDINATOR: "Coordinator",
   EXECUTOR: "Executor",
   REPORTER: "Reporter",
+  APPROVAL_GATE: "Approval Gate",
 };
 
 function TemplateFlowPreview({
@@ -126,7 +127,11 @@ function TemplateFlowPreview({
             >
               <span className="font-medium text-foreground">{agent.name}</span>
               <span className="ml-2 text-muted-foreground">
-                {agent.agentMode === "CHAT" ? "Chat" : "Task"}
+                {agent.role === "APPROVAL_GATE"
+                  ? "Approval"
+                  : agent.agentMode === "CHAT"
+                    ? "Chat"
+                    : "Task"}
               </span>
             </div>
             {index < agents.length - 1 && (
@@ -443,7 +448,11 @@ export default function NewTeamTemplatePage() {
                           <span className="mb-1.5 flex items-center justify-between text-xs text-muted-foreground">
                             <span>
                               {ROLE_LABELS[agent.role]} ·{" "}
-                              {agent.agentMode === "CHAT" ? "Chat Agent" : "Task Agent"}
+                              {agent.role === "APPROVAL_GATE"
+                                ? "Human Approval Gate"
+                                : agent.agentMode === "CHAT"
+                                  ? "Chat Agent"
+                                  : "Task Agent"}
                             </span>
                             <span className="text-[11px] text-foreground/80">
                               {agent.name}

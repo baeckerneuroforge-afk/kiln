@@ -141,6 +141,25 @@ function buildSharedContextTimeline(
     });
 }
 
+function getApprovalGateDisplayName(gateMember: {
+  agent?: { name: string } | null;
+  config?: unknown;
+} | null) {
+  if (!gateMember) return "Approval Gate";
+  if (gateMember.agent?.name) return gateMember.agent.name;
+
+  const config =
+    gateMember.config &&
+    typeof gateMember.config === "object" &&
+    !Array.isArray(gateMember.config)
+      ? (gateMember.config as Record<string, unknown>)
+      : null;
+
+  return typeof config?.label === "string" && config.label.trim()
+    ? config.label.trim()
+    : "Approval Gate";
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string; execId: string } }
@@ -239,7 +258,7 @@ export async function GET(
           ? {
               id: request.gateMember.id,
               role: request.gateMember.role,
-              name: request.gateMember.agent?.name || "Approval Gate",
+              name: getApprovalGateDisplayName(request.gateMember),
             }
           : null,
       })),

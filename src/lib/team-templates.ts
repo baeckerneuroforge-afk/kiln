@@ -26,6 +26,7 @@ type TeamTemplateAgent = {
   welcomeMessage?: string;
   suggestedQuestions?: string[];
   actions?: TeamTemplateAction[];
+  config?: Prisma.InputJsonValue;
 };
 
 type TeamTemplateConnection = {
@@ -115,13 +116,19 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
     orchestration: {
       mode: "Qualification with conditional routing",
       description:
-        "Qualifier runs first, assigns a score from 1-100, then routes hot leads to Closer and colder leads to Follow-Up.",
+        "Qualifier runs first, routes hot leads through a human approval gate before Closer engages, and sends colder leads to Follow-Up.",
       connections: [
         {
           from: "qualifier",
+          to: "approval-gate",
+          condition:
+            "If the lead score is above 70 and the prospect is a strong fit for {{businessName}}, route to the approval gate for a human decision.",
+        },
+        {
+          from: "approval-gate",
           to: "closer",
           condition:
-            "If the lead score is above 70 and the prospect is a strong fit for {{businessName}}, route to Closer.",
+            "After a human approves the recommended next step, route the lead to Closer with the full qualification summary and recommended offer.",
         },
         {
           from: "qualifier",
@@ -157,6 +164,27 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
         ],
       },
       {
+        key: "approval-gate",
+        name: "Sales Approval Gate",
+        description:
+          "Human checkpoint that approves whether a hot lead should advance to the closer.",
+        responsibilities:
+          "Review the qualification summary, confirm the lead should move forward, and approve or reject the closing handoff.",
+        systemPrompt:
+          "This is a human approval gate for {{businessName}} in {{industry}}. It should never run as an AI agent. Pause execution and wait for a human approver to confirm whether the closer should engage.",
+        agentMode: "TASK",
+        role: "APPROVAL_GATE",
+        reportsTo: "qualifier",
+        llmModel: FAST_MODEL,
+        config: {
+          label: "Sales Approval Gate",
+          approvalMessage:
+            "A qualified lead is ready for review. Approve this handoff to let the closer engage, or reject it if the lead should stay in nurture.",
+          timeoutHours: 24,
+          timeoutAction: "skip",
+        },
+      },
+      {
         key: "closer",
         name: "Closer",
         description:
@@ -167,7 +195,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "You are the closer for {{businessName}} in {{industry}}. You receive hot leads with context and score. Present the offer clearly, answer objections with confidence, reinforce business value, and move the lead toward a booked call or a concrete buying next step.",
         agentMode: "CHAT",
         role: "EXECUTOR",
-        reportsTo: "qualifier",
+        reportsTo: "approval-gate",
         llmModel: PRIMARY_MODEL,
         welcomeMessage:
           "You're in a strong position to move forward. Let me walk you through the best next step.",
@@ -500,7 +528,7 @@ export function getTeamTemplateSummaries() {
     description: template.description,
     goal: template.goal,
     category: template.category,
-    agentCount: template.agents.length,
+    agentCount: template.agents.filter((agent) => agent.role !== "APPROVAL_GATE").length,
     agents: template.agents.map((agent) => ({
       key: agent.key,
       name: agent.name,
@@ -562,6 +590,19 @@ function buildConfiguredTemplate(
       suggestedQuestions: agent.suggestedQuestions?.map((question) =>
         fillTemplate(question, context)
       ),
+      config:
+        agent.config &&
+        typeof agent.config === "object" &&
+        !Array.isArray(agent.config)
+          ? Object.fromEntries(
+              Object.entries(agent.config as Record<string, unknown>).map(
+                ([key, value]) => [
+                  key,
+                  typeof value === "string" ? fillTemplate(value, context) : value,
+                ]
+              )
+            )
+          : agent.config,
     })),
   };
 }
@@ -579,7 +620,8 @@ export const TEAM_MARKETPLACE_TEMPLATES = TEAM_TEMPLATES.map((template) => ({
     actions: uniqueActions(template),
     workflowAgents: template.agents.map((agent) => ({
       name: agent.name,
-      agentMode: agent.agentMode,
+      agentMode: agent.role === "APPROVAL_GATE" ? "APPROVAL" : agent.agentMode,
+      role: agent.role,
     })),
     orchestration: {
       mode: template.orchestration.mode,
@@ -608,6 +650,7 @@ export async function deployTeamTemplate(
   const levelMap = {
     HEAD: 0,
     COORDINATOR: 1,
+    APPROVAL_GATE: 2,
     EXECUTOR: 2,
     REPORTER: 2,
   } as const;
@@ -633,6 +676,37 @@ export async function deployTeamTemplate(
     const agentIds: string[] = [];
 
     for (const agentDef of configured.agents) {
+      if (agentDef.role === "APPROVAL_GATE") {
+        const member = await tx.agentTeamMember.create({
+          data: {
+            teamId: team.id,
+            role: agentDef.role,
+            level: levelMap[agentDef.role],
+            responsibilities: agentDef.responsibilities,
+            config:
+              agentDef.config &&
+              typeof agentDef.config === "object" &&
+              !Array.isArray(agentDef.config)
+                ? {
+                    approverEmail: userEmail,
+                    ...(agentDef.config as Record<string, unknown>),
+                    label:
+                      customization?.agentNames?.[agentDef.key]?.trim() ||
+                      agentDef.name,
+                  }
+                : {
+                    approverEmail: userEmail,
+                    label:
+                      customization?.agentNames?.[agentDef.key]?.trim() ||
+                      agentDef.name,
+                  },
+          },
+        });
+
+        memberIds.set(agentDef.key, member.id);
+        continue;
+      }
+
       const agent = await tx.agent.create({
         data: {
           userId,

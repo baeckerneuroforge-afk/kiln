@@ -1353,7 +1353,26 @@ function createMcpServer(userId: string) {
       };
       return ok({
         id: team.id, name: team.name, goal: team.goal, status: team.status,
-        members: team.members.map((m) => ({ id: m.id, agentName: m.agent.name, role: m.role, level: m.level, responsibilities: m.responsibilities })),
+        members: team.members.map((m) => {
+          const config =
+            m.config && typeof m.config === "object" && !Array.isArray(m.config)
+              ? (m.config as Record<string, unknown>)
+              : null;
+
+          return {
+            id: m.id,
+            agentName:
+              m.agent?.name ||
+              (typeof config?.label === "string" && config.label.trim()
+                ? config.label.trim()
+                : m.role === "APPROVAL_GATE"
+                  ? "Approval Gate"
+                  : "Unassigned member"),
+            role: m.role,
+            level: m.level,
+            responsibilities: m.responsibilities,
+          };
+        }),
         taskStats,
         recentTasks: team.tasks.slice(0, 10).map((t) => ({ id: t.id, title: t.title, status: t.status, priority: t.priority })),
       });
@@ -1772,9 +1791,27 @@ function createMcpServer(userId: string) {
       const head = team.members.find((m) => m.role === "HEAD");
       if (!head) return err("Team has no HEAD member. Add a HEAD agent with kiln_add_team_member first.");
 
+      const getMemberName = (member: (typeof team.members)[number]) => {
+        const config =
+          member.config &&
+          typeof member.config === "object" &&
+          !Array.isArray(member.config)
+            ? (member.config as Record<string, unknown>)
+            : null;
+
+        return (
+          member.agent?.name ||
+          (typeof config?.label === "string" && config.label.trim()
+            ? config.label.trim()
+            : member.role === "APPROVAL_GATE"
+              ? "Approval Gate"
+              : "Unassigned member")
+        );
+      };
+
       // Use Claude to decompose the goal into subtasks
       const memberDescriptions = team.members.map((m) =>
-        `- ${m.agent.name} (${m.role}): ${m.responsibilities || "General purpose"}`
+        `- ${getMemberName(m)} (${m.role}): ${m.responsibilities || "General purpose"}`
       ).join("\n");
 
       let userApiKey: string | null = null;
@@ -1810,7 +1847,9 @@ Return ONLY a JSON array: [{"title": "...", "description": "...", "assignTo": "A
       // Create tasks and assign to members
       const createdTasks = [];
       for (const task of tasks) {
-        const member = team.members.find((m) => m.agent.name.toLowerCase() === task.assignTo.toLowerCase());
+        const member = team.members.find(
+          (m) => getMemberName(m).toLowerCase() === task.assignTo.toLowerCase()
+        );
         const created = await prisma.agentTeamTask.create({
           data: {
             teamId,
@@ -1825,7 +1864,7 @@ Return ONLY a JSON array: [{"title": "...", "description": "...", "assignTo": "A
           title: created.title,
           description: created.description,
           priority: created.priority,
-          assignedTo: member?.agent.name || "Unassigned",
+          assignedTo: member ? getMemberName(member) : "Unassigned",
           status: created.status,
         });
       }
@@ -1982,7 +2021,23 @@ Return ONLY a JSON array: [{"title": "...", "description": "...", "assignTo": "A
           goal: t.goal,
           status: t.status,
           memberCount: t.members.length,
-          members: t.members.map((m) => ({ agentName: m.agent.name, role: m.role })),
+          members: t.members.map((m) => {
+            const config =
+              m.config && typeof m.config === "object" && !Array.isArray(m.config)
+                ? (m.config as Record<string, unknown>)
+                : null;
+
+            return {
+              agentName:
+                m.agent?.name ||
+                (typeof config?.label === "string" && config.label.trim()
+                  ? config.label.trim()
+                  : m.role === "APPROVAL_GATE"
+                    ? "Approval Gate"
+                    : "Unassigned member"),
+              role: m.role,
+            };
+          }),
           taskCount: t._count.tasks,
         })),
         orchestrations: orchestrations.map((o) => ({

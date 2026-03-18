@@ -40,6 +40,8 @@ const isPublicRoute = createRouteMatcher([
   "/api/v1/(.*)",           // Public API (eigene Key-Auth)
   "/api/mcp(.*)",            // MCP Server (eigene Key-Auth)
   "/api/automations/run",   // Cron-Endpoint (eigene Secret-Auth)
+  "/api/teams/:id/executions/:execId/approve",
+  "/api/teams/:id/executions/:execId/reject",
   "/marketplace",            // Public Marketplace
   "/landing-v2",             // Landing V2 Preview
   "/developers",             // Developer Docs

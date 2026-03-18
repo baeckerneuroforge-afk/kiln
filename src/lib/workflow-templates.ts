@@ -463,7 +463,13 @@ export async function deployWorkflow(userId: string, templateId: string) {
   ]);
 
   const userEmail = await getUserEmailOrPlaceholder(userId);
-  const levelMap = { HEAD: 0, COORDINATOR: 1, EXECUTOR: 2, REPORTER: 2 } as const;
+  const levelMap = {
+    HEAD: 0,
+    COORDINATOR: 1,
+    APPROVAL_GATE: 2,
+    EXECUTOR: 2,
+    REPORTER: 2,
+  } as const;
 
   return prisma.$transaction(async (tx) => {
     await tx.user.upsert({

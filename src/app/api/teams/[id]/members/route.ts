@@ -65,21 +65,48 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { agentId, role, responsibilities, reportsToMemberId, level, outputSchema, enabledActions } = body;
+    const {
+      agentId,
+      role,
+      name,
+      responsibilities,
+      reportsToMemberId,
+      level,
+      outputSchema,
+      enabledActions,
+      config,
+    } = body;
+    const levelMap = {
+      HEAD: 0,
+      COORDINATOR: 1,
+      APPROVAL_GATE: 2,
+      EXECUTOR: 2,
+      REPORTER: 2,
+    } as const;
 
-    if (!agentId || !role) {
+    if (!role) {
       return Response.json(
-        { error: "agentId and role are required." },
+        { error: "role is required." },
         { status: 400 }
       );
     }
 
-    // Validate that the agent belongs to the user
-    const agent = await prisma.agent.findFirst({
-      where: { id: agentId, userId },
-    });
-    if (!agent) {
-      return Response.json({ error: "Agent not found" }, { status: 404 });
+    let agent: { id: string; name: string } | null = null;
+    if (role !== "APPROVAL_GATE") {
+      if (!agentId) {
+        return Response.json(
+          { error: "agentId is required for non-approval team members." },
+          { status: 400 }
+        );
+      }
+
+      agent = await prisma.agent.findFirst({
+        where: { id: agentId, userId },
+        select: { id: true, name: true },
+      });
+      if (!agent) {
+        return Response.json({ error: "Agent not found" }, { status: 404 });
+      }
     }
 
     // Validate max 1 HEAD per team
@@ -111,13 +138,22 @@ export async function POST(
     const member = await prisma.agentTeamMember.create({
       data: {
         teamId: params.id,
-        agentId,
+        ...(role !== "APPROVAL_GATE" ? { agentId } : {}),
         role,
-        level: level ?? 0,
+        level: level ?? levelMap[role as keyof typeof levelMap] ?? 0,
         responsibilities: responsibilities || null,
         reportsToMemberId: reportsToMemberId || null,
         outputSchema: outputSchema || undefined,
         enabledActions: enabledActions || [],
+        config:
+          role === "APPROVAL_GATE"
+            ? {
+                ...(typeof name === "string" && name.trim()
+                  ? { label: name.trim() }
+                  : {}),
+                ...(config && typeof config === "object" ? config : {}),
+              }
+            : undefined,
       },
       include: {
         agent: { select: { id: true, name: true, slug: true } },
@@ -152,7 +188,22 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { memberId, role, responsibilities, reportsToMemberId, outputSchema, enabledActions } = body;
+    const {
+      memberId,
+      role,
+      responsibilities,
+      reportsToMemberId,
+      outputSchema,
+      enabledActions,
+      config,
+    } = body;
+    const levelMap = {
+      HEAD: 0,
+      COORDINATOR: 1,
+      APPROVAL_GATE: 2,
+      EXECUTOR: 2,
+      REPORTER: 2,
+    } as const;
 
     if (!memberId) {
       return Response.json({ error: "memberId is required." }, { status: 400 });
@@ -199,6 +250,10 @@ export async function PATCH(
     if (reportsToMemberId !== undefined) updateData.reportsToMemberId = reportsToMemberId || null;
     if (outputSchema !== undefined) updateData.outputSchema = outputSchema;
     if (enabledActions !== undefined) updateData.enabledActions = enabledActions;
+    if (config !== undefined) updateData.config = config;
+    if (role !== undefined && role in levelMap) {
+      updateData.level = levelMap[role as keyof typeof levelMap];
+    }
 
     const updated = await prisma.agentTeamMember.update({
       where: { id: memberId },

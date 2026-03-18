@@ -269,7 +269,8 @@ export async function POST(
       new URL(
         `/api/teams/${params.id}/executions/${params.execId}/approve?token=${encodeURIComponent(payload.token)}`,
         request.url
-      )
+      ),
+      303
     );
   }
 

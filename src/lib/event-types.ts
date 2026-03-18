@@ -7,6 +7,7 @@ export type EventType =
   | "appointment.booked"
   | "task.completed"
   | "task.failed"
+  | "team.awaiting_approval"
   | "team.completed"
   | "credits.low"
   | "agent.updated";
@@ -18,6 +19,7 @@ export const ALL_EVENT_TYPES: EventType[] = [
   "appointment.booked",
   "task.completed",
   "task.failed",
+  "team.awaiting_approval",
   "team.completed",
   "credits.low",
   "agent.updated",
@@ -30,6 +32,7 @@ export const EVENT_TYPE_LABELS: Record<EventType, string> = {
   "appointment.booked": "Appointment Booked",
   "task.completed": "Task Completed",
   "task.failed": "Task Failed",
+  "team.awaiting_approval": "Team Awaiting Approval",
   "team.completed": "Team Execution Completed",
   "credits.low": "Credits Running Low",
   "agent.updated": "Agent Updated",
