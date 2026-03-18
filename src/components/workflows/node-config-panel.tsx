@@ -22,6 +22,7 @@ import {
   IfConditionConfig,
   SwitchConfig,
   FilterConfig,
+  TransformConfig,
 } from "./node-configs/logic-configs";
 import {
   HttpRequestConfig,
@@ -43,13 +44,13 @@ import { AgentNodeConfig } from "./node-configs/agent-node-config";
 import {
   Globe, Clock, UserPlus, MessageSquare, Play, Bot,
   GitBranch, GitFork, Filter, Mail, Hash, Timer,
-  Variable, ShieldCheck, Pause, Layers, Merge, Zap, FileText,
+  Variable, ShieldCheck, Pause, Layers, Merge, Zap, FileText, Shuffle,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Globe, Clock, UserPlus, MessageSquare, Play, Bot,
   GitBranch, GitFork, Filter, Mail, Hash, Timer,
-  Variable, ShieldCheck, Pause, Layers, Merge, Zap, FileText,
+  Variable, ShieldCheck, Pause, Layers, Merge, Zap, FileText, Shuffle,
 };
 
 interface NodeConfigPanelProps {
@@ -190,6 +191,9 @@ export function NodeConfigPanel({
           )}
           {nodeType === "filter" && (
             <FilterConfig config={config} onChange={setConfig} />
+          )}
+          {nodeType === "transform" && (
+            <TransformConfig config={config} onChange={setConfig} />
           )}
           {nodeType === "http_request" && (
             <HttpRequestConfig config={config} onChange={setConfig} />

@@ -116,6 +116,34 @@ export function executeFilterNode(
   };
 }
 
+/* ── Transform ── */
+
+interface Transformation {
+  outputField: string;
+  expression: string;
+}
+
+export function executeTransformNode(
+  config: Record<string, unknown>,
+  context: ExpressionContext
+): LogicNodeResult {
+  const transformations = (config.transformations || []) as Transformation[];
+  const result: Record<string, unknown> = {};
+
+  for (const t of transformations) {
+    if (!t.outputField || !t.expression) continue;
+    result[t.outputField] = resolveExpressionValue(t.expression, context);
+  }
+
+  return {
+    outputHandle: "output",
+    meta: {
+      transformedFields: Object.keys(result),
+      result,
+    },
+  };
+}
+
 /* ── Dispatcher ── */
 
 export function executeLogicNode(
@@ -130,6 +158,8 @@ export function executeLogicNode(
       return executeSwitchNode(config, context);
     case "filter":
       return executeFilterNode(config, context);
+    case "transform":
+      return executeTransformNode(config, context);
     default:
       throw new Error(`Unbekannter Logic-Node-Typ: ${nodeType}`);
   }

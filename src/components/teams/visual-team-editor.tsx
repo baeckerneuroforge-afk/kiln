@@ -60,6 +60,8 @@ import {
   PanelLeftClose,
   PanelLeft,
   Shield,
+  Shuffle,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getModelDef } from "@/lib/ai";
@@ -166,7 +168,7 @@ const workflowNodeColors: Record<WorkflowNodeCategory, { border: string; bg: str
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Globe, Clock, UserPlus, MessageSquare, Play, Bot, GitBranch, GitFork,
   Filter, Mail, Hash, Timer, Variable, ShieldCheck, Pause, Layers, Merge,
-  Zap, Shield,
+  Zap, Shield, Shuffle, FileText,
 };
 
 const NODE_WIDTH = 260;

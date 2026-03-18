@@ -20,6 +20,7 @@ export type WorkflowNodeType =
   | "if_condition"
   | "switch"
   | "filter"
+  | "transform"
   // Actions
   | "http_request"
   | "send_email"
@@ -175,6 +176,16 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     icon: "Filter",
     color: "#8B5CF6",
     defaultConfig: { field: "", operator: "exists", value: "" },
+  },
+
+  {
+    type: "transform",
+    label: "Transform",
+    description: "Transform and reshape data with expressions",
+    category: "logic",
+    icon: "Shuffle",
+    color: "#8B5CF6",
+    defaultConfig: { transformations: [{ outputField: "", expression: "" }] },
   },
 
   // Actions

@@ -12,6 +12,7 @@ import { CookieBanner } from "@/components/cookie-banner";
 import { ToastProvider } from "@/components/toast";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
+import { KeyboardShortcutProvider } from "@/components/keyboard-shortcuts";
 
 export default function DashboardLayout({
   children,
@@ -48,6 +49,7 @@ export default function DashboardLayout({
   return (
     <AdvancedModeProvider>
       <ToastProvider>
+        <KeyboardShortcutProvider>
         <div className="flex h-screen overflow-hidden">
           <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           <div className="flex flex-1 flex-col overflow-y-auto">
@@ -81,6 +83,7 @@ export default function DashboardLayout({
         </div>
         {showOnboarding === false && <OnboardingChecklist />}
         <CookieBanner />
+        </KeyboardShortcutProvider>
       </ToastProvider>
     </AdvancedModeProvider>
   );

@@ -75,6 +75,7 @@ const NODE_CATEGORIES: Record<string, string> = {
   if_condition: "logic",
   switch: "logic",
   filter: "logic",
+  transform: "logic",
   http_request: "action",
   send_email: "action",
   send_slack: "action",

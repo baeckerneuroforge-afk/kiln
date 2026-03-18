@@ -3,6 +3,7 @@
 import { Bot, Globe, Zap, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { GettingStartedSection } from "@/components/onboarding-checklist";
+import { QuickStartSection, RecentActivityFeed } from "@/components/quick-actions";
 import { SkeletonStat } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { cn } from "@/lib/utils";
@@ -245,6 +246,19 @@ export default function DashboardPage() {
             </div>
           </Link>
         ))}
+      </div>
+
+      {/* Quick Start */}
+      <div className="mt-8">
+        <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-muted-foreground">
+          Quick Start
+        </h2>
+        <QuickStartSection />
+      </div>
+
+      {/* Recent Activity */}
+      <div className="mt-8">
+        <RecentActivityFeed />
       </div>
 
       {/* Stats */}

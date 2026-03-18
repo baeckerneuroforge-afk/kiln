@@ -1,6 +1,6 @@
 "use client";
 
-import { GitBranch, GitFork, Filter, Trash2 } from "lucide-react";
+import { GitBranch, GitFork, Filter, Shuffle, Trash2, Plus } from "lucide-react";
 import { ExpressionInput } from "../expression-input";
 import { cn } from "@/lib/utils";
 
@@ -312,6 +312,84 @@ export function FilterConfig({
       <div className="rounded-lg border border-zinc-700/60 bg-zinc-800/50 p-3">
         <p className="text-[10px] text-zinc-500">
           Data that doesn&apos;t match the conditions will be dropped. Matching data continues to the next node.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ========== Transform ========== */
+interface TransformRow {
+  outputField: string;
+  expression: string;
+}
+
+export function TransformConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const transformations = (config.transformations as TransformRow[]) || [{ outputField: "", expression: "" }];
+
+  const update = (i: number, patch: Partial<TransformRow>) => {
+    const next = [...transformations];
+    next[i] = { ...next[i], ...patch };
+    onChange({ ...config, transformations: next });
+  };
+
+  const add = () => {
+    onChange({ ...config, transformations: [...transformations, { outputField: "", expression: "" }] });
+  };
+
+  const remove = (i: number) => {
+    onChange({ ...config, transformations: transformations.filter((_, idx) => idx !== i) });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2">
+        <Shuffle className="h-4 w-4 text-violet-400" />
+        <p className="text-xs text-zinc-300">Transform and reshape data using expressions</p>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-zinc-400">Transformations</label>
+        <div className="space-y-2">
+          {transformations.map((t, i) => (
+            <div key={i} className="rounded-lg border border-zinc-700/60 bg-zinc-800/30 p-2.5 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <input
+                  value={t.outputField}
+                  onChange={(e) => update(i, { outputField: e.target.value })}
+                  placeholder="outputField"
+                  className="w-[40%] bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+                />
+                <span className="text-[10px] text-zinc-500">=</span>
+                <input
+                  value={t.expression}
+                  onChange={(e) => update(i, { expression: e.target.value })}
+                  placeholder="{{ source.output | upper }}"
+                  className="flex-1 bg-zinc-800 border border-violet-500/30 rounded-lg text-[11px] font-mono text-zinc-100 px-2.5 py-1.5 outline-none focus:border-violet-500/60 placeholder:text-zinc-600"
+                />
+                <button onClick={() => remove(i)} className="text-zinc-600 hover:text-red-400 transition-colors">
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <button onClick={add} className="inline-flex items-center gap-1 text-[10px] text-orange-400 hover:text-orange-300 transition-colors">
+          <Plus className="h-3 w-3" />
+          Add transformation
+        </button>
+      </div>
+
+      <div className="rounded-lg border border-zinc-700/60 bg-zinc-800/50 p-3">
+        <p className="text-[10px] text-zinc-500">
+          Each transformation creates an output field from an expression. Use {`{{ }}`} syntax to reference upstream data.
+          Example: <code className="text-violet-400">{`{{ source.output | upper }}`}</code>
         </p>
       </div>
     </div>

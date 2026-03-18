@@ -22,6 +22,7 @@ import {
   Timer,
   Variable,
   FileText,
+  Shuffle,
   XCircle,
   Zap,
 } from "lucide-react";
@@ -179,6 +180,7 @@ function getNodeTypeIcon(nodeType: string | null | undefined) {
     case "if_condition": return <GitBranch className="h-3.5 w-3.5 text-purple-400" />;
     case "switch": return <GitBranch className="h-3.5 w-3.5 text-purple-400" />;
     case "filter": return <Filter className="h-3.5 w-3.5 text-purple-400" />;
+    case "transform": return <Shuffle className="h-3.5 w-3.5 text-purple-400" />;
     case "http_request": return <Globe className="h-3.5 w-3.5 text-blue-400" />;
     case "send_email": return <Mail className="h-3.5 w-3.5 text-blue-400" />;
     case "send_slack": return <Hash className="h-3.5 w-3.5 text-blue-400" />;
@@ -202,6 +204,7 @@ function getNodeTypeLabel(nodeType: string | null | undefined): string {
     if_condition: "IF Condition",
     switch: "Switch",
     filter: "Filter",
+    transform: "Transform",
     http_request: "HTTP Request",
     send_email: "Send Email",
     send_slack: "Slack Message",
@@ -220,7 +223,7 @@ function getNodeTypeLabel(nodeType: string | null | undefined): string {
 function getNodeTypeCategoryStyle(nodeType: string | null | undefined): string {
   if (!nodeType) return "border-border bg-zinc-950/30";
   if (nodeType.startsWith("trigger_")) return "border-amber-500/20 bg-amber-500/5";
-  if (["if_condition", "switch", "filter"].includes(nodeType)) return "border-purple-500/20 bg-purple-500/5";
+  if (["if_condition", "switch", "filter", "transform"].includes(nodeType)) return "border-purple-500/20 bg-purple-500/5";
   if (["http_request", "send_email", "send_slack", "delay", "set_variable"].includes(nodeType)) return "border-blue-500/20 bg-blue-500/5";
   if (["approval_gate", "wait_webhook", "wait_form", "sub_workflow", "merge"].includes(nodeType)) return "border-cyan-500/20 bg-cyan-500/5";
   if (nodeType === "agent") return "border-orange-500/20 bg-orange-500/5";
@@ -245,6 +248,12 @@ function formatNodeOutput(task: ExecutionTimelineItem): string {
         return `${field} (=${JSON.stringify(resolved)}) ${operator} ${JSON.stringify(value)} → ${handle} path`;
       }
       return handle ? `→ ${handle} path` : latestOutput;
+    }
+    if (nodeType === "transform") {
+      const meta = parsed.meta || parsed;
+      const fields = meta.transformedFields || [];
+      if (fields.length > 0) return `Transformed: ${fields.join(", ")}`;
+      return "Transform applied";
     }
     if (nodeType === "http_request") {
       const status = parsed.status || parsed.body?.status;
