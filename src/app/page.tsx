@@ -376,25 +376,25 @@ export default function LandingPageV2() {
   }
 
   const features = [
-    { icon: Users, title: "Agent Teams", desc: "Hierarchical teams with Head, Coordinator, and Executor roles." },
-    { icon: Layers, title: "Multi-LLM", desc: "Claude, GPT-4o, Perplexity, Gemini, Groq — per agent." },
-    { icon: Network, title: "Orchestration", desc: "Visual canvas for multi-agent workflows." },
-    { icon: Bot, title: "Task Agents", desc: "Autonomous background agents with triggers and routing." },
-    { icon: MessageSquare, title: "Conversational Builder", desc: "Describe your agent in plain English." },
-    { icon: FileText, title: "RAG Knowledge Base", desc: "Upload PDFs, URLs, or FAQs. Agent answers with your data." },
-    { icon: Zap, title: "Smart Actions", desc: "Book appointments, collect emails, score leads." },
-    { icon: Coins, title: "AI Credits", desc: "Usage-based pricing or bring your own API key." },
-    { icon: BarChart3, title: "ROI Analytics", desc: "Track conversations, leads, and estimated revenue." },
-    { icon: Brain, title: "Feedback Loop", desc: "Rate answers, add corrections. Agent improves over time." },
-    { icon: Send, title: "Telegram & Email", desc: "Multi-channel deployment from day one." },
-    { icon: Globe, title: "Auto Language", desc: "Detects and responds in your customer's language." },
+    { icon: Brain, title: "Self-Learning Agents", desc: "Agents research answers they don't know and suggest adding them to your Knowledge Base." },
+    { icon: Globe, title: "Computer Use", desc: "AI agents that browse the web, extract data, and complete multi-step tasks autonomously." },
+    { icon: Network, title: "Visual Workflows", desc: "n8n-style drag-and-drop editor with 18+ node types. AI-native, not bolted on." },
+    { icon: Users, title: "Agent Teams", desc: "Hierarchical teams with Head, Coordinator, and Executor roles. Fully autonomous." },
+    { icon: Layers, title: "Multi-LLM", desc: "Claude, GPT-4o, Perplexity, Gemini, Groq — choose per agent." },
+    { icon: MessageSquare, title: "Visitor Memory", desc: "Agents remember visitors across sessions. Personalized conversations every time." },
+    { icon: FileText, title: "RAG Knowledge Base", desc: "Upload PDFs, URLs, or FAQs. Agent answers with your data. Self-learning adds more." },
+    { icon: Zap, title: "Smart Actions", desc: "Book appointments, collect emails, score leads, trigger webhooks." },
+    { icon: BarChart3, title: "Business Intelligence", desc: "AI-powered insights from all conversations. ROI tracking, lead scoring, trends." },
+    { icon: Send, title: "Multi-Channel", desc: "Website, Slack, WhatsApp, Telegram, Email, API — deploy everywhere." },
     { icon: Palette, title: "White-Label", desc: "Your brand, colors, logo, domain. Remove KILN branding." },
-    { icon: Timer, title: "Scheduled Agents", desc: "Automated tasks on a schedule. Reports, sync, alerts." },
-    { icon: Code2, title: "Custom Code", desc: "JavaScript actions triggered by your agent." },
+    { icon: Timer, title: "Scheduled Workflows", desc: "Cron-triggered workflows. Reports, sync, alerts — all automated." },
+    { icon: Code2, title: "Custom Code", desc: "JavaScript actions triggered by your agent or workflow." },
     { icon: Key, title: "Bring Your Own Key", desc: "Use your own API keys for unlimited usage." },
-    { icon: Terminal, title: "MCP Server", desc: "25 tools. Manage from Claude Code, Cursor, or any MCP client." },
-    { icon: GitFork, title: "Agent Cloning", desc: "Duplicate agents with one click." },
-    { icon: Webhook, title: "Webhooks", desc: "HTTP triggers for external service integration." },
+    { icon: Terminal, title: "MCP Protocol", desc: "25+ tools. Manage from Claude Code, Cursor, or any MCP client." },
+    { icon: Bot, title: "A2A Protocol", desc: "Agent-to-Agent communication across platforms. Open standard." },
+    { icon: GitFork, title: "Agent Cloning", desc: "Duplicate agents with one click. Bulk clone support." },
+    { icon: Webhook, title: "Webhooks & API", desc: "REST API, webhooks, HTTP triggers for full programmatic control." },
+    { icon: Coins, title: "AI Credits", desc: "Usage-based pricing or bring your own API key." },
     { icon: Store, title: "Marketplace", desc: "Browse community templates. Publish your own." },
   ];
 
@@ -542,8 +542,8 @@ export default function LandingPageV2() {
             transition={{ delay: 0.8, duration: 0.6 }}
             className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-neutral-400"
           >
-            Create intelligent AI agents, build autonomous teams, connect any LLM,
-            and manage everything from code or no-code. EU-hosted. GDPR compliant.
+            Build AI Agents. Automate Workflows. Deploy Everywhere.
+            {" "}EU-hosted. GDPR compliant.
           </motion.p>
 
           {/* CTA */}
@@ -682,11 +682,12 @@ export default function LandingPageV2() {
             <p className="mt-4 text-lg text-neutral-400">Everything you need to build, deploy, and scale AI agents.</p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             {[
-              { icon: Bot, title: "AI Agent Studio", color: "#F97316", badge: "Live", desc: "Create agents with natural language. RAG knowledge base, smart actions, white-label, analytics." },
-              { icon: Users, title: "Agent Teams", color: "#F97316", badge: "Live", desc: "Build hierarchical AI teams. Head agents delegate to coordinators and executors. Fully autonomous." },
-              { icon: Network, title: "Orchestration", color: "#F97316", badge: "Live", desc: "Connect agents visually. Define handoff rules, conditions, triggers. Multi-agent workflows on a canvas." },
+              { icon: Bot, title: "Agent Studio", color: "#F97316", badge: "Live", desc: "5-step wizard, 6+ LLM models, Knowledge Base with self-learning (Agentic RAG), Visitor Memory, A/B Testing, Version Control, Multi-Modal image analysis." },
+              { icon: Zap, title: "Workflow Engine", color: "#22C55E", badge: "Live", desc: "18+ node types, visual drag-and-drop editor, parallel execution, human approval gates, debug mode, Computer Use agents that browse the web." },
+              { icon: Network, title: "Integration Hub", color: "#3B82F6", badge: "Live", desc: "10+ native integrations: Slack, Gmail, Calendar, Sheets, Notion, WhatsApp, Telegram, Stripe, Airtable, Calendly. Plus Webhooks, API, MCP Protocol, A2A Protocol." },
+              { icon: BarChart3, title: "Deploy & Monitor", color: "#F97316", badge: "Live", desc: "Multi-channel deployment (Website, Slack, WhatsApp, Telegram, Email, API), 4 embed themes, real-time dashboard, Business Intelligence, scheduled workflows." },
             ].map((mod, i) => (
               <motion.div
                 key={mod.title}
@@ -706,32 +707,63 @@ export default function LandingPageV2() {
                 <h3 className="text-lg font-bold">{mod.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-neutral-400">{mod.desc}</p>
               </motion.div>
-            ))}
+            ))}</div>
+
+          {/* Site Builder — Coming Soon */}
+          <div className="mt-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.4 }}
+              className="flex items-center gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.015] p-5 transition-all hover:border-white/[0.12]"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: "#3B82F610" }}>
+                <Globe className="h-4.5 w-4.5" style={{ color: "#3B82F6" }} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold">Site Builder</h3>
+                  <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider" style={{ backgroundColor: "#3B82F610", color: "#3B82F6" }}>Q3 2026</span>
+                </div>
+                <p className="mt-0.5 text-xs text-neutral-500">Describe your website in natural language. KILN designs, builds, and hosts it with integrated AI.</p>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </AnimatedSection>
+
+      {/* ── USP Section ─────────────────────────────────────── */}
+      <AnimatedSection className="border-t border-white/[0.06] py-28">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="mb-16 text-center">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#F97316]">Differentiators</p>
+            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">What makes KILN different</h2>
           </div>
 
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { icon: Globe, title: "Site Builder", color: "#3B82F6", badge: "Q3 2026", desc: "Describe your website in natural language. KILN designs, builds, and hosts it with integrated AI." },
-              { icon: Zap, title: "Workflow Automation", color: "#22C55E", badge: "Q4 2026", desc: "Automate workflows with natural language. Connect CRM, email, calendar, and 100+ tools." },
-            ].map((mod, i) => (
+              { icon: Brain, title: "Self-Learning Agents", color: "#A855F7", desc: "When your agent can't answer a question, it researches the answer online and suggests adding it to your Knowledge Base. Your agents get smarter over time — automatically." },
+              { icon: Globe, title: "Computer Use", color: "#EC4899", desc: "AI agents that browse websites, extract data, fill forms, and complete multi-step web tasks. Like having a virtual assistant with a browser." },
+              { icon: Zap, title: "Visual Workflows", color: "#22C55E", desc: "n8n-style drag-and-drop workflow editor, but AI-native. 18+ node types including AI summarization, classification, extraction, and Computer Use." },
+              { icon: MessageSquare, title: "Agent Memory", color: "#3B82F6", desc: "Your agents remember visitors across sessions. Personalized conversations, context that persists, relationships that build over time." },
+              { icon: Bot, title: "A2A Protocol", color: "#F97316", desc: "Agents communicate across platforms using Google's Agent-to-Agent protocol. Your agents can call external agents and be called by others." },
+              { icon: BarChart3, title: "Business Intelligence", color: "#06B6D4", desc: "AI-powered insights from all conversations. Sentiment trends, topic clustering, conversion analysis — not just charts, but understanding." },
+            ].map((usp, i) => (
               <motion.div
-                key={mod.title}
-                initial={{ opacity: 0, y: 20 }}
+                key={usp.title}
+                initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: 0.3 + i * 0.1 }}
-                className="flex items-center gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.015] p-5 transition-all hover:border-white/[0.12]"
+                transition={{ delay: i * 0.08, duration: 0.5 }}
+                whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                className="group rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all hover:border-white/[0.12] hover:bg-white/[0.03]"
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: `${mod.color}10` }}>
-                  <mod.icon className="h-4.5 w-4.5" style={{ color: mod.color }} />
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: `${usp.color}15` }}>
+                  <usp.icon className="h-5 w-5" style={{ color: usp.color }} />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold">{mod.title}</h3>
-                    <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider" style={{ backgroundColor: `${mod.color}10`, color: mod.color }}>{mod.badge}</span>
-                  </div>
-                  <p className="mt-0.5 text-xs text-neutral-500">{mod.desc}</p>
-                </div>
+                <h3 className="text-base font-bold">{usp.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-neutral-400">{usp.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -887,12 +919,12 @@ export default function LandingPageV2() {
                 >
                   <div className="grid gap-4 sm:grid-cols-2">
                     {[
-                      { icon: Terminal, title: "MCP Server (25 tools)", desc: "Full agent lifecycle from Claude Code, Cursor, or any MCP client." },
-                      { icon: Layers, title: "Full Multi-LLM via API", desc: "Route to Claude, GPT-4o, Perplexity, Gemini, or Groq per agent via REST API." },
-                      { icon: Users, title: "Agent Teams via MCP", desc: "Create hierarchical teams from Claude Code. Head, Coordinator, Executor roles." },
-                      { icon: Key, title: "REST API + SDK", desc: "Programmatic access to all agent features with API key auth." },
-                      { icon: Wrench, title: "BYOK + Custom Code", desc: "Bring your own API keys. Write custom JavaScript actions." },
-                      { icon: Webhook, title: "Webhooks + HTTP Triggers", desc: "Inbound webhooks trigger agent processing. Outbound HTTP actions." },
+                      { icon: Terminal, title: "MCP Protocol (25+ tools)", desc: "Full agent lifecycle from Claude Code, Cursor, or any MCP client. YAML config export/import." },
+                      { icon: Bot, title: "A2A Protocol", desc: "Agent-to-Agent communication. Your agents can call external agents and be called by others." },
+                      { icon: Key, title: "REST API + API Keys", desc: "Programmatic access to all features. Create and rotate API keys from the dashboard." },
+                      { icon: Layers, title: "Full Multi-LLM", desc: "Route to Claude, GPT-4o, Perplexity, Gemini, or Groq per agent via REST API." },
+                      { icon: Wrench, title: "BYOK + Custom Code", desc: "Bring your own API keys. Write custom JavaScript actions. YAML agent configs." },
+                      { icon: Webhook, title: "Webhooks + HTTP Triggers", desc: "Inbound webhooks trigger workflows. Outbound HTTP actions. Real-time events." },
                       { icon: FlaskConical, title: "Prompt Branching", desc: "Keyword-triggered conditional prompt injection for dynamic behavior." },
                       { icon: Code2, title: "Custom Tools", desc: "Define HTTP tools with template variables. Claude calls them automatically." },
                     ].map((f, i) => (
@@ -968,7 +1000,7 @@ export default function LandingPageV2() {
                 <span className="bg-gradient-to-r from-[#22C55E] to-[#3B82F6] bg-clip-text text-transparent">Agentic Coding</span> era.
               </h2>
               <p className="mt-6 max-w-lg text-lg leading-relaxed text-neutral-400">
-                KILN is an MCP server. Build agents from Claude Code, Cursor, or any MCP client. 25 tools. Full lifecycle management.
+                KILN speaks MCP and A2A. Build agents from Claude Code, Cursor, or any MCP client. 25+ tools. Full lifecycle management. Agent-to-Agent protocol built in.
               </p>
               <div className="mt-8 flex items-center gap-4">
                 <Link
@@ -1199,9 +1231,9 @@ export default function LandingPageV2() {
 
           <div className="grid gap-6 md:grid-cols-3">
             {[
-              { name: "Quick Start", price: "€490", subtitle: "Perfect for freelancers and small businesses.", features: ["1 AI Agent", "Knowledge Base setup", "Actions configured", "Embed on your website", "30 days email support"] },
-              { name: "Business Setup", price: "€1,490", subtitle: "For established businesses ready to automate.", features: ["3 AI Agents", "Full Knowledge Base", "Custom Actions", "White-Label branding", "Analytics setup", "1h Training Call", "30 days support"] },
-              { name: "Agency Launch", price: "€3,990", subtitle: "For agencies deploying at scale.", features: ["10+ AI Agents", "Full Platform Setup", "Agent Orchestration", "Webhook Integrations", "3h Training", "30 days priority support"] },
+              { name: "Starter", price: "€490", subtitle: "1 AI Agent + Website Embed + Knowledge Base.", features: ["1 AI Agent", "Knowledge Base setup", "Website embed configured", "Actions configured", "30 days email support"] },
+              { name: "Professional", price: "€1,490", subtitle: "3 Agents + Workflows + Integrations + Self-Learning.", features: ["3 AI Agents", "Workflow automation", "Integration setup", "Self-Learning (Agentic RAG)", "White-Label branding", "1h Training Call", "30 days support"] },
+              { name: "Enterprise", price: "€3,990", subtitle: "Unlimited + Computer Use + A2A + Custom Setup.", features: ["Unlimited Agents", "Computer Use agents", "A2A Protocol setup", "Full Platform Setup", "Custom integrations", "3h Training", "30 days priority support"] },
             ].map((pkg, i) => (
               <motion.div
                 key={pkg.name}
