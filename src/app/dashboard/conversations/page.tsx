@@ -22,6 +22,10 @@ interface ConversationMessage {
   role: "USER" | "ASSISTANT" | "SYSTEM" | "HUMAN";
   content: string;
   imageUrl?: string | null;
+  extractedData?: {
+    documentType: string;
+    fields: Record<string, string | number | null>;
+  } | null;
   createdAt: string;
 }
 
@@ -463,10 +467,58 @@ export default function ConversationsPage() {
                                 [Image attached — too large for inline preview]
                               </p>
                             )}
+                            {/* Extracted Document Data */}
+                            {message.extractedData && (
+                              <div className="mt-2 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+                                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-blue-400">
+                                  Extracted: {message.extractedData.documentType}
+                                </p>
+                                <div className="grid grid-cols-2 gap-1">
+                                  {Object.entries(message.extractedData.fields)
+                                    .filter(([, v]) => v !== null)
+                                    .map(([key, value]) => (
+                                      <div key={key} className="text-xs">
+                                        <span className="text-muted-foreground">{key}: </span>
+                                        <span className="text-foreground">{String(value)}</span>
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
+                            )}
                             <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{message.content}</p>
                           </div>
                         ))}
                       </div>
+
+                      {/* Before/After Image Comparison */}
+                      {(() => {
+                        const imageMessages = conversation.messages.filter(
+                          (m: ConversationMessage) => m.imageUrl && !m.imageUrl.includes("kiln-meta")
+                        );
+                        if (imageMessages.length < 2) return null;
+                        return (
+                          <div className="mt-4 rounded-xl border border-border bg-card p-4">
+                            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              Image Comparison ({imageMessages.length} images)
+                            </p>
+                            <div className="flex gap-3 overflow-x-auto">
+                              {imageMessages.map((msg: ConversationMessage, i: number) => (
+                                <div key={msg.id} className="flex-shrink-0 text-center">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={msg.imageUrl!}
+                                    alt={`Image ${i + 1}`}
+                                    className="h-32 w-32 rounded-lg border border-border object-cover"
+                                  />
+                                  <p className="mt-1 text-[10px] text-muted-foreground">
+                                    {i === 0 ? "Vorher" : i === imageMessages.length - 1 ? "Nachher" : `Image ${i + 1}`}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>

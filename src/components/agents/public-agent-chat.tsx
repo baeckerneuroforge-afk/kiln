@@ -184,6 +184,7 @@ export function PublicAgentChat({
   const [visitorId] = useState(() => getOrCreateVisitorId());
   const [pendingImage, setPendingImage] = useState<{ dataUrl: string; mediaType: string } | null>(null);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [hasSentImage, setHasSentImage] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [scheduleStatus, setScheduleStatus] = useState(() =>
     getAgentScheduleStatus(normalizedSchedule)
@@ -347,6 +348,7 @@ export function PublicAgentChat({
     };
 
     const currentImage = pendingImage;
+    if (currentImage) setHasSentImage(true);
     const updated = [...messages, userMsg];
     setMessages(updated);
     setInput("");
@@ -429,6 +431,27 @@ export function PublicAgentChat({
             }
             if (parsed.text) {
               fullText += parsed.text;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId ? { ...m, content: fullText } : m
+                )
+              );
+            }
+            // Image Vision V1.0: extracted document data
+            if (parsed.extractedDocument) {
+              const doc = parsed.extractedDocument as { type: string; summary: string };
+              fullText += `\n\n📄 **Extracted (${doc.type}):** ${doc.summary}`;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId ? { ...m, content: fullText } : m
+                )
+              );
+            }
+            // Image Vision V1.0: auto-triggered action
+            if (parsed.imageAction) {
+              const act = parsed.imageAction as { action: string; reason: string; priority: string };
+              const priorityLabel = act.priority === "urgent" ? "🔴 URGENT" : "🟢";
+              fullText += `\n\n${priorityLabel} **Auto-Action:** ${act.action} — ${act.reason}`;
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantId ? { ...m, content: fullText } : m
@@ -794,6 +817,18 @@ export function PublicAgentChat({
               Image messages use ~3-5x more AI credits
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Follow-up photo prompt */}
+      {hasSentImage && !pendingImage && imageAnalysisEnabled && !isStreaming && (
+        <div className="border-t px-4 py-2" style={{ borderColor: "#292524" }}>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors"
+          >
+            📷 Want to share an updated photo?
+          </button>
         </div>
       )}
 

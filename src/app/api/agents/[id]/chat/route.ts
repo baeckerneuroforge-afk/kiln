@@ -32,6 +32,8 @@ import {
 } from "@/lib/agent-scheduling";
 import { detectKnowledgeGap, researchAndLearn } from "@/lib/agentic-rag";
 import { extractInsights, recordInsights, injectEnterpriseContext } from "@/lib/enterprise-memory";
+import { detectImageAction, extractDocumentData } from "@/lib/image-actions";
+import { matchProductFromImage } from "@/lib/image-product-match";
 
 const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
 const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -572,6 +574,27 @@ export async function POST(
       } catch {
         // Enterprise Memory fehlgeschlagen — weiter ohne
       }
+    }
+
+    // Vision V1.0: Enhanced image analysis prompt + multi-image comparison
+    if (hasImages) {
+      systemPrompt += "\n\n---\nIMAGE ANALYSIS INSTRUCTIONS:\nWhen analyzing images:\n1. If this is a document (invoice, receipt, contract, form), extract all text and structured data fields (document number, date, amount, vendor, line items).\n2. If this is a product, describe it in detail including brand, model, condition, color, and any identifying features.\n3. If this shows damage, urgency, or a problem, note the severity clearly.";
+
+      // Multi-image: detect before/after scenario
+      const previousImageMessages = await prisma.message.findMany({
+        where: {
+          conversationId: conversation?.id || "",
+          imageUrl: { not: null },
+        },
+        select: { id: true },
+        take: 5,
+      });
+
+      if (previousImageMessages.length > 0) {
+        systemPrompt += "\n4. The visitor has shared multiple images in this conversation. Compare them and note any differences or changes. If this appears to be a before/after comparison, label them accordingly.";
+      }
+
+      systemPrompt += "\n---";
     }
 
     const tools = buildTools(agent.actions, agent.customTools, agent.channels.length > 0);
@@ -1372,6 +1395,138 @@ export async function POST(
                 console.error("Enterprise insight extraction failed:", err);
               })
             );
+          }
+
+          // Vision V1.0: Image-to-Action Pipeline, Product Match, Document Extraction
+          if (hasImages && fullAssistantText && isAnthropic) {
+            // 1. Document extraction (OCR)
+            waitUntil(
+              (async () => {
+                try {
+                  const docData = await extractDocumentData(fullAssistantText);
+                  if (docData) {
+                    // Store extracted document data on the message
+                    const lastAssistantMsg = await prisma.message.findFirst({
+                      where: { conversationId, role: "ASSISTANT" },
+                      orderBy: { createdAt: "desc" },
+                      select: { id: true },
+                    });
+                    if (lastAssistantMsg) {
+                      await prisma.message.update({
+                        where: { id: lastAssistantMsg.id },
+                        data: { extractedData: JSON.parse(JSON.stringify(docData)) },
+                      });
+                    }
+
+                    // Update conversation with extracted documents
+                    const conv = await prisma.conversation.findUnique({
+                      where: { id: conversationId },
+                      select: { extractedDocuments: true },
+                    });
+                    const existing = (conv?.extractedDocuments as unknown[] || []) as Record<string, unknown>[];
+                    existing.push(docData as unknown as Record<string, unknown>);
+                    await prisma.conversation.update({
+                      where: { id: conversationId },
+                      data: { extractedDocuments: JSON.parse(JSON.stringify(existing)) },
+                    });
+
+                    // Stream document extraction info to client
+                    const docSummary = Object.entries(docData.fields)
+                      .filter(([, v]) => v !== null)
+                      .map(([k, v]) => `${k}: ${v}`)
+                      .join(", ");
+                    if (docSummary) {
+                      controller.enqueue(
+                        encoder.encode(`data: ${JSON.stringify({
+                          extractedDocument: {
+                            type: docData.documentType,
+                            fields: docData.fields,
+                            summary: docSummary,
+                          },
+                        })}\n\n`)
+                      );
+                    }
+                  }
+                } catch (err) {
+                  console.error("Document extraction failed:", err);
+                }
+              })()
+            );
+
+            // 2. Product match via KB
+            if (agent.knowledgeBases.length > 0) {
+              waitUntil(
+                matchProductFromImage(params.id, fullAssistantText)
+                  .then((matches) => {
+                    if (matches.length > 0) {
+                      const productText = matches
+                        .map((m) => `• ${m.name} (${Math.round(m.similarity * 100)}% match)`)
+                        .join("\n");
+                      controller.enqueue(
+                        encoder.encode(`data: ${JSON.stringify({
+                          text: `\n\n📦 **Ähnliche Produkte gefunden:**\n${productText}`,
+                        })}\n\n`)
+                      );
+                    }
+                  })
+                  .catch((err) => {
+                    console.error("Product match failed:", err);
+                  })
+              );
+            }
+
+            // 3. Auto-action trigger
+            if (agent.imageAutoActions) {
+              const actionNames = agent.actions
+                .filter((a: { enabled: boolean }) => a.enabled)
+                .map((a: { type: string }) => a.type);
+
+              waitUntil(
+                detectImageAction(fullAssistantText, actionNames)
+                  .then(async (actionResult) => {
+                    if (actionResult?.triggerAction && actionResult.action) {
+                      console.log(
+                        `[ImageAction] Auto-triggered: ${actionResult.action} (${actionResult.priority}) — ${actionResult.reason}`
+                      );
+
+                      controller.enqueue(
+                        encoder.encode(`data: ${JSON.stringify({
+                          imageAction: {
+                            action: actionResult.action,
+                            reason: actionResult.reason,
+                            priority: actionResult.priority,
+                          },
+                        })}\n\n`)
+                      );
+
+                      // Update actionsUsed
+                      if (!actionsUsed.includes(actionResult.action)) {
+                        actionsUsed.push(actionResult.action);
+                        await prisma.conversation.update({
+                          where: { id: conversationId },
+                          data: { actionsUsed },
+                        });
+                      }
+                    }
+                  })
+                  .catch((err) => {
+                    console.error("Image action detection failed:", err);
+                  })
+              );
+            }
+
+            // 4. Multi-image: detect before/after
+            const imageCount = await prisma.message.count({
+              where: { conversationId, imageUrl: { not: null } },
+            });
+            if (imageCount >= 2) {
+              waitUntil(
+                prisma.conversation.update({
+                  where: { id: conversationId },
+                  data: { imageComparisonMode: "before_after" },
+                }).catch(() => {})
+              );
+            }
           }
 
           // Agentic RAG: detect knowledge gaps and research answers

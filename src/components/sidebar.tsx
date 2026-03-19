@@ -26,6 +26,7 @@ import {
   Radio,
   FlaskConical,
   Brain,
+  Image,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -61,6 +62,14 @@ const allModules = [
     color: "text-muted-foreground",
     activeColor: "text-kiln-orange",
     minAgents: 0,
+  },
+  {
+    name: "Image Gallery",
+    href: "/dashboard/image-gallery",
+    icon: Image,
+    color: "text-muted-foreground",
+    activeColor: "text-kiln-orange",
+    minAgents: 1,
   },
   {
     name: "Operations",

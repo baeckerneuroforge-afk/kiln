@@ -31,6 +31,10 @@ export async function GET(
         status: true,
         a2aEnabled: true,
         a2aCapabilities: true,
+        a2aCategory: true,
+        a2aCreditCost: true,
+        a2aRating: true,
+        a2aUsageCount: true,
         actions: { select: { type: true, enabled: true } },
       },
     });
@@ -44,7 +48,6 @@ export async function GET(
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
 
-    // Capabilities: Explizit gesetzt oder aus Aktionen abgeleitet
     const capabilities = agent.a2aCapabilities.length > 0
       ? agent.a2aCapabilities
       : deriveCapabilities(agent.actions, agent.description);
@@ -54,7 +57,13 @@ export async function GET(
       agent.name,
       agent.description || "",
       capabilities,
-      baseUrl
+      baseUrl,
+      {
+        category: agent.a2aCategory || undefined,
+        creditCost: agent.a2aCreditCost,
+        rating: agent.a2aRating,
+        usageCount: agent.a2aUsageCount,
+      }
     );
 
     return Response.json(card, { headers: corsHeaders });

@@ -1322,81 +1322,13 @@ export default function AgentDetailPage() {
               </div>
               )}
 
-              {/* A2A (Agent-to-Agent) Protocol — nur im Advanced Mode */}
+              {/* A2A (Agent-to-Agent) Protocol V1.0 — nur im Advanced Mode */}
               {advancedMode && (
-              <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10">
-                      <Radio className="h-4 w-4 text-purple-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-foreground">
-                        A2A Protocol
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        Agent-to-Agent Kommunikation — erlaubt anderen KI-Agents, diesen Agent via API aufzurufen.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setA2aEnabled(!a2aEnabled)}
-                    className={cn(
-                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                      a2aEnabled ? "bg-purple-500" : "bg-muted"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform",
-                        a2aEnabled ? "translate-x-5" : "translate-x-0"
-                      )}
-                    />
-                  </button>
-                </div>
-
-                {a2aEnabled && agent && (
-                  <div className="space-y-3 pt-2 border-t border-border">
-                    <div className="space-y-1">
-                      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Agent Card URL</p>
-                      <div className="flex items-center gap-2">
-                        <code className="flex-1 rounded-lg bg-muted/50 px-3 py-2 text-xs font-mono text-muted-foreground truncate">
-                          {typeof window !== "undefined" ? window.location.origin : ""}/api/a2a/agents/{agent.id}/card
-                        </code>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}/api/a2a/agents/${agent.id}/card`);
-                            toast("URL kopiert");
-                          }}
-                          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Message Endpoint</p>
-                      <div className="flex items-center gap-2">
-                        <code className="flex-1 rounded-lg bg-muted/50 px-3 py-2 text-xs font-mono text-muted-foreground truncate">
-                          {typeof window !== "undefined" ? window.location.origin : ""}/api/a2a/agents/{agent.id}/message
-                        </code>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}/api/a2a/agents/${agent.id}/message`);
-                            toast("URL kopiert");
-                          }}
-                          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">
-                      Teile die Agent Card URL mit anderen Plattformen, damit deren Agents deinen Agent entdecken und nutzen können.
-                    </p>
-                  </div>
-                )}
-              </div>
+              <A2AProtocolSection
+                agentId={agent?.id || ""}
+                a2aEnabled={a2aEnabled}
+                onToggle={() => setA2aEnabled(!a2aEnabled)}
+              />
               )}
 
               {/* Saved Logins — Computer Use Credentials — nur im Advanced Mode */}
@@ -2492,6 +2424,202 @@ export default function AgentDetailPage() {
               </Button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── A2A Protocol V1.0 Section ── */
+
+const A2A_CATEGORIES = ["Sales", "Support", "Booking", "Research", "Data Processing", "Marketing", "HR", "Other"];
+
+function A2AProtocolSection({
+  agentId,
+  a2aEnabled,
+  onToggle,
+}: {
+  agentId: string;
+  a2aEnabled: boolean;
+  onToggle: () => void;
+}) {
+  const { toast: toastFn } = useToast();
+  const [a2aKey, setA2aKey] = useState<string | null>(null);
+  const [showKey, setShowKey] = useState(false);
+  const [stats, setStats] = useState<{ callsThisWeek: number; uniqueCallers: number; totalCreditsEarned: number } | null>(null);
+  const [creditCost, setCreditCost] = useState(1);
+  const [a2aCategory, setA2aCategory] = useState("");
+  const [regenerating, setRegenerating] = useState(false);
+
+  const loadA2AData = useCallback(async () => {
+    if (!agentId || !a2aEnabled) return;
+    try {
+      const res = await fetch(`/api/a2a/agents/${agentId}/key`);
+      if (res.ok) {
+        const data = await res.json();
+        setA2aKey(data.a2aApiKey || null);
+        setCreditCost(data.a2aCreditCost || 1);
+        setStats(data.stats || null);
+      }
+    } catch { /* ignore */ }
+  }, [agentId, a2aEnabled]);
+
+  useEffect(() => {
+    loadA2AData();
+  }, [loadA2AData]);
+
+  async function regenerateKey() {
+    if (!confirm("Neuen A2A API Key generieren? Der alte Key wird ungültig.")) return;
+    setRegenerating(true);
+    try {
+      const res = await fetch(`/api/a2a/agents/${agentId}/key`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setA2aKey(data.a2aApiKey);
+        toastFn("Neuer API Key generiert");
+      }
+    } catch { /* ignore */ }
+    setRegenerating(false);
+  }
+
+  const maskedKey = a2aKey ? `${a2aKey.slice(0, 12)}${"•".repeat(20)}${a2aKey.slice(-6)}` : "";
+
+  return (
+    <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10">
+            <Radio className="h-4 w-4 text-purple-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">A2A Protocol V1.0</h3>
+            <p className="text-xs text-muted-foreground">
+              Agent-to-Agent Kommunikation mit sicherer Auth, Billing und Directory.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onToggle}
+          className={cn(
+            "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+            a2aEnabled ? "bg-purple-500" : "bg-muted"
+          )}
+        >
+          <span
+            className={cn(
+              "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform",
+              a2aEnabled ? "translate-x-5" : "translate-x-0"
+            )}
+          />
+        </button>
+      </div>
+
+      {a2aEnabled && agentId && (
+        <div className="space-y-4 pt-2 border-t border-border">
+          {/* Usage Stats */}
+          {stats && (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-lg bg-muted/30 px-3 py-2 text-center">
+                <p className="text-lg font-bold text-foreground tabular-nums">{stats.callsThisWeek}</p>
+                <p className="text-[10px] text-muted-foreground">Calls/Woche</p>
+              </div>
+              <div className="rounded-lg bg-muted/30 px-3 py-2 text-center">
+                <p className="text-lg font-bold text-foreground tabular-nums">{stats.uniqueCallers}</p>
+                <p className="text-[10px] text-muted-foreground">Agents</p>
+              </div>
+              <div className="rounded-lg bg-muted/30 px-3 py-2 text-center">
+                <p className="text-lg font-bold text-purple-400 tabular-nums">{stats.totalCreditsEarned}</p>
+                <p className="text-[10px] text-muted-foreground">Credits</p>
+              </div>
+            </div>
+          )}
+
+          {/* API Key */}
+          <div className="space-y-1">
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">A2A API Key</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 rounded-lg bg-muted/50 px-3 py-2 text-xs font-mono text-muted-foreground truncate">
+                {showKey ? a2aKey : maskedKey}
+              </code>
+              <button
+                onClick={() => setShowKey(!showKey)}
+                className="shrink-0 text-[10px] text-muted-foreground hover:text-foreground"
+              >
+                {showKey ? "Hide" : "Show"}
+              </button>
+              <button
+                onClick={() => {
+                  if (a2aKey) navigator.clipboard.writeText(a2aKey);
+                  toastFn("API Key kopiert");
+                }}
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+            </div>
+            <button
+              onClick={regenerateKey}
+              disabled={regenerating}
+              className="text-[10px] text-red-400 hover:text-red-300 mt-1"
+            >
+              {regenerating ? "Generiere..." : "Key regenerieren →"}
+            </button>
+          </div>
+
+          {/* URLs */}
+          <div className="space-y-1">
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Agent Card URL</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 rounded-lg bg-muted/50 px-3 py-2 text-xs font-mono text-muted-foreground truncate">
+                {typeof window !== "undefined" ? window.location.origin : ""}/api/a2a/agents/{agentId}/card
+              </code>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/api/a2a/agents/${agentId}/card`);
+                  toastFn("URL kopiert");
+                }}
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Category + Pricing */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Kategorie</p>
+              <select
+                value={a2aCategory}
+                onChange={(e) => setA2aCategory(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground"
+              >
+                <option value="">Keine</option>
+                {A2A_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Credits pro Call</p>
+              <input
+                type="number"
+                min={0}
+                max={10}
+                value={creditCost}
+                onChange={(e) => setCreditCost(Number(e.target.value))}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground tabular-nums"
+              />
+            </div>
+          </div>
+
+          <a
+            href="/a2a/directory"
+            target="_blank"
+            className="block text-[10px] text-purple-400 hover:text-purple-300"
+          >
+            Im A2A Directory anzeigen →
+          </a>
         </div>
       )}
     </div>

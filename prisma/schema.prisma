@@ -132,6 +132,7 @@ model Agent {
 
   // Multimodal — Bildanalyse
   imageAnalysisEnabled Boolean   @default(false)
+  imageAutoActions     Boolean   @default(false)
 
   // AI Transparency — EU AI Act compliance
   showAiDisclaimer   Boolean     @default(true)
@@ -148,6 +149,12 @@ model Agent {
   a2aEnabled         Boolean     @default(false)
   a2aCapabilities    String[]    // z.B. ["lead_qualification", "appointment_booking"]
   a2aConnectedAgents Json?       // [{ url, name, lastPing }]
+  a2aApiKey          String?     @unique // Unique API key for inbound A2A calls
+  a2aCreditCost      Int         @default(1) // Credits pro A2A Call
+  a2aCategory        String?     // Sales, Support, Booking, Research, Data Processing
+  a2aUsageCount      Int         @default(0)
+  a2aAvgResponseMs   Int         @default(0)
+  a2aRating          Float       @default(0) // 0-5
 
   // Enterprise Memory — Cross-Agent Business Intelligence
   enableEnterpriseMemory Boolean @default(true)
@@ -333,6 +340,10 @@ model Conversation {
   lastDetectedIntent  String?     // Last classified intent (e.g., "pricing", "support")
   lastIntentAgentId   String?     // Agent ID the intent was routed to
 
+  // Image Vision V1.0
+  extractedDocuments  Json?       // [{ type, fields, imageUrl }]
+  imageComparisonMode String?     // "before_after" | null
+
   messages  Message[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -347,9 +358,10 @@ model Message {
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
-  role     MessageRole
-  content  String  @db.Text
-  imageUrl String? @db.Text
+  role           MessageRole
+  content        String  @db.Text
+  imageUrl       String? @db.Text
+  extractedData  Json?   // Structured data from OCR/document analysis
 
   createdAt DateTime @default(now())
 
@@ -1227,6 +1239,21 @@ model A2AInteractionLog {
 
   @@index([agentId])
   @@index([agentId, createdAt])
+}
+
+// A2A Usage / Billing — Credits pro A2A Call
+model A2AUsage {
+  id              String   @id @default(cuid())
+  callerUserId    String   // Wer zahlt (Owner des aufrufenden Agents)
+  receiverAgentId String   // Welcher Agent wurde aufgerufen
+  credits         Int      @default(1)
+  sourceIp        String?
+  sourceAgentUrl  String?
+  createdAt       DateTime @default(now())
+
+  @@index([callerUserId])
+  @@index([receiverAgentId])
+  @@index([callerUserId, createdAt])
 }
 
 // ── Enterprise Memory — Cross-Agent Business Intelligence ──

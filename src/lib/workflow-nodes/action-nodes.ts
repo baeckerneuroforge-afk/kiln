@@ -347,7 +347,7 @@ async function executeA2ACall(
   try {
     const response = await sendA2AMessage(
       targetUrl,
-      { task: messageTemplate, context: { source: "workflow" } },
+      { task: messageTemplate, context: { sourceAgent: { name: "workflow", platform: "kiln" } } },
       apiKey,
       timeout
     );

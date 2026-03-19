@@ -46,6 +46,8 @@ const isPublicRoute = createRouteMatcher([
   "/api/workflows/form/(.*)",      // Workflow form API
   "/workflows/form/(.*)",          // Workflow form page (public)
   "/marketplace",            // Public Marketplace
+  "/a2a/directory",          // Public A2A Agent Directory
+  "/api/a2a/(.*)",           // A2A Protocol (eigene Key-Auth)
   "/landing-v2",             // Landing V2 Preview
   "/developers",             // Developer Docs
   "/docs",               // Public API Documentation
