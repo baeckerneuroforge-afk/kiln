@@ -1146,3 +1146,21 @@ model AgentRun {
   @@index([agentId])
   @@index([agentId, createdAt])
 }
+
+// Orchestration Log — structured training data for every workflow decision
+model OrchestrationLog {
+  id            String   @id @default(cuid())
+  teamId        String
+  executionId   String
+  eventType     String   // routing_decision, agent_selection, condition_evaluation, handoff, parallel_branch, loop_iteration, approval_gate, error_fallback
+  input         Json     // { userMessage, availableAgents, sharedMemory, previousSteps }
+  decision      Json     // { selectedAgent, reason, condition, conditionResult, structuredData }
+  outcome       Json     // { success, agentOutput, tokensUsed, durationMs, userSatisfaction }
+  createdAt     DateTime @default(now())
+
+  @@index([teamId])
+  @@index([executionId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@index([teamId, createdAt])
+}

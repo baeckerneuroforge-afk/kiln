@@ -410,6 +410,7 @@ export function TeamExecutionsTab({
   const [replayExecutionId, setReplayExecutionId] = useState<string | null>(null);
   const [debugExecutionId, setDebugExecutionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [orchestrationCount, setOrchestrationCount] = useState<number | null>(null);
 
   const pendingApproval = detail?.approvalRequests.find((request) => request.status === "PENDING") || null;
   const resolvedApproval = useMemo(
@@ -462,6 +463,12 @@ export function TeamExecutionsTab({
     }
 
     fetchExecutions();
+
+    // Fetch orchestration log count for this team
+    fetch(`/api/teams/${teamId}/orchestration-count`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d && !cancelled) setOrchestrationCount(d.count ?? null); })
+      .catch(() => {});
 
     return () => {
       cancelled = true;
@@ -713,6 +720,11 @@ export function TeamExecutionsTab({
             <p className="mt-1 text-xs text-zinc-500">
               Operational runs with retries, approval gates, and shared memory.
             </p>
+            {orchestrationCount !== null && orchestrationCount > 0 && (
+              <p className="mt-2 text-xs text-zinc-500">
+                <span className="font-medium text-zinc-400">{orchestrationCount.toLocaleString()}</span> orchestration decisions logged
+              </p>
+            )}
           </div>
 
           {loadingList ? (

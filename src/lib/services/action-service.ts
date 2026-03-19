@@ -14,6 +14,7 @@ import {
 } from "@/lib/integrations/agent-stripe";
 import { safeEval } from "@/lib/safe-eval";
 import { validateUrl } from "@/lib/url-validation";
+import { logHandoff } from "@/lib/orchestration-logger";
 
 // Custom Tool Definition Typ
 export interface CustomToolDef {
@@ -886,6 +887,18 @@ export async function executeChatTool(
           });
         }
       }
+
+      // Log handoff for orchestration training data
+      logHandoff({
+        teamId: agentId, // Use agentId as team reference for chat-level handoffs
+        executionId: context.conversationId || `handoff_${Date.now()}`,
+        sourceAgentId: agentId,
+        sourceAgentName: context.agentName || agentId,
+        targetAgentId,
+        targetAgentName: targetAgent.name,
+        reason: (toolInput.reason as string) || "Agent-triggered handoff",
+        conversationId: context.conversationId,
+      }).catch(() => {});
 
       return JSON.stringify({
         success: true,

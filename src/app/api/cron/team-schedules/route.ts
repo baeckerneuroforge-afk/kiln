@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { waitUntil } from "@vercel/functions";
+import { cleanupOrchestrationLogs } from "@/lib/orchestration-logger";
 import { Prisma } from "@prisma/client";
 import { getClaudeClient } from "@/lib/ai";
 import { deductCredits } from "@/lib/credits";
@@ -282,6 +283,13 @@ export async function GET(request: NextRequest) {
         })
     );
   }
+
+  // Auto-cleanup: delete orchestration logs older than 90 days
+  waitUntil(
+    cleanupOrchestrationLogs(90).catch((err) => {
+      console.error("Orchestration log cleanup failed:", err);
+    })
+  );
 
   return Response.json({
     checkedAt: now.toISOString(),

@@ -37,6 +37,12 @@ import {
   type TeamSharedContext,
   type TeamExecutionTaskInput,
 } from "@/lib/services/team-runtime";
+import {
+  logRoutingDecision,
+  logAgentExecution,
+  logApprovalGate,
+  logErrorFallback,
+} from "@/lib/orchestration-logger";
 
 /* ── Types ── */
 
@@ -426,6 +432,7 @@ export async function executeWorkflow(
         switch (category) {
           case "logic": {
             const logicResult = executeLogicNode(node.type, node.config, context);
+            const logicEndTime = new Date();
 
             nodeResult = {
               nodeId: node.id,
@@ -434,13 +441,27 @@ export async function executeWorkflow(
               output: JSON.stringify(logicResult),
               contextDelta: {},
               startedAt: startTime,
-              completedAt: new Date(),
+              completedAt: logicEndTime,
               meta: logicResult.meta,
             };
 
             // Nur die passenden Nachfolger in die Queue
             const nextIds = getSuccessors(node.id, edges, logicResult.outputHandle);
             queue.push(...nextIds);
+
+            // Log routing decision
+            logRoutingDecision({
+              teamId,
+              executionId,
+              nodeId: node.id,
+              nodeType: node.type,
+              condition: JSON.stringify(node.config).slice(0, 200),
+              conditionResult: logicResult.outputHandle !== "false",
+              outputHandle: logicResult.outputHandle,
+              context,
+              durationMs: logicEndTime.getTime() - startTime.getTime(),
+            }).catch(() => {});
+
             break;
           }
 
@@ -489,6 +510,14 @@ export async function executeWorkflow(
                   },
                 };
                 queue.push(...errorTargets);
+
+                logErrorFallback({
+                  teamId, executionId,
+                  nodeId: node.id, nodeType: node.type,
+                  error: actionResult.error || "Action failed",
+                  fallbackNodeIds: errorTargets,
+                  context,
+                }).catch(() => {});
               } else {
                 await invokeGlobalErrorHandler(team.config, executionId, node.id, node.type, actionResult.error || "Action failed", context);
               }
@@ -535,8 +564,8 @@ export async function executeWorkflow(
                 meta: integrationResult.meta,
               };
 
-              const errorTargets = getErrorSuccessors(node.id, edges);
-              if (errorTargets.length > 0) {
+              const intErrorTargets = getErrorSuccessors(node.id, edges);
+              if (intErrorTargets.length > 0) {
                 context = {
                   ...context,
                   _lastError: {
@@ -545,7 +574,15 @@ export async function executeWorkflow(
                     error: integrationResult.error,
                   },
                 };
-                queue.push(...errorTargets);
+                queue.push(...intErrorTargets);
+
+                logErrorFallback({
+                  teamId, executionId,
+                  nodeId: node.id, nodeType: node.type,
+                  error: integrationResult.error || "Integration/AI failed",
+                  fallbackNodeIds: intErrorTargets,
+                  context,
+                }).catch(() => {});
               } else {
                 await invokeGlobalErrorHandler(team.config, executionId, node.id, node.type, integrationResult.error || "Integration/AI failed", context);
               }
@@ -564,12 +601,30 @@ export async function executeWorkflow(
               startTime
             );
 
+            const agentEndTime = new Date();
+            const agentMeta = nodeResult.meta as Record<string, unknown> | undefined;
+
+            // Log agent execution
+            logAgentExecution({
+              teamId, executionId,
+              nodeId: node.id,
+              agentId: (agentMeta?.agentId as string) || "",
+              agentName: (agentMeta?.agentName as string) || node.label || "Unknown",
+              input: JSON.stringify(context).slice(0, 500),
+              output: nodeResult.output || "",
+              success: nodeResult.status === "completed",
+              error: nodeResult.error,
+              tokensUsed: (nodeResult.tokensIn || 0) + (nodeResult.tokensOut || 0),
+              durationMs: agentEndTime.getTime() - startTime.getTime(),
+              context,
+            }).catch(() => {});
+
             if (nodeResult.status === "completed") {
               context = { ...context, ...nodeResult.contextDelta };
               queue.push(...getNormalSuccessors(node.id, edges));
             } else {
-              const errorTargets = getErrorSuccessors(node.id, edges);
-              if (errorTargets.length > 0) {
+              const agentErrorTargets = getErrorSuccessors(node.id, edges);
+              if (agentErrorTargets.length > 0) {
                 context = {
                   ...context,
                   _lastError: {
@@ -578,7 +633,15 @@ export async function executeWorkflow(
                     error: nodeResult.error,
                   },
                 };
-                queue.push(...errorTargets);
+                queue.push(...agentErrorTargets);
+
+                logErrorFallback({
+                  teamId, executionId,
+                  nodeId: node.id, nodeType: node.type,
+                  error: nodeResult.error || "Agent failed",
+                  fallbackNodeIds: agentErrorTargets,
+                  context,
+                }).catch(() => {});
               } else {
                 await invokeGlobalErrorHandler(team.config, executionId, node.id, node.type, nodeResult.error || "Agent failed", context);
               }
@@ -666,6 +729,13 @@ export async function executeWorkflow(
                   controlResult,
                   team.name
                 );
+
+                logApprovalGate({
+                  teamId, executionId,
+                  nodeId: node.id,
+                  approvalType: (controlResult.meta as Record<string, unknown>).approvalType as string || "manual",
+                  context,
+                }).catch(() => {});
               }
             } else if (controlResult.action === "skip") {
               nodeResult = {
@@ -716,8 +786,8 @@ export async function executeWorkflow(
         };
 
         // Error-Pfad verfolgen
-        const errorTargets = getErrorSuccessors(node.id, edges);
-        if (errorTargets.length > 0) {
+        const catchErrorTargets = getErrorSuccessors(node.id, edges);
+        if (catchErrorTargets.length > 0) {
           context = {
             ...context,
             _lastError: {
@@ -726,7 +796,15 @@ export async function executeWorkflow(
               error: nodeResult.error,
             },
           };
-          queue.push(...errorTargets);
+          queue.push(...catchErrorTargets);
+
+          logErrorFallback({
+            teamId, executionId,
+            nodeId: node.id, nodeType: node.type,
+            error: nodeResult.error || "Node execution failed",
+            fallbackNodeIds: catchErrorTargets,
+            context,
+          }).catch(() => {});
         } else {
           await invokeGlobalErrorHandler(team.config, executionId, node.id, node.type, nodeResult.error || "Node execution failed", context);
         }
