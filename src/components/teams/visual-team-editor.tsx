@@ -62,6 +62,13 @@ import {
   Shield,
   Shuffle,
   FileText,
+  Table,
+  TableProperties,
+  CalendarPlus,
+  CalendarSearch,
+  Plug,
+  Tags,
+  FileSearch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getModelDef } from "@/lib/ai";
@@ -162,6 +169,8 @@ const workflowNodeColors: Record<WorkflowNodeCategory, { border: string; bg: str
   logic: { border: "border-violet-500/50", bg: "bg-violet-500/15", text: "text-violet-400", hex: "#8B5CF6" },
   actions: { border: "border-blue-500/50", bg: "bg-blue-500/15", text: "text-blue-400", hex: "#3B82F6" },
   control: { border: "border-cyan-500/50", bg: "bg-cyan-500/15", text: "text-cyan-400", hex: "#06B6D4" },
+  integrations: { border: "border-green-500/50", bg: "bg-green-500/15", text: "text-green-400", hex: "#22C55E" },
+  ai_tools: { border: "border-pink-500/50", bg: "bg-pink-500/15", text: "text-pink-400", hex: "#EC4899" },
 };
 
 /** Map lucide icon names to components */
@@ -169,6 +178,8 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Globe, Clock, UserPlus, MessageSquare, Play, Bot, GitBranch, GitFork,
   Filter, Mail, Hash, Timer, Variable, ShieldCheck, Pause, Layers, Merge,
   Zap, Shield, Shuffle, FileText,
+  Table, TableProperties, CalendarPlus, CalendarSearch, Database, Plug,
+  Sparkles, Tags, FileSearch,
 };
 
 const NODE_WIDTH = 260;

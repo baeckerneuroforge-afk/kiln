@@ -29,6 +29,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
+import { WhatsNewBell } from "@/components/whats-new";
 import { useEffect, useRef, useState } from "react";
 
 const SIDEBAR_COLLAPSED_KEY = "kiln-sidebar-collapsed";
@@ -50,6 +51,7 @@ const allModules = [
     activeColor: "text-kiln-orange",
     badge: null as string | null,
     minAgents: 0,
+    tourId: "agents",
   },
   {
     name: "Conversations",
@@ -83,6 +85,7 @@ const allModules = [
     activeColor: "text-kiln-orange",
     minAgents: 5, // Show after 5+ agents or Pro+
     requiresPro: true,
+    tourId: "workflows",
   },
   {
     name: "Workflow Monitor",
@@ -118,6 +121,7 @@ const allModules = [
     color: "text-muted-foreground",
     activeColor: "text-kiln-blue",
     minAgents: 1,
+    tourId: "integrations",
   },
   {
     name: "Site Builder",
@@ -240,6 +244,10 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
             </span>
           </Link>
           <div className="flex items-center gap-1">
+            {/* What's New bell */}
+            <div className={cn(isCollapsed && "lg:hidden")}>
+              <WhatsNewBell />
+            </div>
             {/* Collapse toggle — desktop only */}
             <button
               onClick={toggleCollapsed}
@@ -289,6 +297,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                 <Link
                   href={item.href}
                   onClick={onClose}
+                  {...('tourId' in item && item.tourId ? { "data-tour": item.tourId } : {})}
                   className={cn(
                     "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
                     isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2.5",
@@ -349,6 +358,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               href="/help"
               target="_blank"
               onClick={onClose}
+              data-tour="help"
               className={cn(
                 "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
                 isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2.5",

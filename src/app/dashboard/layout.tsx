@@ -13,6 +13,7 @@ import { ToastProvider } from "@/components/toast";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { KeyboardShortcutProvider } from "@/components/keyboard-shortcuts";
+import { ProductTour, useTourTrigger } from "@/components/product-tour";
 
 export default function DashboardLayout({
   children,
@@ -21,6 +22,7 @@ export default function DashboardLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
+  const { showTour, completeTour, skipTour } = useTourTrigger();
 
   const checkOnboarding = useCallback(() => {
     Promise.all([
@@ -82,6 +84,7 @@ export default function DashboardLayout({
           </div>
         </div>
         {showOnboarding === false && <OnboardingChecklist />}
+        {showTour && <ProductTour onComplete={completeTour} onSkip={skipTour} />}
         <CookieBanner />
         </KeyboardShortcutProvider>
       </ToastProvider>

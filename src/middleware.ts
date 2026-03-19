@@ -48,6 +48,8 @@ const isPublicRoute = createRouteMatcher([
   "/marketplace",            // Public Marketplace
   "/landing-v2",             // Landing V2 Preview
   "/developers",             // Developer Docs
+  "/docs",               // Public API Documentation
+  "/changelog",          // Public Changelog
 ]);
 
 export default clerkMiddleware(async (auth, request) => {

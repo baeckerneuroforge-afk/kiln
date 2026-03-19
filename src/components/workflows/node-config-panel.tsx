@@ -38,6 +38,19 @@ import {
   SubWorkflowConfig,
   MergeConfig,
 } from "./node-configs/control-configs";
+import {
+  GoogleSheetsReadConfig,
+  GoogleSheetsWriteConfig,
+  GmailSendConfig,
+  SlackSendIntegrationConfig,
+  CalendarCreateConfig,
+  CalendarCheckConfig,
+  NotionCreateConfig,
+  AirtableCreateConfig,
+  AiSummarizeConfig,
+  AiClassifyConfig,
+  AiExtractConfig,
+} from "./node-configs/integration-configs";
 import { AgentNodeConfig } from "./node-configs/agent-node-config";
 
 // Icon mapping
@@ -45,12 +58,16 @@ import {
   Globe, Clock, UserPlus, MessageSquare, Play, Bot,
   GitBranch, GitFork, Filter, Mail, Hash, Timer,
   Variable, ShieldCheck, Pause, Layers, Merge, Zap, FileText, Shuffle,
+  Table, TableProperties, CalendarPlus, CalendarSearch, Database, Plug,
+  Sparkles, Tags, FileSearch,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Globe, Clock, UserPlus, MessageSquare, Play, Bot,
   GitBranch, GitFork, Filter, Mail, Hash, Timer,
   Variable, ShieldCheck, Pause, Layers, Merge, Zap, FileText, Shuffle,
+  Table, TableProperties, CalendarPlus, CalendarSearch, Database, Plug,
+  Sparkles, Tags, FileSearch,
 };
 
 interface NodeConfigPanelProps {
@@ -224,6 +241,39 @@ export function NodeConfigPanel({
           )}
           {nodeType === "merge" && (
             <MergeConfig config={config} onChange={setConfig} />
+          )}
+          {nodeType === "google_sheets_read" && (
+            <GoogleSheetsReadConfig config={config} onChange={setConfig} />
+          )}
+          {nodeType === "google_sheets_write" && (
+            <GoogleSheetsWriteConfig config={config} onChange={setConfig} />
+          )}
+          {nodeType === "gmail_send" && (
+            <GmailSendConfig config={config} onChange={setConfig} />
+          )}
+          {nodeType === "slack_send_integration" && (
+            <SlackSendIntegrationConfig config={config} onChange={setConfig} />
+          )}
+          {nodeType === "calendar_create" && (
+            <CalendarCreateConfig config={config} onChange={setConfig} />
+          )}
+          {nodeType === "calendar_check" && (
+            <CalendarCheckConfig config={config} onChange={setConfig} />
+          )}
+          {nodeType === "notion_create" && (
+            <NotionCreateConfig config={config} onChange={setConfig} />
+          )}
+          {nodeType === "airtable_create" && (
+            <AirtableCreateConfig config={config} onChange={setConfig} />
+          )}
+          {nodeType === "ai_summarize" && (
+            <AiSummarizeConfig config={config} onChange={setConfig} />
+          )}
+          {nodeType === "ai_classify" && (
+            <AiClassifyConfig config={config} onChange={setConfig} />
+          )}
+          {nodeType === "ai_extract" && (
+            <AiExtractConfig config={config} onChange={setConfig} />
           )}
         </div>
 

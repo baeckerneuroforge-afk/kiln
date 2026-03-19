@@ -32,9 +32,22 @@ export type WorkflowNodeType =
   | "wait_webhook"
   | "wait_form"
   | "sub_workflow"
-  | "merge";
+  | "merge"
+  // Integrations
+  | "google_sheets_read"
+  | "google_sheets_write"
+  | "gmail_send"
+  | "slack_send_integration"
+  | "calendar_create"
+  | "calendar_check"
+  | "notion_create"
+  | "airtable_create"
+  // AI Tools
+  | "ai_summarize"
+  | "ai_classify"
+  | "ai_extract";
 
-export type WorkflowNodeCategory = "agents" | "triggers" | "logic" | "actions" | "control";
+export type WorkflowNodeCategory = "agents" | "triggers" | "logic" | "actions" | "control" | "integrations" | "ai_tools";
 
 export interface WorkflowNodeDefinition {
   type: WorkflowNodeType;
@@ -86,6 +99,8 @@ export const WORKFLOW_CATEGORIES: {
   { id: "logic", label: "Logic", icon: "GitBranch", color: "#8B5CF6" },
   { id: "actions", label: "Actions", icon: "Play", color: "#3B82F6" },
   { id: "control", label: "Control", icon: "Shield", color: "#06B6D4" },
+  { id: "integrations", label: "Integrations", icon: "Plug", color: "#22C55E" },
+  { id: "ai_tools", label: "AI Tools", icon: "Sparkles", color: "#EC4899" },
 ];
 
 /* ========== Node Definitions ========== */
@@ -286,6 +301,109 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     icon: "Merge",
     color: "#06B6D4",
     defaultConfig: { strategy: "wait_all" },
+  },
+
+  // Integrations
+  {
+    type: "google_sheets_read",
+    label: "Google Sheets lesen",
+    description: "Daten aus einem Google Sheet lesen",
+    category: "integrations",
+    icon: "Table",
+    color: "#22C55E",
+    defaultConfig: { spreadsheetId: "", range: "Sheet1!A:Z", resultKey: "sheetsData" },
+  },
+  {
+    type: "google_sheets_write",
+    label: "Google Sheets schreiben",
+    description: "Zeile in ein Google Sheet schreiben",
+    category: "integrations",
+    icon: "TableProperties",
+    color: "#22C55E",
+    defaultConfig: { spreadsheetId: "", range: "Sheet1", values: [] },
+  },
+  {
+    type: "gmail_send",
+    label: "Gmail senden",
+    description: "E-Mail über Gmail versenden",
+    category: "integrations",
+    icon: "Mail",
+    color: "#22C55E",
+    defaultConfig: { to: "", subject: "", body: "", replyToMessageId: "" },
+  },
+  {
+    type: "slack_send_integration",
+    label: "Slack Nachricht",
+    description: "Nachricht über verbundenen Slack-Workspace senden",
+    category: "integrations",
+    icon: "Hash",
+    color: "#22C55E",
+    defaultConfig: { channel: "", message: "", threadTs: "" },
+  },
+  {
+    type: "calendar_create",
+    label: "Termin erstellen",
+    description: "Google Calendar Termin erstellen",
+    category: "integrations",
+    icon: "CalendarPlus",
+    color: "#22C55E",
+    defaultConfig: { title: "", start: "", end: "", description: "", attendeeEmail: "", timezone: "Europe/Berlin" },
+  },
+  {
+    type: "calendar_check",
+    label: "Verfügbarkeit prüfen",
+    description: "Freie Slots im Google Calendar finden",
+    category: "integrations",
+    icon: "CalendarSearch",
+    color: "#22C55E",
+    defaultConfig: { startDate: "", endDate: "", slotMinutes: 30, dayStartHour: 9, dayEndHour: 17, resultKey: "availableSlots" },
+  },
+  {
+    type: "notion_create",
+    label: "Notion Eintrag",
+    description: "Neuen Eintrag in Notion-Datenbank erstellen",
+    category: "integrations",
+    icon: "FileText",
+    color: "#22C55E",
+    defaultConfig: { databaseId: "", properties: {}, content: "" },
+  },
+  {
+    type: "airtable_create",
+    label: "Airtable Eintrag",
+    description: "Neuen Datensatz in Airtable erstellen",
+    category: "integrations",
+    icon: "Database",
+    color: "#22C55E",
+    defaultConfig: { baseId: "", tableName: "", fields: {} },
+  },
+
+  // AI Tools
+  {
+    type: "ai_summarize",
+    label: "AI Zusammenfassung",
+    description: "Text mit AI zusammenfassen",
+    category: "ai_tools",
+    icon: "Sparkles",
+    color: "#EC4899",
+    defaultConfig: { input: "", maxLength: "kurz", language: "de", resultKey: "summary" },
+  },
+  {
+    type: "ai_classify",
+    label: "AI Klassifizierung",
+    description: "Text in Kategorien einordnen",
+    category: "ai_tools",
+    icon: "Tags",
+    color: "#EC4899",
+    defaultConfig: { input: "", categories: "", resultKey: "classification" },
+  },
+  {
+    type: "ai_extract",
+    label: "AI Extraktion",
+    description: "Strukturierte Daten aus Text extrahieren",
+    category: "ai_tools",
+    icon: "FileSearch",
+    color: "#EC4899",
+    defaultConfig: { input: "", fields: "", resultKey: "extracted" },
   },
 ];
 

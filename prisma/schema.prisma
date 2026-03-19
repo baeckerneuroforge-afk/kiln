@@ -31,6 +31,8 @@ model User {
   byokEnabled        Boolean   @default(false)
   creditTier         Int       @default(0)   // 0=base, 1=mid, 2=high within each plan
   emailNotifications Boolean   @default(true)
+  tourCompleted         Boolean  @default(false)
+  lastSeenChangelog     String?  // ISO date of last seen changelog entry
   weeklyReportEnabled Boolean  @default(true)
 
   agents              Agent[]

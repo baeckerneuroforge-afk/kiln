@@ -21,6 +21,8 @@ import { resolveExpression, resolveExpressionValue } from "@/lib/workflow-expres
 import { executeTriggerNode } from "@/lib/workflow-nodes/trigger-nodes";
 import { executeLogicNode } from "@/lib/workflow-nodes/logic-nodes";
 import { executeActionNode } from "@/lib/workflow-nodes/action-nodes";
+import { executeIntegrationNode } from "@/lib/workflow-nodes/integration-nodes";
+import { executeAiNode } from "@/lib/workflow-nodes/ai-nodes";
 import {
   executeControlNode,
   type ControlNodeResult,
@@ -137,6 +139,19 @@ const NODE_CATEGORIES: Record<string, string> = {
   wait_form: "control",
   sub_workflow: "control",
   merge: "control",
+  // Integrations
+  google_sheets_read: "integration",
+  google_sheets_write: "integration",
+  gmail_send: "integration",
+  slack_send_integration: "integration",
+  calendar_create: "integration",
+  calendar_check: "integration",
+  notion_create: "integration",
+  airtable_create: "integration",
+  // AI Tools
+  ai_summarize: "ai_tool",
+  ai_classify: "ai_tool",
+  ai_extract: "ai_tool",
 };
 
 const MAX_SUB_WORKFLOW_DEPTH = 5;
@@ -315,6 +330,7 @@ export async function executeWorkflow(
 
   let context: ExpressionContext = {
     variables: variablesInit,
+    _userId: options.userId,
   };
   const executedNodes = new Set<string>();
   const nodeLogs: NodeExecutionLog[] = [];
@@ -475,6 +491,63 @@ export async function executeWorkflow(
                 queue.push(...errorTargets);
               } else {
                 await invokeGlobalErrorHandler(team.config, executionId, node.id, node.type, actionResult.error || "Action failed", context);
+              }
+
+              failedNodes++;
+            }
+            break;
+          }
+
+          case "integration":
+          case "ai_tool": {
+            const integrationExecutor = category === "integration"
+              ? executeIntegrationNode
+              : executeAiNode;
+            const integrationResult = await integrationExecutor(
+              node.type,
+              node.config,
+              context
+            );
+
+            if (integrationResult.success) {
+              context = { ...context, ...integrationResult.contextDelta };
+              nodeResult = {
+                nodeId: node.id,
+                nodeType: node.type,
+                status: "completed",
+                output: JSON.stringify(integrationResult.contextDelta),
+                contextDelta: integrationResult.contextDelta,
+                startedAt: startTime,
+                completedAt: new Date(),
+                meta: integrationResult.meta,
+              };
+
+              queue.push(...getNormalSuccessors(node.id, edges));
+            } else {
+              nodeResult = {
+                nodeId: node.id,
+                nodeType: node.type,
+                status: "failed",
+                contextDelta: integrationResult.contextDelta,
+                error: integrationResult.error,
+                startedAt: startTime,
+                completedAt: new Date(),
+                meta: integrationResult.meta,
+              };
+
+              const errorTargets = getErrorSuccessors(node.id, edges);
+              if (errorTargets.length > 0) {
+                context = {
+                  ...context,
+                  _lastError: {
+                    nodeId: node.id,
+                    nodeType: node.type,
+                    error: integrationResult.error,
+                  },
+                };
+                queue.push(...errorTargets);
+              } else {
+                await invokeGlobalErrorHandler(team.config, executionId, node.id, node.type, integrationResult.error || "Integration/AI failed", context);
               }
 
               failedNodes++;

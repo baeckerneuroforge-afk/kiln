@@ -26,6 +26,13 @@ import {
   Shuffle,
   XCircle,
   Zap,
+  Table,
+  TableProperties,
+  CalendarPlus,
+  CalendarSearch,
+  Sparkles,
+  Tags,
+  FileSearch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExecutionDebugConsole } from "@/components/teams/execution-debug-console";
@@ -194,6 +201,17 @@ function getNodeTypeIcon(nodeType: string | null | undefined) {
     case "wait_webhook": return <Pause className="h-3.5 w-3.5 text-cyan-400" />;
     case "wait_form": return <FileText className="h-3.5 w-3.5 text-cyan-400" />;
     case "agent": return <Bot className="h-3.5 w-3.5 text-orange-400" />;
+    case "google_sheets_read": return <Table className="h-3.5 w-3.5 text-green-400" />;
+    case "google_sheets_write": return <TableProperties className="h-3.5 w-3.5 text-green-400" />;
+    case "gmail_send": return <Mail className="h-3.5 w-3.5 text-green-400" />;
+    case "slack_send_integration": return <Hash className="h-3.5 w-3.5 text-green-400" />;
+    case "calendar_create": return <CalendarPlus className="h-3.5 w-3.5 text-green-400" />;
+    case "calendar_check": return <CalendarSearch className="h-3.5 w-3.5 text-green-400" />;
+    case "notion_create": return <FileText className="h-3.5 w-3.5 text-green-400" />;
+    case "airtable_create": return <Database className="h-3.5 w-3.5 text-green-400" />;
+    case "ai_summarize": return <Sparkles className="h-3.5 w-3.5 text-pink-400" />;
+    case "ai_classify": return <Tags className="h-3.5 w-3.5 text-pink-400" />;
+    case "ai_extract": return <FileSearch className="h-3.5 w-3.5 text-pink-400" />;
     default: return null;
   }
 }
@@ -220,6 +238,17 @@ function getNodeTypeLabel(nodeType: string | null | undefined): string {
     sub_workflow: "Sub-Workflow",
     merge: "Merge",
     agent: "AI Agent",
+    google_sheets_read: "Sheets lesen",
+    google_sheets_write: "Sheets schreiben",
+    gmail_send: "Gmail senden",
+    slack_send_integration: "Slack Nachricht",
+    calendar_create: "Termin erstellen",
+    calendar_check: "Verfügbarkeit",
+    notion_create: "Notion Eintrag",
+    airtable_create: "Airtable Eintrag",
+    ai_summarize: "AI Zusammenfassung",
+    ai_classify: "AI Klassifizierung",
+    ai_extract: "AI Extraktion",
   };
   return nodeType ? labels[nodeType] || nodeType : "Task";
 }
@@ -231,6 +260,8 @@ function getNodeTypeCategoryStyle(nodeType: string | null | undefined): string {
   if (["http_request", "send_email", "send_slack", "delay", "set_variable"].includes(nodeType)) return "border-blue-500/20 bg-blue-500/5";
   if (["approval_gate", "wait_webhook", "wait_form", "sub_workflow", "merge"].includes(nodeType)) return "border-cyan-500/20 bg-cyan-500/5";
   if (nodeType === "agent") return "border-orange-500/20 bg-orange-500/5";
+  if (["google_sheets_read", "google_sheets_write", "gmail_send", "slack_send_integration", "calendar_create", "calendar_check", "notion_create", "airtable_create"].includes(nodeType)) return "border-green-500/20 bg-green-500/5";
+  if (["ai_summarize", "ai_classify", "ai_extract"].includes(nodeType)) return "border-pink-500/20 bg-pink-500/5";
   return "border-border bg-zinc-950/30";
 }
 
@@ -297,6 +328,51 @@ function formatNodeOutput(task: ExecutionTimelineItem): string {
     }
     if (nodeType === "approval_gate") {
       return parsed.pauseReason || `Awaiting approval`;
+    }
+    // Integration nodes
+    if (nodeType === "google_sheets_read") {
+      const rowCount = parsed.sheetsData?.rowCount ?? parsed.rowCount;
+      return rowCount != null ? `${rowCount} Zeilen gelesen` : "Sheets gelesen";
+    }
+    if (nodeType === "google_sheets_write") {
+      const count = parsed.sheetsWriteResult?.valuesWritten ?? parsed.valuesWritten;
+      return count != null ? `${count} Werte geschrieben` : "Zeile geschrieben";
+    }
+    if (nodeType === "gmail_send") {
+      const to = parsed.gmailSent?.to || parsed.to;
+      return to ? `Gmail gesendet an ${to}` : "Gmail gesendet";
+    }
+    if (nodeType === "slack_send_integration") {
+      const channel = parsed.slackSent?.channel || parsed.channel;
+      return channel ? `Slack: ${channel}` : "Slack gesendet";
+    }
+    if (nodeType === "calendar_create") {
+      const title = parsed.calendarEvent?.title || parsed.title;
+      return title ? `Termin: ${title}` : "Termin erstellt";
+    }
+    if (nodeType === "calendar_check") {
+      const count = parsed.availableSlots?.slotCount ?? parsed.slotCount;
+      return count != null ? `${count} freie Slots gefunden` : "Verfügbarkeit geprüft";
+    }
+    if (nodeType === "notion_create") {
+      return parsed.notionEntry?.url ? `Notion Seite erstellt` : "Notion Eintrag erstellt";
+    }
+    if (nodeType === "airtable_create") {
+      return parsed.airtableRecord?.id ? `Airtable Record erstellt` : "Airtable Eintrag erstellt";
+    }
+    // AI Tool nodes
+    if (nodeType === "ai_summarize") {
+      const summary = parsed.summary || parsed[Object.keys(parsed).find(k => typeof parsed[k] === "string") || ""];
+      return typeof summary === "string" ? (summary.length > 150 ? summary.slice(0, 150) + "…" : summary) : "Zusammenfassung erstellt";
+    }
+    if (nodeType === "ai_classify") {
+      const cls = parsed.classification || parsed;
+      return cls?.category ? `→ ${cls.category} (${Math.round((cls.confidence || 0) * 100)}%)` : "Klassifiziert";
+    }
+    if (nodeType === "ai_extract") {
+      const extracted = parsed.extracted || parsed;
+      const keys = Object.keys(extracted).filter(k => extracted[k] !== null);
+      return keys.length > 0 ? `Extrahiert: ${keys.join(", ")}` : "Extraktion durchgeführt";
     }
   } catch {
     // Not JSON — use raw output

@@ -6,6 +6,8 @@ const ALLOWED_FIELDS = [
   "advancedMode",
   "onboardingCompleted",
   "emailNotifications",
+  "tourCompleted",
+  "lastSeenChangelog",
 ];
 
 // GET: User-Preferences laden
@@ -18,13 +20,15 @@ export async function GET() {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { advancedMode: true, onboardingCompleted: true, emailNotifications: true },
+      select: { advancedMode: true, onboardingCompleted: true, emailNotifications: true, tourCompleted: true, lastSeenChangelog: true },
     });
 
     return Response.json({
       advancedMode: user?.advancedMode ?? false,
       onboardingCompleted: user?.onboardingCompleted ?? false,
       emailNotifications: user?.emailNotifications ?? true,
+      tourCompleted: user?.tourCompleted ?? false,
+      lastSeenChangelog: user?.lastSeenChangelog ?? null,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
@@ -44,12 +48,14 @@ export async function PATCH(request: Request) {
     const sanitizedData = Object.fromEntries(
       Object.entries(body).filter(([key]) => ALLOWED_FIELDS.includes(key))
     );
-    const { advancedMode, onboardingCompleted, emailNotifications } = sanitizedData;
+    const { advancedMode, onboardingCompleted, emailNotifications, tourCompleted, lastSeenChangelog } = sanitizedData;
 
-    const updateData: Record<string, boolean> = {};
+    const updateData: Record<string, boolean | string> = {};
     if (typeof advancedMode === "boolean") updateData.advancedMode = advancedMode;
     if (typeof onboardingCompleted === "boolean") updateData.onboardingCompleted = onboardingCompleted;
     if (typeof emailNotifications === "boolean") updateData.emailNotifications = emailNotifications;
+    if (typeof tourCompleted === "boolean") updateData.tourCompleted = tourCompleted;
+    if (typeof lastSeenChangelog === "string") updateData.lastSeenChangelog = lastSeenChangelog;
 
     if (Object.keys(updateData).length === 0) {
       return Response.json({ error: "No valid fields" }, { status: 400 });
@@ -66,6 +72,8 @@ export async function PATCH(request: Request) {
       advancedMode: updated.advancedMode,
       onboardingCompleted: updated.onboardingCompleted,
       emailNotifications: updated.emailNotifications,
+      tourCompleted: updated.tourCompleted,
+      lastSeenChangelog: updated.lastSeenChangelog,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
