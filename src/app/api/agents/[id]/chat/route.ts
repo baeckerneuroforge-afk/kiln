@@ -3,7 +3,7 @@ import { waitUntil } from "@vercel/functions";
 import * as Sentry from "@sentry/nextjs";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP, type ProviderKey } from "@/lib/ai";
+import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP, modelSupportsVision, type ProviderKey } from "@/lib/ai";
 import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
 import { checkCredits, deductCredits } from "@/lib/credits";
@@ -30,6 +30,7 @@ import {
   getAgentScheduleFromWhiteLabel,
   getAgentScheduleStatus,
 } from "@/lib/agent-scheduling";
+import { detectKnowledgeGap, researchAndLearn } from "@/lib/agentic-rag";
 
 const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
 const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -54,6 +55,66 @@ function parseToolResult(result: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+// Prüft ob Nachrichten Bilder enthalten
+function messagesContainImages(messages: { content: unknown }[]): boolean {
+  return messages.some((m) => {
+    if (!Array.isArray(m.content)) return false;
+    return m.content.some((block: { type: string }) => block.type === "image");
+  });
+}
+
+// Extrahiert die erste Bild-URL (data URI) aus einer multimodalen Nachricht für DB-Speicherung
+function extractImageDataUri(content: unknown): string | null {
+  if (!Array.isArray(content)) return null;
+  const imageBlock = content.find((block: { type: string }) => block.type === "image");
+  if (!imageBlock) return null;
+  const source = (imageBlock as { source?: { type: string; media_type?: string; data?: string } }).source;
+  if (source?.type === "base64" && source.data && source.media_type) {
+    // Kürze das Bild für DB-Speicherung (Vorschau-Thumbnail, max 100KB)
+    const dataSize = source.data.length;
+    if (dataSize > 150_000) {
+      // Zu groß für DB — speichere nur Metadaten
+      return `data:${source.media_type};kiln-meta,size=${dataSize}`;
+    }
+    return `data:${source.media_type};base64,${source.data}`;
+  }
+  return null;
+}
+
+// Konvertiert multimodale Nachricht zu OpenAI-Format mit Bild-URLs
+function toOpenAIMultimodalContent(content: unknown): OpenAI.ChatCompletionContentPart[] {
+  if (typeof content === "string") return [{ type: "text", text: content }];
+  if (!Array.isArray(content)) return [{ type: "text", text: "" }];
+  return content.map((block: { type: string; text?: string; source?: { type: string; media_type?: string; data?: string } }) => {
+    if (block.type === "text") {
+      return { type: "text" as const, text: block.text || "" };
+    }
+    if (block.type === "image" && block.source?.data && block.source?.media_type) {
+      return {
+        type: "image_url" as const,
+        image_url: {
+          url: `data:${block.source.media_type};base64,${block.source.data}`,
+          detail: "auto" as const,
+        },
+      };
+    }
+    return { type: "text" as const, text: "" };
+  });
+}
+
+// Konvertiert multimodale Nachricht zu Gemini-Format mit inline_data
+function toGeminiParts(content: unknown): { text?: string; inline_data?: { mime_type: string; data: string } }[] {
+  if (typeof content === "string") return [{ text: content }];
+  if (!Array.isArray(content)) return [{ text: "" }];
+  return content.map((block: { type: string; text?: string; source?: { type: string; media_type?: string; data?: string } }) => {
+    if (block.type === "text") return { text: block.text || "" };
+    if (block.type === "image" && block.source?.data && block.source?.media_type) {
+      return { inline_data: { mime_type: block.source.media_type, data: block.source.data } };
+    }
+    return { text: "" };
+  });
 }
 
 // CORS Preflight
@@ -310,6 +371,21 @@ export async function POST(
       );
     }
 
+    // Vision check: Wenn Bilder gesendet werden aber Modell kein Vision unterstützt
+    const hasImages = messagesContainImages(messages);
+    if (hasImages && !agent.imageAnalysisEnabled) {
+      return Response.json(
+        { error: "Image analysis is not enabled for this agent." },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+    if (hasImages && !modelSupportsVision(selectedModel)) {
+      return Response.json(
+        { error: "This agent's model doesn't support image analysis. Please describe what you see instead." },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
     if (!conversation) {
       conversation = await prisma.conversation.create({
         data: {
@@ -348,14 +424,16 @@ export async function POST(
       );
     }
 
-    // Letzte User-Nachricht speichern
+    // Letzte User-Nachricht speichern (inkl. Bild-Referenz)
     const lastUserMsg = messages[messages.length - 1];
     if (lastUserMsg && lastUserMsg.role === "user") {
+      const imageDataUri = extractImageDataUri(lastUserMsg.content);
       await prisma.message.create({
         data: {
           conversationId: conversation.id,
           role: "USER",
           content: extractTextContent(lastUserMsg.content),
+          imageUrl: imageDataUri,
         },
       });
     }
@@ -546,10 +624,20 @@ export async function POST(
         try {
           // ===== Google Gemini-Pfad =====
           if (isGoogle && googleApiKey) {
-            const geminiMessages = messages.map((m: { role: string; content: unknown }) => ({
-              role: m.role === "user" ? "user" : "model",
-              parts: [{ text: extractTextContent(m.content) }],
-            }));
+            const geminiMessages = messages.map((m: { role: string; content: unknown }) => {
+              // Bilder für Gemini als inline_data durchreichen
+              const hasImageContent = Array.isArray(m.content) && m.content.some((b: { type: string }) => b.type === "image");
+              if (hasImageContent && modelSupportsVision(selectedModel)) {
+                return {
+                  role: m.role === "user" ? "user" : "model",
+                  parts: toGeminiParts(m.content),
+                };
+              }
+              return {
+                role: m.role === "user" ? "user" : "model",
+                parts: [{ text: extractTextContent(m.content) }],
+              };
+            });
 
             const geminiBody = {
               system_instruction: { parts: [{ text: systemPrompt }] },
@@ -600,10 +688,20 @@ export async function POST(
 
             const openaiMessages: OpenAI.ChatCompletionMessageParam[] = [
               { role: "system", content: systemPrompt },
-              ...messages.map((m: { role: string; content: unknown }) => ({
-                role: m.role as "user" | "assistant",
-                content: extractTextContent(m.content),
-              })),
+              ...messages.map((m: { role: string; content: unknown }): OpenAI.ChatCompletionMessageParam => {
+                // Bilder nur für vision-fähige OpenAI-Modelle (GPT-4o, GPT-4o-mini) durchreichen
+                const hasImageContent = Array.isArray(m.content) && m.content.some((b: { type: string }) => b.type === "image");
+                if (hasImageContent && modelSupportsVision(selectedModel) && isOpenAI && m.role === "user") {
+                  return {
+                    role: "user" as const,
+                    content: toOpenAIMultimodalContent(m.content),
+                  };
+                }
+                return {
+                  role: m.role as "user" | "assistant",
+                  content: extractTextContent(m.content),
+                };
+              }),
             ];
 
             let maxToolRounds = 5;
@@ -1240,6 +1338,22 @@ export async function POST(
                 console.error("Visitor memory update failed:", err);
               })
             );
+          }
+
+          // Agentic RAG: detect knowledge gaps and research answers
+          if (agent.enableAgenticRag && fullAssistantText) {
+            const lastUserMsg = messages.filter((m: { role: string }) => m.role === "user").pop();
+            const lastUserText = lastUserMsg ? extractTextContent(lastUserMsg.content) : "";
+            if (lastUserText) {
+              const gap = detectKnowledgeGap(lastUserText, fullAssistantText);
+              if (gap.isGap) {
+                waitUntil(
+                  researchAndLearn(params.id, gap).catch((err) => {
+                    console.error("Agentic RAG research failed:", err);
+                  })
+                );
+              }
+            }
           }
 
           // Session-ID an Client senden

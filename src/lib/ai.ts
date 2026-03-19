@@ -31,6 +31,7 @@ export interface ModelDef {
   quality: 1 | 2 | 3; // 1=basic, 2=good, 3=best
   cost: 1 | 2 | 3; // 1=cheap, 2=moderate, 3=expensive
   supportsTools: boolean;
+  supportsVision: boolean;
   requiresByok: boolean; // true = needs user's own key
 }
 
@@ -52,6 +53,7 @@ export const ALL_MODELS: ModelDef[] = [
     badge: "Most Capable",
     speed: 1, quality: 3, cost: 3,
     supportsTools: true,
+    supportsVision: true,
     requiresByok: false,
   },
   {
@@ -62,6 +64,7 @@ export const ALL_MODELS: ModelDef[] = [
     badge: "Best Value",
     speed: 2, quality: 3, cost: 2,
     supportsTools: true,
+    supportsVision: true,
     requiresByok: false,
   },
   {
@@ -72,6 +75,7 @@ export const ALL_MODELS: ModelDef[] = [
     badge: "Fastest",
     speed: 3, quality: 2, cost: 1,
     supportsTools: true,
+    supportsVision: true,
     requiresByok: false,
   },
   // OpenAI
@@ -83,6 +87,7 @@ export const ALL_MODELS: ModelDef[] = [
     badge: "Most Capable",
     speed: 2, quality: 3, cost: 3,
     supportsTools: true,
+    supportsVision: true,
     requiresByok: true,
   },
   {
@@ -93,6 +98,7 @@ export const ALL_MODELS: ModelDef[] = [
     badge: "Best Value",
     speed: 3, quality: 2, cost: 1,
     supportsTools: true,
+    supportsVision: true,
     requiresByok: true,
   },
   {
@@ -103,6 +109,7 @@ export const ALL_MODELS: ModelDef[] = [
     badge: undefined,
     speed: 2, quality: 3, cost: 2,
     supportsTools: true,
+    supportsVision: false,
     requiresByok: true,
   },
   // Perplexity
@@ -114,6 +121,7 @@ export const ALL_MODELS: ModelDef[] = [
     badge: "Best for Research",
     speed: 2, quality: 3, cost: 3,
     supportsTools: false,
+    supportsVision: false,
     requiresByok: true,
   },
   {
@@ -124,6 +132,7 @@ export const ALL_MODELS: ModelDef[] = [
     badge: "Best for Research",
     speed: 3, quality: 2, cost: 1,
     supportsTools: false,
+    supportsVision: false,
     requiresByok: true,
   },
   // Google
@@ -135,6 +144,7 @@ export const ALL_MODELS: ModelDef[] = [
     badge: "Fastest",
     speed: 3, quality: 2, cost: 1,
     supportsTools: false,
+    supportsVision: true,
     requiresByok: true,
   },
   {
@@ -145,6 +155,7 @@ export const ALL_MODELS: ModelDef[] = [
     badge: undefined,
     speed: 2, quality: 3, cost: 3,
     supportsTools: false,
+    supportsVision: true,
     requiresByok: true,
   },
   // Groq
@@ -156,6 +167,7 @@ export const ALL_MODELS: ModelDef[] = [
     badge: "Fastest",
     speed: 3, quality: 2, cost: 1,
     supportsTools: false,
+    supportsVision: false,
     requiresByok: true,
   },
   {
@@ -166,6 +178,7 @@ export const ALL_MODELS: ModelDef[] = [
     badge: undefined,
     speed: 3, quality: 1, cost: 1,
     supportsTools: false,
+    supportsVision: false,
     requiresByok: true,
   },
 ];
@@ -176,6 +189,11 @@ export function getModelDef(modelId: string): ModelDef | undefined {
 
 export function getModelsForProvider(provider: ProviderKey): ModelDef[] {
   return ALL_MODELS.filter((m) => m.provider === provider);
+}
+
+export function modelSupportsVision(modelId: string): boolean {
+  const def = getModelDef(modelId);
+  return def?.supportsVision ?? false;
 }
 
 // Backwards-compatible mapping

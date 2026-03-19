@@ -138,6 +138,9 @@ model Agent {
   // Prompt Branching — conditional prompt snippets
   promptBranches     Json?       // [{ name, keywords[], promptSnippet, enabled }]
 
+  // Agentic RAG — self-learning via web research
+  enableAgenticRag   Boolean     @default(false)
+
   // Team-Based Intent Routing
   teamRoutingEnabled Boolean     @default(false)
   teamRoutingTeamId  String?     // AgentTeam ID for intent-based routing
@@ -171,6 +174,7 @@ model Agent {
   fallbackForMembers AgentTeamMember[] @relation("TeamFallbackAgent")
   teamExecutionLogs  TeamExecutionLog[]
   runs               AgentRun[]
+  researchEntries    AgentResearchEntry[]
 
   @@index([userId])
 }
@@ -330,8 +334,9 @@ model Message {
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
-  role    MessageRole
-  content String @db.Text
+  role     MessageRole
+  content  String  @db.Text
+  imageUrl String? @db.Text
 
   createdAt DateTime @default(now())
 
@@ -1163,4 +1168,27 @@ model OrchestrationLog {
   @@index([eventType])
   @@index([createdAt])
   @@index([teamId, createdAt])
+}
+
+// Agent Research Entry — agentic RAG self-learning via web research
+enum ResearchStatus {
+  DRAFT
+  APPROVED
+  REJECTED
+}
+
+model AgentResearchEntry {
+  id          String         @id @default(cuid())
+  agentId     String
+  agent       Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  question    String         @db.Text
+  answer      String         @db.Text
+  sources     Json           // string[] of URLs
+  status      ResearchStatus @default(DRAFT)
+  reviewedAt  DateTime?
+  reviewedBy  String?
+  createdAt   DateTime       @default(now())
+
+  @@index([agentId])
+  @@index([agentId, status])
 }

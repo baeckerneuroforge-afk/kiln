@@ -47,7 +47,38 @@ interface AgentLiveChatProps {
 }
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_DIMENSION = 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+
+function compressImageForChat(dataUrl: string, mediaType: string): Promise<{ dataUrl: string; mediaType: string }> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+        const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve({ dataUrl, mediaType }); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      const outputType = mediaType === "image/png" ? "image/png" : "image/jpeg";
+      let quality = 0.85;
+      let result = canvas.toDataURL(outputType, quality);
+      while (result.length > 1024 * 1024 * 1.37 && quality > 0.3) {
+        quality -= 0.1;
+        result = canvas.toDataURL("image/jpeg", quality);
+      }
+      resolve({ dataUrl: result, mediaType: result.startsWith("data:image/jpeg") ? "image/jpeg" : outputType });
+    };
+    img.onerror = () => resolve({ dataUrl, mediaType });
+    img.src = dataUrl;
+  });
+}
 
 export function AgentLiveChat({
   agentId,
@@ -97,9 +128,10 @@ export function AgentLiveChat({
     }
 
     const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setPendingImage({ dataUrl, mediaType: file.type });
+    reader.onload = async () => {
+      const raw = reader.result as string;
+      const compressed = await compressImageForChat(raw, file.type);
+      setPendingImage(compressed);
     };
     reader.readAsDataURL(file);
 

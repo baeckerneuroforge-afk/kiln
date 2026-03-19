@@ -43,12 +43,14 @@ import {
   Download,
   Plus,
   Trash2,
+  Lightbulb,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { AgentLiveChat } from "@/components/agents/agent-live-chat";
 import { KnowledgeTab } from "@/components/agents/knowledge-tab";
+import { ResearchTab } from "@/components/agents/research-tab";
 import { ActionsTab } from "@/components/agents/actions-tab";
 import { AnalyticsTab } from "@/components/agents/analytics-tab";
 import { EvalTab } from "@/components/agents/eval-tab";
@@ -147,11 +149,12 @@ type WidgetSettings = {
   soundEnabled: boolean;
 };
 
-type Tab = "config" | "knowledge" | "actions" | "analytics" | "eval" | "embed" | "channels" | "integrations" | "tools" | "debug" | "logs" | "memory" | "visitor-memories" | "automations" | "versions" | "testing" | "testlab" | "webhooks" | "runs";
+type Tab = "config" | "knowledge" | "actions" | "analytics" | "eval" | "embed" | "channels" | "integrations" | "tools" | "debug" | "logs" | "memory" | "visitor-memories" | "automations" | "versions" | "testing" | "testlab" | "webhooks" | "runs" | "research";
 
 const chatBaseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "config", label: "Configuration", icon: Settings2 },
   { id: "knowledge", label: "Knowledge", icon: BookOpen },
+  { id: "research", label: "Research", icon: Lightbulb },
   { id: "actions", label: "Actions", icon: Zap },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "visitor-memories", label: "Visitors", icon: Users },
@@ -1291,7 +1294,8 @@ export default function AgentDetailPage() {
                         Image Analysis
                       </h3>
                       <p className="text-xs text-muted-foreground">
-                        Allow users to upload images for the agent to analyze.
+                        Allow visitors to send images for analysis (photos, screenshots, documents).
+                        Image messages use approximately 3-5x more AI credits than text messages.
                       </p>
                     </div>
                   </div>
@@ -1557,6 +1561,10 @@ export default function AgentDetailPage() {
               agentId={agent.id}
               initialEntries={agent.knowledgeBases}
             />
+          )}
+
+          {activeTab === "research" && (
+            <ResearchTab agentId={agent.id} />
           )}
 
           {activeTab === "actions" && (

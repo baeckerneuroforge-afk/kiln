@@ -21,6 +21,7 @@ interface ConversationMessage {
   id: string;
   role: "USER" | "ASSISTANT" | "SYSTEM" | "HUMAN";
   content: string;
+  imageUrl?: string | null;
   createdAt: string;
 }
 
@@ -447,6 +448,21 @@ export default function ConversationsPage() {
                                 {formatRelativeTime(message.createdAt)}
                               </span>
                             </div>
+                            {message.imageUrl && !message.imageUrl.includes("kiln-meta") && (
+                              <div className="mt-2 mb-1">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={message.imageUrl}
+                                  alt="User uploaded"
+                                  className="max-h-40 rounded-lg object-contain border border-border"
+                                />
+                              </div>
+                            )}
+                            {message.imageUrl?.includes("kiln-meta") && (
+                              <p className="mt-2 text-xs text-muted-foreground italic">
+                                [Image attached — too large for inline preview]
+                              </p>
+                            )}
                             <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{message.content}</p>
                           </div>
                         ))}

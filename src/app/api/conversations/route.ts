@@ -133,6 +133,7 @@ export async function GET(request: NextRequest) {
             id: true,
             role: true,
             content: true,
+            imageUrl: true,
             createdAt: true,
           },
         },
@@ -172,6 +173,7 @@ export async function GET(request: NextRequest) {
             id: message.id,
             role: message.role,
             content: message.content,
+            imageUrl: message.imageUrl || null,
             createdAt: message.createdAt.toISOString(),
           })),
         };

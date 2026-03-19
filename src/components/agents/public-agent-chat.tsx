@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Send, Loader2, Bot, User, ImageIcon, X, UserCheck, Mail, MoonStar } from "lucide-react";
+import { Send, Loader2, Bot, User, ImageIcon, X, UserCheck, Mail, MoonStar, Camera, ZoomIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { sanitizeCss } from "@/lib/css-sanitizer";
 import { MarkdownMessage } from "./markdown-message";
@@ -94,7 +94,53 @@ function getOrCreateVisitorId(): string {
 }
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+const MAX_COMPRESSED_SIZE = 1024 * 1024; // 1MB nach Komprimierung
+const MAX_DIMENSION = 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+
+/**
+ * Client-seitige Bildkomprimierung: Resize auf max 1024px, komprimiere auf max ~1MB.
+ */
+function compressImage(dataUrl: string, mediaType: string): Promise<{ dataUrl: string; mediaType: string }> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      // Skaliere auf max 1024px
+      if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+        const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve({ dataUrl, mediaType }); return; }
+
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // JPEG komprimierung mit sinkender Qualität
+      const outputType = mediaType === "image/png" ? "image/png" : "image/jpeg";
+      let quality = 0.85;
+      let result = canvas.toDataURL(outputType, quality);
+
+      // Falls immer noch zu groß, Qualität reduzieren
+      while (result.length > MAX_COMPRESSED_SIZE * 1.37 && quality > 0.3) { // base64 ist ~37% größer
+        quality -= 0.1;
+        result = canvas.toDataURL("image/jpeg", quality);
+      }
+
+      resolve({
+        dataUrl: result,
+        mediaType: result.startsWith("data:image/jpeg") ? "image/jpeg" : outputType,
+      });
+    };
+    img.onerror = () => resolve({ dataUrl, mediaType });
+    img.src = dataUrl;
+  });
+}
 const RESPONSE_PING =
   "data:audio/wav;base64,UklGRuQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YcADAACAmaeijnNeWGR9l6ajkHZgWGN7laWkknhhWWJ4kqSklHtjWWB2kKKlln1lWl90jqGlmH9nWl5yi5+lmYJpW15wiZ6lm4RsXF1uhpyknIZuXV1shJqknYlwX1xqgpijnotyYFxpgJajn410YVxnfZSin493Y1xme5KhoJB5ZV1leZCgoJJ7Zl1kd46eoZR9aF5jdYydoZWAal5ic4qcoZaCbF9hcYiaoZiEbmBhcIaZoJmGcGFhboSXoJqIcmJgbYKVn5qJdGRga4CUn5uLdmVgan6SnpyNeGZhaXyQnZyOemhhaHqOnJyQfGlhZ3iMm52RfmtiZnaKmp2Sf21jZnWJmJ2UgW5jZXOHl5yVg3BkZXKFlpyVhXJlZXCDlJyWhnRmZG+Bk5uXiHVnZG5/kZqXindoZW1+j5qYi3lqZWx8jpmYjHtrZWt7jJiYjnxsZWp5i5eZj35uZmp4iZaZkIBvZ2l2h5WYkYFxZ2l1hpSYkoNyaGl0hJKYkoR0aWlzg5GXk4V1amhygZCXk4d3a2hxgI6WlIh4bGlwfo2WlIl6bWlvfYyVlIp7bmlue4qUlYt9b2pueomTlYx+cWpteYeSlI1/cmtteIaRlI6Bc2ttd4WQlI6CdWxtdoOPlI+Ddm1sdYKOk5CEd25sdIGNk5CFeG9tc4CMkpCGenBtc36LkpCHe3Btcn2JkZGIfHJtcnyIkJGJfXNucXuHj5CKfnRucXqGj5CKf3VvcXmFjpCLgXZvcHiEjZCLgndwcHiDjJCMgnhxcHeBi4+Mg3lxcXaAio+MhHpycXZ/iY6NhXtzcXV/iI6Nhnx0cXV+h42Nhn11cnV9hoyNh352cnV8hYyMh392cnR7hIuMiH93c3R7g4qMiIB4c3R6g4mMiIF5dHR6gomLiYJ6dXR5gYiLiYJ7dXV5gIeLiYN7dnV5f4aKiYN8d3V4f4aKiYR9d3V4foWJiYR+eHZ4foSIiYV+eXZ4fYOIiIV/eXd4fYOHiIV/end4fIKHiIWAe3d4fIKGiIWBe3h4fIGFh4WBfHh4fICFh4WBfHl5e4CEhoWCfXp5e4CEhoWCfnp5e3+DhoWCfnt6e3+DhYWCfnt6e36ChYWCf3x6e36ChISCf3x7e36BhISCf317fH6Bg4SCgH18fH6Ag4OCgH18fH6AgoOCgH58fH6AgoOCgH59fX6AgYKCgH99fX6AgYKCgH9+fX5/gYGBgH9+fn5/gIGBgH9+fn5/gIGBgH9/fn9/gICAgH9/f39/gICAgH9/f39/gICAgIA=";
 
@@ -137,6 +183,8 @@ export function PublicAgentChat({
   const [sessionId] = useState(() => crypto.randomUUID());
   const [visitorId] = useState(() => getOrCreateVisitorId());
   const [pendingImage, setPendingImage] = useState<{ dataUrl: string; mediaType: string } | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [scheduleStatus, setScheduleStatus] = useState(() =>
     getAgentScheduleStatus(normalizedSchedule)
   );
@@ -238,10 +286,7 @@ export function PublicAgentChat({
     );
   }
 
-  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  function processImageFile(file: File) {
     if (!ALLOWED_TYPES.includes(file.type)) {
       alert("Only JPG, PNG, GIF, and WebP images are supported.");
       return;
@@ -252,11 +297,42 @@ export function PublicAgentChat({
     }
 
     const reader = new FileReader();
-    reader.onload = () => {
-      setPendingImage({ dataUrl: reader.result as string, mediaType: file.type });
+    reader.onload = async () => {
+      const raw = reader.result as string;
+      const compressed = await compressImage(raw, file.type);
+      setPendingImage(compressed);
     };
     reader.readAsDataURL(file);
+  }
+
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processImageFile(file);
     e.target.value = "";
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (!imageAnalysisEnabled) return;
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith("image/")) {
+      processImageFile(file);
+    }
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (imageAnalysisEnabled) setIsDragging(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
   }
 
   async function sendMessage(content: string) {
@@ -430,9 +506,21 @@ export function PublicAgentChat({
 
   return (
     <div
-      className="flex h-[600px] flex-col overflow-hidden rounded-2xl border shadow-2xl"
-      style={{ borderColor: `${primaryColor}20`, backgroundColor: "#1C1917" }}
+      className="flex h-[600px] flex-col overflow-hidden rounded-2xl border shadow-2xl relative"
+      style={{ borderColor: isDragging ? primaryColor : `${primaryColor}20`, backgroundColor: "#1C1917" }}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
     >
+      {/* Drag-and-Drop Overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-2xl">
+          <div className="flex flex-col items-center gap-2 text-white">
+            <ImageIcon className="h-10 w-10" style={{ color: primaryColor }} />
+            <p className="text-sm font-medium">Drop image here</p>
+          </div>
+        </div>
+      )}
       {/* White-label custom CSS */}
       {sanitizedCustomCss && <style dangerouslySetInnerHTML={{ __html: sanitizedCustomCss }} />}
 
@@ -601,16 +689,22 @@ export function PublicAgentChat({
                   "#292524",
               }}
             >
-              {/* Image Thumbnail */}
-              {msg.imageUrl && (
-                <div className="mb-2">
+              {/* Image Thumbnail — klickbar für Lightbox */}
+              {msg.imageUrl && !msg.imageUrl.includes("kiln-meta") && (
+                <button
+                  className="mb-2 group relative block"
+                  onClick={() => setLightboxImage(msg.imageUrl!)}
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={msg.imageUrl}
                     alt="Uploaded"
                     className="max-h-32 max-w-full rounded-lg object-contain"
                   />
-                </div>
+                  <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 group-hover:bg-black/30 transition-colors">
+                    <ZoomIn className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </button>
               )}
               {msg.content ? (
                 <MarkdownMessage content={msg.content} />
@@ -680,20 +774,25 @@ export function PublicAgentChat({
       {/* Pending Image Preview */}
       {pendingImage && (
         <div className="border-t px-4 pt-2" style={{ borderColor: "#292524" }}>
-          <div className="relative inline-block">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={pendingImage.dataUrl}
-              alt="Pending upload"
-              className="h-16 rounded-lg object-contain"
-              style={{ border: "1px solid #3C3836" }}
-            />
-            <button
-              onClick={() => setPendingImage(null)}
-              className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white"
-            >
-              <X className="h-3 w-3" />
-            </button>
+          <div className="flex items-end gap-2">
+            <div className="relative inline-block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={pendingImage.dataUrl}
+                alt="Pending upload"
+                className="h-16 rounded-lg object-contain"
+                style={{ border: "1px solid #3C3836" }}
+              />
+              <button
+                onClick={() => setPendingImage(null)}
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-white"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+            <p className="text-[10px] text-amber-400/70 pb-1">
+              Image messages use ~3-5x more AI credits
+            </p>
           </div>
         </div>
       )}
@@ -708,6 +807,7 @@ export function PublicAgentChat({
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/gif,image/webp"
+                capture="environment"
                 className="hidden"
                 onChange={handleImageSelect}
               />
@@ -716,8 +816,10 @@ export function PublicAgentChat({
                 disabled={isStreaming}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors disabled:opacity-40"
                 style={{ backgroundColor: "#292524", color: "#A8A29E" }}
+                title="Upload image or take photo"
               >
-                <ImageIcon className="h-4 w-4" />
+                <Camera className="h-4 w-4 sm:hidden" />
+                <ImageIcon className="h-4 w-4 hidden sm:block" />
               </button>
             </>
           )}
@@ -776,6 +878,28 @@ export function PublicAgentChat({
           </p>
         )}
       </div>
+
+      {/* Lightbox */}
+      {lightboxImage && (
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm rounded-2xl"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button
+            className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+            onClick={() => setLightboxImage(null)}
+          >
+            <X className="h-4 w-4" />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxImage}
+            alt="Full view"
+            className="max-h-[90%] max-w-[90%] rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
