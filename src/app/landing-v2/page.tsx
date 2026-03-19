@@ -961,7 +961,7 @@ export default function LandingPageV2() {
                 >
                   Get API Key
                 </Link>
-                <a href="/docs/mcp-server.md" className="text-sm text-neutral-400 underline underline-offset-4 hover:text-white">
+                <a href="/docs" className="text-sm text-neutral-400 underline underline-offset-4 hover:text-white">
                   Read the docs
                 </a>
               </div>
