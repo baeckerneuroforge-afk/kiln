@@ -38,6 +38,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ExecutionDebugConsole } from "@/components/teams/execution-debug-console";
 import { ExecutionReplay } from "@/components/teams/execution-replay";
+import { ComputerUseReplay } from "@/components/workflows/computer-use-replay";
 import { cn } from "@/lib/utils";
 
 interface ApprovalInfo {
@@ -379,11 +380,13 @@ function formatNodeOutput(task: ExecutionTimelineItem): string {
     }
     if (nodeType === "computer_use") {
       const result = parsed.computerUseResult || parsed;
-      const urls = result.urls || [];
+      const urls = result.urlsVisited || result.urls || [];
       const summary = result.summary || "";
+      const stepsCount = result.steps?.length || 0;
+      const prefix = stepsCount > 0 ? `${stepsCount} Schritte, ${urls.length} Seite${urls.length !== 1 ? "n" : ""} — ` : "";
       return summary
-        ? (summary.length > 150 ? summary.slice(0, 150) + "…" : summary)
-        : `${urls.length} Seite${urls.length !== 1 ? "n" : ""} besucht`;
+        ? prefix + (summary.length > 120 ? summary.slice(0, 120) + "…" : summary)
+        : `${prefix}${urls.length} Seite${urls.length !== 1 ? "n" : ""} besucht`;
     }
   } catch {
     // Not JSON — use raw output
@@ -420,6 +423,7 @@ export function TeamExecutionsTab({
   const [cancellingExecutionId, setCancellingExecutionId] = useState<string | null>(null);
   const [replayExecutionId, setReplayExecutionId] = useState<string | null>(null);
   const [debugExecutionId, setDebugExecutionId] = useState<string | null>(null);
+  const [computerUseSession, setComputerUseSession] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [orchestrationCount, setOrchestrationCount] = useState<number | null>(null);
 
@@ -1218,6 +1222,26 @@ export function TeamExecutionsTab({
                             <pre className={cn("mt-2 whitespace-pre-wrap break-words text-xs", isFailed ? "text-red-300" : "text-zinc-300")}>
                               {isFailed ? (task.latestError || "No error") : formatNodeOutput(task)}
                             </pre>
+                            {task.nodeType === "computer_use" && !isFailed && task.latestOutput && (() => {
+                              try {
+                                const parsed = JSON.parse(task.latestOutput!);
+                                const sessionData = parsed.computerUseResult || parsed;
+                                if (sessionData?.steps?.length > 0) {
+                                  return (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setComputerUseSession(sessionData)}
+                                      className="mt-2 border-pink-500/30 text-pink-400 hover:bg-pink-500/10 hover:text-pink-300 text-xs h-7"
+                                    >
+                                      <Monitor className="mr-1.5 h-3 w-3" />
+                                      View Session ({sessionData.steps.length} steps)
+                                    </Button>
+                                  );
+                                }
+                              } catch { /* ignore */ }
+                              return null;
+                            })()}
                           </div>
                         ) : (
                           <div className="mt-4 grid gap-3 lg:grid-cols-2">
@@ -1301,6 +1325,12 @@ export function TeamExecutionsTab({
         executionId={debugExecutionId}
         open={Boolean(debugExecutionId)}
         onClose={() => setDebugExecutionId(null)}
+      />
+
+      <ComputerUseReplay
+        session={computerUseSession as never}
+        open={!!computerUseSession}
+        onClose={() => setComputerUseSession(null)}
       />
     </div>
   );

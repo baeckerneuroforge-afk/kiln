@@ -184,6 +184,7 @@ model Agent {
   runs               AgentRun[]
   researchEntries    AgentResearchEntry[]
   a2aLogs            A2AInteractionLog[]
+  credentials        AgentCredential[]
 
   @@index([userId])
 }
@@ -1241,4 +1242,19 @@ model EnterpriseInsight {
   @@index([userId])
   @@index([userId, mentionCount])
   @@index([userId, lastSeenAt])
+}
+
+// Agent Credentials — verschlüsselte Login-Daten für Computer Use
+model AgentCredential {
+  id                String    @id @default(cuid())
+  agentId           String
+  agent             Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  serviceName       String    // z.B. "HubSpot CRM", "LinkedIn"
+  loginUrl          String    // URL der Login-Seite
+  encryptedUsername String    // AES-256-GCM verschlüsselt
+  encryptedPassword String    // AES-256-GCM verschlüsselt
+  lastUsedAt        DateTime?
+  createdAt         DateTime  @default(now())
+
+  @@index([agentId])
 }

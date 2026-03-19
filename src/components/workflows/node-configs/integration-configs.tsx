@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Info } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Info, Trash2, Lock, Plus } from "lucide-react";
 
 interface ConfigProps {
   config: Record<string, unknown>;
@@ -646,6 +646,208 @@ export function ComputerUseConfig({ config, onChange }: ConfigProps) {
           placeholder="computerUseResult"
         />
       </div>
+
+      {/* Login/Credentials Section */}
+      <div className="border-t border-zinc-700/50 pt-4 mt-4">
+        <div className="flex items-center justify-between mb-3">
+          <FieldLabel label="Login erforderlich" hint="Für geschützte Seiten mit Login" />
+          <button
+            onClick={() => onChange({ ...config, requiresLogin: !config.requiresLogin })}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+              config.requiresLogin ? "bg-pink-500" : "bg-zinc-700"
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-lg transition-transform ${
+                config.requiresLogin ? "translate-x-4" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+
+        {!!config.requiresLogin && (
+          <CredentialSelector
+            credentialId={String(config.credentialId || "")}
+            onChange={(id) => onChange({ ...config, credentialId: id })}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Credential Selector for Computer Use ── */
+
+interface CredentialOption {
+  id: string;
+  serviceName: string;
+  loginUrl: string;
+  lastUsedAt: string | null;
+}
+
+function CredentialSelector({
+  credentialId,
+  onChange,
+}: {
+  credentialId: string;
+  onChange: (id: string) => void;
+}) {
+  const [credentials, setCredentials] = useState<CredentialOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newService, setNewService] = useState("");
+  const [newUrl, setNewUrl] = useState("");
+  const [newUsername, setNewUsername] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Lade Credentials — wir brauchen eine agentId. Die holen wir aus der URL.
+  const agentId = typeof window !== "undefined"
+    ? window.location.pathname.match(/agents\/([^/]+)/)?.[1] || ""
+    : "";
+
+  const loadCredentials = useCallback(async () => {
+    if (!agentId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/credentials`);
+      if (res.ok) {
+        const data = await res.json();
+        setCredentials(data.credentials || []);
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, [agentId]);
+
+  useEffect(() => { loadCredentials(); }, [loadCredentials]);
+
+  async function handleSave() {
+    if (!newService.trim() || !newUrl.trim() || !newUsername.trim() || !newPassword) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/credentials`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceName: newService,
+          loginUrl: newUrl,
+          username: newUsername,
+          password: newPassword,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        onChange(data.credential.id);
+        setNewService(""); setNewUrl(""); setNewUsername(""); setNewPassword("");
+        setShowAddForm(false);
+        await loadCredentials();
+      }
+    } catch { /* ignore */ }
+    setSaving(false);
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      await fetch(`/api/agents/${agentId}/credentials/${id}`, { method: "DELETE" });
+      if (credentialId === id) onChange("");
+      await loadCredentials();
+    } catch { /* ignore */ }
+  }
+
+  if (loading) {
+    return <p className="text-[10px] text-zinc-500">Lade Credentials...</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Select existing */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
+          <Lock className="h-3 w-3" /> Gespeicherte Logins
+        </label>
+        {credentials.length > 0 ? (
+          <div className="space-y-1.5">
+            {credentials.map((c) => (
+              <div
+                key={c.id}
+                onClick={() => onChange(c.id)}
+                className={`flex items-center justify-between rounded-lg px-3 py-2 cursor-pointer border transition-colors ${
+                  credentialId === c.id
+                    ? "border-pink-500/50 bg-pink-500/10"
+                    : "border-zinc-700 bg-zinc-800 hover:border-zinc-600"
+                }`}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-zinc-200 truncate">{c.serviceName}</p>
+                  <p className="text-[10px] text-zinc-500 truncate">{c.loginUrl}</p>
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}
+                  className="ml-2 text-zinc-600 hover:text-red-400 transition-colors shrink-0"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[10px] text-zinc-500">Keine Credentials gespeichert</p>
+        )}
+      </div>
+
+      {/* Add new */}
+      {showAddForm ? (
+        <div className="space-y-2 rounded-lg border border-zinc-700 bg-zinc-800/50 p-3">
+          <ConfigInput
+            value={newService}
+            onChange={setNewService}
+            placeholder="Service Name (z.B. HubSpot CRM)"
+          />
+          <ConfigInput
+            value={newUrl}
+            onChange={setNewUrl}
+            placeholder="Login-URL (https://app.hubspot.com/login)"
+          />
+          <ConfigInput
+            value={newUsername}
+            onChange={setNewUsername}
+            placeholder="Username / E-Mail"
+          />
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Passwort"
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-green-500/60 transition-colors placeholder:text-zinc-600 font-mono"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSave}
+              disabled={saving || !newService.trim() || !newUrl.trim() || !newUsername.trim() || !newPassword}
+              className="flex-1 rounded-lg bg-pink-600 hover:bg-pink-500 disabled:opacity-50 px-3 py-1.5 text-xs font-medium text-white transition-colors"
+            >
+              {saving ? "Speichern..." : "Credential speichern"}
+            </button>
+            <button
+              onClick={() => setShowAddForm(false)}
+              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+            >
+              Abbrechen
+            </button>
+          </div>
+          <p className="text-[9px] text-zinc-600 flex items-center gap-1">
+            <Lock className="h-2.5 w-2.5" />
+            Credentials werden verschlüsselt gespeichert (AES-256-GCM)
+          </p>
+        </div>
+      ) : (
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="flex items-center gap-1.5 text-[11px] text-pink-400 hover:text-pink-300 transition-colors"
+        >
+          <Plus className="h-3 w-3" /> Neues Credential hinzufügen
+        </button>
+      )}
     </div>
   );
 }

@@ -336,9 +336,14 @@ export async function executeWorkflow(
     }
   }
 
+  // Ersten Agent des Teams laden (für Credential-Zugriff in Computer Use)
+  const firstAgentId = team.members?.[0]?.agent?.id || "";
+
   let context: ExpressionContext = {
     variables: variablesInit,
     _userId: options.userId,
+    _teamId: teamId,
+    _agentId: firstAgentId,
   };
   const executedNodes = new Set<string>();
   const nodeLogs: NodeExecutionLog[] = [];

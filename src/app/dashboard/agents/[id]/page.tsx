@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { TaskAgentDetail } from "@/components/agents/task-agent-detail";
 import {
@@ -1399,6 +1399,11 @@ export default function AgentDetailPage() {
               </div>
               )}
 
+              {/* Saved Logins — Computer Use Credentials — nur im Advanced Mode */}
+              {advancedMode && agent && (
+              <SavedLoginsSection agentId={agent.id} />
+              )}
+
               {/* AI Transparency Disclaimer */}
               <div className="rounded-xl border border-border bg-card/50 p-5">
                 <div className="flex items-center justify-between">
@@ -2487,6 +2492,168 @@ export default function AgentDetailPage() {
               </Button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Saved Logins Section ── */
+
+function SavedLoginsSection({ agentId }: { agentId: string }) {
+  const [credentials, setCredentials] = useState<{
+    id: string;
+    serviceName: string;
+    loginUrl: string;
+    lastUsedAt: string | null;
+    createdAt: string;
+  }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [newService, setNewService] = useState("");
+  const [newUrl, setNewUrl] = useState("");
+  const [newUsername, setNewUsername] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const loadCredentials = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/agents/${agentId}/credentials`);
+      if (res.ok) {
+        const data = await res.json();
+        setCredentials(data.credentials || []);
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, [agentId]);
+
+  useEffect(() => { loadCredentials(); }, [loadCredentials]);
+
+  async function handleSave() {
+    if (!newService.trim() || !newUrl.trim() || !newUsername.trim() || !newPassword) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/agents/${agentId}/credentials`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceName: newService, loginUrl: newUrl, username: newUsername, password: newPassword }),
+      });
+      if (res.ok) {
+        toast("Credential gespeichert");
+        setNewService(""); setNewUrl(""); setNewUsername(""); setNewPassword("");
+        setShowForm(false);
+        await loadCredentials();
+      } else {
+        toast("Fehler beim Speichern", "error");
+      }
+    } catch { toast("Fehler", "error"); }
+    setSaving(false);
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      const res = await fetch(`/api/agents/${agentId}/credentials/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast("Credential gelöscht");
+        await loadCredentials();
+      }
+    } catch { /* ignore */ }
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10">
+            <Lock className="h-4 w-4 text-amber-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Saved Logins</h3>
+            <p className="text-xs text-muted-foreground">
+              Encrypted credentials for Computer Use agents to access protected websites.
+            </p>
+          </div>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setShowForm(!showForm)}
+          className="h-7 text-xs"
+        >
+          <Plus className="mr-1 h-3 w-3" /> Add
+        </Button>
+      </div>
+
+      {showForm && (
+        <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+          <input
+            value={newService}
+            onChange={(e) => setNewService(e.target.value)}
+            placeholder="Service Name (z.B. HubSpot CRM)"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-kiln-orange/50 placeholder:text-muted-foreground"
+          />
+          <input
+            value={newUrl}
+            onChange={(e) => setNewUrl(e.target.value)}
+            placeholder="Login-URL (https://app.hubspot.com/login)"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-kiln-orange/50 placeholder:text-muted-foreground"
+          />
+          <input
+            value={newUsername}
+            onChange={(e) => setNewUsername(e.target.value)}
+            placeholder="Username / E-Mail"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-kiln-orange/50 placeholder:text-muted-foreground"
+          />
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Passwort"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-kiln-orange/50 placeholder:text-muted-foreground"
+          />
+          <div className="flex gap-2">
+            <Button size="sm" onClick={handleSave} disabled={saving} className="h-7 text-xs">
+              {saving ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Save className="mr-1 h-3 w-3" />}
+              Save
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowForm(false)} className="h-7 text-xs">
+              Cancel
+            </Button>
+          </div>
+          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <Lock className="h-2.5 w-2.5" /> Credentials are encrypted at rest (AES-256-GCM). Never included in agent exports.
+          </p>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin" /> Loading...
+        </div>
+      ) : credentials.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No saved logins yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {credentials.map((c) => (
+            <div key={c.id} className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground truncate">{c.serviceName}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{c.loginUrl}</p>
+                {c.lastUsedAt && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Last used: {new Date(c.lastUsedAt).toLocaleDateString("de-DE")}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => handleDelete(c.id)}
+                className="ml-2 text-muted-foreground hover:text-red-400 transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>
