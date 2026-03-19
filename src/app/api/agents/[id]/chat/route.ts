@@ -31,6 +31,7 @@ import {
   getAgentScheduleStatus,
 } from "@/lib/agent-scheduling";
 import { detectKnowledgeGap, researchAndLearn } from "@/lib/agentic-rag";
+import { extractInsights, recordInsights, injectEnterpriseContext } from "@/lib/enterprise-memory";
 
 const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
 const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -558,6 +559,18 @@ export async function POST(
           systemPrompt += "\n\n---\nSpecial instructions for this type of question:\n" +
             matchedSnippets.join("\n\n");
         }
+      }
+    }
+
+    // Enterprise Memory: Cross-Agent Business Intelligence injizieren
+    if (agent.enableEnterpriseMemory) {
+      try {
+        const enterpriseContext = await injectEnterpriseContext(agent.userId);
+        if (enterpriseContext) {
+          systemPrompt += enterpriseContext;
+        }
+      } catch {
+        // Enterprise Memory fehlgeschlagen — weiter ohne
       }
     }
 
@@ -1336,6 +1349,27 @@ export async function POST(
                 selectedModel.startsWith("claude") ? selectedModel : "claude-sonnet-4-20250514"
               ).catch((err) => {
                 console.error("Visitor memory update failed:", err);
+              })
+            );
+          }
+
+          // Enterprise Memory: Business Insights extrahieren (Anthropic only)
+          if (agent.enableEnterpriseMemory && claudeMessages.length >= 2 && anthropicClient && isAnthropic) {
+            const convMsgs = claudeMessages
+              .filter((m) => typeof m.content === "string")
+              .map((m) => ({ role: m.role as string, content: m.content as string }));
+
+            waitUntil(
+              extractInsights(
+                convMsgs,
+                anthropicClient,
+                "claude-haiku-4-5-20251001"
+              ).then((insights) => {
+                if (insights.length > 0) {
+                  return recordInsights(agent.userId, params.id, insights);
+                }
+              }).catch((err) => {
+                console.error("Enterprise insight extraction failed:", err);
               })
             );
           }

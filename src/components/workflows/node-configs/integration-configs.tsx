@@ -561,3 +561,91 @@ export function AiExtractConfig({ config, onChange }: ConfigProps) {
     </div>
   );
 }
+
+/* ── Computer Use ── */
+
+export function ComputerUseConfig({ config, onChange }: ConfigProps) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <FieldLabel label="Aufgabe" hint="Was soll der AI-Agent auf der Webseite tun?" />
+        <ConfigTextarea
+          value={String(config.task || "")}
+          onChange={(v) => onChange({ ...config, task: v })}
+          placeholder="Finde die aktuellen Preise für das Pro-Paket und extrahiere alle Features"
+          rows={3}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <FieldLabel label="Start-URL" hint="URL oder {{ expression }}" />
+        <ConfigInput
+          value={String(config.startUrl || "")}
+          onChange={(v) => onChange({ ...config, startUrl: v })}
+          placeholder="https://example.com/pricing"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <FieldLabel label="Max. Schritte" hint="Maximale Anzahl besuchter Seiten (1-25)" />
+        <ConfigInput
+          value={String(config.maxSteps || "10")}
+          onChange={(v) => onChange({ ...config, maxSteps: parseInt(v) || 10 })}
+          placeholder="10"
+          type="number"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <FieldLabel label="Screenshots speichern" />
+          <button
+            onClick={() => onChange({ ...config, captureScreenshots: !config.captureScreenshots })}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+              config.captureScreenshots !== false ? "bg-pink-500" : "bg-zinc-700"
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-lg transition-transform ${
+                config.captureScreenshots !== false ? "translate-x-4" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <FieldLabel label="Daten extrahieren" />
+          <button
+            onClick={() => onChange({ ...config, extractData: !config.extractData })}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+              config.extractData ? "bg-pink-500" : "bg-zinc-700"
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-lg transition-transform ${
+                config.extractData ? "translate-x-4" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+      {!!config.extractData && (
+        <div className="space-y-1.5">
+          <FieldLabel label="Daten-Schema" hint="JSON-Schema oder Feldbeschreibung für die zu extrahierenden Daten" />
+          <ConfigTextarea
+            value={String(config.dataSchema || "")}
+            onChange={(v) => onChange({ ...config, dataSchema: v })}
+            placeholder='{ "price": "number", "features": "string[]", "planName": "string" }'
+            rows={4}
+          />
+        </div>
+      )}
+      <div className="space-y-1.5">
+        <FieldLabel label="Result Key" />
+        <ConfigInput
+          value={String(config.resultKey || "computerUseResult")}
+          onChange={(v) => onChange({ ...config, resultKey: v })}
+          placeholder="computerUseResult"
+        />
+      </div>
+    </div>
+  );
+}

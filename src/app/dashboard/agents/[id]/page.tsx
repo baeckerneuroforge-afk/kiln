@@ -102,6 +102,7 @@ interface Agent {
   memoryEnabled: boolean;
   visitorMemoryEnabled: boolean;
   imageAnalysisEnabled: boolean;
+  a2aEnabled: boolean;
   showAiDisclaimer: boolean;
   customDomain: string | null;
   promptBranches: { name: string; keywords: string[]; promptSnippet: string; enabled: boolean }[] | null;
@@ -281,6 +282,7 @@ export default function AgentDetailPage() {
   const [memoryEnabled, setMemoryEnabled] = useState(false);
   const [visitorMemoryEnabled, setVisitorMemoryEnabled] = useState(true);
   const [imageAnalysisEnabled, setImageAnalysisEnabled] = useState(false);
+  const [a2aEnabled, setA2aEnabled] = useState(false);
   const [showAiDisclaimer, setShowAiDisclaimer] = useState(true);
   const [agentType, setAgentType] = useState<"PUBLIC" | "INTERNAL">("PUBLIC");
   const [teamRoutingEnabled, setTeamRoutingEnabled] = useState(false);
@@ -340,6 +342,7 @@ export default function AgentDetailPage() {
     setMemoryEnabled(data.memoryEnabled || false);
     setVisitorMemoryEnabled(data.visitorMemoryEnabled !== false);
     setImageAnalysisEnabled(data.imageAnalysisEnabled || false);
+    setA2aEnabled(data.a2aEnabled || false);
     setShowAiDisclaimer(data.showAiDisclaimer !== false);
     setAgentType(data.agentType || "PUBLIC");
     setTeamRoutingEnabled(data.teamRoutingEnabled || false);
@@ -423,6 +426,7 @@ export default function AgentDetailPage() {
           memoryEnabled,
           visitorMemoryEnabled,
           imageAnalysisEnabled,
+          a2aEnabled,
           showAiDisclaimer,
           agentType,
           teamRoutingEnabled,
@@ -665,6 +669,7 @@ export default function AgentDetailPage() {
       memoryEnabled: agent.memoryEnabled,
       visitorMemoryEnabled: agent.visitorMemoryEnabled,
       imageAnalysisEnabled: agent.imageAnalysisEnabled,
+      a2aEnabled: agent.a2aEnabled,
       showAiDisclaimer: agent.showAiDisclaimer,
       agentType: agent.agentType,
       whiteLabel: agent.whiteLabel,
@@ -1314,6 +1319,83 @@ export default function AgentDetailPage() {
                     />
                   </button>
                 </div>
+              </div>
+              )}
+
+              {/* A2A (Agent-to-Agent) Protocol — nur im Advanced Mode */}
+              {advancedMode && (
+              <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10">
+                      <Radio className="h-4 w-4 text-purple-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">
+                        A2A Protocol
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Agent-to-Agent Kommunikation — erlaubt anderen KI-Agents, diesen Agent via API aufzurufen.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setA2aEnabled(!a2aEnabled)}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                      a2aEnabled ? "bg-purple-500" : "bg-muted"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform",
+                        a2aEnabled ? "translate-x-5" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </div>
+
+                {a2aEnabled && agent && (
+                  <div className="space-y-3 pt-2 border-t border-border">
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Agent Card URL</p>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 rounded-lg bg-muted/50 px-3 py-2 text-xs font-mono text-muted-foreground truncate">
+                          {typeof window !== "undefined" ? window.location.origin : ""}/api/a2a/agents/{agent.id}/card
+                        </code>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/api/a2a/agents/${agent.id}/card`);
+                            toast("URL kopiert");
+                          }}
+                          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Message Endpoint</p>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 rounded-lg bg-muted/50 px-3 py-2 text-xs font-mono text-muted-foreground truncate">
+                          {typeof window !== "undefined" ? window.location.origin : ""}/api/a2a/agents/{agent.id}/message
+                        </code>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/api/a2a/agents/${agent.id}/message`);
+                            toast("URL kopiert");
+                          }}
+                          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Teile die Agent Card URL mit anderen Plattformen, damit deren Agents deinen Agent entdecken und nutzen können.
+                    </p>
+                  </div>
+                )}
               </div>
               )}
 

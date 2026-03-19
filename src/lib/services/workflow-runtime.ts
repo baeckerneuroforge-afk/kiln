@@ -140,6 +140,7 @@ const NODE_CATEGORIES: Record<string, string> = {
   send_slack: "action",
   delay: "action",
   set_variable: "action",
+  a2a_call: "action",
   approval_gate: "control",
   wait_webhook: "control",
   wait_form: "control",
@@ -158,6 +159,7 @@ const NODE_CATEGORIES: Record<string, string> = {
   ai_summarize: "ai_tool",
   ai_classify: "ai_tool",
   ai_extract: "ai_tool",
+  computer_use: "ai_tool",
 };
 
 const MAX_SUB_WORKFLOW_DEPTH = 5;

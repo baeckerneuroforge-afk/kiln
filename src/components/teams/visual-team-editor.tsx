@@ -69,6 +69,8 @@ import {
   Tags,
   FileSearch,
   Search,
+  Monitor,
+  Radio,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getModelDef } from "@/lib/ai";
@@ -176,7 +178,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Filter, Mail, Hash, Timer, Variable, ShieldCheck, Pause, Layers, Merge,
   Zap, Shield, Shuffle, FileText,
   Table, TableProperties, CalendarPlus, CalendarSearch, Database, Plug,
-  Sparkles, Tags, FileSearch,
+  Sparkles, Tags, FileSearch, Monitor, Radio,
 };
 
 const NODE_WIDTH = 240;

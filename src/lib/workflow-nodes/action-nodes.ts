@@ -8,6 +8,7 @@ import {
   resolveExpressionDeep,
   type ExpressionContext,
 } from "@/lib/workflow-expressions";
+import { sendA2AMessage } from "@/lib/a2a-protocol";
 
 export interface ActionNodeResult {
   /** Daten die in den Kontext geschrieben werden */
@@ -324,6 +325,53 @@ export function executeSetVariable(
   };
 }
 
+/* ── A2A Call ── */
+
+async function executeA2ACall(
+  config: Record<string, unknown>,
+  context: ExpressionContext
+): Promise<ActionNodeResult> {
+  const targetUrl = resolveExpression(String(config.targetUrl || ""), context);
+  const messageTemplate = resolveExpression(String(config.messageTemplate || ""), context);
+  const timeout = Number(config.timeout) || 30000;
+  const apiKey = config.apiKey ? resolveExpression(String(config.apiKey), context) : undefined;
+  const resultKey = String(config.resultKey || "a2aResponse");
+
+  if (!targetUrl) {
+    return { contextDelta: {}, success: false, error: "A2A target URL is required" };
+  }
+  if (!messageTemplate) {
+    return { contextDelta: {}, success: false, error: "A2A message template is required" };
+  }
+
+  try {
+    const response = await sendA2AMessage(
+      targetUrl,
+      { task: messageTemplate, context: { source: "workflow" } },
+      apiKey,
+      timeout
+    );
+
+    return {
+      contextDelta: {
+        [resultKey]: response.response,
+        [`${resultKey}_status`]: response.status,
+        [`${resultKey}_meta`]: response.metadata || {},
+      },
+      success: response.status === "completed",
+      error: response.status === "failed" ? response.response : undefined,
+      meta: { targetUrl, status: response.status },
+    };
+  } catch (err) {
+    return {
+      contextDelta: {},
+      success: false,
+      error: `A2A call failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+      meta: { targetUrl },
+    };
+  }
+}
+
 /* ── Dispatcher ── */
 
 export async function executeActionNode(
@@ -342,6 +390,8 @@ export async function executeActionNode(
       return executeDelay(config);
     case "set_variable":
       return executeSetVariable(config, context);
+    case "a2a_call":
+      return executeA2ACall(config, context);
     default:
       throw new Error(`Unbekannter Action-Node-Typ: ${nodeType}`);
   }

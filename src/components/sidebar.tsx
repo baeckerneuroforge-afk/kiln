@@ -25,6 +25,7 @@ import {
   HelpCircle,
   Radio,
   FlaskConical,
+  Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -68,6 +69,14 @@ const allModules = [
     color: "text-muted-foreground",
     activeColor: "text-kiln-orange",
     minAgents: 0,
+  },
+  {
+    name: "Business Intelligence",
+    href: "/dashboard/intelligence",
+    icon: Brain,
+    color: "text-muted-foreground",
+    activeColor: "text-purple-400",
+    minAgents: 1,
   },
   {
     name: "Orchestration",

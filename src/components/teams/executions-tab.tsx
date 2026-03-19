@@ -33,6 +33,7 @@ import {
   Sparkles,
   Tags,
   FileSearch,
+  Monitor,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ExecutionDebugConsole } from "@/components/teams/execution-debug-console";
@@ -212,6 +213,7 @@ function getNodeTypeIcon(nodeType: string | null | undefined) {
     case "ai_summarize": return <Sparkles className="h-3.5 w-3.5 text-pink-400" />;
     case "ai_classify": return <Tags className="h-3.5 w-3.5 text-pink-400" />;
     case "ai_extract": return <FileSearch className="h-3.5 w-3.5 text-pink-400" />;
+    case "computer_use": return <Monitor className="h-3.5 w-3.5 text-pink-400" />;
     default: return null;
   }
 }
@@ -249,6 +251,7 @@ function getNodeTypeLabel(nodeType: string | null | undefined): string {
     ai_summarize: "AI Zusammenfassung",
     ai_classify: "AI Klassifizierung",
     ai_extract: "AI Extraktion",
+    computer_use: "Computer Use",
   };
   return nodeType ? labels[nodeType] || nodeType : "Task";
 }
@@ -261,7 +264,7 @@ function getNodeTypeCategoryStyle(nodeType: string | null | undefined): string {
   if (["approval_gate", "wait_webhook", "wait_form", "sub_workflow", "merge"].includes(nodeType)) return "border-cyan-500/20 bg-cyan-500/5";
   if (nodeType === "agent") return "border-orange-500/20 bg-orange-500/5";
   if (["google_sheets_read", "google_sheets_write", "gmail_send", "slack_send_integration", "calendar_create", "calendar_check", "notion_create", "airtable_create"].includes(nodeType)) return "border-green-500/20 bg-green-500/5";
-  if (["ai_summarize", "ai_classify", "ai_extract"].includes(nodeType)) return "border-pink-500/20 bg-pink-500/5";
+  if (["ai_summarize", "ai_classify", "ai_extract", "computer_use"].includes(nodeType)) return "border-pink-500/20 bg-pink-500/5";
   return "border-border bg-zinc-950/30";
 }
 
@@ -373,6 +376,14 @@ function formatNodeOutput(task: ExecutionTimelineItem): string {
       const extracted = parsed.extracted || parsed;
       const keys = Object.keys(extracted).filter(k => extracted[k] !== null);
       return keys.length > 0 ? `Extrahiert: ${keys.join(", ")}` : "Extraktion durchgeführt";
+    }
+    if (nodeType === "computer_use") {
+      const result = parsed.computerUseResult || parsed;
+      const urls = result.urls || [];
+      const summary = result.summary || "";
+      return summary
+        ? (summary.length > 150 ? summary.slice(0, 150) + "…" : summary)
+        : `${urls.length} Seite${urls.length !== 1 ? "n" : ""} besucht`;
     }
   } catch {
     // Not JSON — use raw output

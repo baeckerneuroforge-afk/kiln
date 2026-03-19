@@ -45,7 +45,10 @@ export type WorkflowNodeType =
   // AI Tools
   | "ai_summarize"
   | "ai_classify"
-  | "ai_extract";
+  | "ai_extract"
+  | "computer_use"
+  // A2A
+  | "a2a_call";
 
 export type WorkflowNodeCategory = "agents" | "triggers" | "logic" | "actions" | "control" | "integrations" | "ai_tools";
 
@@ -404,6 +407,40 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     icon: "FileSearch",
     color: "#EC4899",
     defaultConfig: { input: "", fields: "", resultKey: "extracted" },
+  },
+  {
+    type: "computer_use",
+    label: "Computer Use",
+    description: "AI browst eine Webseite und extrahiert Daten",
+    category: "ai_tools",
+    icon: "Monitor",
+    color: "#EC4899",
+    defaultConfig: {
+      task: "",
+      startUrl: "",
+      maxSteps: 10,
+      captureScreenshots: true,
+      extractData: false,
+      dataSchema: "",
+      resultKey: "computerUseResult",
+    },
+  },
+
+  // A2A (Agent-to-Agent)
+  {
+    type: "a2a_call",
+    label: "A2A Agent Call",
+    description: "Ruft einen externen Agent via A2A-Protokoll auf",
+    category: "actions",
+    icon: "Radio",
+    color: "#3B82F6",
+    defaultConfig: {
+      targetUrl: "",
+      messageTemplate: "",
+      timeout: 30000,
+      apiKey: "",
+      resultKey: "a2aResponse",
+    },
   },
 ];
 

@@ -30,6 +30,7 @@ import {
   SendSlackConfig,
   DelayConfig,
   SetVariableConfig,
+  A2ACallConfig,
 } from "./node-configs/action-configs";
 import {
   ApprovalGateConfig,
@@ -50,6 +51,7 @@ import {
   AiSummarizeConfig,
   AiClassifyConfig,
   AiExtractConfig,
+  ComputerUseConfig,
 } from "./node-configs/integration-configs";
 import { AgentNodeConfig } from "./node-configs/agent-node-config";
 
@@ -59,7 +61,7 @@ import {
   GitBranch, GitFork, Filter, Mail, Hash, Timer,
   Variable, ShieldCheck, Pause, Layers, Merge, Zap, FileText, Shuffle,
   Table, TableProperties, CalendarPlus, CalendarSearch, Database, Plug,
-  Sparkles, Tags, FileSearch,
+  Sparkles, Tags, FileSearch, Monitor, Radio,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -67,7 +69,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   GitBranch, GitFork, Filter, Mail, Hash, Timer,
   Variable, ShieldCheck, Pause, Layers, Merge, Zap, FileText, Shuffle,
   Table, TableProperties, CalendarPlus, CalendarSearch, Database, Plug,
-  Sparkles, Tags, FileSearch,
+  Sparkles, Tags, FileSearch, Monitor, Radio,
 };
 
 /* ── Tab type ── */
@@ -256,6 +258,8 @@ export function NodeConfigPanel({
               {nodeType === "ai_summarize" && <AiSummarizeConfig config={config} onChange={setConfig} />}
               {nodeType === "ai_classify" && <AiClassifyConfig config={config} onChange={setConfig} />}
               {nodeType === "ai_extract" && <AiExtractConfig config={config} onChange={setConfig} />}
+              {nodeType === "computer_use" && <ComputerUseConfig config={config} onChange={setConfig} />}
+              {nodeType === "a2a_call" && <A2ACallConfig config={config} onChange={setConfig} />}
             </>
           )}
 

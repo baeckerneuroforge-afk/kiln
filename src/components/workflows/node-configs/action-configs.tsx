@@ -509,3 +509,76 @@ export function SetVariableConfig({
     </div>
   );
 }
+
+/* ========== A2A Call ========== */
+
+export function A2ACallConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const targetUrl = (config.targetUrl as string) || "";
+  const messageTemplate = (config.messageTemplate as string) || "";
+  const timeout = (config.timeout as number) || 30000;
+  const apiKey = (config.apiKey as string) || "";
+  const resultKey = (config.resultKey as string) || "a2aResponse";
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">Target Agent URL</label>
+        <ExpressionInput
+          value={targetUrl}
+          onChange={(v) => onChange({ ...config, targetUrl: v })}
+          placeholder="https://example.com/api/a2a/agents/.../message"
+        />
+        <p className="text-[10px] text-zinc-600">A2A message endpoint of the target agent</p>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">Message Template</label>
+        <textarea
+          value={messageTemplate}
+          onChange={(e) => onChange({ ...config, messageTemplate: e.target.value })}
+          placeholder="Analyse den folgenden Lead: {{ lead.email }}..."
+          rows={4}
+          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600 resize-none"
+        />
+        <p className="text-[10px] text-zinc-600">Supports {"{{ }}"} expressions for dynamic content</p>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">API Key (optional)</label>
+        <input
+          type="password"
+          value={apiKey}
+          onChange={(e) => onChange({ ...config, apiKey: e.target.value })}
+          placeholder="Bearer token for authentication"
+          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">Timeout (ms)</label>
+          <input
+            type="number"
+            value={timeout}
+            onChange={(e) => onChange({ ...config, timeout: Number(e.target.value) || 30000 })}
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">Result Key</label>
+          <input
+            value={resultKey}
+            onChange={(e) => onChange({ ...config, resultKey: e.target.value || "a2aResponse" })}
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}

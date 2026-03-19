@@ -141,6 +141,14 @@ model Agent {
   // Agentic RAG — self-learning via web research
   enableAgenticRag   Boolean     @default(false)
 
+  // A2A Protocol — Agent-to-Agent communication
+  a2aEnabled         Boolean     @default(false)
+  a2aCapabilities    String[]    // z.B. ["lead_qualification", "appointment_booking"]
+  a2aConnectedAgents Json?       // [{ url, name, lastPing }]
+
+  // Enterprise Memory — Cross-Agent Business Intelligence
+  enableEnterpriseMemory Boolean @default(true)
+
   // Team-Based Intent Routing
   teamRoutingEnabled Boolean     @default(false)
   teamRoutingTeamId  String?     // AgentTeam ID for intent-based routing
@@ -175,6 +183,7 @@ model Agent {
   teamExecutionLogs  TeamExecutionLog[]
   runs               AgentRun[]
   researchEntries    AgentResearchEntry[]
+  a2aLogs            A2AInteractionLog[]
 
   @@index([userId])
 }
@@ -1191,4 +1200,45 @@ model AgentResearchEntry {
 
   @@index([agentId])
   @@index([agentId, status])
+}
+
+// ── A2A Protocol — Agent-to-Agent Interaction Logs ──
+
+model A2AInteractionLog {
+  id            String   @id @default(cuid())
+  agentId       String
+  agent         Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  direction     String   // "inbound" | "outbound"
+  remoteAgentUrl String
+  remoteAgentName String?
+  requestMessage String  @db.Text
+  responseMessage String? @db.Text
+  statusCode    Int?
+  durationMs    Int?
+  createdAt     DateTime @default(now())
+
+  @@index([agentId])
+  @@index([agentId, createdAt])
+}
+
+// ── Enterprise Memory — Cross-Agent Business Intelligence ──
+
+model EnterpriseInsight {
+  id             String   @id @default(cuid())
+  userId         String
+  topic          String
+  sentiment      String   @default("neutral") // positive, negative, neutral, high_interest
+  mentionCount   Int      @default(1)
+  trend          String   @default("stable")   // increasing, decreasing, stable
+  relatedTopics  Json?    // string[]
+  agentBreakdown Json?    // { [agentId]: mentionCount }
+  sampleMessages Json?    // recent messages for context
+  firstSeenAt    DateTime @default(now())
+  lastSeenAt     DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, topic])
+  @@index([userId])
+  @@index([userId, mentionCount])
+  @@index([userId, lastSeenAt])
 }

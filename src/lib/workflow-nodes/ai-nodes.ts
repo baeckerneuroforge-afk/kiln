@@ -8,6 +8,7 @@ import {
   type ExpressionContext,
 } from "@/lib/workflow-expressions";
 import type { ActionNodeResult } from "./action-nodes";
+import { executeComputerUse } from "./computer-use-node";
 
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 
@@ -216,6 +217,8 @@ export async function executeAiNode(
       return executeAiClassify(config, context);
     case "ai_extract":
       return executeAiExtract(config, context);
+    case "computer_use":
+      return executeComputerUse(config, context);
     default:
       throw new Error(`Unbekannter AI-Node-Typ: ${nodeType}`);
   }
