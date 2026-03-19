@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { analyzeKnowledgeGaps, KnowledgeGap } from "@/lib/eval-auto-fix";
+import { getWeeklyResearchStats } from "@/lib/agentic-rag";
 
 export interface WeeklyReportData {
   userName: string;
@@ -13,6 +14,12 @@ export interface WeeklyReportData {
     conversations: number;
     gaps: KnowledgeGap[];
   }[];
+  selfLearning: {
+    totalResearched: number;
+    autoApproved: number;
+    pendingReview: number;
+    topTopics: string[];
+  } | null;
 }
 
 /**
@@ -77,12 +84,16 @@ export async function generateWeeklyReport(userId: string): Promise<WeeklyReport
     }
   }
 
+  // Self-Learning Stats
+  const selfLearning = await getWeeklyResearchStats(userId);
+
   return {
     userName: user.firstName || "there",
     totalConversations,
     newLeads,
     topAgentName: topAgent?.name || null,
     agents: agentData,
+    selfLearning,
   };
 }
 
@@ -196,6 +207,35 @@ export function buildWeeklyReportHtml(data: WeeklyReportData, appUrl: string): s
       </thead>
       <tbody>${agentBreakdownHtml}</tbody>
     </table>` : ""}
+
+    <!-- Self-Learning Update -->
+    ${data.selfLearning ? `
+    <h2 style="font-size:16px;color:#F5F5F5;margin:32px 0 12px;font-weight:600">Self-Learning Update</h2>
+    <div style="background:#1C1917;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:18px;margin-bottom:16px">
+      <p style="color:#E5E5E5;font-size:13px;margin:0 0 12px">
+        Your agents researched <strong style="color:#A855F7">${data.selfLearning.totalResearched}</strong> new answer${data.selfLearning.totalResearched !== 1 ? "s" : ""} this week.
+      </p>
+      <div style="display:flex;gap:16px;margin-bottom:12px">
+        <div>
+          <span style="color:#22C55E;font-size:18px;font-weight:700">${data.selfLearning.autoApproved}</span>
+          <span style="color:#737373;font-size:11px;margin-left:4px">auto-approved</span>
+        </div>
+        <div>
+          <span style="color:#FBBF24;font-size:18px;font-weight:700">${data.selfLearning.pendingReview}</span>
+          <span style="color:#737373;font-size:11px;margin-left:4px">waiting for review</span>
+        </div>
+      </div>
+      ${data.selfLearning.topTopics.length > 0 ? `
+      <p style="color:#737373;font-size:11px;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.05em">Top researched topics</p>
+      ${data.selfLearning.topTopics.map((t) => `<p style="color:#A3A3A3;font-size:12px;margin:0 0 3px">&bull; ${escapeHtml(t)}</p>`).join("")}
+      ` : ""}
+      ${data.selfLearning.pendingReview > 0 ? `
+      <div style="margin-top:12px">
+        <a href="${appUrl}/dashboard" style="display:inline-block;background:#292524;color:#A855F7;border:1px solid rgba(168,85,247,0.3);padding:6px 14px;border-radius:8px;font-size:12px;text-decoration:none;font-weight:500">Review pending answers &rarr;</a>
+      </div>
+      ` : ""}
+    </div>
+    ` : ""}
 
     <!-- CTA -->
     <div style="text-align:center;margin:32px 0">

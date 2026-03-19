@@ -34,6 +34,7 @@ model User {
   tourCompleted         Boolean  @default(false)
   lastSeenChangelog     String?  // ISO date of last seen changelog entry
   weeklyReportEnabled Boolean  @default(true)
+  enableTrendAlerts   Boolean  @default(true)
 
   agents              Agent[]
   conversations       Conversation[]
@@ -139,7 +140,9 @@ model Agent {
   promptBranches     Json?       // [{ name, keywords[], promptSnippet, enabled }]
 
   // Agentic RAG — self-learning via web research
-  enableAgenticRag   Boolean     @default(false)
+  enableAgenticRag          Boolean     @default(false)
+  agenticRagAutoApprove     Boolean     @default(false)
+  agenticRagMinConfidence   Int         @default(90)
 
   // A2A Protocol — Agent-to-Agent communication
   a2aEnabled         Boolean     @default(false)
@@ -1185,19 +1188,23 @@ enum ResearchStatus {
   DRAFT
   APPROVED
   REJECTED
+  CONFLICT
 }
 
 model AgentResearchEntry {
-  id          String         @id @default(cuid())
-  agentId     String
-  agent       Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  question    String         @db.Text
-  answer      String         @db.Text
-  sources     Json           // string[] of URLs
-  status      ResearchStatus @default(DRAFT)
-  reviewedAt  DateTime?
-  reviewedBy  String?
-  createdAt   DateTime       @default(now())
+  id              String         @id @default(cuid())
+  agentId         String
+  agent           Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  question        String         @db.Text
+  answer          String         @db.Text
+  sources         Json           // string[] of URLs (legacy)
+  sourcesDetailed Json?          // [{ url, title, snippet, trustScore }]
+  confidenceScore Int?           // 0-100 consensus confidence
+  conflictsWith   String?        // KB entry ID if CONFLICT status
+  status          ResearchStatus @default(DRAFT)
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  createdAt       DateTime       @default(now())
 
   @@index([agentId])
   @@index([agentId, status])
@@ -1228,12 +1235,18 @@ model EnterpriseInsight {
   id             String   @id @default(cuid())
   userId         String
   topic          String
+  type           String   @default("topic") // topic, competitor
   sentiment      String   @default("neutral") // positive, negative, neutral, high_interest
   mentionCount   Int      @default(1)
   trend          String   @default("stable")   // increasing, decreasing, stable
   relatedTopics  Json?    // string[]
   agentBreakdown Json?    // { [agentId]: mentionCount }
   sampleMessages Json?    // recent messages for context
+  leadCount      Int      @default(0)
+  appointmentCount Int    @default(0)
+  weeklyHistory  Json?    // [{ week: ISO, count: number }] — last 8 weeks
+  competitorName String?  // nur für type="competitor"
+  competitorContext String? @db.Text // Kontext der Erwähnung
   firstSeenAt    DateTime @default(now())
   lastSeenAt     DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -1242,6 +1255,24 @@ model EnterpriseInsight {
   @@index([userId])
   @@index([userId, mentionCount])
   @@index([userId, lastSeenAt])
+  @@index([userId, type])
+}
+
+// Trend Alert — automatische Trend-Benachrichtigungen
+model TrendAlert {
+  id           String   @id @default(cuid())
+  userId       String
+  type         String   // surge, decline, new_topic, competitor_spike
+  topic        String
+  changePercent Float
+  thisWeek     Int
+  lastWeek     Int
+  dismissed    Boolean  @default(false)
+  sentViaEmail Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([userId, dismissed])
 }
 
 // Agent Credentials — verschlüsselte Login-Daten für Computer Use

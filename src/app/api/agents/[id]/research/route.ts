@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * GET /api/agents/[id]/research — list research entries
- * ?status=DRAFT|APPROVED|REJECTED (optional filter)
+ * ?status=DRAFT|APPROVED|REJECTED|CONFLICT (optional filter)
  */
 export async function GET(
   request: NextRequest,
@@ -15,10 +15,14 @@ export async function GET(
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Verify agent ownership
   const agent = await prisma.agent.findFirst({
     where: { id: params.id, userId },
-    select: { id: true, name: true, enableAgenticRag: true },
+    select: {
+      id: true,
+      enableAgenticRag: true,
+      agenticRagAutoApprove: true,
+      agenticRagMinConfidence: true,
+    },
   });
 
   if (!agent) {
@@ -30,15 +34,43 @@ export async function GET(
   const entries = await prisma.agentResearchEntry.findMany({
     where: {
       agentId: params.id,
-      ...(statusFilter ? { status: statusFilter as "DRAFT" | "APPROVED" | "REJECTED" } : {}),
+      ...(statusFilter
+        ? { status: statusFilter as "DRAFT" | "APPROVED" | "REJECTED" | "CONFLICT" }
+        : {}),
     },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
 
-  const draftCount = await prisma.agentResearchEntry.count({
-    where: { agentId: params.id, status: "DRAFT" },
-  });
+  // Für CONFLICT-Entries: zugehörige KB-Inhalte laden
+  const enrichedEntries = await Promise.all(
+    entries.map(async (entry) => {
+      if (entry.status === "CONFLICT" && entry.conflictsWith) {
+        const kb = await prisma.knowledgeBase.findUnique({
+          where: { id: entry.conflictsWith },
+          select: { content: true },
+        });
+        return { ...entry, conflictingContent: kb?.content || null };
+      }
+      return { ...entry, conflictingContent: null };
+    })
+  );
 
-  return Response.json({ entries, draftCount, agenticRagEnabled: agent.enableAgenticRag });
+  const [draftCount, conflictCount] = await Promise.all([
+    prisma.agentResearchEntry.count({
+      where: { agentId: params.id, status: "DRAFT" },
+    }),
+    prisma.agentResearchEntry.count({
+      where: { agentId: params.id, status: "CONFLICT" },
+    }),
+  ]);
+
+  return Response.json({
+    entries: enrichedEntries,
+    draftCount,
+    conflictCount,
+    agenticRagEnabled: agent.enableAgenticRag,
+    autoApproveEnabled: agent.agenticRagAutoApprove,
+    minConfidence: agent.agenticRagMinConfidence,
+  });
 }

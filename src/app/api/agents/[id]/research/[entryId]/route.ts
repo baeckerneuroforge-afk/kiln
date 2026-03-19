@@ -1,11 +1,15 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-import { approveResearchEntry, rejectResearchEntry } from "@/lib/agentic-rag";
+import {
+  approveResearchEntry,
+  rejectResearchEntry,
+  resolveConflict,
+} from "@/lib/agentic-rag";
 
 /**
  * POST /api/agents/[id]/research/[entryId]
- * Body: { action: "approve" | "reject", editedAnswer?: string }
+ * Body: { action: "approve" | "reject" | "resolve_conflict", editedAnswer?, resolution? }
  */
 export async function POST(
   request: NextRequest,
@@ -16,7 +20,6 @@ export async function POST(
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Verify agent ownership
   const agent = await prisma.agent.findFirst({
     where: { id: params.id, userId },
     select: { id: true },
@@ -26,7 +29,6 @@ export async function POST(
     return Response.json({ error: "Agent not found" }, { status: 404 });
   }
 
-  // Verify entry belongs to this agent
   const entry = await prisma.agentResearchEntry.findFirst({
     where: { id: params.entryId, agentId: params.id },
   });
@@ -54,5 +56,17 @@ export async function POST(
     return Response.json({ success: true, message: "Research rejected" });
   }
 
-  return Response.json({ error: "Invalid action. Use 'approve' or 'reject'" }, { status: 400 });
+  if (action === "resolve_conflict") {
+    const resolution = body.resolution as "keep_existing" | "replace" | "keep_both";
+    if (!resolution || !["keep_existing", "replace", "keep_both"].includes(resolution)) {
+      return Response.json({ error: "Invalid resolution" }, { status: 400 });
+    }
+    const result = await resolveConflict(params.entryId, resolution, userId);
+    if (!result.success) {
+      return Response.json({ error: result.error }, { status: 400 });
+    }
+    return Response.json({ success: true, message: "Conflict resolved" });
+  }
+
+  return Response.json({ error: "Invalid action" }, { status: 400 });
 }

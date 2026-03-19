@@ -1364,9 +1364,9 @@ export async function POST(
                 convMsgs,
                 anthropicClient,
                 "claude-haiku-4-5-20251001"
-              ).then((insights) => {
-                if (insights.length > 0) {
-                  return recordInsights(agent.userId, params.id, insights);
+              ).then((result) => {
+                if (result.insights.length > 0 || result.competitors.length > 0) {
+                  return recordInsights(agent.userId, params.id, result);
                 }
               }).catch((err) => {
                 console.error("Enterprise insight extraction failed:", err);
