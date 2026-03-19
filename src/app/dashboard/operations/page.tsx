@@ -123,12 +123,12 @@ function OverviewCard({
     <div className="rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{label}</p>
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted/60">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.04]">
           {icon}
         </div>
       </div>
-      <p className="mt-4 text-3xl font-semibold text-foreground">{value}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{meta}</p>
+      <p className="mt-4 text-3xl font-bold tracking-tight text-white">{value}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{meta}</p>
     </div>
   );
 }
@@ -528,7 +528,7 @@ export default function OperationsPage() {
                         {item.issueType}
                       </span>
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{item.detail}</p>
                   </div>
                   <Link href={item.fixHref}>
                     <Button size="sm" variant="outline" className="whitespace-nowrap">
@@ -578,7 +578,7 @@ export default function OperationsPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">{event.title}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{event.description}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{event.description}</p>
                   </div>
                   <span className="whitespace-nowrap text-[11px] text-muted-foreground">
                     {formatRelativeTime(event.timestamp)}

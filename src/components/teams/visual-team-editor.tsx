@@ -5,6 +5,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   Background,
+  BackgroundVariant,
   MiniMap,
   Controls,
   Handle,
@@ -28,7 +29,6 @@ import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
 import {
   AlertTriangle,
-  AlertCircle,
   BookOpen,
   Database,
   Loader2,
@@ -56,7 +56,6 @@ import {
   Layers,
   Merge,
   Bot,
-  GripVertical,
   PanelLeftClose,
   PanelLeft,
   Shield,
@@ -69,6 +68,7 @@ import {
   Plug,
   Tags,
   FileSearch,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getModelDef } from "@/lib/ai";
@@ -143,7 +143,6 @@ interface VisualTeamEditorProps {
   savedPositions?: Record<string, { x: number; y: number }>;
   onPositionsChange?: (positions: Record<string, { x: number; y: number }>) => void;
   teamKnowledgeCount?: number;
-  /** Workflow nodes (non-agent) stored in JSON on the team */
   workflowNodes?: { id: string; type: WorkflowNodeType; label: string; position: { x: number; y: number }; config: Record<string, unknown> }[];
   workflowEdges?: { sourceId: string; targetId: string; condition?: string; sourceHandle?: string }[];
   onWorkflowNodesChange?: (nodes: { id: string; type: WorkflowNodeType; label: string; position: { x: number; y: number }; config: Record<string, unknown> }[]) => void;
@@ -154,26 +153,24 @@ interface VisualTeamEditorProps {
 }
 
 /* ========== Constants ========== */
-const roleColors: Record<string, { bg: string; text: string; border: string; hex: string; glow: string }> = {
-  HEAD: { bg: "bg-orange-500/20", text: "text-orange-400", border: "border-orange-500/40", hex: "#F97316", glow: "shadow-orange-500/20" },
-  COORDINATOR: { bg: "bg-blue-500/20", text: "text-blue-400", border: "border-blue-500/40", hex: "#3B82F6", glow: "shadow-blue-500/20" },
-  EXECUTOR: { bg: "bg-green-500/20", text: "text-green-400", border: "border-green-500/40", hex: "#22C55E", glow: "shadow-green-500/20" },
-  REPORTER: { bg: "bg-purple-500/20", text: "text-purple-400", border: "border-purple-500/40", hex: "#A855F7", glow: "shadow-purple-500/20" },
-  APPROVAL_GATE: { bg: "bg-amber-500/20", text: "text-amber-300", border: "border-amber-500/40", hex: "#F59E0B", glow: "shadow-amber-500/20" },
+const roleColors: Record<string, { bg: string; text: string; border: string; hex: string }> = {
+  HEAD: { bg: "bg-orange-500/15", text: "text-orange-400", border: "border-orange-500/40", hex: "#F97316" },
+  COORDINATOR: { bg: "bg-blue-500/15", text: "text-blue-400", border: "border-blue-500/40", hex: "#3B82F6" },
+  EXECUTOR: { bg: "bg-green-500/15", text: "text-green-400", border: "border-green-500/40", hex: "#22C55E" },
+  REPORTER: { bg: "bg-purple-500/15", text: "text-purple-400", border: "border-purple-500/40", hex: "#A855F7" },
+  APPROVAL_GATE: { bg: "bg-amber-500/15", text: "text-amber-300", border: "border-amber-500/40", hex: "#F59E0B" },
 };
 
-/** Color mapping for workflow node types (non-agent nodes) */
-const workflowNodeColors: Record<WorkflowNodeCategory, { border: string; bg: string; text: string; hex: string }> = {
-  triggers: { border: "border-amber-500/50", bg: "bg-amber-500/15", text: "text-amber-400", hex: "#F59E0B" },
-  agents: { border: "border-orange-500/40", bg: "bg-orange-500/15", text: "text-orange-400", hex: "#F97316" },
-  logic: { border: "border-violet-500/50", bg: "bg-violet-500/15", text: "text-violet-400", hex: "#8B5CF6" },
-  actions: { border: "border-blue-500/50", bg: "bg-blue-500/15", text: "text-blue-400", hex: "#3B82F6" },
-  control: { border: "border-cyan-500/50", bg: "bg-cyan-500/15", text: "text-cyan-400", hex: "#06B6D4" },
-  integrations: { border: "border-green-500/50", bg: "bg-green-500/15", text: "text-green-400", hex: "#22C55E" },
-  ai_tools: { border: "border-pink-500/50", bg: "bg-pink-500/15", text: "text-pink-400", hex: "#EC4899" },
+const workflowNodeColors: Record<WorkflowNodeCategory, { hex: string }> = {
+  triggers: { hex: "#F59E0B" },
+  agents: { hex: "#F97316" },
+  logic: { hex: "#8B5CF6" },
+  actions: { hex: "#3B82F6" },
+  control: { hex: "#06B6D4" },
+  integrations: { hex: "#22C55E" },
+  ai_tools: { hex: "#EC4899" },
 };
 
-/** Map lucide icon names to components */
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Globe, Clock, UserPlus, MessageSquare, Play, Bot, GitBranch, GitFork,
   Filter, Mail, Hash, Timer, Variable, ShieldCheck, Pause, Layers, Merge,
@@ -182,21 +179,26 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Sparkles, Tags, FileSearch,
 };
 
-const NODE_WIDTH = 260;
-const NODE_HEIGHT = 140;
+const NODE_WIDTH = 240;
+const NODE_HEIGHT = 80;
+
+/* ========== Handle Styles ========== */
+const handleBase = "!w-[10px] !h-[10px] !border-[2px] !border-[#2a2a3a] !rounded-full transition-colors";
+const handleInput = `${handleBase} !bg-[#52525b] hover:!bg-orange-400`;
+const handleOutput = `${handleBase} !bg-[#52525b] hover:!bg-orange-400`;
 
 /* ========== Dagre auto-layout ========== */
 function getLayoutedElements(
   nodes: Node[],
   edges: Edge[],
-  direction: "TB" | "LR" = "TB"
+  direction: "TB" | "LR" = "LR"
 ): { nodes: Node[]; edges: Edge[] } {
   const g = new dagre.graphlib.Graph();
   g.setDefaultEdgeLabel(() => ({}));
   g.setGraph({
     rankdir: direction,
-    nodesep: 80,
-    ranksep: 120,
+    nodesep: 60,
+    ranksep: 100,
     marginx: 40,
     marginy: 40,
   });
@@ -224,7 +226,7 @@ function getLayoutedElements(
   return { nodes: layoutedNodes, edges };
 }
 
-/* ========== Custom Node: Agent ========== */
+/* ========== Custom Node: Agent (n8n-style) ========== */
 type VisualNodeData = {
   label: string;
   role: string;
@@ -237,13 +239,7 @@ type VisualNodeData = {
   hasFeedbackLoop?: boolean;
   isParallel?: boolean;
   schemaFields?: string[];
-  executionStatus?:
-    | "pending"
-    | "running"
-    | "completed"
-    | "failed"
-    | "skipped"
-    | "awaiting_approval";
+  executionStatus?: "pending" | "running" | "completed" | "failed" | "skipped" | "awaiting_approval";
   [key: string]: unknown;
 };
 
@@ -252,160 +248,102 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
   const rc = roleColors[role] || roleColors.EXECUTOR;
   const execStatus = data.executionStatus as string | undefined;
 
-  const statusRing = execStatus === "running"
-    ? "ring-2 ring-blue-400 ring-offset-2 ring-offset-[#0C0A09]"
+  const statusClasses = execStatus === "running"
+    ? "ring-2 ring-blue-400/60 ring-offset-1 ring-offset-[#1a1a2e]"
     : execStatus === "completed"
-      ? "ring-2 ring-green-400 ring-offset-2 ring-offset-[#0C0A09]"
+      ? "ring-2 ring-green-400/60 ring-offset-1 ring-offset-[#1a1a2e]"
       : execStatus === "awaiting_approval"
-        ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-[#0C0A09]"
-      : execStatus === "failed"
-        ? "ring-2 ring-red-400 ring-offset-2 ring-offset-[#0C0A09]"
-        : "";
+        ? "ring-2 ring-amber-300/60 ring-offset-1 ring-offset-[#1a1a2e]"
+        : execStatus === "failed"
+          ? "ring-2 ring-red-400/60 ring-offset-1 ring-offset-[#1a1a2e]"
+          : "";
+
+  const modelDef = data.llmModel ? getModelDef(data.llmModel as string) : null;
 
   return (
     <div
       className={cn(
-        "rounded-2xl border-2 bg-zinc-900/95 backdrop-blur-md px-4 py-3 shadow-xl min-w-[220px] max-w-[260px] transition-all duration-200",
-        rc.border,
-        selected && `${rc.glow} shadow-lg scale-[1.02]`,
-        statusRing,
-        (execStatus === "running" || execStatus === "awaiting_approval") && "animate-pulse",
+        "rounded-xl bg-[#262630] border border-[#363644] shadow-lg min-w-[220px] max-w-[260px] transition-all duration-150",
+        selected && "border-orange-500/70 shadow-orange-500/10 shadow-xl",
+        statusClasses,
+        execStatus === "running" && "animate-pulse",
       )}
     >
-      {/* Target handles — top and left */}
+      {/* Input handle — left */}
       <Handle
         type="target"
-        position={Position.Top}
-        className="!bg-zinc-500 !w-3 !h-3 !border-2 !border-zinc-800 hover:!bg-orange-400 transition-colors !-top-1.5"
+        position={Position.Left}
+        className={cn(handleInput, "!-left-[5px]")}
       />
 
-      {/* Role + execution status */}
-      <div className="flex items-center gap-2 mb-2">
-        <span
-          className={cn("text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full", rc.bg, rc.text)}
-        >
-          {role}
-        </span>
-
-        {execStatus && (
-          <span
-            className={cn(
-              "text-[9px] font-medium px-1.5 py-0.5 rounded-full flex items-center gap-1 ml-auto",
-              execStatus === "running" && "bg-blue-500/20 text-blue-400",
-              execStatus === "completed" && "bg-green-500/20 text-green-400",
-              execStatus === "awaiting_approval" && "bg-amber-500/20 text-amber-300",
-              execStatus === "failed" && "bg-red-500/20 text-red-400",
-              execStatus === "pending" && "bg-zinc-700/60 text-zinc-500",
-              execStatus === "skipped" && "bg-zinc-700/40 text-zinc-600",
-            )}
-          >
-            {execStatus === "running" && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
-            {execStatus === "completed" && <Check className="h-2.5 w-2.5" />}
-            {execStatus === "awaiting_approval" && <AlertCircle className="h-2.5 w-2.5" />}
-            {execStatus === "failed" && <X className="h-2.5 w-2.5" />}
-            {execStatus}
-          </span>
-        )}
-      </div>
-
-      {/* Agent name + model */}
-      <div className="flex items-center gap-2 mb-1">
-        <p className="text-sm font-semibold text-zinc-100 truncate flex-1">{data.agentName}</p>
-        {data.llmModel && (() => {
-          const m = getModelDef(data.llmModel as string);
-          return m ? (
-            <span className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-full shrink-0 border border-zinc-700/50">
-              {m.shortLabel}
-            </span>
-          ) : null;
-        })()}
-      </div>
-
-      {/* Responsibilities preview */}
-      {data.responsibilities && (
-        <p className="text-[11px] text-zinc-500 line-clamp-2 mb-2">{data.responsibilities}</p>
-      )}
-
-      {/* Badges row */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {data.agentMode && (
-          <span
-            className={cn(
-              "inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full",
-              data.agentMode === "APPROVAL"
-                ? "bg-amber-500/15 text-amber-300"
-                : data.agentMode === "CHAT"
-                  ? "bg-blue-500/15 text-blue-400"
-                  : "bg-green-500/15 text-green-400"
-            )}
-          >
-            {data.agentMode === "APPROVAL" ? (
-              <AlertCircle className="h-2.5 w-2.5" />
-            ) : data.agentMode === "CHAT" ? (
-              <MessageSquare className="h-2.5 w-2.5" />
-            ) : (
-              <Zap className="h-2.5 w-2.5" />
-            )}
-            {data.agentMode === "APPROVAL" ? "Gate" : data.agentMode === "CHAT" ? "Chat" : "Task"}
-          </span>
-        )}
-
-        {typeof data.enabledActionsCount === "number" && data.enabledActionsCount > 0 && (
-          <span className="inline-flex items-center gap-0.5 text-[9px] bg-orange-500/10 text-orange-400 px-1.5 py-0.5 rounded-full">
-            <Zap className="h-2 w-2" />
-            {data.enabledActionsCount} tools
-          </span>
-        )}
-
-        {data.hasOutputSchema && (
-          <span className="inline-flex items-center gap-1 text-[9px] bg-violet-500/10 text-violet-400 px-1.5 py-0.5 rounded-full">
-            <Database className="h-2 w-2" />
-            JSON
-          </span>
-        )}
-
-        {data.isParallel && (
-          <span className="inline-flex items-center gap-1 text-[9px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded-full">
-            <Zap className="h-2 w-2" />
-            Parallel
-          </span>
-        )}
-
-        {data.hasFeedbackLoop && (
-          <span className="inline-flex items-center gap-1 text-[9px] bg-cyan-500/10 text-cyan-400 px-1.5 py-0.5 rounded-full">
-            <GitBranch className="h-2 w-2" />
-            Loop
-          </span>
-        )}
-      </div>
-
-      {/* Schema fields preview on node */}
-      {data.schemaFields && (data.schemaFields as string[]).length > 0 && (
-        <div className="mt-2 pt-2 border-t border-zinc-800/80">
-          <div className="flex flex-wrap gap-1">
-            {(data.schemaFields as string[]).slice(0, 3).map((f) => (
-              <span key={f} className="text-[8px] font-mono bg-zinc-800/80 text-zinc-500 px-1.5 py-0.5 rounded">
-                {f}
+      {/* Header row: icon + name + model */}
+      <div className="flex items-center gap-2.5 px-3 pt-3 pb-1">
+        <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", rc.bg)}>
+          <Bot className={cn("h-4.5 w-4.5", rc.text)} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-semibold text-zinc-100 truncate leading-tight">{data.agentName}</p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className={cn("text-[9px] font-bold uppercase tracking-wider", rc.text)}>{role}</span>
+            {execStatus && execStatus !== "pending" && (
+              <span className={cn(
+                "text-[8px] font-medium px-1 py-0.5 rounded flex items-center gap-0.5",
+                execStatus === "running" && "bg-blue-500/15 text-blue-400",
+                execStatus === "completed" && "bg-green-500/15 text-green-400",
+                execStatus === "awaiting_approval" && "bg-amber-500/15 text-amber-300",
+                execStatus === "failed" && "bg-red-500/15 text-red-400",
+                execStatus === "skipped" && "bg-zinc-700/40 text-zinc-600",
+              )}>
+                {execStatus === "running" && <Loader2 className="h-2 w-2 animate-spin" />}
+                {execStatus === "completed" && <Check className="h-2 w-2" />}
+                {execStatus === "failed" && <X className="h-2 w-2" />}
+                {execStatus}
               </span>
-            ))}
-            {(data.schemaFields as string[]).length > 3 && (
-              <span className="text-[8px] text-zinc-600">+{(data.schemaFields as string[]).length - 3}</span>
             )}
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Source handles — bottom and right */}
+      {/* Badges row */}
+      <div className="flex items-center gap-1 px-3 pb-2.5 flex-wrap">
+        {modelDef && (
+          <span className="text-[9px] bg-[#1e1e28] text-zinc-400 px-1.5 py-0.5 rounded border border-[#363644]">
+            {modelDef.shortLabel}
+          </span>
+        )}
+        {data.hasOutputSchema && (
+          <span className="text-[9px] bg-violet-500/10 text-violet-400 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+            <Database className="h-2 w-2" /> JSON
+          </span>
+        )}
+        {typeof data.enabledActionsCount === "number" && data.enabledActionsCount > 0 && (
+          <span className="text-[9px] bg-orange-500/10 text-orange-400 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+            <Zap className="h-2 w-2" /> {data.enabledActionsCount}
+          </span>
+        )}
+        {data.hasFeedbackLoop && (
+          <span className="text-[9px] bg-cyan-500/10 text-cyan-400 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+            <GitBranch className="h-2 w-2" /> Loop
+          </span>
+        )}
+        {data.isParallel && (
+          <span className="text-[9px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded">
+            Parallel
+          </span>
+        )}
+      </div>
+
+      {/* Output handle — right */}
       <Handle
         type="source"
-        position={Position.Bottom}
-        className="!bg-zinc-500 !w-3 !h-3 !border-2 !border-zinc-800 hover:!bg-orange-400 transition-colors !-bottom-1.5"
+        position={Position.Right}
+        className={cn(handleOutput, "!-right-[5px]")}
       />
     </div>
   );
 }
 
-/* ========== Custom Node: Workflow Node (non-agent) ========== */
+/* ========== Custom Node: Workflow Node (n8n-style) ========== */
 type WorkflowNodeData = {
   label: string;
   nodeType: WorkflowNodeType;
@@ -425,97 +363,98 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
   const isLogicNode = category === "logic";
   const isTriggerNode = category === "triggers";
 
+  // Config preview text
+  let preview = "";
+  if (nodeType === "delay" && data.config) {
+    const c = data.config as Record<string, unknown>;
+    preview = `${c.duration || 60}${c.unit === "minutes" ? "m" : c.unit === "hours" ? "h" : "s"}`;
+  } else if (nodeType === "http_request" && data.config) {
+    const c = data.config as Record<string, unknown>;
+    preview = `${c.method || "GET"} ${c.url || "..."}`;
+  } else if (nodeType === "if_condition" && data.config) {
+    const c = data.config as Record<string, unknown>;
+    preview = `${c.field || "field"} ${c.operator || "=="} ${c.value || "value"}`;
+  }
+
   return (
     <div
       className={cn(
-        "rounded-2xl border-2 bg-zinc-900/95 backdrop-blur-md px-4 py-3 shadow-xl min-w-[200px] max-w-[240px] transition-all duration-200",
-        colors.border,
-        selected && "shadow-lg scale-[1.02] ring-1 ring-white/10",
+        "rounded-xl bg-[#262630] border border-[#363644] shadow-lg min-w-[200px] max-w-[240px] transition-all duration-150",
+        selected && "border-orange-500/70 shadow-orange-500/10 shadow-xl",
       )}
     >
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="!bg-zinc-500 !w-3 !h-3 !border-2 !border-zinc-800 hover:!bg-orange-400 transition-colors !-top-1.5"
-      />
+      {/* Input handle — left (not for triggers) */}
+      {!isTriggerNode && (
+        <Handle
+          type="target"
+          position={Position.Left}
+          className={cn(handleInput, "!-left-[5px]")}
+        />
+      )}
 
-      <div className="flex items-center gap-2.5 mb-1.5">
-        <div className={cn("flex h-8 w-8 items-center justify-center rounded-xl shrink-0", colors.bg)}>
-          <IconComp className={cn("h-4 w-4", colors.text)} />
+      {/* Content */}
+      <div className="flex items-center gap-2.5 px-3 py-3">
+        <div
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+          style={{ backgroundColor: `${colors.hex}15` }}
+        >
+          <span style={{ color: colors.hex }}><IconComp className="h-4.5 w-4.5" /></span>
         </div>
         <div className="min-w-0 flex-1">
-          <span className={cn("text-[9px] font-bold uppercase tracking-wider", colors.text)}>
-            {category}
-          </span>
-          <p className="text-sm font-semibold text-zinc-100 truncate">{data.label as string}</p>
+          <p className="text-[13px] font-semibold text-zinc-100 truncate leading-tight">{data.label as string}</p>
+          <p className="text-[10px] text-zinc-500 truncate mt-0.5" style={{ color: `${colors.hex}99` }}>
+            {data.description as string}
+          </p>
         </div>
       </div>
 
-      <p className="text-[11px] text-zinc-500 line-clamp-2">{data.description as string}</p>
-
       {/* Config preview */}
-      {nodeType === "delay" && data.config && (
-        <div className="mt-2 flex items-center gap-1 text-[10px] text-zinc-400">
-          <Timer className="h-3 w-3" />
-          {(data.config as Record<string, unknown>).duration as number || 60}{(data.config as Record<string, unknown>).unit as string || "s"}
-        </div>
-      )}
-      {nodeType === "http_request" && data.config && (
-        <div className="mt-2 flex items-center gap-1 text-[10px] font-mono text-zinc-400 truncate">
-          <Globe className="h-3 w-3 shrink-0" />
-          {(data.config as Record<string, unknown>).method as string || "GET"} {(data.config as Record<string, unknown>).url as string || "..."}
-        </div>
-      )}
-      {nodeType === "if_condition" && data.config && (
-        <div className="mt-2 flex items-center gap-1 text-[10px] font-mono text-zinc-400 truncate">
-          <GitBranch className="h-3 w-3 shrink-0" />
-          {(data.config as Record<string, unknown>).field as string || "field"} {(data.config as Record<string, unknown>).operator as string || "=="} {(data.config as Record<string, unknown>).value as string || "value"}
+      {preview && (
+        <div className="px-3 pb-2.5 -mt-1">
+          <p className="text-[10px] font-mono text-zinc-500 truncate bg-[#1e1e28] rounded px-2 py-1 border border-[#363644]/50">
+            {preview}
+          </p>
         </div>
       )}
 
-      {/* Source handles */}
+      {/* Output handles — right side */}
       {isLogicNode ? (
         <>
           <Handle
             type="source"
-            position={Position.Bottom}
+            position={Position.Right}
             id="true"
-            className="!bg-green-500 !w-3 !h-3 !border-2 !border-zinc-800 !-bottom-1.5"
-            style={{ left: "35%" }}
+            className="!w-[10px] !h-[10px] !border-[2px] !border-[#2a2a3a] !rounded-full !bg-green-500 !-right-[5px]"
+            style={{ top: "35%" }}
           />
           <Handle
             type="source"
-            position={Position.Bottom}
+            position={Position.Right}
             id="false"
-            className="!bg-red-500 !w-3 !h-3 !border-2 !border-zinc-800 !-bottom-1.5"
-            style={{ left: "65%" }}
+            className="!w-[10px] !h-[10px] !border-[2px] !border-[#2a2a3a] !rounded-full !bg-red-500 !-right-[5px]"
+            style={{ top: "65%" }}
           />
-          <div className="flex justify-between mt-2 px-2 text-[8px] text-zinc-600">
-            <span className="text-green-500">true</span>
-            <span className="text-red-400">false</span>
-          </div>
+          {/* Labels for true/false */}
+          <div className="absolute right-3 top-[27%] text-[7px] font-bold text-green-500/70">T</div>
+          <div className="absolute right-3 top-[58%] text-[7px] font-bold text-red-400/70">F</div>
         </>
-      ) : isTriggerNode ? (
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          className="!bg-zinc-500 !w-3 !h-3 !border-2 !border-zinc-800 hover:!bg-orange-400 transition-colors !-bottom-1.5"
-        />
       ) : (
         <>
           <Handle
             type="source"
-            position={Position.Bottom}
-            className="!bg-zinc-500 !w-3 !h-3 !border-2 !border-zinc-800 hover:!bg-orange-400 transition-colors !-bottom-1.5"
-            style={{ left: "40%" }}
+            position={Position.Right}
+            className={cn(handleOutput, "!-right-[5px]")}
           />
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="error"
-            className="!bg-red-500/70 !w-2.5 !h-2.5 !border-2 !border-zinc-800 hover:!bg-red-400 transition-colors !-bottom-1.5"
-            style={{ left: "75%" }}
-          />
+          {/* Error output handle */}
+          {!isTriggerNode && (
+            <Handle
+              type="source"
+              position={Position.Right}
+              id="error"
+              className="!w-[7px] !h-[7px] !border-[1.5px] !border-[#2a2a3a] !rounded-full !bg-red-500/60 hover:!bg-red-400 !-right-[4px]"
+              style={{ top: "75%" }}
+            />
+          )}
           {data.hasErrorPath && (
             <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500/80" />
           )}
@@ -541,24 +480,23 @@ type FallbackNodeData = {
 
 function TeamKnowledgeNode({ data }: NodeProps<Node<KnowledgeNodeData>>) {
   return (
-    <div className="rounded-2xl border-2 border-cyan-500/30 bg-zinc-900/95 backdrop-blur-md px-4 py-3 shadow-xl min-w-[180px] max-w-[200px]">
+    <div className="rounded-xl bg-[#262630] border border-cyan-500/30 shadow-lg min-w-[180px] max-w-[200px]">
       <Handle
         type="source"
-        position={Position.Bottom}
-        className="!bg-cyan-500 !w-3 !h-3 !border-2 !border-zinc-800 !-bottom-1.5"
+        position={Position.Right}
+        className="!w-[10px] !h-[10px] !border-[2px] !border-[#2a2a3a] !rounded-full !bg-cyan-500 !-right-[5px]"
       />
-      <div className="flex items-center gap-2 mb-1.5">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/15">
-          <BookOpen className="h-3.5 w-3.5 text-cyan-400" />
+      <div className="flex items-center gap-2.5 px-3 py-3">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15">
+          <BookOpen className="h-4 w-4 text-cyan-400" />
         </div>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400">
-          Shared KB
-        </span>
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-zinc-200">Workflow Knowledge</p>
+          <p className="text-[10px] text-cyan-400/70 mt-0.5">
+            {data.docCount} {data.docCount === 1 ? "Dokument" : "Dokumente"}
+          </p>
+        </div>
       </div>
-      <p className="text-sm font-semibold text-zinc-200">Workflow Knowledge</p>
-      <p className="text-[11px] text-zinc-500 mt-0.5">
-        {data.docCount} {data.docCount === 1 ? "Dokument" : "Dokumente"}
-      </p>
     </div>
   );
 }
@@ -567,29 +505,23 @@ function FallbackGhostNode({ data }: NodeProps<Node<FallbackNodeData>>) {
   const model = typeof data.llmModel === "string" ? getModelDef(data.llmModel) : null;
 
   return (
-    <div className="rounded-2xl border border-dashed border-orange-500/30 bg-zinc-900/90 px-4 py-3 shadow-lg min-w-[200px] max-w-[240px] opacity-95">
+    <div className="rounded-xl border border-dashed border-orange-500/30 bg-[#262630]/80 shadow-lg min-w-[200px] max-w-[240px] opacity-90">
       <Handle
         type="target"
         position={Position.Left}
         isConnectable={false}
-        className="!bg-orange-400 !w-3 !h-3 !border-2 !border-zinc-800 !-left-1.5"
+        className="!w-[10px] !h-[10px] !border-[2px] !border-[#2a2a3a] !rounded-full !bg-orange-400 !-left-[5px]"
       />
-      <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/15">
-          <AlertTriangle className="h-3.5 w-3.5 text-orange-300" />
+      <div className="flex items-center gap-2.5 px-3 py-3">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-500/15">
+          <AlertTriangle className="h-4 w-4 text-orange-300" />
         </div>
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-orange-300">
-            Fallback
-          </p>
-          <p className="truncate text-sm font-semibold text-zinc-200">
-            {data.agentName}
-          </p>
+          <p className="text-[9px] font-bold uppercase tracking-wider text-orange-300">Fallback</p>
+          <p className="truncate text-[13px] font-semibold text-zinc-200">{data.agentName}</p>
+          {model && <p className="text-[10px] text-zinc-500 mt-0.5">{model.shortLabel}</p>}
         </div>
       </div>
-      {model ? (
-        <p className="mt-2 text-[11px] text-zinc-500">{model.shortLabel}</p>
-      ) : null}
     </div>
   );
 }
@@ -620,19 +552,24 @@ function AnimatedConnectionEdge({
   const isFallback = data?.isFallback as boolean;
   const isErrorEdge = data?.isErrorEdge as boolean;
 
+  const strokeColor = isErrorEdge
+    ? "#EF4444"
+    : isFallback
+      ? "#FB923C"
+      : isExecuting
+        ? "#F97316"
+        : selected
+          ? "#F97316"
+          : "#404050";
+
   return (
     <>
-      {/* Glow effect for executing edges */}
+      {/* Glow for executing edges */}
       {isExecuting && (
         <BaseEdge
           id={`${id}-glow`}
           path={edgePath}
-          style={{
-            stroke: "#F97316",
-            strokeWidth: 6,
-            filter: "blur(4px)",
-            opacity: 0.4,
-          }}
+          style={{ stroke: "#F97316", strokeWidth: 6, filter: "blur(4px)", opacity: 0.35 }}
         />
       )}
 
@@ -641,62 +578,37 @@ function AnimatedConnectionEdge({
         id={id}
         path={edgePath}
         style={{
-          stroke: isErrorEdge
-            ? "#EF4444"
-            : isFallback
-              ? "#FB923C"
-              : isExecuting
-                ? "#F97316"
-                : selected
-                  ? "#F97316"
-                  : "#3f3f46",
-          strokeWidth: isErrorEdge ? 1.5 : isFallback ? 2 : isExecuting ? 3 : 2,
-          strokeDasharray: isErrorEdge
-            ? "6 4"
-            : isFallback
-              ? "5 5"
-              : isExecuting
-                ? "8 4"
-                : undefined,
-          animation: isFallback
-            ? undefined
-            : isExecuting
-              ? "dashmove 0.5s linear infinite"
-              : undefined,
+          stroke: strokeColor,
+          strokeWidth: selected ? 2.5 : isExecuting ? 2.5 : 1.5,
+          strokeDasharray: isErrorEdge ? "6 4" : isFallback ? "5 5" : isExecuting ? "8 4" : undefined,
+          animation: isExecuting ? "dashmove 0.5s linear infinite" : undefined,
         }}
         markerEnd={MarkerType.ArrowClosed}
       />
 
-      {/* Edge label */}
+      {/* Condition label pill */}
       {data?.label && (
         <EdgeLabelRenderer>
           <div
             className={cn(
-              "absolute pointer-events-auto rounded-lg border px-2.5 py-1 text-[10px] font-medium transition-all cursor-pointer",
+              "absolute pointer-events-auto rounded-full border px-2 py-0.5 text-[9px] font-medium transition-all cursor-pointer",
               selected
-                ? "bg-orange-500/10 border-orange-500/30 text-orange-400"
+                ? "bg-orange-500/15 border-orange-500/40 text-orange-400"
                 : isFallback
                   ? "bg-orange-500/10 border-orange-500/20 text-orange-300"
-                  : "bg-zinc-900/90 border-zinc-700/50 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300"
+                  : "bg-[#262630] border-[#404050] text-zinc-400 hover:border-zinc-500 hover:text-zinc-300"
             )}
-            style={{
-              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-            }}
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
-            <div className="flex items-center gap-1.5">
-              <GitBranch className="h-3 w-3" />
-              {data.label as string}
-            </div>
+            {data.label as string}
           </div>
         </EdgeLabelRenderer>
       )}
       {isErrorEdge && !data?.label && (
         <EdgeLabelRenderer>
           <div
-            className="absolute pointer-events-none rounded-md border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-[8px] font-medium text-red-400"
-            style={{
-              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
-            }}
+            className="absolute pointer-events-none rounded-full border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-[8px] font-medium text-red-400"
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
             error
           </div>
@@ -715,7 +627,7 @@ const nodeTypes = {
 };
 const edgeTypes = { animated: AnimatedConnectionEdge };
 
-/* ========== Sidebar: Draggable Node Palette ========== */
+/* ========== Sidebar: Node Palette (n8n-style) ========== */
 function NodePaletteSidebar({
   collapsed,
   onToggle,
@@ -726,6 +638,8 @@ function NodePaletteSidebar({
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(WORKFLOW_CATEGORIES.map((c) => c.id))
   );
+  const [search, setSearch] = useState("");
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
 
   const toggleCategory = (id: string) => {
     setExpandedCategories((prev) => {
@@ -749,12 +663,14 @@ function NodePaletteSidebar({
     e.dataTransfer.effectAllowed = "move";
   };
 
+  const searchLower = search.toLowerCase();
+
   if (collapsed) {
     return (
       <div className="absolute left-0 top-0 z-20 h-full">
         <button
           onClick={onToggle}
-          className="m-2 flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900/95 text-zinc-400 shadow-lg backdrop-blur-md transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+          className="m-2.5 flex h-9 w-9 items-center justify-center rounded-lg border border-[#363644] bg-[#1e1e28] text-zinc-400 shadow-md transition-colors hover:bg-[#262630] hover:text-zinc-200"
           title="Show node palette"
         >
           <PanelLeft className="h-4 w-4" />
@@ -764,83 +680,101 @@ function NodePaletteSidebar({
   }
 
   return (
-    <div className="absolute left-0 top-0 z-20 flex h-full w-[250px] flex-col border-r border-zinc-800 bg-zinc-950/95 backdrop-blur-md">
+    <div className="absolute left-0 top-0 z-20 flex h-full w-[240px] flex-col border-r border-[#2a2a3a] bg-[#1a1a24]">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2.5">
-        <div className="flex items-center gap-2">
-          <Zap className="h-4 w-4 text-kiln-orange" />
-          <span className="text-xs font-semibold text-zinc-200">Node Palette</span>
-        </div>
+      <div className="flex items-center justify-between px-3 py-3 border-b border-[#2a2a3a]">
+        <span className="text-xs font-semibold text-zinc-300">Nodes</span>
         <button
           onClick={onToggle}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+          className="flex h-6 w-6 items-center justify-center rounded text-zinc-500 transition-colors hover:bg-[#2a2a3a] hover:text-zinc-300"
         >
           <PanelLeftClose className="h-3.5 w-3.5" />
         </button>
       </div>
 
+      {/* Search */}
+      <div className="px-3 py-2 border-b border-[#2a2a3a]">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-600" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search nodes..."
+            className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-xs text-zinc-200 pl-8 pr-3 py-1.5 outline-none focus:border-orange-500/50 placeholder:text-zinc-600 transition-colors"
+          />
+        </div>
+      </div>
+
       {/* Categories */}
-      <div className="flex-1 overflow-y-auto py-1 scrollbar-thin">
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
         {WORKFLOW_CATEGORIES.map((cat) => {
           const isExpanded = expandedCategories.has(cat.id);
           const catNodes = WORKFLOW_NODE_DEFINITIONS.filter((d) => d.category === cat.id);
-          const CatIcon = iconMap[cat.icon] || Zap;
+          const filteredNodes = searchLower
+            ? catNodes.filter((d) => d.label.toLowerCase().includes(searchLower) || d.type.toLowerCase().includes(searchLower))
+            : catNodes;
+
+          if (searchLower && filteredNodes.length === 0) return null;
 
           return (
             <div key={cat.id}>
+              {/* Category header */}
               <button
                 onClick={() => toggleCategory(cat.id)}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-zinc-800/60"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[#222230]"
               >
-                <span style={{ color: cat.color }}><CatIcon className="h-3.5 w-3.5 shrink-0" /></span>
-                <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                {isExpanded ? (
+                  <ChevronDown className="h-3 w-3 text-zinc-600 shrink-0" />
+                ) : (
+                  <ChevronRight className="h-3 w-3 text-zinc-600 shrink-0" />
+                )}
+                <span className="flex-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
                   {cat.label}
                 </span>
-                <span className="text-[10px] text-zinc-600">{catNodes.length}</span>
-                {isExpanded ? (
-                  <ChevronDown className="h-3 w-3 text-zinc-600" />
-                ) : (
-                  <ChevronRight className="h-3 w-3 text-zinc-600" />
-                )}
+                <span className="text-[10px] text-zinc-700">{filteredNodes.length}</span>
               </button>
 
+              {/* Thin divider */}
+              {!isExpanded && <div className="mx-3 border-b border-[#2a2a3a]/60" />}
+
               {isExpanded && (
-                <div className="px-2 pb-1.5">
-                  {catNodes.map((def) => {
+                <div className="pb-1">
+                  {filteredNodes.map((def) => {
                     const Icon = iconMap[def.icon] || Zap;
                     return (
-                      <div
-                        key={def.type}
-                        draggable
-                        onDragStart={(e) => onDragStart(e, def)}
-                        className="group flex cursor-grab items-center gap-2.5 rounded-xl px-2.5 py-2 transition-all hover:bg-zinc-800/80 active:cursor-grabbing active:scale-[0.97]"
-                      >
-                        <div className="flex h-3 w-3 items-center justify-center text-zinc-600 opacity-0 transition-opacity group-hover:opacity-100">
-                          <GripVertical className="h-3 w-3" />
-                        </div>
+                      <div key={def.type} className="relative px-2">
                         <div
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-                          style={{ backgroundColor: `${def.color}15` }}
+                          draggable
+                          onDragStart={(e) => onDragStart(e, def)}
+                          onMouseEnter={() => setHoveredNode(def.type)}
+                          onMouseLeave={() => setHoveredNode(null)}
+                          className="flex cursor-grab items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[#2a2a3a]/80 active:cursor-grabbing active:bg-[#2a2a3a]"
                         >
-                          <span style={{ color: def.color }}><Icon className="h-3.5 w-3.5" /></span>
+                          <div
+                            className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded"
+                            style={{ backgroundColor: `${def.color}12` }}
+                          >
+                            <span style={{ color: def.color }}><Icon className="h-[14px] w-[14px]" /></span>
+                          </div>
+                          <span className="text-[12px] text-zinc-300 truncate">{def.label}</span>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-[11px] font-medium text-zinc-300">{def.label}</p>
-                          <p className="truncate text-[9px] text-zinc-600">{def.description}</p>
-                        </div>
+
+                        {/* Tooltip on hover */}
+                        {hoveredNode === def.type && (
+                          <div className="absolute left-full top-0 ml-2 z-50 w-48 rounded-lg border border-[#363644] bg-[#1e1e28] px-3 py-2 shadow-xl pointer-events-none">
+                            <p className="text-[11px] font-medium text-zinc-200">{def.label}</p>
+                            <p className="text-[10px] text-zinc-500 mt-0.5">{def.description}</p>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
+                  <div className="mx-3 mt-1 border-b border-[#2a2a3a]/60" />
                 </div>
               )}
             </div>
           );
         })}
-      </div>
-
-      {/* Footer hint */}
-      <div className="border-t border-zinc-800 px-3 py-2">
-        <p className="text-[10px] text-zinc-600">Drag nodes onto the canvas to add them to your workflow</p>
       </div>
     </div>
   );
@@ -867,7 +801,6 @@ function membersToFlowElements(
       member.config && typeof member.config === "object" && !Array.isArray(member.config)
         ? (member.config as Record<string, unknown>)
         : null;
-
     return typeof config?.label === "string" && config.label.trim()
       ? config.label.trim()
       : member.role === "APPROVAL_GATE"
@@ -919,9 +852,9 @@ function membersToFlowElements(
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: isExecuting ? "#F97316" : "#52525b",
-          width: 16,
-          height: 16,
+          color: isExecuting ? "#F97316" : "#404050",
+          width: 14,
+          height: 14,
         },
       };
     });
@@ -930,9 +863,7 @@ function membersToFlowElements(
 
   members.forEach((member, index) => {
     if (!member.fallbackEnabled) return;
-
-    const sourcePosition =
-      savedPositions?.[member.id] || { x: 0, y: index * 180 };
+    const sourcePosition = savedPositions?.[member.id] || { x: 0, y: index * 180 };
 
     const addFallbackEdge = (targetId: string, label = "fallback") => {
       edges.push({
@@ -943,22 +874,9 @@ function membersToFlowElements(
         animated: false,
         selectable: false,
         deletable: false,
-        data: {
-          label,
-          isFallback: true,
-          executionActive: false,
-        },
-        style: {
-          strokeDasharray: "5 5",
-          stroke: "#FB923C",
-          opacity: 0.9,
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: "#FB923C",
-          width: 14,
-          height: 14,
-        },
+        data: { label, isFallback: true, executionActive: false },
+        style: { strokeDasharray: "5 5", stroke: "#FB923C", opacity: 0.9 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: "#FB923C", width: 12, height: 12 },
       });
     };
 
@@ -972,15 +890,8 @@ function membersToFlowElements(
           fallbackGhostNodes.set(ghostId, {
             id: ghostId,
             type: "fallbackGhost",
-            position: savedPositions?.[ghostId] || {
-              x: sourcePosition.x + 340,
-              y: sourcePosition.y + 40,
-            },
-            data: {
-              label: "Fallback Agent",
-              agentName: member.fallbackAgent.name,
-              llmModel: member.fallbackAgent.llmModel,
-            },
+            position: savedPositions?.[ghostId] || { x: sourcePosition.x + 340, y: sourcePosition.y + 40 },
+            data: { label: "Fallback Agent", agentName: member.fallbackAgent.name, llmModel: member.fallbackAgent.llmModel },
             draggable: false,
             selectable: false,
             deletable: false,
@@ -996,15 +907,8 @@ function membersToFlowElements(
         fallbackGhostNodes.set(ghostId, {
           id: ghostId,
           type: "fallbackGhost",
-          position: savedPositions?.[ghostId] || {
-            x: sourcePosition.x + 340,
-            y: sourcePosition.y + 140,
-          },
-          data: {
-            label: "Fallback Model",
-            agentName: member.agent.name,
-            llmModel: member.fallbackModel,
-          },
+          position: savedPositions?.[ghostId] || { x: sourcePosition.x + 340, y: sourcePosition.y + 140 },
+          data: { label: "Fallback Model", agentName: member.agent.name, llmModel: member.fallbackModel },
           draggable: false,
           selectable: false,
           deletable: false,
@@ -1016,32 +920,27 @@ function membersToFlowElements(
 
   nodes.push(...Array.from(fallbackGhostNodes.values()));
 
-  // Add feedback loop edges (curved back arrows)
+  // Feedback loop edges
   members.forEach((m) => {
     const fl = m.feedbackLoop as { targetMemberId: string; maxIterations: number; qualityField: string; qualityThreshold: number } | null;
     if (!fl) return;
-      edges.push({
-        id: `loop-${m.id}-${fl.targetMemberId}`,
-        source: m.id,
-        target: fl.targetMemberId,
-        type: "animated",
-        animated: true,
-        deletable: false,
-        data: {
+    edges.push({
+      id: `loop-${m.id}-${fl.targetMemberId}`,
+      source: m.id,
+      target: fl.targetMemberId,
+      type: "animated",
+      animated: true,
+      deletable: false,
+      data: {
         label: `Loop: ${fl.qualityField} < ${fl.qualityThreshold} (max ${fl.maxIterations}x)`,
         executionActive: false,
       },
       style: { strokeDasharray: "6 3", stroke: "#06B6D4" },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: "#06B6D4",
-        width: 14,
-        height: 14,
-      },
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#06B6D4", width: 12, height: 12 },
     });
   });
 
-  // Add shared team knowledge node if documents exist
+  // Shared team knowledge node
   if (teamKnowledgeCount && teamKnowledgeCount > 0) {
     const kbNodeId = "__team_kb__";
     nodes.push({
@@ -1053,7 +952,6 @@ function membersToFlowElements(
       selectable: false,
     });
 
-    // Connect KB node to all agent members (dashed cyan lines, no labels)
     members.forEach((m) => {
       edges.push({
         id: `kb-${kbNodeId}-${m.id}`,
@@ -1064,18 +962,13 @@ function membersToFlowElements(
         selectable: false,
         deletable: false,
         data: {},
-        style: { strokeDasharray: "4 4", stroke: "#06B6D4", opacity: 0.35 },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: "#06B6D4",
-          width: 10,
-          height: 10,
-        },
+        style: { strokeDasharray: "4 4", stroke: "#06B6D4", opacity: 0.3 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: "#06B6D4", width: 10, height: 10 },
       });
     });
   }
 
-  // Add workflow nodes (non-agent)
+  // Workflow nodes (non-agent)
   if (workflowNodes && workflowNodes.length > 0) {
     const defMap = new Map(WORKFLOW_NODE_DEFINITIONS.map((d) => [d.type, d]));
     workflowNodes.forEach((wn) => {
@@ -1101,7 +994,7 @@ function membersToFlowElements(
     });
   }
 
-  // Add workflow edges
+  // Workflow edges
   if (workflowEdges && workflowEdges.length > 0) {
     workflowEdges.forEach((we) => {
       edges.push({
@@ -1116,12 +1009,7 @@ function membersToFlowElements(
           executionActive: false,
           isErrorEdge: we.sourceHandle === "error" || we.condition === "error",
         },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: "#52525b",
-          width: 16,
-          height: 16,
-        },
+        markerEnd: { type: MarkerType.ArrowClosed, color: "#404050", width: 14, height: 14 },
       });
     });
   }
@@ -1178,30 +1066,25 @@ function VisualTeamEditorInner({
     const { nodes: rawNodes, edges: rawEdges } = membersToFlowElements(
       members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges
     );
-
-    // Apply dagre layout only if no saved positions
     const hasSaved = savedPositions && Object.keys(savedPositions).length > 0;
-    if (hasSaved) {
-      return { nodes: rawNodes, edges: rawEdges };
-    }
-    return getLayoutedElements(rawNodes, rawEdges, "TB");
+    if (hasSaved) return { nodes: rawNodes, edges: rawEdges };
+    return getLayoutedElements(rawNodes, rawEdges, "LR");
   }, [members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
 
-  // Update nodes/edges when members or execution steps change
+  // Update nodes/edges when data changes
   useEffect(() => {
     const { nodes: rawNodes, edges: rawEdges } = membersToFlowElements(
       members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges
     );
     const hasSaved = savedPositions && Object.keys(savedPositions).length > 0;
-
     if (hasSaved) {
       setNodes(rawNodes);
       setEdges(rawEdges);
     } else {
-      const layouted = getLayoutedElements(rawNodes, rawEdges, "TB");
+      const layouted = getLayoutedElements(rawNodes, rawEdges, "LR");
       setNodes(layouted.nodes);
       setEdges(layouted.edges);
     }
@@ -1211,14 +1094,11 @@ function VisualTeamEditorInner({
   const handleNodeDragStop = useCallback(
     () => {
       if (!onPositionsChange) return;
-
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         const currentNodes = reactFlowInstance.getNodes();
         const positions: Record<string, { x: number; y: number }> = {};
-        currentNodes.forEach((n) => {
-          positions[n.id] = n.position;
-        });
+        currentNodes.forEach((n) => { positions[n.id] = n.position; });
         onPositionsChange(positions);
       }, 500);
     },
@@ -1229,7 +1109,6 @@ function VisualTeamEditorInner({
   const onConnect = useCallback(
     (connection: Connection) => {
       if (!connection.source || !connection.target) return;
-
       const newEdge: Edge = {
         id: `e-${connection.source}-${connection.target}`,
         source: connection.source,
@@ -1238,12 +1117,7 @@ function VisualTeamEditorInner({
         type: "animated",
         animated: true,
         data: {},
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: "#52525b",
-          width: 16,
-          height: 16,
-        },
+        markerEnd: { type: MarkerType.ArrowClosed, color: "#404050", width: 14, height: 14 },
       };
       setEdges((eds) => addEdge(newEdge, eds));
       onConnectionCreate?.(connection.source, connection.target);
@@ -1251,28 +1125,22 @@ function VisualTeamEditorInner({
     [setEdges, onConnectionCreate]
   );
 
-  // Auto-layout button handler
+  // Auto-layout
   const handleAutoLayout = useCallback(() => {
-    const layouted = getLayoutedElements(nodes, edges, "TB");
+    const layouted = getLayoutedElements(nodes, edges, "LR");
     setNodes(layouted.nodes);
     setEdges(layouted.edges);
-
-    // Fit view after layout
     setTimeout(() => {
       reactFlowInstance.fitView({ padding: 0.3, duration: 300 });
     }, 50);
-
-    // Save new positions
     if (onPositionsChange) {
       const positions: Record<string, { x: number; y: number }> = {};
-      layouted.nodes.forEach((n) => {
-        positions[n.id] = n.position;
-      });
+      layouted.nodes.forEach((n) => { positions[n.id] = n.position; });
       onPositionsChange(positions);
     }
   }, [nodes, edges, setNodes, setEdges, reactFlowInstance, onPositionsChange]);
 
-  // Handle drop from sidebar palette
+  // Handle drop from sidebar
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
@@ -1281,7 +1149,6 @@ function VisualTeamEditorInner({
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-
       const raw = e.dataTransfer.getData("application/kiln-workflow-node");
       if (!raw) return;
 
@@ -1296,7 +1163,6 @@ function VisualTeamEditorInner({
           defaultConfig: Record<string, unknown>;
         };
 
-        // Convert screen coordinates to flow position
         const bounds = reactFlowWrapper.current?.getBoundingClientRect();
         if (!bounds) return;
 
@@ -1306,8 +1172,6 @@ function VisualTeamEditorInner({
         });
 
         const wfNode = createWorkflowNode(payload.type, position);
-
-        // Add the React Flow node immediately
         const def = WORKFLOW_NODE_DEFINITIONS.find((d) => d.type === payload.type);
         if (!def) return;
 
@@ -1327,7 +1191,6 @@ function VisualTeamEditorInner({
 
         setNodes((nds) => [...nds, newFlowNode]);
 
-        // Notify parent about new workflow node
         if (onWorkflowNodesChange) {
           const currentWfNodes = wfNodes || [];
           onWorkflowNodesChange([
@@ -1345,16 +1208,16 @@ function VisualTeamEditorInner({
   // Empty state
   if (members.length === 0 && (!wfNodes || wfNodes.length === 0)) {
     return (
-      <div className="relative h-full w-full">
+      <div className="relative h-full w-full bg-[#141418]">
         <NodePaletteSidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
         <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-4 py-16">
-          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-orange-500/10">
-            <Sparkles className="h-10 w-10 text-orange-500/50" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#262630] border border-[#363644]">
+            <Sparkles className="h-8 w-8 text-orange-500/40" />
           </div>
-          <p className="text-sm text-zinc-400">Drag nodes from the palette to build your workflow</p>
+          <p className="text-sm text-zinc-500">Drag nodes from the palette to build your workflow</p>
         </div>
       </div>
     );
@@ -1384,15 +1247,11 @@ function VisualTeamEditorInner({
         minZoom={0.15}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
-        className="bg-[#0C0A09]"
+        className="bg-[#141418]"
         connectionLineStyle={{ stroke: "#F97316", strokeWidth: 2, strokeDasharray: "5 3" }}
-        defaultEdgeOptions={{
-          type: "animated",
-          animated: true,
-        }}
+        defaultEdgeOptions={{ type: "animated", animated: true }}
         onNodeClick={(_event, node) => {
           if (node.id.startsWith("__fallback__")) return;
-          // Check if it's a workflow node
           if (node.type === "workflowNode") {
             const nd = node.data as WorkflowNodeData;
             onWorkflowNodeClick?.(node.id, nd.nodeType, nd.config);
@@ -1411,7 +1270,6 @@ function VisualTeamEditorInner({
           });
         }}
         onNodesDelete={(deletedNodes) => {
-          // Remove workflow nodes
           if (!onWorkflowNodesChange || !wfNodes) return;
           const deletedIds = new Set(deletedNodes.map((n) => n.id));
           const remaining = wfNodes.filter((n) => !deletedIds.has(n.id));
@@ -1422,36 +1280,42 @@ function VisualTeamEditorInner({
         snapToGrid
         snapGrid={[20, 20]}
       >
-        <Background color="#1c1917" gap={20} size={1} />
+        {/* Dot grid background — subtle like n8n/Figma */}
+        <Background
+          variant={BackgroundVariant.Dots}
+          color="#2a2a3a"
+          gap={20}
+          size={1}
+        />
 
         <MiniMap
           nodeColor={(node) => {
             if (node.type === "workflowNode") {
               const cat = (node.data as WorkflowNodeData)?.category;
-              return workflowNodeColors[cat]?.hex || "#52525b";
+              return workflowNodeColors[cat]?.hex || "#404050";
             }
             const role = (node.data as VisualNodeData)?.role;
-            return roleColors[role]?.hex || "#52525b";
+            return roleColors[role]?.hex || "#404050";
           }}
-          maskColor="rgba(0,0,0,0.75)"
-          className="!bg-zinc-900/90 !border-zinc-800 rounded-xl"
+          maskColor="rgba(10,10,18,0.8)"
+          className="!bg-[#1a1a24] !border-[#2a2a3a] rounded-xl"
           pannable
           zoomable
         />
 
         <Controls
-          className="!bg-zinc-900/90 !border-zinc-800 !rounded-xl !shadow-xl [&>button]:!bg-zinc-800 [&>button]:!border-zinc-700 [&>button]:!text-zinc-400 [&>button:hover]:!bg-zinc-700 [&>button:hover]:!text-zinc-200"
+          className="!bg-[#1a1a24] !border-[#2a2a3a] !rounded-xl !shadow-xl [&>button]:!bg-[#262630] [&>button]:!border-[#363644] [&>button]:!text-zinc-400 [&>button:hover]:!bg-[#2a2a3a] [&>button:hover]:!text-zinc-200"
           showInteractive={false}
         />
 
-        {/* Toolbar buttons */}
+        {/* Toolbar */}
         <Panel position="top-right" className="flex gap-2">
           {onVariablesClick && (
             <Button
               size="sm"
               variant="outline"
               onClick={onVariablesClick}
-              className="bg-zinc-900/90 border-zinc-700 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 shadow-lg"
+              className="bg-[#1a1a24] border-[#363644] text-zinc-400 hover:text-zinc-200 hover:bg-[#262630] shadow-md text-xs"
             >
               <Variable className="h-3.5 w-3.5 mr-1.5" />
               Variables
@@ -1461,7 +1325,7 @@ function VisualTeamEditorInner({
             size="sm"
             variant="outline"
             onClick={handleAutoLayout}
-            className="bg-zinc-900/90 border-zinc-700 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 shadow-lg"
+            className="bg-[#1a1a24] border-[#363644] text-zinc-400 hover:text-zinc-200 hover:bg-[#262630] shadow-md text-xs"
           >
             <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
             Auto Layout
@@ -1471,16 +1335,16 @@ function VisualTeamEditorInner({
         {/* Execution legend */}
         {executionSteps && executionSteps.length > 0 && (
           <Panel position="bottom-left" className="!mb-2 !ml-2">
-            <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl px-3 py-2 shadow-lg">
-              <p className="text-[9px] font-medium uppercase tracking-wider text-zinc-500 mb-1.5">Execution Status</p>
+            <div className="bg-[#1a1a24] border border-[#2a2a3a] rounded-xl px-3 py-2 shadow-lg">
+              <p className="text-[9px] font-medium uppercase tracking-wider text-zinc-600 mb-1.5">Status</p>
               <div className="flex items-center gap-3">
                 {[
-                  { status: "running", color: "bg-blue-400", label: "Running" },
-                  { status: "completed", color: "bg-green-400", label: "Done" },
-                  { status: "failed", color: "bg-red-400", label: "Failed" },
-                  { status: "pending", color: "bg-zinc-600", label: "Pending" },
+                  { color: "bg-blue-400", label: "Running" },
+                  { color: "bg-green-400", label: "Done" },
+                  { color: "bg-red-400", label: "Failed" },
+                  { color: "bg-zinc-600", label: "Pending" },
                 ].map((s) => (
-                  <div key={s.status} className="flex items-center gap-1">
+                  <div key={s.label} className="flex items-center gap-1">
                     <div className={cn("h-2 w-2 rounded-full", s.color)} />
                     <span className="text-[10px] text-zinc-500">{s.label}</span>
                   </div>

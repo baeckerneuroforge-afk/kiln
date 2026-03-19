@@ -107,15 +107,15 @@ function StatCard({
   return (
     <div
       className={cn(
-        "rounded-xl border border-white/5 bg-card/80 backdrop-blur-sm p-4",
+        "rounded-xl border border-white/[0.06] bg-card/80 backdrop-blur-sm px-5 py-5",
         "transition-all duration-300 hover:border-white/10"
       )}
     >
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-foreground">
+      <p className="text-3xl font-bold tracking-tight text-white">
         {prefix}
         {displayed.toLocaleString("de-DE")}
       </p>
+      <p className="mt-1.5 text-sm text-muted-foreground">{label}</p>
     </div>
   );
 }
@@ -173,96 +173,78 @@ export default function DashboardPage() {
 
   return (
     <div className="relative mx-auto max-w-5xl">
-      {/* Subtiler radialer Gradient-Hintergrund */}
-      <div
-        className="pointer-events-none fixed inset-0 -z-10"
-        aria-hidden="true"
-      >
-        <div className="absolute left-1/2 top-0 -translate-x-1/2 h-[600px] w-[900px] rounded-full bg-kiln-orange/[0.03] blur-[120px]" />
-        <div className="absolute right-0 top-1/3 h-[400px] w-[500px] rounded-full bg-kiln-blue/[0.02] blur-[100px]" />
-        <div className="absolute left-0 bottom-0 h-[300px] w-[400px] rounded-full bg-kiln-green/[0.02] blur-[100px]" />
-      </div>
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="font-serif text-3xl text-foreground">
+      <div className="mb-10">
+        <h1 className="font-serif text-3xl font-normal text-white/90">
           {greeting}
           {firstName ? `, ${firstName}` : ""}
         </h1>
-        <p className="mt-2 text-muted-foreground">
+        <p className="mt-2 text-sm text-muted-foreground">
           Create AI Agents, Websites & Workflows — all in one place.
         </p>
       </div>
 
-      <div className="mb-8">
+      <div className="mb-10">
         <GettingStartedSection />
       </div>
 
       {/* Module Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-3">
         {modules.map((mod) => (
           <Link
             key={mod.title}
             href={mod.href}
             className={cn(
               "group relative overflow-hidden rounded-xl border bg-card p-6",
-              "transition-all duration-300 ease-out",
-              "hover:-translate-y-1 hover:shadow-xl",
+              "transition-all duration-200 ease-out",
+              "hover:-translate-y-0.5 hover:shadow-lg",
               mod.borderColor,
               mod.hoverBorder,
-              mod.hoverShadow,
-              !mod.active && "opacity-60"
+              !mod.active && "opacity-50"
             )}
           >
-            {/* Gradient Hintergrund */}
-            <div
-              className={cn(
-                "absolute inset-0 bg-gradient-to-br opacity-50",
-                mod.color
-              )}
-            />
-
-            <div className="relative">
-              <div className="mb-4 flex items-center justify-between">
-                <mod.icon className={cn("h-8 w-8", mod.iconColor)} />
-                {!mod.active && (
-                  <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                    Coming Soon
-                  </span>
-                )}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.04]">
+                <mod.icon className={cn("h-5 w-5", mod.iconColor)} />
               </div>
-              <h2 className="mb-1 text-lg font-semibold text-foreground">
-                {mod.title}
-              </h2>
-              <p className="mb-4 text-sm text-muted-foreground">
-                {mod.description}
-              </p>
-              {mod.active && (
-                <div className="flex items-center gap-1 text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
-                  Start
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </div>
+              {!mod.active && (
+                <span className="rounded-full border border-white/[0.06] px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                  Coming Soon
+                </span>
               )}
             </div>
+            <h2 className="mb-1 text-base font-semibold text-white">
+              {mod.title}
+            </h2>
+            <p className="mb-4 text-sm text-muted-foreground leading-relaxed">
+              {mod.description}
+            </p>
+            {mod.active && (
+              <div className="flex items-center gap-1 text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
+                Start
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </div>
+            )}
           </Link>
         ))}
       </div>
 
       {/* Quick Start */}
-      <div className="mt-8">
-        <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-muted-foreground">
+      <div className="mt-10">
+        <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Quick Start
         </h2>
         <QuickStartSection />
       </div>
 
       {/* Recent Activity */}
-      <div className="mt-8">
+      <div className="mt-10">
         <RecentActivityFeed />
       </div>
 
       {/* Stats */}
-      <div className="mt-8">
+      <div className="mt-10">
         {statsLoading ? (
           <div className="grid gap-4 md:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (

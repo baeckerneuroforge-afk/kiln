@@ -226,12 +226,12 @@ export default function AgentsPage() {
                     </span>
                   )}
                 </div>
-                <p className="mb-auto text-xs text-muted-foreground line-clamp-2 min-h-[2rem]">
+                <p className="mb-auto text-sm text-muted-foreground line-clamp-2 min-h-[2.5rem] leading-relaxed">
                   {agent.description || agent.welcomeMessage || "No description"}
                 </p>
 
                 {/* Stats Row */}
-                <div className="mt-4 flex items-center gap-3 border-t border-border pt-3 text-[11px] text-muted-foreground">
+                <div className="mt-4 flex items-center gap-3 border-t border-border pt-3 text-xs text-muted-foreground">
                   {agent.llmModel && (() => {
                     const modelDef = getModelDef(agent.llmModel!);
                     return modelDef ? (

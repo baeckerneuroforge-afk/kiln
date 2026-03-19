@@ -476,7 +476,7 @@ function ReviewStep({
                 {/* Agent Mode */}
                 <div>
                   <div className="flex gap-2 items-center">
-                    <span className="text-[10px] text-muted-foreground min-w-[60px]">Mode:</span>
+                    <span className="text-xs text-muted-foreground min-w-[60px]">Mode:</span>
                     <select
                       value={role.agentMode ?? "TASK"}
                       onChange={(e) => onUpdate(idx, "agentMode", e.target.value)}
@@ -486,11 +486,11 @@ function ReviewStep({
                       <option value="CHAT">Chat Agent</option>
                     </select>
                   </div>
-                  <p className="text-[9px] text-muted-foreground/60 mt-0.5 ml-[68px]">Task = autonomous. Chat = customer-facing only.</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 ml-[68px]">Task = autonomous. Chat = customer-facing only.</p>
                 </div>
                 {/* Provider + Model */}
                 <div className="flex gap-2 items-center">
-                  <span className="text-[10px] text-muted-foreground min-w-[60px]">Model:</span>
+                  <span className="text-xs text-muted-foreground min-w-[60px]">Model:</span>
                   <select
                     value={role.suggestedProvider ?? "ANTHROPIC"}
                     onChange={(e) => {
@@ -536,7 +536,7 @@ function ReviewStep({
                 />
                 {/* Reports to */}
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-muted-foreground min-w-[60px]">
+                  <span className="text-xs text-muted-foreground min-w-[60px]">
                     Reports to:
                   </span>
                   <select
@@ -767,7 +767,7 @@ function ManualStep2({
               <div className="px-3 pb-3 space-y-3 border-t border-border pt-3">
                 {/* Name */}
                 <div>
-                  <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Role Name <span className="text-kiln-orange">*</span>
                   </label>
                   <input
@@ -782,7 +782,7 @@ function ManualStep2({
                 {/* Role type + Agent mode */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Role Type
                     </label>
                     <select
@@ -797,7 +797,7 @@ function ManualStep2({
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Agent Type
                     </label>
                     <select
@@ -808,14 +808,14 @@ function ManualStep2({
                       <option value="TASK">Task Agent</option>
                       <option value="CHAT">Chat Agent</option>
                     </select>
-                    <p className="text-[9px] text-muted-foreground/60 mt-0.5">Task = autonomous. Chat = customer-facing only.</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Task = autonomous. Chat = customer-facing only.</p>
                   </div>
                 </div>
 
                 {/* Provider + Model */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       LLM Provider
                     </label>
                     <select
@@ -836,7 +836,7 @@ function ManualStep2({
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
                       Model
                     </label>
                     <select
@@ -856,7 +856,7 @@ function ManualStep2({
 
                 {/* Reports To */}
                 <div>
-                  <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Reports To
                   </label>
                   <select
@@ -877,7 +877,7 @@ function ManualStep2({
 
                 {/* System Prompt */}
                 <div>
-                  <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     System Prompt
                   </label>
                   <textarea
@@ -942,7 +942,7 @@ function ManualStep3({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                <label className="mb-1 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Trigger
                 </label>
                 <select
@@ -957,7 +957,7 @@ function ManualStep3({
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                <label className="mb-1 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Output
                 </label>
                 <select
@@ -976,7 +976,7 @@ function ManualStep3({
 
             {member.output === "NEXT_AGENT" && (
               <div>
-                <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                <label className="mb-1 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Pass to Agent
                 </label>
                 <select
@@ -998,7 +998,7 @@ function ManualStep3({
 
             {(member.output === "EMAIL" || member.output === "HTTP" || member.output === "WEBHOOK") && (
               <div>
-                <label className="mb-1 block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                <label className="mb-1 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   {member.output === "EMAIL" ? "Email Address" : "URL"}
                 </label>
                 <input
@@ -1016,7 +1016,7 @@ function ManualStep3({
 
       {chatAgents.length > 0 && taskAgents.length > 0 && (
         <div className="rounded-lg border border-border bg-muted/10 p-2.5">
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Chat Agents (no I/O config needed):{" "}
             {chatAgents.map((m) => m.name || "Unnamed").join(", ")}
           </p>
@@ -1819,7 +1819,7 @@ export default function TeamsPage() {
                 <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
                   {template.description}
                 </p>
-                <div className="mt-3 rounded-lg border border-border/70 bg-card/70 px-3 py-2 text-[11px] text-foreground/80">
+                <div className="mt-3 rounded-lg border border-border/70 bg-card/70 px-3 py-2 text-xs text-foreground/80">
                   {template.flow}
                 </div>
               </Link>

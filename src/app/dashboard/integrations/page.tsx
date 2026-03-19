@@ -28,7 +28,6 @@ import {
   Shield,
   ExternalLink,
   ArrowRight,
-  Clock,
   Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,6 +35,7 @@ import { useToast } from "@/components/toast";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { INTEGRATION_LOGOS } from "@/components/integration-logos";
 
 /* ---------- Types ---------- */
 interface IntegrationConnection {
@@ -144,8 +144,8 @@ function ConnectModal({
         <div className="p-6">
           {/* Header */}
           <div className="mb-6 flex items-center gap-4">
-            <div className={cn("flex h-12 w-12 items-center justify-center rounded-xl text-white shadow-lg", integration.color)}>
-              <integration.icon className="h-6 w-6" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.04]">
+              {INTEGRATION_LOGOS[integration.provider] ? (() => { const L = INTEGRATION_LOGOS[integration.provider]; return <L size={28} />; })() : <integration.icon className="h-6 w-6 text-muted-foreground" />}
             </div>
             <div>
               <h2 className="text-lg font-semibold text-foreground">Connect {integration.name}</h2>
@@ -599,13 +599,12 @@ export default function IntegrationsPage() {
           {categories.map((cat) => (
             <button key={cat} onClick={() => setActiveCategory(cat)}
               className={cn(
-                "relative rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                 activeCategory === cat
-                  ? "bg-kiln-orange/10 text-kiln-orange"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "border-kiln-orange/50 bg-kiln-orange/5 text-kiln-orange"
+                  : "border-white/[0.06] text-muted-foreground hover:border-white/10 hover:text-foreground"
               )}>
               {cat}
-              {activeCategory === cat && <div className="absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full bg-kiln-orange" />}
             </button>
           ))}
         </div>
@@ -620,16 +619,32 @@ export default function IntegrationsPage() {
               const provider = normalizeProvider(conn.provider);
               const catalog = integrationsCatalog.find((c) => c.provider === provider);
               const Icon = catalog?.icon || Plug;
-              const color = catalog?.color || "bg-muted-foreground";
-              const accent = catalog?.accent || "border-t-muted-foreground";
               const enabledAgents = conn.agentIntegrations.filter((a) => a.enabled).length;
               const isGoogleCalendar = provider === "google_calendar";
 
+              const LogoComp = INTEGRATION_LOGOS[provider];
+
               return (
-                <div key={conn.id} className={cn("card-hover-lift group relative overflow-hidden rounded-xl border border-t-2 p-4 transition-all", accent, conn.isActive ? "bg-card" : "bg-card opacity-50")}>
+                <div key={conn.id} className={cn("card-hover-lift group relative overflow-hidden rounded-xl border border-white/[0.06] p-4 transition-all", conn.isActive ? "bg-card" : "bg-card opacity-50")}>
                   <div className="mb-3 flex items-center justify-between">
-                    <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-md", color)}>
-                      <Icon className="h-5 w-5" />
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center">
+                        {LogoComp ? <LogoComp size={28} /> : <Icon className="h-7 w-7 text-muted-foreground" />}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-white truncate">{conn.name}</p>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          {conn.isActive ? (
+                            <span className="flex items-center gap-1.5 text-xs font-medium text-kiln-green">
+                              <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-kiln-green opacity-75" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-kiln-green" /></span>
+                              Connected
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground"><Circle className="h-1.5 w-1.5" /> Paused</span>
+                          )}
+                          {conn.isCustom && <span className="rounded bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-medium text-purple-400">Custom</span>}
+                        </div>
+                      </div>
                     </div>
                     <div className="flex items-center gap-1">
                       <button onClick={() => toggleActive(conn)} className="shrink-0">
@@ -643,19 +658,7 @@ export default function IntegrationsPage() {
                       </button>
                     </div>
                   </div>
-                  <p className="text-sm font-semibold text-foreground">{conn.name}</p>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    {conn.isActive ? (
-                      <span className="flex items-center gap-1.5 text-[10px] font-medium text-kiln-green">
-                        <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-kiln-green opacity-75" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-kiln-green" /></span>
-                        Connected
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Circle className="h-1.5 w-1.5" /> Paused</span>
-                    )}
-                    {conn.isCustom && <span className="rounded bg-purple-500/15 px-1.5 py-0.5 text-[9px] font-medium text-purple-400">Custom</span>}
-                  </div>
-                  <div className="mt-2.5 flex items-center gap-3 border-t border-border/40 pt-2 text-[10px] text-muted-foreground">
+                  <div className="flex items-center gap-3 border-t border-white/[0.04] pt-2.5 text-xs text-muted-foreground">
                     {enabledAgents > 0 && <span>{enabledAgents} agent{enabledAgents !== 1 ? "s" : ""}</span>}
                     {conn.lastSyncAt && <span>Synced {timeAgo(conn.lastSyncAt)}</span>}
                   </div>
@@ -722,30 +725,44 @@ export default function IntegrationsPage() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filteredCatalog.map((item) => {
           const isConnected = connectedProviders.has(item.provider);
           const isSubmitted = waitlistSubmitted.has(item.provider);
+          const LogoComp = INTEGRATION_LOGOS[item.provider];
           return (
-            <div key={item.provider} className={cn("relative overflow-hidden rounded-xl border border-t-2 p-4 transition-all", item.accent, isConnected ? "card-hover-lift bg-card" : "bg-card/60")}>
-              <div className="mb-3 flex items-center justify-between">
-                <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-md", item.color, !isConnected && "opacity-70")}>
-                  <item.icon className="h-5 w-5" />
+            <div key={item.provider} className="relative flex min-h-[140px] flex-col overflow-hidden rounded-xl border border-white/[0.06] bg-card/60 p-4 transition-all hover:border-white/[0.1] hover:bg-card">
+              {/* Top row: logo + name + badge */}
+              <div className="mb-3 flex items-start gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center">
+                  {LogoComp ? <LogoComp size={28} /> : <item.icon className="h-6 w-6 text-muted-foreground" />}
                 </div>
-                {isConnected ? (
-                  <span className="flex items-center gap-1.5 rounded-full bg-kiln-green/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-green">
-                    <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-kiln-green opacity-75" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-kiln-green" /></span>
-                    Connected
-                  </span>
-                ) : item.provider === "telegram" || item.provider === "whatsapp-business" || item.provider === "stripe" || item.provider === "airtable" || item.provider === "calendly" ? (
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-semibold text-white">{item.name}</p>
+                    {isConnected ? (
+                      <span className="flex shrink-0 items-center gap-1 rounded-full bg-kiln-green/10 px-2 py-0.5 text-[10px] font-semibold text-kiln-green">
+                        <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-kiln-green opacity-75" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-kiln-green" /></span>
+                        Connected
+                      </span>
+                    ) : availabilityMap[item.provider]?.available === false && item.provider !== "telegram" && item.provider !== "whatsapp-business" && item.provider !== "stripe" && item.provider !== "airtable" && item.provider !== "calendly" ? (
+                      <span className="flex shrink-0 items-center gap-1 rounded-full border border-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        Coming Soon
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-0.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{item.description}</p>
+                </div>
+              </div>
+              {/* Action area — pushed to bottom */}
+              <div className="mt-auto pt-3">
+                {isConnected ? null : (item.provider === "telegram" || item.provider === "whatsapp-business" || item.provider === "stripe" || item.provider === "airtable" || item.provider === "calendly") ? (
                   <button
-                    onClick={() => {
-                      window.location.href = "/dashboard/agents";
-                    }}
-                    className="flex items-center gap-1 rounded-full bg-kiln-orange/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-orange transition-colors hover:bg-kiln-orange/20"
+                    onClick={() => { window.location.href = "/dashboard/agents"; }}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/[0.06] px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-white/[0.12] hover:text-white"
                   >
-                    <ArrowRight className="h-2.5 w-2.5" />
-                    Configure
+                    <ArrowRight className="h-3 w-3" />
+                    Configure in Agent
                   </button>
                 ) : availabilityMap[item.provider]?.available !== false ? (
                   <button
@@ -759,160 +776,51 @@ export default function IntegrationsPage() {
                       else if (item.provider === "notion") window.location.href = `/api/integrations/notion/auth`;
                       else if (item.provider === "zapier" || item.provider === "make") setConnectingProvider(item);
                     }}
-                    className="flex items-center gap-1 rounded-full bg-kiln-orange/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-orange transition-colors hover:bg-kiln-orange/20"
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/[0.06] px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-kiln-orange/40 hover:text-kiln-orange"
                   >
-                    <Plug className="h-2.5 w-2.5" />
+                    <Plug className="h-3 w-3" />
                     Connect
                   </button>
                 ) : (
-                  <span className="flex items-center gap-1 rounded-full bg-kiln-blue/10 px-2.5 py-1 text-[10px] font-semibold text-kiln-blue">
-                    <Clock className="h-2.5 w-2.5" />
-                    Coming Soon
-                  </span>
+                  isSubmitted ? (
+                    <div className="flex items-center justify-center gap-1.5 rounded-lg border border-kiln-green/20 px-3 py-2 text-xs font-medium text-kiln-green">
+                      <Bell className="h-3 w-3" />
+                      We&apos;ll notify you!
+                    </div>
+                  ) : (
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        const email = waitlistEmail[item.provider]?.trim();
+                        if (!email) return;
+                        try {
+                          await fetch("/api/waitlist", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ email, source: `integration-${item.provider}` }),
+                          });
+                        } catch { /* silent */ }
+                        setWaitlistSubmitted((prev) => new Set(prev).add(item.provider));
+                      }}
+                      className="flex gap-1.5"
+                    >
+                      <input
+                        type="email"
+                        placeholder="Your email"
+                        value={waitlistEmail[item.provider] || ""}
+                        onChange={(e) => setWaitlistEmail((prev) => ({ ...prev, [item.provider]: e.target.value }))}
+                        className="flex-1 min-w-0 rounded-lg border border-white/[0.06] bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:border-kiln-orange focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        className="shrink-0 rounded-lg border border-white/[0.06] px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      >
+                        Notify
+                      </button>
+                    </form>
+                  )
                 )}
               </div>
-              <p className="text-sm font-semibold text-foreground">{item.name}</p>
-              <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.description}</p>
-              <span className="mt-2 inline-block rounded-full bg-muted px-2 py-0.5 text-[9px] font-medium text-muted-foreground">{item.category}</span>
-              {!isConnected && availabilityMap[item.provider]?.available !== false && item.provider === "github" && (
-                <button
-                  onClick={() => openGitHubModal()}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-kiln-orange px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-kiln-orange/90"
-                >
-                  <GitBranch className="h-3.5 w-3.5" />
-                  Connect Repository
-                </button>
-              )}
-              {!isConnected && availabilityMap[item.provider]?.available !== false && item.provider === "google_calendar" && (
-                <>
-                  <button
-                    onClick={connectGoogleCalendar}
-                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-500/90"
-                  >
-                    <Calendar className="h-3.5 w-3.5" />
-                    Connect Google Calendar
-                  </button>
-                </>
-              )}
-              {!isConnected && availabilityMap[item.provider]?.available !== false && item.provider === "gmail" && (
-                <button
-                  onClick={() => {
-                    window.location.href = `/api/integrations/gmail/auth?redirectTo=/dashboard/integrations`;
-                  }}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-red-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-red-500/90"
-                >
-                  <Mail className="h-3.5 w-3.5" />
-                  Connect Gmail
-                </button>
-              )}
-              {!isConnected && availabilityMap[item.provider]?.available !== false && item.provider === "google-sheets" && (
-                <button
-                  onClick={() => {
-                    window.location.href = `/api/integrations/google-sheets/auth?redirectTo=/dashboard/integrations`;
-                  }}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-emerald-500/90"
-                >
-                  <Database className="h-3.5 w-3.5" />
-                  Connect Google Sheets
-                </button>
-              )}
-              {!isConnected && availabilityMap[item.provider]?.available !== false && item.provider === "hubspot" && (
-                <button
-                  onClick={() => {
-                    window.location.href = `/api/integrations/hubspot/auth?redirectTo=/dashboard/integrations`;
-                  }}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-orange-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-orange-500/90"
-                >
-                  <BarChart3 className="h-3.5 w-3.5" />
-                  Connect HubSpot
-                </button>
-              )}
-              {!isConnected && availabilityMap[item.provider]?.available !== false && item.provider === "slack" && (
-                <button
-                  onClick={() => {
-                    window.location.href = `/api/integrations/slack/auth`;
-                  }}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-purple-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-purple-500/90"
-                >
-                  <MessageSquare className="h-3.5 w-3.5" />
-                  Connect Workspace
-                </button>
-              )}
-              {!isConnected && availabilityMap[item.provider]?.available !== false && item.provider === "notion" && (
-                <button
-                  onClick={() => {
-                    window.location.href = `/api/integrations/notion/auth`;
-                  }}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-neutral-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-neutral-600/90"
-                >
-                  <FileText className="h-3.5 w-3.5" />
-                  Connect Notion
-                </button>
-              )}
-              {!isConnected && (item.provider === "telegram" || item.provider === "whatsapp-business" || item.provider === "stripe" || item.provider === "airtable" || item.provider === "calendly") && (
-                <button
-                  onClick={() => {
-                    window.location.href = "/dashboard/agents";
-                  }}
-                  className={cn(
-                    "mt-3 flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-white transition-colors",
-                    item.provider === "telegram"
-                      ? "bg-sky-500 hover:bg-sky-500/90"
-                      : item.provider === "whatsapp-business"
-                        ? "bg-green-500 hover:bg-green-500/90"
-                        : item.provider === "airtable"
-                          ? "bg-teal-500 hover:bg-teal-500/90"
-                          : item.provider === "calendly"
-                            ? "bg-blue-500 hover:bg-blue-500/90"
-                            : "bg-violet-500 hover:bg-violet-500/90"
-                  )}
-                >
-                  <ArrowRight className="h-3.5 w-3.5" />
-                  Configure in Agent
-                </button>
-              )}
-              {!isConnected && availabilityMap[item.provider]?.note && availabilityMap[item.provider]?.available !== false && (
-                <p className="mt-2 text-[10px] text-muted-foreground/60">{availabilityMap[item.provider].note}</p>
-              )}
-              {!isConnected && item.provider !== "telegram" && item.provider !== "whatsapp-business" && item.provider !== "stripe" && item.provider !== "airtable" && item.provider !== "calendly" && availabilityMap[item.provider]?.available === false && (
-                isSubmitted ? (
-                  <div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-kiln-green/30 bg-kiln-green/5 px-3 py-2 text-xs font-medium text-kiln-green">
-                    <Bell className="h-3.5 w-3.5" />
-                    We&apos;ll notify you!
-                  </div>
-                ) : (
-                  <form
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      const email = waitlistEmail[item.provider]?.trim();
-                      if (!email) return;
-                      try {
-                        await fetch("/api/waitlist", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ email, source: `integration-${item.provider}` }),
-                        });
-                      } catch { /* silent */ }
-                      setWaitlistSubmitted((prev) => new Set(prev).add(item.provider));
-                    }}
-                    className="mt-3 flex gap-1.5"
-                  >
-                    <input
-                      type="email"
-                      placeholder={`Get notified when ${item.name} is available`}
-                      value={waitlistEmail[item.provider] || ""}
-                      onChange={(e) => setWaitlistEmail((prev) => ({ ...prev, [item.provider]: e.target.value }))}
-                      className="flex-1 min-w-0 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[11px] text-foreground placeholder:text-muted-foreground/40 focus:border-kiln-orange focus:outline-none"
-                    />
-                    <button
-                      type="submit"
-                      className="shrink-0 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      Notify me
-                    </button>
-                  </form>
-                )
-              )}
             </div>
           );
         })}
@@ -943,8 +851,8 @@ export default function IntegrationsPage() {
 
             <div className="p-6">
               <div className="mb-6 flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-600 text-white shadow-lg">
-                  <GitBranch className="h-6 w-6" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.04]">
+                  {INTEGRATION_LOGOS["github"] ? (() => { const L = INTEGRATION_LOGOS["github"]; return <L size={28} />; })() : <GitBranch className="h-6 w-6 text-muted-foreground" />}
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">Connect GitHub</h2>

@@ -336,7 +336,7 @@ export default function ConversationsPage() {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-card">
-        <div className="hidden grid-cols-[1.25fr,1.15fr,2fr,0.8fr,1.2fr,1fr,0.9fr] gap-4 border-b border-border px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground lg:grid">
+        <div className="hidden grid-cols-[1.25fr,1.15fr,2fr,0.8fr,1.2fr,1fr,0.9fr] gap-4 border-b border-border px-5 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground lg:grid">
           <span>Agent</span>
           <span>Visitor</span>
           <span>First Message</span>

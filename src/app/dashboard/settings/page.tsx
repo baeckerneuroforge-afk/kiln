@@ -900,8 +900,8 @@ function SettingsContent() {
                   <AlertTriangle className="h-4 w-4 shrink-0 text-red-400" />
                   <p className="flex-1 text-xs text-red-400">Your AI credits are exhausted. Agents cannot respond.</p>
                   <div className="flex gap-2">
-                    <Button size="sm" className="h-7 text-[11px]" onClick={() => purchaseCredits("credits_500")}>Buy Credits</Button>
-                    <Link href="/dashboard/settings?tab=api-keys"><Button size="sm" variant="outline" className="h-7 text-[11px]">Add API Key</Button></Link>
+                    <Button size="sm" className="h-7 text-xs" onClick={() => purchaseCredits("credits_500")}>Buy Credits</Button>
+                    <Link href="/dashboard/settings?tab=api-keys"><Button size="sm" variant="outline" className="h-7 text-xs">Add API Key</Button></Link>
                   </div>
                 </div>
               )}
@@ -909,7 +909,7 @@ function SettingsContent() {
                 <div className="mb-4 flex items-center gap-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3">
                   <AlertTriangle className="h-4 w-4 shrink-0 text-red-400" />
                   <p className="flex-1 text-xs text-red-400">Critical: Only {creditInfo.balance} credits remaining.</p>
-                  <Button size="sm" className="h-7 text-[11px]" onClick={() => purchaseCredits("credits_500")}>Buy Credits</Button>
+                  <Button size="sm" className="h-7 text-xs" onClick={() => purchaseCredits("credits_500")}>Buy Credits</Button>
                 </div>
               )}
               {!creditInfo.isAdmin && creditInfo.balance > 0 && creditInfo.balance / creditInfo.totalCredits > 0.05 && creditInfo.balance / creditInfo.totalCredits <= 0.2 && (
@@ -1090,17 +1090,17 @@ function SettingsContent() {
                       <h3 className="text-sm font-semibold text-foreground">{plan.name}</h3>
                       <div className="mt-1 flex items-baseline gap-0.5">
                         <span className="text-xl font-bold text-foreground">{plan.isCustom ? "Custom" : displayPrice}</span>
-                        {!plan.isCustom && plan.monthlyPrice > 0 && <span className="text-[10px] text-muted-foreground">/mo</span>}
+                        {!plan.isCustom && plan.monthlyPrice > 0 && <span className="text-xs text-muted-foreground">/mo</span>}
                       </div>
                       {!plan.isCustom && billingAnnual && plan.monthlyPrice > 0 && (
-                        <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        <p className="mt-0.5 text-xs text-muted-foreground">
                           <span className="line-through">€{plan.monthlyPrice}</span>{" "}
                           <span className="text-[#22C55E]">€{plan.yearlyPrice}/yr</span>
                         </p>
                       )}
                       <ul className="mt-3 flex-1 space-y-1.5">
                         {plan.features.map((feature) => (
-                          <li key={feature} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                          <li key={feature} className="flex items-start gap-1.5 text-xs text-muted-foreground">
                             <Check className="mt-0.5 h-3 w-3 shrink-0 text-kiln-orange" />
                             {feature}
                           </li>
@@ -1401,7 +1401,7 @@ function SettingsContent() {
                               </span>
                             )}
                           </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
+                          <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                             <span className="font-mono">{key.keyPrefix}</span>
                             <span>Created {new Date(key.createdAt).toLocaleDateString()}</span>
                             {key.lastUsed && <span>Last used {new Date(key.lastUsed).toLocaleDateString()}</span>}
@@ -1409,12 +1409,12 @@ function SettingsContent() {
                           </div>
                           <div className="mt-2 flex flex-wrap gap-1">
                             {key.scopes.map((scope) => (
-                              <span key={`${key.id}-${scope}`} className="rounded-full border border-border bg-card px-2 py-0.5 text-[10px] text-muted-foreground">
+                              <span key={`${key.id}-${scope}`} className="rounded-full border border-border bg-card px-2 py-0.5 text-xs text-muted-foreground">
                                 {scope}
                               </span>
                             ))}
                           </div>
-                          <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+                          <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                             <span>{key.usage.requests7d} requests / 7d</span>
                             <span>{key.usage.requests30d} requests / 30d</span>
                             <span>
