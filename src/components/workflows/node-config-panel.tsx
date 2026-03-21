@@ -63,6 +63,8 @@ import {
   ParallelSplitConfig,
   ParallelMergeConfig,
 } from "./node-configs/advanced-configs";
+import { DiffDetectionConfig } from "./nodes/diff-detection-node";
+import { MultiSiteConfig } from "./nodes/multi-site-node";
 
 // Icon mapping
 import {
@@ -276,6 +278,8 @@ export function NodeConfigPanel({
               {nodeType === "agent_swarm" && <AgentSwarmConfig config={config} onChange={setConfig} />}
               {nodeType === "parallel_split" && <ParallelSplitConfig config={config} onChange={setConfig} />}
               {nodeType === "parallel_merge" && <ParallelMergeConfig config={config} onChange={setConfig} />}
+              {nodeType === "diff_detection" && <DiffDetectionConfig config={config} onChange={setConfig} />}
+              {nodeType === "multi_site" && <MultiSiteConfig config={config} onChange={setConfig} />}
             </>
           )}
 

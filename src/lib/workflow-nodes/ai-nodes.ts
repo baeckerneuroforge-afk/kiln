@@ -11,6 +11,8 @@ import type { ActionNodeResult } from "./action-nodes";
 import { executeComputerUse } from "./computer-use-node";
 import { executeDeepResearch } from "./deep-research-node";
 import { executeCodeSandbox } from "./code-sandbox-node";
+import { executeDiffDetection } from "./diff-detection-node";
+import { executeMultiSite } from "./multi-site-node";
 
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 
@@ -225,6 +227,10 @@ export async function executeAiNode(
       return executeDeepResearch(config, context);
     case "code_sandbox":
       return executeCodeSandbox(config, context);
+    case "diff_detection":
+      return executeDiffDetection(config, context);
+    case "multi_site":
+      return executeMultiSite(config, context);
     default:
       throw new Error(`Unbekannter AI-Node-Typ: ${nodeType}`);
   }

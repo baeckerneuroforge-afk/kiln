@@ -49,6 +49,8 @@ export type WorkflowNodeType =
   | "computer_use"
   | "deep_research"
   | "code_sandbox"
+  | "diff_detection"
+  | "multi_site"
   // A2A
   | "a2a_call"
   // Goal & Sub-Agent
@@ -463,6 +465,42 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       packages: [],
       timeoutMs: 600000,
       resultKey: "codeSandboxResult",
+    },
+  },
+
+  // Diff Detection
+  {
+    type: "diff_detection",
+    label: "Diff Detection",
+    description: "Monitors websites for changes — detects price changes, new content, removed items",
+    category: "ai_tools",
+    icon: "Eye",
+    color: "#3B82F6",
+    defaultConfig: {
+      urls: [],
+      sensitivity: "important_only",
+      compareWith: "previous",
+      continueIfNoChanges: true,
+      resultKey: "diffResults",
+    },
+  },
+  // Multi-Site
+  {
+    type: "multi_site",
+    label: "Multi-Site",
+    description: "Runs the same task on multiple websites in parallel and merges results",
+    category: "ai_tools",
+    icon: "Globe",
+    color: "#14B8A6",
+    defaultConfig: {
+      urls: [],
+      taskPerSite: "",
+      preset: "custom",
+      mergeStrategy: "aggregate",
+      outputFormat: "json",
+      maxParallel: 3,
+      timeoutPerSite: 60,
+      resultKey: "multiSiteResults",
     },
   },
 

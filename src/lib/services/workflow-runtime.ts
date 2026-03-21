@@ -196,6 +196,8 @@ const NODE_CATEGORIES: Record<string, string> = {
   agent_swarm: "swarm",
   parallel_split: "parallel",
   parallel_merge: "parallel",
+  diff_detection: "ai_tool",
+  multi_site: "ai_tool",
 };
 
 const MAX_SUB_WORKFLOW_DEPTH = 5;

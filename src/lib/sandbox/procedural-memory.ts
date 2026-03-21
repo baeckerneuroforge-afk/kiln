@@ -16,12 +16,17 @@ export interface ProcedureStep {
   notes?: string;
 }
 
+export type ProcedureSource = "manual" | "auto_extracted" | "watch_learn";
+
 export interface StoredProcedure {
   id: string;
   agentId: string;
   domain: string;
   taskType: string;
   procedure: ProcedureStep[];
+  source: ProcedureSource;
+  confidence: number;
+  videoSessionId?: string | null;
   successRate: number;
   timesUsed: number;
   lastUsedAt: Date;
@@ -100,6 +105,9 @@ export async function findProcedure(
       domain: record.domain,
       taskType: record.taskType,
       procedure: record.procedure as unknown as ProcedureStep[],
+      source: (record.source || "auto_extracted") as ProcedureSource,
+      confidence: record.confidence ?? 1.0,
+      videoSessionId: record.videoSessionId,
       successRate: record.successRate,
       timesUsed: record.timesUsed,
       lastUsedAt: record.lastUsedAt,
@@ -229,7 +237,10 @@ export function procedureToPromptHint(procedure: StoredProcedure): string {
     })
     .join("\n");
 
-  return `\n\nBEKANNTE PROZEDUR für ${procedure.domain} (Erfolgsrate: ${Math.round(procedure.successRate * 100)}%, ${procedure.timesUsed}× verwendet):\n${steps}\n\nVersuche diese Schritte zuerst. Weiche nur ab wenn nötig.`;
+  const sourceLabel = procedure.source === "watch_learn" ? "Watch & Learn" : procedure.source === "manual" ? "Manuell" : "Auto-erkannt";
+  const confidenceLabel = procedure.confidence < 0.8 ? " (niedrige Konfidenz — prüfe jeden Schritt)" : "";
+
+  return `\n\nBEKANNTE PROZEDUR für ${procedure.domain} (${sourceLabel}, Erfolgsrate: ${Math.round(procedure.successRate * 100)}%, ${procedure.timesUsed}× verwendet${confidenceLabel}):\n${steps}\n\nVersuche diese Schritte zuerst. Weiche nur ab wenn nötig.`;
 }
 
 /**
@@ -249,6 +260,9 @@ export async function listProcedures(agentId: string): Promise<StoredProcedure[]
       domain: r.domain,
       taskType: r.taskType,
       procedure: r.procedure as unknown as ProcedureStep[],
+      source: (r.source || "auto_extracted") as ProcedureSource,
+      confidence: r.confidence ?? 1.0,
+      videoSessionId: r.videoSessionId,
       successRate: r.successRate,
       timesUsed: r.timesUsed,
       lastUsedAt: r.lastUsedAt,

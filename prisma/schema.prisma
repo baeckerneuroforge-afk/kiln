@@ -206,6 +206,8 @@ model Agent {
   credentials        AgentCredential[]
   codeSandboxSessions  CodeSandboxSession[]
   proceduralMemories   ProceduralMemory[]
+  watchLearnSessions   WatchLearnSession[]
+  apiDiscoveries       ApiDiscovery[]
   modelRoutingConfig   ModelRoutingConfig?
   costRecords          CostRecord[]
 
@@ -1413,13 +1415,140 @@ model ProceduralMemory {
   domain      String   // z.B. "competitor.com"
   taskType    String   // z.B. "price_extraction", "login_flow"
   procedure   Json     // [{ step, action, selector, target, fields, notes }]
+  source      String   @default("auto_extracted") // "manual" | "auto_extracted" | "watch_learn"
+  confidence  Float    @default(1.0)
+  videoSessionId String? // Links to WatchLearnSession if source = "watch_learn"
   successRate Float    @default(0)
   timesUsed   Int      @default(0)
   lastUsedAt  DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  watchLearnSession WatchLearnSession? @relation(fields: [videoSessionId], references: [id])
+
   @@unique([agentId, domain, taskType])
   @@index([agentId])
   @@index([agentId, domain])
+}
+
+// ═══ Watch & Learn — Screen Recording to Agent ═══
+
+model WatchLearnSession {
+  id                 String   @id @default(cuid())
+  agentId            String
+  agent              Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  userId             String
+  videoUrl           String?  // Supabase Storage URL
+  status             String   @default("UPLOADING") // UPLOADING | EXTRACTING | ANALYZING | GENERATING | COMPLETED | FAILED
+  taskDescription    String?
+  frameCount         Int      @default(0)
+  framesAnalyzed     Int      @default(0)
+  extractedSteps     Json?    // [{ stepNumber, action, target, url, dataExtracted?, reasoning }]
+  generatedProcedure Json?    // ProceduralMemory-compatible procedure
+  proceduralMemoryId String?
+  errorMessage       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  proceduralMemories ProceduralMemory[]
+
+  @@index([agentId])
+  @@index([userId])
+}
+
+// ═══ API Autodiscovery — Agent reads docs, builds integration ═══
+
+model ApiDiscovery {
+  id               String   @id @default(cuid())
+  agentId          String
+  agent            Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  userId           String
+  serviceName      String
+  docsUrl          String?
+  status           String   @default("SEARCHING") // SEARCHING | READING_DOCS | GENERATING | TESTING | COMPLETED | FAILED
+  apiSpec          Json?    // { serviceName, baseUrl, auth, endpoints[] }
+  generatedCode    String?  @db.Text // TypeScript integration code
+  toolDefinitions  Json?    // KILN agent tool definitions
+  testResults      Json?    // { endpoint, success, response }[]
+  isActivated      Boolean  @default(false)
+  errorMessage     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([agentId])
+  @@index([userId])
+}
+
+// Diff Detection — Website Change Monitoring Snapshots
+model DiffSnapshot {
+  id              String   @id @default(cuid())
+  agentId         String
+  url             String
+  screenshotUrl   String?
+  htmlContentHash String
+  capturedAt      DateTime @default(now())
+
+  changesBefore   DiffChange[] @relation("SnapshotBefore")
+  changesAfter    DiffChange[] @relation("SnapshotAfter")
+
+  @@index([agentId, url])
+  @@index([agentId, url, capturedAt])
+}
+
+// Diff Detection — Tracked URLs for ongoing monitoring
+model DiffTracker {
+  id                    String    @id @default(cuid())
+  agentId               String
+  url                   String
+  schedule              String
+  sensitivity           String    @default("important_only")
+  isActive              Boolean   @default(true)
+  lastCheckedAt         DateTime?
+  lastChangeDetectedAt  DateTime?
+  notifyVia             Json?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  changes               DiffChange[]
+
+  @@unique([agentId, url])
+  @@index([agentId])
+  @@index([isActive])
+}
+
+// Diff Detection — Detected Changes
+model DiffChange {
+  id               String        @id @default(cuid())
+  diffTrackerId    String
+  diffTracker      DiffTracker   @relation(fields: [diffTrackerId], references: [id], onDelete: Cascade)
+  snapshotBeforeId String?
+  snapshotBefore   DiffSnapshot? @relation("SnapshotBefore", fields: [snapshotBeforeId], references: [id])
+  snapshotAfterId  String
+  snapshotAfter    DiffSnapshot  @relation("SnapshotAfter", fields: [snapshotAfterId], references: [id])
+  changes          Json
+  summary          String        @db.Text
+  importance       String        @default("medium")
+  detectedAt       DateTime      @default(now())
+
+  @@index([diffTrackerId])
+  @@index([detectedAt])
+}
+
+// Multi-Site Orchestration — Parallel website processing
+model MultiSiteExecution {
+  id              String    @id @default(cuid())
+  agentId         String
+  workflowRunId   String?
+  urls            Json
+  taskPerSite     String    @db.Text
+  mergeStrategy   String    @default("compare_and_rank")
+  status          String    @default("running")
+  perSiteResults  Json?
+  mergedResult    Json?
+  artifactUrl     String?
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+
+  @@index([agentId])
+  @@index([status])
 }
