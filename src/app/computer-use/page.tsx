@@ -314,18 +314,22 @@ export default function ComputerUsePage() {
 
   const pricingTeaser = [
     {
-      name: "Starter", price: "Free", period: "forever",
-      features: ["1 Computer Use agent", "50 AI credits/mo", "Basic browser control", "Manual triggers only"],
+      name: "Starter", price: "\u20AC39", period: "/mo",
+      subtitle: "Agent Teams & Workflows",
+      features: ["3 Agents", "500 AI credits/mo", "Agent Teams & Orchestration", "Workflow Editor + All Basic Nodes", "Reasoning Log"],
+      note: "Computer Use starts at Pro",
       highlight: false,
     },
     {
-      name: "Pro", price: "\u20AC39", period: "/mo",
-      features: ["Unlimited agents", "2,500 AI credits/mo", "Parallel execution", "Scheduled workflows", "Watch & Learn", "Proof of Work PDFs"],
+      name: "Pro", price: "\u20AC99", period: "/mo",
+      subtitle: "Computer Use Pro",
+      features: ["10 Agents", "2,000 AI credits/mo", "Browser + Vision", "Code Sandbox", "Agent Swarm (5)", "100 Steps per Run", "Verification", "Diff Detection", "Proof of Work", "3 Scheduled Automations"],
       highlight: true,
     },
     {
-      name: "Business", price: "\u20AC149", period: "/mo",
-      features: ["Everything in Pro", "10,000 AI credits/mo", "Agent Swarm (20 parallel)", "API Autodiscovery", "Priority queue", "Custom branding"],
+      name: "Business", price: "\u20AC249", period: "/mo",
+      subtitle: "Computer Use Unlimited",
+      features: ["Unlimited Agents", "5,000 AI credits/mo", "Everything in Pro", "Agent Swarm (20)", "Multi-Site Orchestration", "Watch & Learn", "Agent builds Agents", "API Autodiscovery", "Zero-Config Wizard", "Procedural Memory", "Manual Model Routing", "Unlimited Schedules"],
       highlight: false,
     },
   ];
@@ -700,6 +704,9 @@ export default function ComputerUsePage() {
                     </div>
                   )}
                   <h3 className="text-base font-bold">{plan.name}</h3>
+                  {"subtitle" in plan && plan.subtitle && (
+                    <p className="mt-1 text-[11px] text-neutral-500">{plan.subtitle}</p>
+                  )}
                   <div className="mt-3 flex items-baseline gap-1">
                     <span className="text-3xl font-extrabold">{plan.price}</span>
                     <span className="text-xs text-neutral-500">{plan.period}</span>
@@ -712,6 +719,9 @@ export default function ComputerUsePage() {
                       </li>
                     ))}
                   </ul>
+                  {"note" in plan && plan.note && (
+                    <p className="mt-4 rounded-lg bg-white/[0.04] px-3 py-2 text-[11px] text-neutral-500">{plan.note}</p>
+                  )}
                 </div>
               </FadeIn>
             ))}
