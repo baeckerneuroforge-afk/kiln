@@ -12,13 +12,19 @@ export interface CostMeterEntry {
   inputTokens: number;
   outputTokens: number;
   costDollars: number;
+  creditsUsed: number;
 }
 
 interface LiveCostMeterProps {
+  totalCreditsUsed: number;
   totalCostDollars: number;
   breakdown: CostMeterEntry[];
-  budgetCapDollars?: number | null;
+  budgetCapCredits?: number | null;
   className?: string;
+}
+
+function formatCredits(credits: number): string {
+  return `${credits} Credits`;
 }
 
 function formatCost(dollars: number): string {
@@ -34,22 +40,22 @@ function formatTokens(tokens: number): string {
 
 function shortModelName(id: string): string {
   const map: Record<string, string> = {
-    "claude-opus-4-6": "Opus 4.6",
-    "claude-sonnet-4-6": "Sonnet 4.6",
+    "claude-opus-4-20250514": "Opus 4",
+    "claude-sonnet-4-20250514": "Sonnet 4",
     "claude-haiku-4-5-20251001": "Haiku 4.5",
-    "gpt-4.1": "GPT-4.1",
-    "gpt-4.1-mini": "GPT-4.1m",
+    "gpt-4o": "GPT-4o",
+    "gpt-4o-mini": "GPT-4o mini",
     "sonar-pro": "Sonar Pro",
     "gemini-2.5-pro": "Gemini 2.5",
   };
   return map[id] || id;
 }
 
-export function LiveCostMeter({ totalCostDollars, breakdown, budgetCapDollars, className }: LiveCostMeterProps) {
+export function LiveCostMeter({ totalCreditsUsed, totalCostDollars, breakdown, budgetCapCredits, className }: LiveCostMeterProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const percentUsed = budgetCapDollars && budgetCapDollars > 0
-    ? (totalCostDollars / budgetCapDollars) * 100
+  const percentUsed = budgetCapCredits && budgetCapCredits > 0
+    ? (totalCreditsUsed / budgetCapCredits) * 100
     : null;
 
   const colorClass =
@@ -78,14 +84,19 @@ export function LiveCostMeter({ totalCostDollars, breakdown, budgetCapDollars, c
         className="flex items-center gap-2 px-3 py-2 w-full text-left"
       >
         <Coins className={cn("h-3.5 w-3.5 shrink-0", colorClass)} />
+        {/* Credits als primäre Anzeige */}
         <span className={cn("text-xs font-medium tabular-nums", colorClass)}>
-          {formatCost(totalCostDollars)}
+          {formatCredits(totalCreditsUsed)}
         </span>
-        {budgetCapDollars && (
+        {budgetCapCredits && (
           <span className="text-[10px] text-zinc-600">
-            / {formatCost(budgetCapDollars)}
+            / {budgetCapCredits}
           </span>
         )}
+        {/* € als sekundäre Anzeige */}
+        <span className="text-[10px] text-zinc-600 ml-1">
+          ({formatCost(totalCostDollars)})
+        </span>
         {percentUsed !== null && (
           <div className="flex-1 mx-2 h-1.5 rounded-full bg-zinc-800 min-w-[40px]">
             <div
@@ -113,7 +124,8 @@ export function LiveCostMeter({ totalCostDollars, breakdown, budgetCapDollars, c
               <div className="flex items-center gap-3 text-zinc-500">
                 <span>{item.calls}x</span>
                 <span>{formatTokens(item.inputTokens + item.outputTokens)}</span>
-                <span className="text-zinc-300 font-medium">{formatCost(item.costDollars)}</span>
+                <span className="text-orange-400 font-medium">{item.creditsUsed} Cr</span>
+                <span className="text-zinc-600">{formatCost(item.costDollars)}</span>
               </div>
             </div>
           ))}

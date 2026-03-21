@@ -26,18 +26,21 @@ import { cn } from "@/lib/utils";
 interface AgentCostSummary {
   agentId: string;
   agentName: string;
+  creditsUsed: number;
   totalCostCents: number;
   callCount: number;
-  budgetCapCents: number | null;
+  budgetCapCredits: number | null;
   percentUsed: number | null;
 }
 
 interface CostDashboardData {
+  totalCreditsUsed: number;
   totalCostCents: number;
   totalCalls: number;
-  byModel: Record<string, { calls: number; costCents: number; inputTokens: number; outputTokens: number }>;
+  planCredits: { balance: number; total: number };
+  byModel: Record<string, { calls: number; creditsUsed: number; costCents: number; inputTokens: number; outputTokens: number }>;
   byAgent: AgentCostSummary[];
-  dailyCost: { date: string; costCents: number }[];
+  dailyCredits: { date: string; credits: number; costCents: number }[];
   savings: {
     actualCostCents: number;
     hypotheticalOpusCostCents: number;
@@ -55,11 +58,11 @@ function formatEuro(cents: number): string {
 
 function shortModelName(id: string): string {
   const map: Record<string, string> = {
-    "claude-opus-4-6": "Opus 4.6",
-    "claude-sonnet-4-6": "Sonnet 4.6",
+    "claude-opus-4-20250514": "Opus 4",
+    "claude-sonnet-4-20250514": "Sonnet 4",
     "claude-haiku-4-5-20251001": "Haiku 4.5",
-    "gpt-4.1": "GPT-4.1",
-    "gpt-4.1-mini": "GPT-4.1m",
+    "gpt-4o": "GPT-4o",
+    "gpt-4o-mini": "GPT-4o mini",
     "sonar-pro": "Sonar Pro",
     "gemini-2.5-pro": "Gemini 2.5",
   };
@@ -101,31 +104,53 @@ export function CostDashboard({ className }: CostDashboardProps) {
   const modelChartData = models
     .map(([id, stats]) => ({
       name: shortModelName(id),
+      credits: stats.creditsUsed,
       costCents: Math.round(stats.costCents * 100) / 100,
       fill: "#F97316",
     }))
-    .sort((a, b) => b.costCents - a.costCents);
+    .sort((a, b) => b.credits - a.credits);
 
-  const trendData = data.dailyCost.map((d) => ({
+  const trendData = (data.dailyCredits || []).map((d) => ({
     date: new Date(d.date).toLocaleDateString("de-DE", { day: "numeric", month: "short" }),
+    credits: d.credits,
     cost: Math.round(d.costCents) / 100,
   }));
+
+  const planPercentUsed = data.planCredits.total > 0
+    ? Math.round(((data.planCredits.total - data.planCredits.balance) / data.planCredits.total) * 100)
+    : 0;
 
   return (
     <div className={className}>
       <div className="space-y-4">
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-3">
+          {/* Credits Used */}
           <div className="rounded-2xl border border-border bg-card p-4">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Monatliche Kosten</p>
-                <p className="mt-1 text-2xl font-semibold text-foreground">{formatEuro(data.totalCostCents)}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{data.totalCalls} LLM-Aufrufe</p>
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Credits verbraucht</p>
+                <p className="mt-1 text-2xl font-semibold text-foreground">
+                  {data.totalCreditsUsed}
+                  <span className="text-sm text-muted-foreground ml-1">/ {data.planCredits.total}</span>
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {data.totalCalls} Aufrufe · {formatEuro(data.totalCostCents)} API-Kosten
+                </p>
               </div>
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500/10">
                 <Coins className="h-4 w-4 text-orange-400" />
               </div>
+            </div>
+            {/* Plan credits progress bar */}
+            <div className="mt-3 h-1.5 rounded-full bg-zinc-800">
+              <div
+                className={cn(
+                  "h-1.5 rounded-full transition-all",
+                  planPercentUsed > 80 ? "bg-red-500" : planPercentUsed > 50 ? "bg-amber-500" : "bg-emerald-500"
+                )}
+                style={{ width: `${Math.min(100, planPercentUsed)}%` }}
+              />
             </div>
           </div>
 
@@ -158,17 +183,17 @@ export function CostDashboard({ className }: CostDashboardProps) {
           </div>
         </div>
 
-        {/* Cost Trend + Model Breakdown */}
+        {/* Credits Trend + Model Breakdown */}
         <div className="grid gap-4 xl:grid-cols-2">
-          {/* Daily Trend */}
+          {/* Daily Credits Trend */}
           {trendData.length > 1 && (
             <div className="rounded-2xl border border-border bg-card p-5">
-              <p className="text-sm font-medium text-foreground mb-4">Kosten-Trend (30 Tage)</p>
+              <p className="text-sm font-medium text-foreground mb-4">Credit-Verbrauch (30 Tage)</p>
               <div className="h-[200px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={trendData} margin={{ top: 6, right: 8, left: 0, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="costGradient" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient id="creditGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#F97316" stopOpacity={0.3} />
                         <stop offset="95%" stopColor="#F97316" stopOpacity={0} />
                       </linearGradient>
@@ -184,7 +209,7 @@ export function CostDashboard({ className }: CostDashboardProps) {
                       tickLine={false}
                       axisLine={false}
                       width={40}
-                      tickFormatter={(v) => `€${v}`}
+                      tickFormatter={(v) => `${v} Cr`}
                     />
                     <Tooltip
                       contentStyle={{
@@ -195,15 +220,19 @@ export function CostDashboard({ className }: CostDashboardProps) {
                         padding: "8px 10px",
                       }}
                       labelStyle={{ color: "#a1a1aa" }}
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      formatter={((value: any) => [`€${Number(value).toFixed(2)}`, "Kosten"]) as any}
+                      /* eslint-disable @typescript-eslint/no-explicit-any */
+                      formatter={((value: any, name: any) => {
+                        if (name === "credits") return [`${value} Credits`, "Credits"];
+                        return [`€${Number(value).toFixed(2)}`, "API-Kosten"];
+                      }) as any}
+                      /* eslint-enable @typescript-eslint/no-explicit-any */
                     />
                     <Area
                       type="monotone"
-                      dataKey="cost"
+                      dataKey="credits"
                       stroke="#F97316"
                       strokeWidth={2}
-                      fill="url(#costGradient)"
+                      fill="url(#creditGradient)"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -211,9 +240,9 @@ export function CostDashboard({ className }: CostDashboardProps) {
             </div>
           )}
 
-          {/* Model Cost Breakdown */}
+          {/* Model Credit Breakdown */}
           <div className="rounded-2xl border border-border bg-card p-5">
-            <p className="text-sm font-medium text-foreground mb-4">Kosten nach Modell</p>
+            <p className="text-sm font-medium text-foreground mb-4">Credits nach Modell</p>
             {modelChartData.length > 0 && (
               <div className="h-[200px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -223,7 +252,7 @@ export function CostDashboard({ className }: CostDashboardProps) {
                       tickLine={false}
                       axisLine={false}
                       tick={{ fill: "#A1A1AA", fontSize: 10 }}
-                      tickFormatter={(v) => formatEuro(v)}
+                      tickFormatter={(v) => `${v} Cr`}
                     />
                     <YAxis
                       type="category"
@@ -243,9 +272,9 @@ export function CostDashboard({ className }: CostDashboardProps) {
                         fontSize: 11,
                       }}
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      formatter={((value: any) => [formatEuro(Number(value)), "Kosten"]) as any}
+                      formatter={((value: any) => [`${Number(value)} Credits`, "Credits"]) as any}
                     />
-                    <Bar dataKey="costCents" radius={[0, 8, 8, 0]}>
+                    <Bar dataKey="credits" radius={[0, 8, 8, 0]}>
                       {modelChartData.map((_, i) => (
                         <Cell key={i} fill={AGENT_COLORS[i % AGENT_COLORS.length]} />
                       ))}
@@ -257,12 +286,12 @@ export function CostDashboard({ className }: CostDashboardProps) {
           </div>
         </div>
 
-        {/* Per-Agent Budget Utilization */}
+        {/* Per-Agent Credit Utilization */}
         {data.byAgent.length > 0 && (
           <div className="rounded-2xl border border-border bg-card p-5">
             <div className="flex items-center gap-2 mb-4">
               <Wallet className="h-4 w-4 text-amber-400" />
-              <p className="text-sm font-medium text-foreground">Budget-Auslastung pro Agent</p>
+              <p className="text-sm font-medium text-foreground">Credit-Verbrauch pro Agent</p>
             </div>
             <div className="space-y-3">
               {data.byAgent.map((agent, i) => (
@@ -277,10 +306,8 @@ export function CostDashboard({ className }: CostDashboardProps) {
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       <span>{agent.callCount} Aufrufe</span>
-                      <span className="font-medium text-foreground">{formatEuro(agent.totalCostCents)}</span>
-                      {agent.budgetCapCents !== null && (
-                        <span className="text-zinc-600">/ {formatEuro(agent.budgetCapCents)}</span>
-                      )}
+                      <span className="font-medium text-orange-400">{agent.creditsUsed} Credits</span>
+                      <span className="text-zinc-600">{formatEuro(agent.totalCostCents)}</span>
                     </div>
                   </div>
                   {agent.percentUsed !== null && (

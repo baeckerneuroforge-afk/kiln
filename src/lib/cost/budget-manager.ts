@@ -1,34 +1,36 @@
 /**
  * Budget Manager
- * Per-run and per-month budget caps for agents.
+ * Per-run budget caps in credits. Monthly budget = plan credits (from credits.ts).
  * Integrates with smart-model-router: when budget is tight, prefer cheaper models.
  */
 
-import { calculateCost } from "./cost-tracker";
+import { calculateCost, calculateCredits } from "./cost-tracker";
 
 /* ── Types ── */
 
 export type BudgetExceededBehavior = "pause" | "downgrade" | "notify_continue";
 
 export interface AgentBudgetConfig {
-  maxCostPerRunCents: number | null; // null = unlimited
-  monthlyCostCapCents: number | null; // null = unlimited
+  /** Max Credits pro Ausführung. null = unlimited */
+  maxCreditsPerRun: number | null;
+  /** Legacy: Max Kosten pro Run in Cents (für Abwärtskompatibilität) */
+  maxCostPerRunCents: number | null;
   budgetExceededBehavior: BudgetExceededBehavior;
 }
 
 export interface BudgetStatus {
   runBudget: {
     enabled: boolean;
-    capCents: number;
-    usedCents: number;
-    remainingCents: number;
+    capCredits: number;
+    usedCredits: number;
+    remainingCredits: number;
     percentUsed: number;
+    /** USD-Kosten für Analytics */
+    usedDollars: number;
   } | null;
-  monthlyBudget: {
-    enabled: boolean;
-    capCents: number;
-    usedCents: number;
-    remainingCents: number;
+  planCredits: {
+    balance: number;
+    total: number;
     percentUsed: number;
   } | null;
   shouldDowngrade: boolean;
@@ -39,47 +41,74 @@ export interface BudgetStatus {
 
 export class BudgetManager {
   private config: AgentBudgetConfig;
-  private runCostCents: number = 0;
-  private monthlyCostCents: number;
+  private runCreditsUsed: number = 0;
+  private runCostDollars: number = 0;
+  private planCreditsBalance: number;
+  private planCreditsTotal: number;
   private paused: boolean = false;
+  private byokActive: boolean;
 
-  constructor(config: AgentBudgetConfig, currentMonthlyCostCents: number = 0) {
+  constructor(
+    config: AgentBudgetConfig,
+    planCreditsBalance: number = Infinity,
+    planCreditsTotal: number = Infinity,
+    byokActive: boolean = false,
+  ) {
     this.config = config;
-    this.monthlyCostCents = currentMonthlyCostCents;
+    this.planCreditsBalance = planCreditsBalance;
+    this.planCreditsTotal = planCreditsTotal;
+    this.byokActive = byokActive;
   }
 
   /**
    * Prüft ob ein geplanter LLM-Aufruf innerhalb des Budgets liegt.
-   * Gibt die empfohlene Aktion zurück.
    */
   preCheck(
     modelId: string,
     estimatedInputTokens: number,
     estimatedOutputTokens: number
   ): { allowed: boolean; action: "proceed" | "downgrade" | "pause" | "notify"; reason?: string } {
-    const estimatedCostDollars = calculateCost(modelId, estimatedInputTokens, estimatedOutputTokens);
-    const estimatedCostCents = estimatedCostDollars * 100;
+    // BYOK = immer erlaubt (Credits werden nicht abgezogen)
+    if (this.byokActive) {
+      return { allowed: true, action: "proceed" };
+    }
 
-    // Run-Budget prüfen
-    if (this.config.maxCostPerRunCents !== null) {
-      const newRunTotal = this.runCostCents + estimatedCostCents;
+    const estimatedCredits = calculateCredits(modelId);
+
+    // Run-Budget prüfen (in Credits)
+    if (this.config.maxCreditsPerRun !== null) {
+      const newRunTotal = this.runCreditsUsed + estimatedCredits;
+      if (newRunTotal > this.config.maxCreditsPerRun) {
+        return this.handleExceeded("Run-Budget überschritten");
+      }
+      if (newRunTotal > this.config.maxCreditsPerRun * 0.8) {
+        return { allowed: true, action: "downgrade", reason: "Run-Budget >80% — günstigeres Modell empfohlen" };
+      }
+    }
+
+    // Legacy: Run-Budget in Cents prüfen (Abwärtskompatibilität)
+    if (this.config.maxCostPerRunCents !== null && this.config.maxCreditsPerRun === null) {
+      const estimatedCostDollars = calculateCost(modelId, estimatedInputTokens, estimatedOutputTokens);
+      const estimatedCostCents = estimatedCostDollars * 100;
+      const newRunTotal = (this.runCostDollars * 100) + estimatedCostCents;
       if (newRunTotal > this.config.maxCostPerRunCents) {
         return this.handleExceeded("Run-Budget überschritten");
       }
-      // Warnung bei >80%
       if (newRunTotal > this.config.maxCostPerRunCents * 0.8) {
         return { allowed: true, action: "downgrade", reason: "Run-Budget >80% — günstigeres Modell empfohlen" };
       }
     }
 
-    // Monats-Budget prüfen
-    if (this.config.monthlyCostCapCents !== null) {
-      const newMonthlyTotal = this.monthlyCostCents + estimatedCostCents;
-      if (newMonthlyTotal > this.config.monthlyCostCapCents) {
-        return this.handleExceeded("Monats-Budget überschritten");
+    // Plan-Credits prüfen (ersetzt monatliches Budget)
+    if (this.planCreditsBalance !== Infinity) {
+      if (this.planCreditsBalance < estimatedCredits) {
+        return { allowed: false, action: "pause", reason: "Keine Credits mehr verfügbar" };
       }
-      if (newMonthlyTotal > this.config.monthlyCostCapCents * 0.8) {
-        return { allowed: true, action: "downgrade", reason: "Monats-Budget >80% — günstigeres Modell empfohlen" };
+      const percentUsed = this.planCreditsTotal > 0
+        ? ((this.planCreditsTotal - this.planCreditsBalance) / this.planCreditsTotal) * 100
+        : 0;
+      if (percentUsed > 80) {
+        return { allowed: true, action: "downgrade", reason: "Plan-Credits >80% — günstigeres Modell empfohlen" };
       }
     }
 
@@ -89,42 +118,56 @@ export class BudgetManager {
   /**
    * Trackt tatsächliche Kosten nach einem LLM-Aufruf.
    */
-  trackCost(costCents: number): void {
-    this.runCostCents += costCents;
-    this.monthlyCostCents += costCents;
+  trackCost(modelId: string, inputTokens: number, outputTokens: number): void {
+    const credits = this.byokActive ? 0 : calculateCredits(modelId);
+    const costDollars = calculateCost(modelId, inputTokens, outputTokens);
+
+    this.runCreditsUsed += credits;
+    this.runCostDollars += costDollars;
+
+    // Plan-Credits aktualisieren (lokales Tracking, echte Deduktion passiert in CostTracker)
+    if (!this.byokActive && this.planCreditsBalance !== Infinity) {
+      this.planCreditsBalance = Math.max(0, this.planCreditsBalance - credits);
+    }
+  }
+
+  /**
+   * Legacy: Trackt Kosten in Cents.
+   */
+  trackCostCents(costCents: number): void {
+    this.runCostDollars += costCents / 100;
   }
 
   /**
    * Gibt den aktuellen Budget-Status zurück.
    */
   getStatus(): BudgetStatus {
-    const runBudget = this.config.maxCostPerRunCents !== null ? {
+    const runBudget = this.config.maxCreditsPerRun !== null ? {
       enabled: true,
-      capCents: this.config.maxCostPerRunCents,
-      usedCents: Math.round(this.runCostCents * 100) / 100,
-      remainingCents: Math.max(0, this.config.maxCostPerRunCents - this.runCostCents),
-      percentUsed: this.config.maxCostPerRunCents > 0
-        ? Math.min(100, Math.round((this.runCostCents / this.config.maxCostPerRunCents) * 10000) / 100)
+      capCredits: this.config.maxCreditsPerRun,
+      usedCredits: this.runCreditsUsed,
+      remainingCredits: Math.max(0, this.config.maxCreditsPerRun - this.runCreditsUsed),
+      percentUsed: this.config.maxCreditsPerRun > 0
+        ? Math.min(100, Math.round((this.runCreditsUsed / this.config.maxCreditsPerRun) * 10000) / 100)
         : 0,
+      usedDollars: this.runCostDollars,
     } : null;
 
-    const monthlyBudget = this.config.monthlyCostCapCents !== null ? {
-      enabled: true,
-      capCents: this.config.monthlyCostCapCents,
-      usedCents: Math.round(this.monthlyCostCents * 100) / 100,
-      remainingCents: Math.max(0, this.config.monthlyCostCapCents - this.monthlyCostCents),
-      percentUsed: this.config.monthlyCostCapCents > 0
-        ? Math.min(100, Math.round((this.monthlyCostCents / this.config.monthlyCostCapCents) * 10000) / 100)
+    const planCredits = this.planCreditsBalance !== Infinity ? {
+      balance: this.planCreditsBalance,
+      total: this.planCreditsTotal,
+      percentUsed: this.planCreditsTotal > 0
+        ? Math.min(100, Math.round(((this.planCreditsTotal - this.planCreditsBalance) / this.planCreditsTotal) * 10000) / 100)
         : 0,
     } : null;
 
     const shouldDowngrade =
       (runBudget !== null && runBudget.percentUsed > 80) ||
-      (monthlyBudget !== null && monthlyBudget.percentUsed > 80);
+      (planCredits !== null && planCredits.percentUsed > 80);
 
     return {
       runBudget,
-      monthlyBudget,
+      planCredits,
       shouldDowngrade,
       shouldPause: this.paused,
     };
@@ -150,7 +193,62 @@ export class BudgetManager {
 /* ── DB Helpers ── */
 
 /**
- * Lädt die monatlichen Kosten eines Agents aus der DB.
+ * Lädt die Budget-Config eines Agents aus der DB.
+ */
+export async function loadAgentBudgetConfig(agentId: string): Promise<AgentBudgetConfig | null> {
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    const agent = await prisma.agent.findUnique({
+      where: { id: agentId },
+      select: {
+        maxCreditsPerRun: true,
+        maxCostPerRunCents: true,
+        budgetExceededBehavior: true,
+      },
+    });
+
+    if (!agent) return null;
+
+    // Wenn nichts gesetzt → kein Budget
+    if (agent.maxCreditsPerRun === null && agent.maxCostPerRunCents === null) {
+      return null;
+    }
+
+    return {
+      maxCreditsPerRun: agent.maxCreditsPerRun ?? null,
+      maxCostPerRunCents: agent.maxCostPerRunCents ?? null,
+      budgetExceededBehavior: (agent.budgetExceededBehavior as BudgetExceededBehavior) || "notify_continue",
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Lädt den Credit-Stand eines Users für BudgetManager-Initialisierung.
+ */
+export async function getUserCreditBalance(userId: string): Promise<{ balance: number; total: number; byokActive: boolean }> {
+  try {
+    const { checkCredits } = await import("@/lib/credits");
+    // Dummy-Check mit günstigstem Modell um Balance zu bekommen
+    const result = await checkCredits(userId, "claude-haiku-4-5-20251001", false);
+    return {
+      balance: result.balance,
+      total: result.balance, // Wird vom Aufrufer ggf. überschrieben
+      byokActive: result.byokActive,
+    };
+  } catch {
+    return { balance: Infinity, total: Infinity, byokActive: false };
+  }
+}
+
+/**
+ * Speichert einen Cost-Record in der DB (re-export für Abwärtskompatibilität).
+ */
+export { saveCostRecord } from "./cost-tracker";
+
+/**
+ * Lädt die monatlichen Kosten eines Agents (für Analytics).
  */
 export async function getMonthlyUsageCents(agentId: string): Promise<number> {
   try {
@@ -170,66 +268,5 @@ export async function getMonthlyUsageCents(agentId: string): Promise<number> {
     return result._sum.costCents || 0;
   } catch {
     return 0;
-  }
-}
-
-/**
- * Speichert einen Cost-Record in der DB.
- */
-export async function saveCostRecord(record: {
-  agentId: string;
-  workflowRunId?: string;
-  model: string;
-  inputTokens: number;
-  outputTokens: number;
-  costCents: number;
-}): Promise<void> {
-  try {
-    const { prisma } = await import("@/lib/prisma");
-    await prisma.costRecord.create({
-      data: {
-        agentId: record.agentId,
-        workflowRunId: record.workflowRunId || null,
-        model: record.model,
-        inputTokens: record.inputTokens,
-        outputTokens: record.outputTokens,
-        costCents: record.costCents,
-      },
-    });
-  } catch {
-    // Non-critical — don't break execution
-  }
-}
-
-/**
- * Lädt die Budget-Config eines Agents aus der DB.
- * Gibt null zurück wenn keine Budget-Limits gesetzt sind.
- */
-export async function loadAgentBudgetConfig(agentId: string): Promise<AgentBudgetConfig | null> {
-  try {
-    const { prisma } = await import("@/lib/prisma");
-    const agent = await prisma.agent.findUnique({
-      where: { id: agentId },
-      select: {
-        maxCostPerRunCents: true,
-        monthlyCostCapCents: true,
-        budgetExceededBehavior: true,
-      },
-    });
-
-    if (!agent) return null;
-
-    // Wenn weder Run noch Monthly gesetzt → kein Budget
-    if (agent.maxCostPerRunCents === null && agent.monthlyCostCapCents === null) {
-      return null;
-    }
-
-    return {
-      maxCostPerRunCents: agent.maxCostPerRunCents,
-      monthlyCostCapCents: agent.monthlyCostCapCents,
-      budgetExceededBehavior: (agent.budgetExceededBehavior as BudgetExceededBehavior) || "notify_continue",
-    };
-  } catch {
-    return null;
   }
 }

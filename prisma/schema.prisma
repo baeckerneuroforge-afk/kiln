@@ -171,8 +171,9 @@ model Agent {
   clonedFromName       String?   // Name des Originals zum Zeitpunkt des Klonens
 
   // Budget Controls
-  maxCostPerRunCents    Int?      // Max cost per single execution in cents (null = unlimited)
-  monthlyCostCapCents   Int?      // Max monthly cost in cents (null = unlimited)
+  maxCreditsPerRun      Int?      // Max credits per single execution (null = unlimited)
+  maxCostPerRunCents    Int?      // Legacy: Max cost per run in cents (null = unlimited)
+  monthlyCostCapCents   Int?      // Legacy: Max monthly cost in cents (null = unlimited, plan credits handle this now)
   budgetExceededBehavior String?  // "pause" | "downgrade" | "notify_continue"
 
   createdAt          DateTime    @default(now())

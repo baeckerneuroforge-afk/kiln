@@ -35,6 +35,7 @@ import {
   Shield,
   Wrench,
   FlaskConical,
+  Monitor,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { DEMO_AGENT_SLUG } from "@/lib/demo-agent";
@@ -396,6 +397,9 @@ export default function LandingPageV2() {
     { icon: Webhook, title: "Webhooks & API", desc: "REST API, webhooks, HTTP triggers for full programmatic control." },
     { icon: Coins, title: "AI Credits", desc: "Usage-based pricing or bring your own API key." },
     { icon: Store, title: "Marketplace", desc: "Browse community templates. Publish your own." },
+    { icon: Monitor, title: "Computer Use Agents", desc: "Your agents browse the web, fill out forms, analyze screenshots, and write code — fully autonomous." },
+    { icon: Network, title: "Agent Swarm", desc: "Complex tasks are automatically broken into subtasks and processed in parallel by specialized agents. Minutes instead of hours." },
+    { icon: Shield, title: "Smart Cost Controls", desc: "Real-time cost tracking, budget caps per run, and intelligent model routing for the best price-performance ratio." },
   ];
 
   const plans = [
@@ -404,7 +408,7 @@ export default function LandingPageV2() {
       price: 0,
       isCustom: false,
       creditTiers: [{ credits: 50, monthly: 0, yearlyMo: 0 }],
-      features: ["1 AI Agent", "50 AI Credits / Month", "1 Knowledge Base (5MB)", "Embed Widget", "KILN Branding", "Community Support"],
+      features: ["1 AI Agent", "50 AI Credits / Month", "1 Knowledge Base (5MB)", "Embed Widget", "KILN Branding", "Community Support", "10 Steps per Run"],
       highlight: false,
       tagline: "Perfect for testing and exploring AI agents",
       useCases: ["Side projects", "Testing before you buy"],
@@ -418,7 +422,7 @@ export default function LandingPageV2() {
         { credits: 1000, monthly: 49, yearlyMo: 34 },
         { credits: 2000, monthly: 59, yearlyMo: 41 },
       ],
-      features: ["3 Agents", "Basic Analytics", "3 Knowledge Bases (20MB)", "Email Support", "All Actions"],
+      features: ["3 Agents", "Basic Analytics", "3 Knowledge Bases (20MB)", "Email Support", "All Actions", "Computer Use Basic (Web Analysis)", "50 Steps per Run", "Reasoning Log"],
       highlight: false,
       tagline: "For freelancers, coaches & small businesses getting started",
       useCases: ["Coaches", "Handwerker", "Freelancers", "Small shops"],
@@ -432,7 +436,7 @@ export default function LandingPageV2() {
         { credits: 5000, monthly: 129, yearlyMo: 90 },
         { credits: 10000, monthly: 169, yearlyMo: 118 },
       ],
-      features: ["10 Agents", "Full Analytics + ROI", "10 Knowledge Bases (50MB)", "White-Label", "Feedback Loop", "Priority Support", "Prompt Editor"],
+      features: ["10 Agents", "Full Analytics + ROI", "10 Knowledge Bases (50MB)", "White-Label", "Feedback Loop", "Priority Support", "Prompt Editor", "Computer Use Pro (Browser + Vision)", "Code Sandbox (Python & JS)", "Agent Swarm (5 Agents)", "Verification Checkpoints", "Procedural Learning", "3 Scheduled Automations", "Smart Model Routing", "200 Steps per Run"],
       highlight: true,
       tagline: "For growing businesses that want to automate & convert more",
       useCases: ["Dental practices", "Real estate agencies", "Restaurants", "Growing SaaS"],
@@ -446,7 +450,7 @@ export default function LandingPageV2() {
         { credits: 15000, monthly: 329, yearlyMo: 230 },
         { credits: 30000, monthly: 449, yearlyMo: 314 },
       ],
-      features: ["Unlimited Agents", "Unlimited Knowledge Bases", "API Access + MCP Server", "Agent Cloning", "Custom Domain", "Multi-Client Management", "Dedicated Support"],
+      features: ["Unlimited Agents", "Unlimited Knowledge Bases", "API Access + MCP Server", "Agent Cloning", "Custom Domain", "Multi-Client Management", "Dedicated Support", "Computer Use Unlimited", "Agent Swarm (20 Agents)", "Zero-Config Wizard", "Manual Model Routing", "Unlimited Schedules", "Parallel Execution (10 Branches)", "Priority Execution"],
       highlight: false,
       tagline: "For agencies & teams managing multiple clients",
       useCases: ["Marketing agencies", "AI agencies", "Consulting firms", "Multi-location businesses"],
@@ -456,7 +460,7 @@ export default function LandingPageV2() {
       price: 0,
       isCustom: true,
       creditTiers: [{ credits: 50000, monthly: 0, yearlyMo: 0 }],
-      features: ["Everything in Business", "SLA 99.9%", "Custom Onboarding", "50,000+ AI Credits", "Scheduled Agents", "Webhooks", "Priority Queue"],
+      features: ["Everything in Business", "SLA 99.9%", "Custom Onboarding", "50,000+ AI Credits", "Scheduled Agents", "Webhooks", "Priority Queue", "Dedicated Sandbox Instance", "Dedicated Resources"],
       highlight: false,
       tagline: "For large organizations with custom requirements",
       useCases: ["Enterprises", "Regulated industries", "Custom SLA requirements"],
