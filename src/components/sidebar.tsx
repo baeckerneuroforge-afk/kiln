@@ -287,7 +287,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
         <Separator className={cn("my-3", isCollapsed ? "lg:mx-2" : "mx-4")} />
 
         {/* Navigation */}
-        <nav className={cn("flex flex-1 flex-col gap-0.5", isCollapsed ? "lg:px-1.5" : "px-3")}>
+        <nav className={cn("flex flex-1 flex-col gap-0.5 overflow-y-auto", isCollapsed ? "lg:px-1.5" : "px-3")}>
           {allModules
             .filter((item) => {
               // Progressive reveal: hide modules until user has enough agents

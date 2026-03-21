@@ -171,6 +171,7 @@ const workflowNodeColors: Record<WorkflowNodeCategory, { hex: string }> = {
   control: { hex: "#06B6D4" },
   integrations: { hex: "#22C55E" },
   ai_tools: { hex: "#EC4899" },
+  advanced: { hex: "#A855F7" },
 };
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {

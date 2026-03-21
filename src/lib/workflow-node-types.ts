@@ -47,10 +47,14 @@ export type WorkflowNodeType =
   | "ai_classify"
   | "ai_extract"
   | "computer_use"
+  | "deep_research"
   // A2A
-  | "a2a_call";
+  | "a2a_call"
+  // Goal & Sub-Agent
+  | "goal_trigger"
+  | "spawn_helper";
 
-export type WorkflowNodeCategory = "agents" | "triggers" | "logic" | "actions" | "control" | "integrations" | "ai_tools";
+export type WorkflowNodeCategory = "agents" | "triggers" | "logic" | "actions" | "control" | "integrations" | "ai_tools" | "advanced";
 
 export interface WorkflowNodeDefinition {
   type: WorkflowNodeType;
@@ -426,6 +430,21 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     },
   },
 
+  {
+    type: "deep_research",
+    label: "Deep Research",
+    description: "Multi-Source Web-Recherche mit Konsolidierung",
+    category: "ai_tools",
+    icon: "Search",
+    color: "#EC4899",
+    defaultConfig: {
+      topic: "",
+      depth: "standard",
+      language: "de",
+      resultKey: "researchResult",
+    },
+  },
+
   // A2A (Agent-to-Agent)
   {
     type: "a2a_call",
@@ -440,6 +459,35 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       timeout: 30000,
       apiKey: "",
       resultKey: "a2aResponse",
+    },
+  },
+
+  // Advanced — Goal & Sub-Agent
+  {
+    type: "goal_trigger",
+    label: "Goal Planner",
+    description: "Generiert und führt einen Plan aus einem natürlichsprachlichen Ziel aus",
+    category: "advanced",
+    icon: "Target",
+    color: "#F97316",
+    defaultConfig: {
+      goal: "",
+      maxSteps: 10,
+      autoApprove: true,
+    },
+  },
+  {
+    type: "spawn_helper",
+    label: "Spawn Helper",
+    description: "Erstellt einen temporären Helper-Agent für eine spezifische Sub-Aufgabe",
+    category: "advanced",
+    icon: "Sparkles",
+    color: "#A855F7",
+    defaultConfig: {
+      task: "",
+      helperType: "general",
+      model: "auto",
+      maxTokens: 1024,
     },
   },
 ];

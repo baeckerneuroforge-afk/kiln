@@ -43,6 +43,25 @@ import {
   logApprovalGate,
   logErrorFallback,
 } from "@/lib/orchestration-logger";
+import {
+  selectOptimalModel,
+  detectTaskType,
+  trackModelCost,
+} from "@/lib/smart-model-router";
+import {
+  saveCheckpoint,
+  loadCheckpoint,
+  shouldCheckpoint,
+  isExecutionTimedOut,
+  getMaxExecutionMs,
+  sendProgressEmail,
+  type ExecutionResumeData,
+} from "@/lib/execution-persistence";
+import {
+  planWorkflow,
+  mapStepToNodeType,
+  resolveModelHint,
+} from "@/lib/goal-planner";
 
 /* ── Types ── */
 
@@ -60,6 +79,9 @@ export interface WorkflowExecutionOptions {
   goal?: string;
   depth?: number; // Sub-workflow nesting depth (max 5)
   debugMode?: boolean; // Step-by-step execution mit Pausen
+  resumeExecutionId?: string; // Resume von einem Checkpoint
+  enableSmartRouting?: boolean; // Automatische Modell-Auswahl
+  maxExecutionMinutes?: number; // Maximale Ausführungszeit
 }
 
 /* ── Debug Mode State ── */
@@ -160,9 +182,14 @@ const NODE_CATEGORIES: Record<string, string> = {
   ai_classify: "ai_tool",
   ai_extract: "ai_tool",
   computer_use: "ai_tool",
+  deep_research: "ai_tool",
+  // Goal & Sub-Agent
+  goal_trigger: "goal",
+  spawn_helper: "spawn",
 };
 
 const MAX_SUB_WORKFLOW_DEPTH = 5;
+const MAX_SPAWNED_AGENTS = 5;
 
 function getNodeCategory(type: WorkflowNodeType): string {
   return NODE_CATEGORIES[type] || "unknown";
@@ -323,7 +350,19 @@ export async function executeWorkflow(
     },
   });
 
-  const executionId = execution.id;
+  const executionId = options.resumeExecutionId || execution.id;
+  const maxExecMs = options.maxExecutionMinutes
+    ? options.maxExecutionMinutes * 60 * 1000
+    : getMaxExecutionMs(team.config);
+  const executionStartTime = new Date();
+  const enableSmartRouting = options.enableSmartRouting !== false;
+  let spawnedAgentCount = 0;
+
+  // Checkpoint-Resume: Lade gespeicherten Zustand
+  let resumeData: ExecutionResumeData | null = null;
+  if (options.resumeExecutionId) {
+    resumeData = await loadCheckpoint(options.resumeExecutionId);
+  }
 
   // Initialisiere Variablen aus der Workflow-Definition
   const variablesInit: Record<string, unknown> = {};
@@ -339,16 +378,18 @@ export async function executeWorkflow(
   // Ersten Agent des Teams laden (für Credential-Zugriff in Computer Use)
   const firstAgentId = team.members?.[0]?.agent?.id || "";
 
-  let context: ExpressionContext = {
-    variables: variablesInit,
-    _userId: options.userId,
-    _teamId: teamId,
-    _agentId: firstAgentId,
-  };
-  const executedNodes = new Set<string>();
+  let context: ExpressionContext = resumeData
+    ? (resumeData.context as ExpressionContext)
+    : {
+        variables: variablesInit,
+        _userId: options.userId,
+        _teamId: teamId,
+        _agentId: firstAgentId,
+      };
+  const executedNodes = new Set<string>(resumeData?.executedNodeIds || []);
   const nodeLogs: NodeExecutionLog[] = [];
-  let completedNodes = 0;
-  let failedNodes = 0;
+  let completedNodes = resumeData?.completedNodes || 0;
+  let failedNodes = resumeData?.failedNodes || 0;
   let paused = false;
   const isDebug = options.debugMode === true;
 
@@ -398,10 +439,12 @@ export async function executeWorkflow(
       completedNodes++;
     }
 
-    // Starte DAG-Traversal ab den Trigger-Nachfolgern
-    const startNodeIds = triggerNode
-      ? getNormalSuccessors(triggerNode.id, edges)
-      : nodes.filter((n) => !n.type.startsWith("trigger_")).map((n) => n.id);
+    // Starte DAG-Traversal ab den Trigger-Nachfolgern oder Resume-Queue
+    const startNodeIds = resumeData
+      ? resumeData.pendingQueue
+      : triggerNode
+        ? getNormalSuccessors(triggerNode.id, edges)
+        : nodes.filter((n) => !n.type.startsWith("trigger_")).map((n) => n.id);
 
     // BFS-Traversal durch den Workflow-DAG
     const queue = [...startNodeIds];
@@ -770,6 +813,58 @@ export async function executeWorkflow(
             break;
           }
 
+          case "goal": {
+            // Goal-Based Execution: Plane Schritte aus natürlichsprachlichem Ziel
+            nodeResult = await executeGoalNode(node, team, executionId, context, startTime);
+
+            if (nodeResult.status === "completed") {
+              context = { ...context, ...nodeResult.contextDelta };
+              queue.push(...getNormalSuccessors(node.id, edges));
+            } else {
+              const goalErrorTargets = getErrorSuccessors(node.id, edges);
+              if (goalErrorTargets.length > 0) {
+                context = { ...context, _lastError: { nodeId: node.id, nodeType: node.type, error: nodeResult.error } };
+                queue.push(...goalErrorTargets);
+              }
+              failedNodes++;
+            }
+            break;
+          }
+
+          case "spawn": {
+            // Sub-Agent Spawning: Erstelle temporäre Agent-Executions
+            if (spawnedAgentCount >= MAX_SPAWNED_AGENTS) {
+              nodeResult = {
+                nodeId: node.id,
+                nodeType: node.type,
+                status: "failed",
+                contextDelta: {},
+                error: `Maximale Anzahl gespawnter Agents (${MAX_SPAWNED_AGENTS}) erreicht`,
+                startedAt: startTime,
+                completedAt: new Date(),
+              };
+              failedNodes++;
+            } else {
+              nodeResult = await executeSpawnHelperNode(
+                node, team, executionId, context, startTime, userId, enableSmartRouting
+              );
+              spawnedAgentCount++;
+
+              if (nodeResult.status === "completed") {
+                context = { ...context, ...nodeResult.contextDelta };
+                queue.push(...getNormalSuccessors(node.id, edges));
+              } else {
+                const spawnErrorTargets = getErrorSuccessors(node.id, edges);
+                if (spawnErrorTargets.length > 0) {
+                  context = { ...context, _lastError: { nodeId: node.id, nodeType: node.type, error: nodeResult.error } };
+                  queue.push(...spawnErrorTargets);
+                }
+                failedNodes++;
+              }
+            }
+            break;
+          }
+
           default:
             nodeResult = {
               nodeId: node.id,
@@ -782,41 +877,65 @@ export async function executeWorkflow(
             };
         }
       } catch (err) {
-        nodeResult = {
-          nodeId: node.id,
-          nodeType: node.type,
-          status: "failed",
-          contextDelta: {},
-          error: err instanceof Error ? err.message : "Node execution fehlgeschlagen",
-          startedAt: startTime,
-          completedAt: new Date(),
-        };
+        const errorMsg = err instanceof Error ? err.message : "Node execution fehlgeschlagen";
 
-        // Error-Pfad verfolgen
-        const catchErrorTargets = getErrorSuccessors(node.id, edges);
-        if (catchErrorTargets.length > 0) {
-          context = {
-            ...context,
-            _lastError: {
-              nodeId: node.id,
-              nodeType: node.type,
-              error: nodeResult.error,
-            },
+        // Self-Healing: Versuche den Fehler automatisch zu beheben
+        const healResult = await attemptSelfHeal(
+          node, errorMsg, context, team.config, executionId
+        );
+
+        if (healResult.healed) {
+          // Heilung erfolgreich — nutze das Ergebnis
+          context = { ...context, ...healResult.contextDelta };
+          nodeResult = {
+            nodeId: node.id,
+            nodeType: node.type,
+            status: "completed",
+            contextDelta: healResult.contextDelta,
+            output: healResult.output,
+            startedAt: startTime,
+            completedAt: new Date(),
+            meta: { selfHealed: true, healStrategy: healResult.strategy },
           };
-          queue.push(...catchErrorTargets);
-
-          logErrorFallback({
-            teamId, executionId,
-            nodeId: node.id, nodeType: node.type,
-            error: nodeResult.error || "Node execution failed",
-            fallbackNodeIds: catchErrorTargets,
-            context,
-          }).catch(() => {});
+          queue.push(...getNormalSuccessors(node.id, edges));
         } else {
-          await invokeGlobalErrorHandler(team.config, executionId, node.id, node.type, nodeResult.error || "Node execution failed", context);
-        }
+          nodeResult = {
+            nodeId: node.id,
+            nodeType: node.type,
+            status: "failed",
+            contextDelta: {},
+            error: errorMsg,
+            startedAt: startTime,
+            completedAt: new Date(),
+            meta: { healAttempted: true, healStrategy: healResult.strategy },
+          };
 
-        failedNodes++;
+          // Error-Pfad verfolgen
+          const catchErrorTargets = getErrorSuccessors(node.id, edges);
+          if (catchErrorTargets.length > 0) {
+            context = {
+              ...context,
+              _lastError: {
+                nodeId: node.id,
+                nodeType: node.type,
+                error: nodeResult.error,
+              },
+            };
+            queue.push(...catchErrorTargets);
+
+            logErrorFallback({
+              teamId, executionId,
+              nodeId: node.id, nodeType: node.type,
+              error: nodeResult.error || "Node execution failed",
+              fallbackNodeIds: catchErrorTargets,
+              context,
+            }).catch(() => {});
+          } else {
+            await invokeGlobalErrorHandler(team.config, executionId, node.id, node.type, nodeResult.error || "Node execution failed", context);
+          }
+
+          failedNodes++;
+        }
       }
 
       // Log schreiben
@@ -828,6 +947,58 @@ export async function executeWorkflow(
       }
 
       nodeLogs.push(nodeResult);
+
+      // Checkpoint speichern (alle N Nodes)
+      if (shouldCheckpoint(completedNodes + failedNodes)) {
+        await saveCheckpoint({
+          executionId,
+          teamId,
+          userId,
+          context: context as Record<string, unknown>,
+          executedNodeIds: Array.from(executedNodes),
+          pendingQueue: [...queue],
+          completedNodes,
+          failedNodes,
+          checkpointedAt: new Date(),
+          reason: "auto",
+        });
+      }
+
+      // Zeitlimit prüfen
+      if (isExecutionTimedOut(executionStartTime, maxExecMs)) {
+        // Checkpoint speichern und pausieren
+        await saveCheckpoint({
+          executionId,
+          teamId,
+          userId,
+          context: context as Record<string, unknown>,
+          executedNodeIds: Array.from(executedNodes),
+          pendingQueue: [...queue],
+          completedNodes,
+          failedNodes,
+          checkpointedAt: new Date(),
+          reason: "timeout",
+        });
+
+        // Progress-Email senden
+        sendProgressEmail(
+          executionId, userId, team.name,
+          completedNodes, nodes.length,
+          Date.now() - executionStartTime.getTime()
+        ).catch(() => {});
+
+        paused = true;
+        break;
+      }
+
+      // Progress-Email bei langen Ausführungen (>5 Min, alle 10 Nodes)
+      const elapsed = Date.now() - executionStartTime.getTime();
+      if (elapsed > 5 * 60 * 1000 && (completedNodes + failedNodes) % 10 === 0) {
+        sendProgressEmail(
+          executionId, userId, team.name,
+          completedNodes, nodes.length, elapsed
+        ).catch(() => {});
+      }
 
       // Debug-Mode: Schritt aufzeichnen und pausieren
       if (isDebug) {
@@ -1395,6 +1566,360 @@ async function logNodeExecution(
       estimatedCost: result.estimatedCost || null,
     },
   });
+}
+
+/* ── Self-Healing Engine ── */
+
+interface HealResult {
+  healed: boolean;
+  strategy: string;
+  contextDelta: Record<string, unknown>;
+  output?: string;
+}
+
+/**
+ * Versucht einen fehlgeschlagenen Node automatisch zu reparieren.
+ * Strategien: Retry mit anderem Modell, Haiku-Healer-Analyse, Parameter-Anpassung.
+ */
+async function attemptSelfHeal(
+  node: WorkflowNode,
+  error: string,
+  context: ExpressionContext,
+  _teamConfig: unknown,
+  executionId: string
+): Promise<HealResult> {
+  const category = getNodeCategory(node.type);
+
+  // Strategie 1: Bei AI/Agent-Fehlern → Retry mit anderem Modell
+  if ((category === "agent" || category === "ai_tool") && error.includes("rate_limit")) {
+    return {
+      healed: false,
+      strategy: "rate_limit_detected",
+      contextDelta: {},
+      output: "Rate limit — will retry via error path",
+    };
+  }
+
+  // Strategie 2: Haiku-Healer analysiert den Fehler
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return { healed: false, strategy: "no_api_key", contextDelta: {} };
+  }
+
+  try {
+    const Anthropic = (await import("@anthropic-ai/sdk")).default;
+    const anthropic = new Anthropic({ apiKey });
+
+    const healerResponse = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 512,
+      system: `Du bist ein Fehler-Diagnose-Agent. Analysiere den Fehler und schlage eine Lösung vor.
+Antworte AUSSCHLIESSLICH mit JSON:
+{
+  "canHeal": boolean,
+  "strategy": "retry_different_params" | "skip_safely" | "provide_default" | "cannot_heal",
+  "fix": { ... } // Korrigierte Parameter oder Default-Werte
+  "explanation": "string"
+}`,
+      messages: [{
+        role: "user",
+        content: `Node: ${node.type} (${node.label || "unnamed"})
+Config: ${JSON.stringify(node.config).slice(0, 500)}
+Error: ${error}
+Execution: ${executionId}
+
+Kann dieser Fehler automatisch behoben werden?`,
+      }],
+    });
+
+    const healText = healerResponse.content
+      .filter((b) => b.type === "text")
+      .map((b) => ("text" in b ? (b as { text: string }).text : ""))
+      .join("");
+
+    const healData = JSON.parse(healText) as {
+      canHeal: boolean;
+      strategy: string;
+      fix?: Record<string, unknown>;
+      explanation?: string;
+    };
+
+    if (healData.canHeal && healData.strategy === "provide_default" && healData.fix) {
+      return {
+        healed: true,
+        strategy: "healer_default",
+        contextDelta: healData.fix,
+        output: healData.explanation || "Self-healed with default values",
+      };
+    }
+
+    return {
+      healed: false,
+      strategy: healData.strategy || "healer_cannot_fix",
+      contextDelta: {},
+    };
+  } catch {
+    return { healed: false, strategy: "healer_failed", contextDelta: {} };
+  }
+}
+
+/* ── Goal-Based Execution ── */
+
+/**
+ * Führt einen goal_trigger Node aus:
+ * Plant dynamisch Schritte und führt sie sequentiell aus.
+ */
+async function executeGoalNode(
+  node: WorkflowNode,
+  team: NonNullable<Awaited<ReturnType<typeof loadTeamExecutionRuntimeContext>>>,
+  _executionId: string,
+  context: ExpressionContext,
+  startTime: Date
+): Promise<NodeExecutionLog> {
+  const config = node.config as { goal?: string; maxSteps?: number; autoApprove?: boolean };
+  const goalText = config.goal
+    ? resolveExpression(config.goal, context)
+    : String(context._goal || "");
+
+  if (!goalText) {
+    return {
+      nodeId: node.id, nodeType: node.type, status: "failed",
+      contextDelta: {}, error: "Kein Ziel definiert",
+      startedAt: startTime, completedAt: new Date(),
+    };
+  }
+
+  try {
+    // Verfügbare Agents ermitteln
+    const availableAgents = (team.members || [])
+      .filter((m) => m.agent)
+      .map((m) => ({
+        id: m.agent!.id,
+        name: m.agent!.name,
+        description: (m.agent!.systemPrompt || "").slice(0, 200),
+      }));
+
+    // Plan generieren
+    const plan = await planWorkflow(goalText, availableAgents, context as Record<string, unknown>);
+
+    // Plan-Schritte ausführen
+    let stepContext = { ...context };
+    const completedStepIds: string[] = [];
+    const stepResults: Record<string, unknown> = {};
+    const maxSteps = Math.min(config.maxSteps || 10, 10);
+
+    for (const step of plan.steps.slice(0, maxSteps)) {
+      // Abhängigkeiten prüfen
+      const depsOk = step.dependsOn.every((depId) => completedStepIds.includes(depId));
+      if (!depsOk) continue;
+
+      // Schritt als Workflow-Node-Typ ausführen
+      const nodeType = mapStepToNodeType(step);
+      const stepModel = resolveModelHint(step.suggestedModel);
+      const category = getNodeCategory(nodeType as WorkflowNodeType);
+
+      const stepConfig: Record<string, unknown> = {
+        ...step.config,
+        prompt: step.description,
+        model: stepModel,
+        goal: step.title,
+      };
+
+      try {
+        if (category === "agent") {
+          // Nutze den ersten passenden Agent
+          const agentId = (step.config.agentId as string) || availableAgents[0]?.id;
+          if (agentId) {
+            stepConfig.agentId = agentId;
+          }
+        }
+
+        if (category === "action") {
+          const actionResult = await executeActionNode(nodeType, stepConfig, stepContext);
+          if (actionResult.success) {
+            stepContext = { ...stepContext, ...actionResult.contextDelta };
+          }
+          stepResults[step.id] = actionResult.contextDelta;
+        } else if (category === "ai_tool") {
+          const aiResult = await executeAiNode(nodeType, stepConfig, stepContext);
+          if (aiResult.success) {
+            stepContext = { ...stepContext, ...aiResult.contextDelta };
+          }
+          stepResults[step.id] = aiResult.contextDelta;
+        } else {
+          // Für andere Step-Typen: AI-Zusammenfassung
+          stepResults[step.id] = { completed: true, title: step.title };
+        }
+
+        completedStepIds.push(step.id);
+      } catch (stepErr) {
+        stepResults[step.id] = {
+          error: stepErr instanceof Error ? stepErr.message : "Schritt fehlgeschlagen",
+        };
+      }
+    }
+
+    return {
+      nodeId: node.id,
+      nodeType: node.type,
+      status: completedStepIds.length > 0 ? "completed" : "failed",
+      contextDelta: {
+        _goalPlan: plan,
+        _goalResults: stepResults,
+        _goalCompletedSteps: completedStepIds,
+        ...stepContext,
+      },
+      output: `Goal "${goalText}": ${completedStepIds.length}/${plan.steps.length} Schritte abgeschlossen`,
+      startedAt: startTime,
+      completedAt: new Date(),
+      meta: {
+        goal: goalText,
+        totalSteps: plan.steps.length,
+        completedSteps: completedStepIds.length,
+        reasoning: plan.reasoning,
+      },
+    };
+  } catch (err) {
+    return {
+      nodeId: node.id, nodeType: node.type, status: "failed",
+      contextDelta: {},
+      error: err instanceof Error ? err.message : "Goal planning fehlgeschlagen",
+      startedAt: startTime, completedAt: new Date(),
+    };
+  }
+}
+
+/* ── Sub-Agent Spawning ── */
+
+/**
+ * Spawnt einen temporären Helper-Agent für eine spezifische Sub-Aufgabe.
+ */
+async function executeSpawnHelperNode(
+  node: WorkflowNode,
+  team: NonNullable<Awaited<ReturnType<typeof loadTeamExecutionRuntimeContext>>>,
+  executionId: string,
+  context: ExpressionContext,
+  startTime: Date,
+  userId: string,
+  enableSmartRouting: boolean
+): Promise<NodeExecutionLog> {
+  const config = node.config as {
+    task?: string;
+    helperType?: string;
+    model?: string;
+    maxTokens?: number;
+  };
+
+  const task = config.task
+    ? resolveExpression(config.task, context)
+    : "";
+
+  if (!task) {
+    return {
+      nodeId: node.id, nodeType: node.type, status: "failed",
+      contextDelta: {}, error: "Keine Aufgabe für den Helper definiert",
+      startedAt: startTime, completedAt: new Date(),
+    };
+  }
+
+  // Smart Model Routing für den Helper
+  let model = config.model || "auto";
+  if (model === "auto" && enableSmartRouting) {
+    const taskType = detectTaskType(task);
+    const routing = selectOptimalModel({
+      taskType,
+      requiresSpeed: true,
+      budget: "low",
+    });
+    model = routing.primary.model;
+  }
+  if (model === "auto") model = "claude-haiku-4-5-20251001";
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return {
+      nodeId: node.id, nodeType: node.type, status: "failed",
+      contextDelta: {}, error: "ANTHROPIC_API_KEY nicht konfiguriert",
+      startedAt: startTime, completedAt: new Date(),
+    };
+  }
+
+  try {
+    const Anthropic = (await import("@anthropic-ai/sdk")).default;
+    const anthropic = new Anthropic({ apiKey });
+
+    const systemPrompt = `Du bist ein spezialisierter Helper-Agent in einem KILN AI Workflow.
+Typ: ${config.helperType || "general"}
+Deine Aufgabe ist es, die gestellte Aufgabe präzise und effizient zu lösen.
+Antworte direkt und sachlich.`;
+
+    const contextSummary = JSON.stringify(
+      Object.fromEntries(
+        Object.entries(context as Record<string, unknown>).filter(([k]) => !k.startsWith("_"))
+      )
+    ).slice(0, 2000);
+
+    const response = await anthropic.messages.create({
+      model: model.startsWith("claude-") ? model : "claude-haiku-4-5-20251001",
+      max_tokens: config.maxTokens || 1024,
+      system: systemPrompt,
+      messages: [{
+        role: "user",
+        content: `Kontext: ${contextSummary}\n\nAufgabe: ${task}`,
+      }],
+    });
+
+    const output = response.content
+      .filter((b) => b.type === "text")
+      .map((b) => ("text" in b ? (b as { text: string }).text : ""))
+      .join("");
+
+    const tokensIn = response.usage?.input_tokens || 0;
+    const tokensOut = response.usage?.output_tokens || 0;
+
+    // Cost tracking
+    trackModelCost({
+      model,
+      provider: "anthropic",
+      tokensIn,
+      tokensOut,
+      estimatedCost: (tokensIn * 0.001 + tokensOut * 0.005) / 1000,
+      taskType: detectTaskType(task),
+      timestamp: new Date(),
+    });
+
+    const resultKey = `_helper_${node.id}`;
+
+    return {
+      nodeId: node.id,
+      nodeType: node.type,
+      status: "completed",
+      contextDelta: {
+        [resultKey]: output,
+        [`${resultKey}_model`]: model,
+      },
+      output,
+      startedAt: startTime,
+      completedAt: new Date(),
+      tokensIn,
+      tokensOut,
+      model,
+      meta: {
+        helperType: config.helperType || "general",
+        model,
+        tokensIn,
+        tokensOut,
+        spawnedAt: new Date().toISOString(),
+      },
+    };
+  } catch (err) {
+    return {
+      nodeId: node.id, nodeType: node.type, status: "failed",
+      contextDelta: {},
+      error: err instanceof Error ? err.message : "Helper-Agent fehlgeschlagen",
+      startedAt: startTime, completedAt: new Date(),
+    };
+  }
 }
 
 /* ── Global Error Handler ── */

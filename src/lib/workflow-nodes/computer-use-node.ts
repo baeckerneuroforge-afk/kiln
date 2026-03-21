@@ -1,7 +1,7 @@
 /**
- * Computer Use Node Executor — V1.0
- * Multi-Page Navigation mit echten Screenshots, Link-Resolution,
- * und strukturiertem Session-Replay-Format.
+ * Computer Use Node Executor — V2.0
+ * Real Browser Control via Browserless API mit Visual Reasoning Loop.
+ * Fallback: HTTP-Fetching + Screenshot-Service (V1.0 Verhalten).
  */
 
 import {
@@ -15,8 +15,19 @@ import {
   getDecryptedCredential,
   markCredentialUsed,
 } from "@/lib/computer-use-credentials";
+import {
+  isBrowserServiceAvailable,
+  createBrowserSession,
+  navigateTo as browserNavigate,
+  clickElement,
+  typeText,
+  scrollPage,
+  takeBrowserScreenshot,
+  closeBrowserSession,
+} from "@/lib/browser-service";
 
 const COMPUTER_USE_MODEL = "claude-sonnet-4-20250514";
+const VISION_MODEL = "claude-sonnet-4-20250514";
 const MAX_LOOP_STEPS = 25;
 
 /* ── Types ── */
@@ -24,13 +35,14 @@ const MAX_LOOP_STEPS = 25;
 export interface ComputerUseSessionStep {
   stepIndex: number;
   url: string;
-  action: "navigate" | "click_link" | "extract_data" | "done" | "analyze";
+  action: "navigate" | "click_link" | "extract_data" | "done" | "analyze" | "click" | "type" | "scroll";
   actionDetail: string;
   htmlSummary: string;
   screenshot: string | null; // base64 PNG
   extractedData: Record<string, unknown> | null;
   timestamp: string; // ISO
   durationMs: number;
+  verified?: boolean; // Visual Verification Ergebnis
 }
 
 export interface ComputerUseSession {
@@ -43,14 +55,19 @@ export interface ComputerUseSession {
   urlsVisited: string[];
   screenshotsAvailable: boolean;
   completionReason: "done" | "max_steps" | "no_next_url" | "error";
+  browserMode: "real" | "http"; // V2.0: welcher Modus verwendet wurde
+  sessionId?: string; // Browser Session ID für Live-View
 }
 
-/* ── Claude Action Response ── */
+/* ── Claude Action Response (V2.0 erweitert) ── */
 
 interface ClaudeAction {
-  action: "navigate" | "click_link" | "extract_data" | "done";
+  action: "navigate" | "click_link" | "click" | "type" | "scroll" | "extract_data" | "done";
   url?: string;
   selector?: string;
+  text?: string; // Für type-Aktion
+  direction?: "up" | "down"; // Für scroll-Aktion
+  pixels?: number;
   fields?: string[];
   summary?: string;
   extracted_data?: Record<string, unknown>;
@@ -59,9 +76,6 @@ interface ClaudeAction {
 
 /* ── HTML Parsing Helpers ── */
 
-/**
- * Extrahiert einen kurzen Zusammenfassungstext aus HTML.
- */
 function extractHtmlSummary(html: string): string {
   const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   const title = titleMatch ? titleMatch[1].trim().slice(0, 100) : "";
@@ -75,9 +89,6 @@ function extractHtmlSummary(html: string): string {
   return [title, h1, meta].filter(Boolean).join(" | ").slice(0, 300);
 }
 
-/**
- * Findet Links im HTML die zum Selektor-Text passen.
- */
 function resolveLink(html: string, selector: string, baseUrl: string): string | null {
   const selectorLower = selector.toLowerCase().trim();
   const linkRegex = /<a\s[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
@@ -121,9 +132,6 @@ function resolveLink(html: string, selector: string, baseUrl: string): string | 
   }
 }
 
-/**
- * Extrahiert Daten aus HTML basierend auf Feldnamen.
- */
 function extractDataFromHtml(html: string, fields: string[]): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   const textContent = html
@@ -143,13 +151,13 @@ function extractDataFromHtml(html: string, fields: string[]): Record<string, unk
   return result;
 }
 
-/* ── Session / Cookie Support ── */
+/* ── Session / Cookie Support (HTTP Fallback) ── */
 
-interface BrowsingSession {
+interface HttpBrowsingSession {
   cookies: Record<string, string>;
 }
 
-function createSession(): BrowsingSession {
+function createHttpSession(): HttpBrowsingSession {
   return { cookies: {} };
 }
 
@@ -157,19 +165,19 @@ function serializeCookies(cookies: Record<string, string>): string {
   return Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join("; ");
 }
 
-function captureSetCookies(response: Response, session: BrowsingSession): void {
+function captureSetCookies(response: Response, httpSession: HttpBrowsingSession): void {
   const setCookies = response.headers.getSetCookie?.() || [];
   for (const cookie of setCookies) {
     const match = cookie.match(/^([^=]+)=([^;]*)/);
-    if (match) session.cookies[match[1].trim()] = match[2].trim();
+    if (match) httpSession.cookies[match[1].trim()] = match[2].trim();
   }
 }
 
-/* ── Page Fetching ── */
+/* ── Page Fetching (HTTP Fallback) ── */
 
 async function fetchPage(
   url: string,
-  session?: BrowsingSession
+  httpSession?: HttpBrowsingSession
 ): Promise<{ html: string; finalUrl: string }> {
   const headers: Record<string, string> = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -177,8 +185,8 @@ async function fetchPage(
     "Accept-Language": "en-US,en;q=0.9,de;q=0.8",
   };
 
-  if (session && Object.keys(session.cookies).length > 0) {
-    headers["Cookie"] = serializeCookies(session.cookies);
+  if (httpSession && Object.keys(httpSession.cookies).length > 0) {
+    headers["Cookie"] = serializeCookies(httpSession.cookies);
   }
 
   const response = await safeFetch(url, { headers });
@@ -187,13 +195,135 @@ async function fetchPage(
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
 
-  if (session) captureSetCookies(response, session);
+  if (httpSession) captureSetCookies(response, httpSession);
 
   const html = await response.text();
   return { html: html.slice(0, 50000), finalUrl: response.url || url };
 }
 
-/* ── Claude Decision Engine ── */
+/* ── Claude Decision Engine (V2.0 mit Vision) ── */
+
+async function askClaudeWithVision(
+  task: string,
+  currentUrl: string,
+  screenshot: string,
+  previousSteps: ComputerUseSessionStep[],
+  useBrowserMode: boolean,
+): Promise<ClaudeAction> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY nicht konfiguriert");
+
+  const stepsContext = previousSteps.length > 0
+    ? `\n\nBisherige Schritte:\n${previousSteps.map((s) =>
+        `${s.stepIndex + 1}. [${s.action}] ${s.url} — ${s.actionDetail}${s.verified === false ? " ⚠️ NICHT VERIFIZIERT" : ""}`
+      ).join("\n")}`
+    : "";
+
+  const browserActions = useBrowserMode
+    ? `
+5. Auf ein Element klicken (CSS-Selektor):
+{"action": "click", "selector": "button.submit", "reasoning": "Warum"}
+
+6. Text eingeben:
+{"action": "type", "selector": "input[name=search]", "text": "Suchbegriff", "reasoning": "Warum"}
+
+7. Scrollen:
+{"action": "scroll", "direction": "down", "pixels": 500, "reasoning": "Warum"}`
+    : "";
+
+  const systemPrompt = `Du bist ein visueller Web-Browsing-Agent. Du analysierst Screenshots von Webseiten und entscheidest welche Aktion als nächstes auszuführen ist.
+
+Aktuelle URL: ${currentUrl}
+Browser-Modus: ${useBrowserMode ? "Echter Browser (Browserless)" : "HTTP-Fetching"}
+${stepsContext}
+
+Antworte AUSSCHLIESSLICH als JSON mit einer dieser Aktionen:
+
+1. Zu einer neuen URL navigieren:
+{"action": "navigate", "url": "https://...", "reasoning": "Warum"}
+
+2. Einen Link klicken (Text des Links):
+{"action": "click_link", "selector": "Pricing", "reasoning": "Warum"}
+
+3. Daten extrahieren:
+{"action": "extract_data", "fields": ["price", "features"], "reasoning": "Warum"}
+
+4. Aufgabe erledigt:
+{"action": "done", "summary": "Was gefunden wurde", "extracted_data": {}, "reasoning": "Warum fertig"}
+${browserActions}
+
+Analysiere den Screenshot sorgfältig. Beschreibe was du siehst und wähle die beste Aktion.`;
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: VISION_MODEL,
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: "image/png",
+                data: screenshot,
+              },
+            },
+            {
+              type: "text",
+              text: `Aufgabe: ${task}\n\nAnalysiere diesen Screenshot und entscheide welche Aktion als nächstes ausgeführt werden soll.`,
+            },
+          ],
+        },
+      ],
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(`Claude Vision API: ${(errData as Record<string, unknown>).error || response.statusText}`);
+  }
+
+  const data = await response.json() as {
+    content: Array<{ type: string; text: string }>;
+  };
+
+  const text = data.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return { action: "done", summary: text, reasoning: "Konnte keine Aktion parsen" };
+    }
+    const parsed = JSON.parse(jsonMatch[0]) as Partial<ClaudeAction>;
+    return {
+      action: parsed.action || "done",
+      url: parsed.url,
+      selector: parsed.selector,
+      text: parsed.text,
+      direction: parsed.direction,
+      pixels: parsed.pixels,
+      fields: parsed.fields,
+      summary: parsed.summary,
+      extracted_data: parsed.extracted_data,
+      reasoning: parsed.reasoning || "",
+    };
+  } catch {
+    return { action: "done", summary: text, reasoning: "JSON Parse fehlgeschlagen" };
+  }
+}
 
 async function askClaudeForAction(
   task: string,
@@ -206,9 +336,7 @@ async function askClaudeForAction(
   hasScreenshot: boolean,
 ): Promise<ClaudeAction> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY nicht konfiguriert");
-  }
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY nicht konfiguriert");
 
   const stepsContext = previousSteps.length > 0
     ? `\n\nBisherige Schritte:\n${previousSteps.map((s) =>
@@ -271,7 +399,6 @@ Wähle die beste Aktion um die Aufgabe zu erfüllen. Sei effizient — navigiere
 
   const data = await response.json() as {
     content: Array<{ type: string; text: string }>;
-    usage: { input_tokens: number; output_tokens: number };
   };
 
   const text = data.content
@@ -296,6 +423,71 @@ Wähle die beste Aktion um die Aufgabe zu erfüllen. Sei effizient — navigiere
     };
   } catch {
     return { action: "done", summary: text, reasoning: "JSON Parse fehlgeschlagen" };
+  }
+}
+
+/* ── Visual Verification ── */
+
+async function verifyActionWithScreenshot(
+  expectedOutcome: string,
+  beforeScreenshot: string,
+  afterScreenshot: string
+): Promise<boolean> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return true; // Optimistisch wenn kein Key
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 256,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "BEFORE screenshot:" },
+              {
+                type: "image",
+                source: { type: "base64", media_type: "image/png", data: beforeScreenshot },
+              },
+              { type: "text", text: "AFTER screenshot:" },
+              {
+                type: "image",
+                source: { type: "base64", media_type: "image/png", data: afterScreenshot },
+              },
+              {
+                type: "text",
+                text: `Expected outcome: ${expectedOutcome}\n\nDid the action achieve the expected outcome? Answer ONLY "yes" or "no".`,
+              },
+            ],
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!response.ok) return true;
+
+    const data = await response.json() as {
+      content: Array<{ type: string; text: string }>;
+    };
+
+    const answer = data.content
+      .filter((b) => b.type === "text")
+      .map((b) => b.text)
+      .join("")
+      .toLowerCase()
+      .trim();
+
+    return answer.includes("yes");
+  } catch {
+    return true; // Optimistisch bei Fehlern
   }
 }
 
@@ -362,22 +554,18 @@ interface LoginResult {
 async function performLogin(
   credentialId: string,
   agentId: string,
-  session: BrowsingSession,
+  httpSession: HttpBrowsingSession,
   steps: ComputerUseSessionStep[]
 ): Promise<LoginResult> {
   const cred = await getDecryptedCredential(credentialId, agentId);
   if (!cred) return { success: false, error: "Credential nicht gefunden" };
 
-  // Login-Seite laden
-  const loginPage = await fetchPage(cred.loginUrl, session);
-
-  // Felder identifizieren via Claude
+  const loginPage = await fetchPage(cred.loginUrl, httpSession);
   const fields = await identifyLoginFields(loginPage.html);
   if (!fields) {
     return { success: false, error: "Login-Formular konnte nicht analysiert werden" };
   }
 
-  // Login-Versuch (max 2 Versuche)
   for (let attempt = 0; attempt < 2; attempt++) {
     const formData = new URLSearchParams();
     formData.set(fields.usernameField, cred.username);
@@ -394,17 +582,16 @@ async function performLogin(
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        "Cookie": serializeCookies(session.cookies),
+        "Cookie": serializeCookies(httpSession.cookies),
       },
       body: formData.toString(),
       redirect: "follow",
     });
 
-    captureSetCookies(response, session);
+    captureSetCookies(response, httpSession);
     const responseHtml = await response.text();
     const responseUrl = response.url || actionUrl;
 
-    // Login-Step protokollieren
     steps.push({
       stepIndex: steps.length,
       url: responseUrl,
@@ -417,7 +604,6 @@ async function performLogin(
       durationMs: 0,
     });
 
-    // Erfolg prüfen: kein Login-Formular mehr sichtbar + keine Error-Meldungen
     const lowerHtml = responseHtml.toLowerCase();
     const hasLoginForm = lowerHtml.includes('type="password"');
     const hasError = lowerHtml.includes("invalid") || lowerHtml.includes("incorrect") || lowerHtml.includes("failed");
@@ -428,9 +614,8 @@ async function performLogin(
       return { success: true };
     }
 
-    // Bei Fehler: Seite neu laden für frisches CSRF-Token
     if (attempt === 0) {
-      const freshPage = await fetchPage(cred.loginUrl, session);
+      const freshPage = await fetchPage(cred.loginUrl, httpSession);
       const freshFields = await identifyLoginFields(freshPage.html);
       if (freshFields?.csrfToken) {
         fields.csrfToken = freshFields.csrfToken;
@@ -441,92 +626,60 @@ async function performLogin(
   return { success: false, error: `Login bei ${cred.serviceName} fehlgeschlagen nach 2 Versuchen` };
 }
 
-/* ── Main Executor ── */
+/* ── Real Browser Execution Loop (V2.0) ── */
 
-export async function executeComputerUse(
-  config: Record<string, unknown>,
-  context: ExpressionContext
-): Promise<ActionNodeResult> {
-  const task = resolveExpression(String(config.task || ""), context);
-  const startUrl = resolveExpression(String(config.startUrl || ""), context);
-  const maxSteps = Math.min(Number(config.maxSteps) || 10, MAX_LOOP_STEPS);
-  const captureScreenshots = config.captureScreenshots !== false;
-  const extractData = config.extractData === true;
-  const dataSchema = String(config.dataSchema || "");
-  const resultKey = String(config.resultKey || "computerUseResult");
-  const requiresLogin = config.requiresLogin === true;
-  const credentialId = String(config.credentialId || "");
-  const agentId = String(context._agentId || "");
-
-  if (!task) {
-    return { contextDelta: {}, success: false, error: "Aufgabe fehlt" };
-  }
-  if (!startUrl) {
-    return { contextDelta: {}, success: false, error: "Start-URL fehlt" };
-  }
-
-  const sessionStart = Date.now();
+async function executeWithRealBrowser(
+  task: string,
+  startUrl: string,
+  maxSteps: number,
+  captureScreenshots: boolean,
+): Promise<{
+  steps: ComputerUseSessionStep[];
+  summary: string;
+  extractedData: Record<string, unknown> | null;
+  completionReason: ComputerUseSession["completionReason"];
+  sessionId: string;
+}> {
+  const browserSession = createBrowserSession();
   const steps: ComputerUseSessionStep[] = [];
   let currentUrl = startUrl;
-  let screenshotsAvailable = false;
   let finalSummary = "";
   let finalExtractedData: Record<string, unknown> | null = null;
   let completionReason: ComputerUseSession["completionReason"] = "max_steps";
-  const browsingSession = createSession();
 
   try {
-    // Login-Flow wenn aktiviert
-    if (requiresLogin && credentialId && agentId) {
-      const loginResult = await performLogin(credentialId, agentId, browsingSession, steps);
-      if (!loginResult.success) {
-        return {
-          contextDelta: {
-            [resultKey]: {
-              task,
-              startUrl,
-              steps,
-              summary: loginResult.error || "Login fehlgeschlagen",
-              extractedData: null,
-              totalDurationMs: Date.now() - sessionStart,
-              urlsVisited: Array.from(new Set(steps.map((s) => s.url))),
-              screenshotsAvailable: false,
-              completionReason: "error" as const,
-            },
-          },
-          success: false,
-          error: loginResult.error || "Login fehlgeschlagen",
-        };
-      }
-    }
-
     for (let i = 0; i < maxSteps; i++) {
       const stepStart = Date.now();
 
-      // 1. Seite abrufen
-      const page = await fetchPage(currentUrl, browsingSession);
-      currentUrl = page.finalUrl;
-      const htmlSummary = extractHtmlSummary(page.html);
+      // 1. Navigieren und Screenshot nehmen
+      const { content, screenshot: navScreenshot } = await browserNavigate(browserSession, currentUrl);
+      const htmlSummary = extractHtmlSummary(content);
 
-      // 2. Screenshot nehmen (wenn konfiguriert)
-      let screenshot: string | null = null;
-      if (captureScreenshots) {
-        screenshot = await takeScreenshot(currentUrl);
-        if (screenshot) screenshotsAvailable = true;
+      let screenshot = navScreenshot;
+      if (!screenshot && captureScreenshots) {
+        screenshot = await takeBrowserScreenshot(browserSession, currentUrl);
       }
 
-      // 3. Claude fragen was als nächstes zu tun ist
-      const claudeAction = await askClaudeForAction(
-        task,
-        currentUrl,
-        page.html,
-        htmlSummary,
-        steps,
-        extractData,
-        dataSchema,
-        !!screenshot,
-      );
+      // 2. Claude Vision fragen (wenn Screenshot vorhanden) oder Text-basiert
+      let claudeAction: ClaudeAction;
 
-      // 4. Aktion ausführen
+      if (screenshot) {
+        claudeAction = await askClaudeWithVision(
+          task,
+          currentUrl,
+          screenshot,
+          steps,
+          true, // Browser-Modus
+        );
+      } else {
+        claudeAction = await askClaudeForAction(
+          task, currentUrl, content, htmlSummary, steps, false, "", false
+        );
+      }
+
+      // 3. Aktion ausführen
+      const beforeScreenshot = screenshot;
+
       switch (claudeAction.action) {
         case "done": {
           steps.push({
@@ -548,6 +701,14 @@ export async function executeComputerUse(
         }
 
         case "navigate": {
+          if (claudeAction.url) {
+            try {
+              currentUrl = new URL(claudeAction.url, currentUrl).href;
+            } catch {
+              currentUrl = claudeAction.url;
+            }
+          }
+
           steps.push({
             stepIndex: i,
             url: currentUrl,
@@ -559,23 +720,93 @@ export async function executeComputerUse(
             timestamp: new Date().toISOString(),
             durationMs: Date.now() - stepStart,
           });
+          continue;
+        }
 
-          if (claudeAction.url) {
-            try {
-              currentUrl = new URL(claudeAction.url, currentUrl).href;
-            } catch {
-              currentUrl = claudeAction.url;
+        case "click": {
+          if (claudeAction.selector) {
+            const result = await clickElement(browserSession, currentUrl, claudeAction.selector);
+
+            // Visual Verification
+            let verified = true;
+            if (beforeScreenshot && captureScreenshots) {
+              const afterScreenshot = await takeBrowserScreenshot(browserSession, result.newUrl || currentUrl);
+              if (afterScreenshot && beforeScreenshot) {
+                verified = await verifyActionWithScreenshot(
+                  `Clicked "${claudeAction.selector}"`,
+                  beforeScreenshot,
+                  afterScreenshot
+                );
+              }
             }
-          } else {
-            completionReason = "no_next_url";
-            break;
+
+            if (result.newUrl) currentUrl = result.newUrl;
+
+            steps.push({
+              stepIndex: i,
+              url: currentUrl,
+              action: "click",
+              actionDetail: `Click: "${claudeAction.selector}" — ${claudeAction.reasoning}`,
+              htmlSummary,
+              screenshot,
+              extractedData: null,
+              timestamp: new Date().toISOString(),
+              durationMs: Date.now() - stepStart,
+              verified,
+            });
+
+            // Bei fehlgeschlagener Verification: retry mit anderem Ansatz
+            if (!verified && i < maxSteps - 1) {
+              continue; // Nächste Iteration mit neuem Screenshot
+            }
           }
+          continue;
+        }
+
+        case "type": {
+          if (claudeAction.selector && claudeAction.text) {
+            await typeText(browserSession, currentUrl, claudeAction.selector, claudeAction.text);
+
+            steps.push({
+              stepIndex: i,
+              url: currentUrl,
+              action: "type",
+              actionDetail: `Type: "${claudeAction.text}" in ${claudeAction.selector} — ${claudeAction.reasoning}`,
+              htmlSummary,
+              screenshot,
+              extractedData: null,
+              timestamp: new Date().toISOString(),
+              durationMs: Date.now() - stepStart,
+            });
+          }
+          continue;
+        }
+
+        case "scroll": {
+          await scrollPage(
+            browserSession,
+            currentUrl,
+            claudeAction.direction || "down",
+            claudeAction.pixels || 500
+          );
+
+          steps.push({
+            stepIndex: i,
+            url: currentUrl,
+            action: "scroll",
+            actionDetail: `Scroll ${claudeAction.direction || "down"} ${claudeAction.pixels || 500}px — ${claudeAction.reasoning}`,
+            htmlSummary,
+            screenshot,
+            extractedData: null,
+            timestamp: new Date().toISOString(),
+            durationMs: Date.now() - stepStart,
+          });
           continue;
         }
 
         case "click_link": {
           const resolvedUrl = claudeAction.selector
-            ? resolveLink(page.html, claudeAction.selector, currentUrl)
+            ? resolveLink(content, claudeAction.selector, currentUrl)
             : null;
 
           steps.push({
@@ -590,15 +821,13 @@ export async function executeComputerUse(
             durationMs: Date.now() - stepStart,
           });
 
-          if (resolvedUrl) {
-            currentUrl = resolvedUrl;
-          }
+          if (resolvedUrl) currentUrl = resolvedUrl;
           continue;
         }
 
         case "extract_data": {
           const extracted = claudeAction.fields
-            ? extractDataFromHtml(page.html, claudeAction.fields)
+            ? extractDataFromHtml(content, claudeAction.fields)
             : {};
 
           steps.push({
@@ -634,21 +863,218 @@ export async function executeComputerUse(
         }
       }
 
-      if (completionReason === "done" || completionReason === "no_next_url") {
-        break;
+      if (completionReason === "done") break;
+    }
+  } finally {
+    closeBrowserSession(browserSession.id);
+  }
+
+  return {
+    steps,
+    summary: finalSummary || `${steps.length} Schritte ausgeführt`,
+    extractedData: finalExtractedData,
+    completionReason,
+    sessionId: browserSession.id,
+  };
+}
+
+/* ── Main Executor ── */
+
+export async function executeComputerUse(
+  config: Record<string, unknown>,
+  context: ExpressionContext
+): Promise<ActionNodeResult> {
+  const task = resolveExpression(String(config.task || ""), context);
+  const startUrl = resolveExpression(String(config.startUrl || ""), context);
+  const maxSteps = Math.min(Number(config.maxSteps) || 10, MAX_LOOP_STEPS);
+  const captureScreenshots = config.captureScreenshots !== false;
+  const extractData = config.extractData === true;
+  const dataSchema = String(config.dataSchema || "");
+  const resultKey = String(config.resultKey || "computerUseResult");
+  const requiresLogin = config.requiresLogin === true;
+  const credentialId = String(config.credentialId || "");
+  const agentId = String(context._agentId || "");
+  const useBrowserMode = config.browserMode !== "http" && isBrowserServiceAvailable();
+
+  if (!task) {
+    return { contextDelta: {}, success: false, error: "Aufgabe fehlt" };
+  }
+  if (!startUrl) {
+    return { contextDelta: {}, success: false, error: "Start-URL fehlt" };
+  }
+
+  const sessionStart = Date.now();
+
+  try {
+    // V2.0: Real Browser Mode
+    if (useBrowserMode && !requiresLogin) {
+      const result = await executeWithRealBrowser(task, startUrl, maxSteps, captureScreenshots);
+
+      const cuSession: ComputerUseSession = {
+        task,
+        startUrl,
+        steps: result.steps,
+        summary: result.summary,
+        extractedData: result.extractedData,
+        totalDurationMs: Date.now() - sessionStart,
+        urlsVisited: Array.from(new Set(result.steps.map((s) => s.url))),
+        screenshotsAvailable: result.steps.some((s) => !!s.screenshot),
+        completionReason: result.completionReason,
+        browserMode: "real",
+        sessionId: result.sessionId,
+      };
+
+      return {
+        contextDelta: { [resultKey]: cuSession },
+        success: true,
+        meta: {
+          stepsCount: result.steps.length,
+          urlsVisited: cuSession.urlsVisited,
+          totalDurationMs: cuSession.totalDurationMs,
+          model: VISION_MODEL,
+          hasExtractedData: !!result.extractedData,
+          screenshotsAvailable: cuSession.screenshotsAvailable,
+          completionReason: result.completionReason,
+          browserMode: "real",
+          sessionId: result.sessionId,
+        },
+      };
+    }
+
+    // V1.0 Fallback: HTTP-Modus
+    const steps: ComputerUseSessionStep[] = [];
+    let currentUrl = startUrl;
+    let screenshotsAvailable = false;
+    let finalSummary = "";
+    let finalExtractedData: Record<string, unknown> | null = null;
+    let completionReason: ComputerUseSession["completionReason"] = "max_steps";
+    const httpSession = createHttpSession();
+
+    // Login-Flow wenn aktiviert
+    if (requiresLogin && credentialId && agentId) {
+      const loginResult = await performLogin(credentialId, agentId, httpSession, steps);
+      if (!loginResult.success) {
+        return {
+          contextDelta: {
+            [resultKey]: {
+              task,
+              startUrl,
+              steps,
+              summary: loginResult.error || "Login fehlgeschlagen",
+              extractedData: null,
+              totalDurationMs: Date.now() - sessionStart,
+              urlsVisited: Array.from(new Set(steps.map((s) => s.url))),
+              screenshotsAvailable: false,
+              completionReason: "error" as const,
+              browserMode: "http",
+            },
+          },
+          success: false,
+          error: loginResult.error || "Login fehlgeschlagen",
+        };
       }
     }
 
+    for (let i = 0; i < maxSteps; i++) {
+      const stepStart = Date.now();
+
+      const page = await fetchPage(currentUrl, httpSession);
+      currentUrl = page.finalUrl;
+      const htmlSummary = extractHtmlSummary(page.html);
+
+      let screenshot: string | null = null;
+      if (captureScreenshots) {
+        screenshot = await takeScreenshot(currentUrl);
+        if (screenshot) screenshotsAvailable = true;
+      }
+
+      const claudeAction = await askClaudeForAction(
+        task, currentUrl, page.html, htmlSummary,
+        steps, extractData, dataSchema, !!screenshot,
+      );
+
+      switch (claudeAction.action) {
+        case "done": {
+          steps.push({
+            stepIndex: i, url: currentUrl, action: "done",
+            actionDetail: claudeAction.reasoning, htmlSummary, screenshot,
+            extractedData: claudeAction.extracted_data || null,
+            timestamp: new Date().toISOString(), durationMs: Date.now() - stepStart,
+          });
+          finalSummary = claudeAction.summary || "";
+          finalExtractedData = claudeAction.extracted_data || null;
+          completionReason = "done";
+          break;
+        }
+
+        case "navigate": {
+          steps.push({
+            stepIndex: i, url: currentUrl, action: "navigate",
+            actionDetail: `Navigiere zu: ${claudeAction.url} — ${claudeAction.reasoning}`,
+            htmlSummary, screenshot, extractedData: null,
+            timestamp: new Date().toISOString(), durationMs: Date.now() - stepStart,
+          });
+          if (claudeAction.url) {
+            try { currentUrl = new URL(claudeAction.url, currentUrl).href; }
+            catch { currentUrl = claudeAction.url; }
+          } else {
+            completionReason = "no_next_url";
+            break;
+          }
+          continue;
+        }
+
+        case "click_link": {
+          const resolvedUrl = claudeAction.selector
+            ? resolveLink(page.html, claudeAction.selector, currentUrl)
+            : null;
+          steps.push({
+            stepIndex: i, url: currentUrl, action: "click_link",
+            actionDetail: `Klicke: "${claudeAction.selector}" → ${resolvedUrl || "nicht gefunden"} — ${claudeAction.reasoning}`,
+            htmlSummary, screenshot, extractedData: null,
+            timestamp: new Date().toISOString(), durationMs: Date.now() - stepStart,
+          });
+          if (resolvedUrl) currentUrl = resolvedUrl;
+          continue;
+        }
+
+        case "extract_data": {
+          const extracted = claudeAction.fields
+            ? extractDataFromHtml(page.html, claudeAction.fields) : {};
+          steps.push({
+            stepIndex: i, url: currentUrl, action: "extract_data",
+            actionDetail: `Extrahiere: ${(claudeAction.fields || []).join(", ")} — ${claudeAction.reasoning}`,
+            htmlSummary, screenshot, extractedData: extracted,
+            timestamp: new Date().toISOString(), durationMs: Date.now() - stepStart,
+          });
+          if (!finalExtractedData) finalExtractedData = {};
+          Object.assign(finalExtractedData, extracted);
+          continue;
+        }
+
+        default: {
+          steps.push({
+            stepIndex: i, url: currentUrl, action: "analyze",
+            actionDetail: claudeAction.reasoning, htmlSummary, screenshot,
+            extractedData: null,
+            timestamp: new Date().toISOString(), durationMs: Date.now() - stepStart,
+          });
+          continue;
+        }
+      }
+
+      if (completionReason === "done" || completionReason === "no_next_url") break;
+    }
+
     const cuSession: ComputerUseSession = {
-      task,
-      startUrl,
-      steps,
+      task, startUrl, steps,
       summary: finalSummary || `${steps.length} Schritte ausgeführt`,
       extractedData: finalExtractedData,
       totalDurationMs: Date.now() - sessionStart,
       urlsVisited: Array.from(new Set(steps.map((s) => s.url))),
       screenshotsAvailable,
       completionReason,
+      browserMode: "http",
     };
 
     return {
@@ -662,26 +1088,26 @@ export async function executeComputerUse(
         hasExtractedData: !!finalExtractedData,
         screenshotsAvailable,
         completionReason,
+        browserMode: "http",
       },
     };
   } catch (err) {
-    const partialSession: ComputerUseSession = {
-      task,
-      startUrl,
-      steps,
-      summary: err instanceof Error ? err.message : "Fehler aufgetreten",
-      extractedData: finalExtractedData,
-      totalDurationMs: Date.now() - sessionStart,
-      urlsVisited: Array.from(new Set(steps.map((s) => s.url))),
-      screenshotsAvailable,
-      completionReason: "error",
-    };
-
     return {
-      contextDelta: { [resultKey]: partialSession },
+      contextDelta: {
+        [resultKey]: {
+          task, startUrl, steps: [],
+          summary: err instanceof Error ? err.message : "Fehler aufgetreten",
+          extractedData: null,
+          totalDurationMs: Date.now() - sessionStart,
+          urlsVisited: [],
+          screenshotsAvailable: false,
+          completionReason: "error",
+          browserMode: useBrowserMode ? "real" : "http",
+        },
+      },
       success: false,
       error: err instanceof Error ? err.message : "Computer Use fehlgeschlagen",
-      meta: { stepsCompleted: steps.length, partialSession: true },
+      meta: { partialSession: true },
     };
   }
 }

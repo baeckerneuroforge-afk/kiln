@@ -52,6 +52,7 @@ import {
   AiClassifyConfig,
   AiExtractConfig,
   ComputerUseConfig,
+  DeepResearchConfig,
 } from "./node-configs/integration-configs";
 import { AgentNodeConfig } from "./node-configs/agent-node-config";
 
@@ -61,7 +62,7 @@ import {
   GitBranch, GitFork, Filter, Mail, Hash, Timer,
   Variable, ShieldCheck, Pause, Layers, Merge, Zap, FileText, Shuffle,
   Table, TableProperties, CalendarPlus, CalendarSearch, Database, Plug,
-  Sparkles, Tags, FileSearch, Monitor, Radio,
+  Sparkles, Tags, FileSearch, Monitor, Radio, Search,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -69,7 +70,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   GitBranch, GitFork, Filter, Mail, Hash, Timer,
   Variable, ShieldCheck, Pause, Layers, Merge, Zap, FileText, Shuffle,
   Table, TableProperties, CalendarPlus, CalendarSearch, Database, Plug,
-  Sparkles, Tags, FileSearch, Monitor, Radio,
+  Sparkles, Tags, FileSearch, Monitor, Radio, Search,
 };
 
 /* ── Tab type ── */
@@ -259,6 +260,7 @@ export function NodeConfigPanel({
               {nodeType === "ai_classify" && <AiClassifyConfig config={config} onChange={setConfig} />}
               {nodeType === "ai_extract" && <AiExtractConfig config={config} onChange={setConfig} />}
               {nodeType === "computer_use" && <ComputerUseConfig config={config} onChange={setConfig} />}
+              {nodeType === "deep_research" && <DeepResearchConfig config={config} onChange={setConfig} />}
               {nodeType === "a2a_call" && <A2ACallConfig config={config} onChange={setConfig} />}
             </>
           )}

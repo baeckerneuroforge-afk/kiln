@@ -9,6 +9,7 @@ import {
 } from "@/lib/workflow-expressions";
 import type { ActionNodeResult } from "./action-nodes";
 import { executeComputerUse } from "./computer-use-node";
+import { executeDeepResearch } from "./deep-research-node";
 
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 
@@ -219,6 +220,8 @@ export async function executeAiNode(
       return executeAiExtract(config, context);
     case "computer_use":
       return executeComputerUse(config, context);
+    case "deep_research":
+      return executeDeepResearch(config, context);
     default:
       throw new Error(`Unbekannter AI-Node-Typ: ${nodeType}`);
   }

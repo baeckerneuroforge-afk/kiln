@@ -676,6 +676,79 @@ export function ComputerUseConfig({ config, onChange }: ConfigProps) {
   );
 }
 
+/* ── Deep Research ── */
+
+export function DeepResearchConfig({ config, onChange }: ConfigProps) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <FieldLabel label="Forschungsthema" hint="Thema oder Frage für die Recherche. Unterstützt {{ expressions }}." />
+        <ConfigTextarea
+          value={String(config.topic || "")}
+          onChange={(v) => onChange({ ...config, topic: v })}
+          placeholder="Aktuelle Markttrends im Bereich KI-Chatbots für den Kundenservice"
+          rows={3}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <FieldLabel label="Tiefe" hint="Wie gründlich soll recherchiert werden?" />
+        <div className="flex gap-2">
+          {(["quick", "standard", "deep"] as const).map((d) => (
+            <button
+              key={d}
+              onClick={() => onChange({ ...config, depth: d })}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-colors border ${
+                (config.depth || "standard") === d
+                  ? "border-pink-500/50 bg-pink-500/10 text-pink-400"
+                  : "border-[#2a2a3a] bg-[#141418] text-zinc-500 hover:text-zinc-400"
+              }`}
+            >
+              {d === "quick" ? "Schnell" : d === "standard" ? "Standard" : "Tief"}
+              <span className="block text-[9px] text-zinc-600 mt-0.5">
+                {d === "quick" ? "~5 Quellen" : d === "standard" ? "~15 Quellen" : "~30 Quellen"}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <FieldLabel label="Sprache" />
+        <div className="flex gap-2">
+          {[
+            { value: "de", label: "Deutsch" },
+            { value: "en", label: "English" },
+          ].map((lang) => (
+            <button
+              key={lang.value}
+              onClick={() => onChange({ ...config, language: lang.value })}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-colors border ${
+                (config.language || "de") === lang.value
+                  ? "border-pink-500/50 bg-pink-500/10 text-pink-400"
+                  : "border-[#2a2a3a] bg-[#141418] text-zinc-500 hover:text-zinc-400"
+              }`}
+            >
+              {lang.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <FieldLabel label="Result Key" />
+        <ConfigInput
+          value={String(config.resultKey || "researchResult")}
+          onChange={(v) => onChange({ ...config, resultKey: v })}
+          placeholder="researchResult"
+        />
+      </div>
+      <div className="rounded-lg border border-[#2a2a3a] bg-[#141418] p-3">
+        <p className="text-[10px] text-zinc-600">
+          <span className="font-medium text-zinc-500">Output:</span> summary, fullReport, sources[], confidence (0-100), queriesUsed[], totalDurationMs
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /* ── Credential Selector for Computer Use ── */
 
 interface CredentialOption {
