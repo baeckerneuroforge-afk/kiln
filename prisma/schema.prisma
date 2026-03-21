@@ -163,6 +163,9 @@ model Agent {
   teamRoutingEnabled Boolean     @default(false)
   teamRoutingTeamId  String?     // AgentTeam ID for intent-based routing
 
+  // Code Execution — Sandbox für Python/JavaScript
+  codeExecutionEnabled Boolean   @default(false)
+
   // Clone-Tracking
   clonedFromId         String?   // ID des Original-Agents (falls geklont)
   clonedFromName       String?   // Name des Originals zum Zeitpunkt des Klonens
@@ -195,6 +198,8 @@ model Agent {
   researchEntries    AgentResearchEntry[]
   a2aLogs            A2AInteractionLog[]
   credentials        AgentCredential[]
+  codeSandboxSessions CodeSandboxSession[]
+  modelRoutingConfig  ModelRoutingConfig?
 
   @@index([userId])
 }
@@ -1315,4 +1320,62 @@ model AgentCredential {
   createdAt         DateTime  @default(now())
 
   @@index([agentId])
+}
+
+// Code Sandbox Sessions — Tracking von Code-Ausführungen
+model CodeSandboxSession {
+  id               String              @id @default(cuid())
+  agentId          String?
+  agent            Agent?              @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  workflowRunId    String?             // TeamExecution ID (optional)
+  status           CodeSandboxStatus   @default(CREATING)
+  language         String              @default("python") // python | javascript
+  startedAt        DateTime            @default(now())
+  completedAt      DateTime?
+  artifacts        Json?               // [{ id, fileName, mimeType, url, size }]
+  executionLog     Json?               // [{ type, content, timestamp, durationMs }]
+
+  @@index([agentId])
+  @@index([workflowRunId])
+}
+
+enum CodeSandboxStatus {
+  CREATING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+// Model Routing Configuration — per-Agent custom model routing
+model ModelRoutingConfig {
+  id        String              @id @default(cuid())
+  agentId   String              @unique
+  agent     Agent               @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  strategy  ModelRoutingStrategy @default(AUTO)
+  overrides Json?               // { [taskType]: modelId } — per-task-type model selections
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([agentId])
+}
+
+enum ModelRoutingStrategy {
+  AUTO
+  COST_OPTIMIZED
+  SPEED_OPTIMIZED
+  MANUAL
+}
+
+// Parallel Execution — Tracking paralleler Workflow-Branches
+model ParallelExecution {
+  id                String   @id @default(cuid())
+  workflowRunId     String   // TeamExecution ID
+  taskDecomposition Json?    // { tasks, phases, reasoning }
+  branches          Json?    // { [branchId]: { status, startedAt, completedAt } }
+  status            String   @default("running") // running, completed, failed
+  startedAt         DateTime @default(now())
+  completedAt       DateTime?
+  results           Json?    // { [branchId]: output }
+
+  @@index([workflowRunId])
 }

@@ -288,6 +288,163 @@ export function getCostSummary(hours = 24): {
   return { totalCost, byModel, byTaskType };
 }
 
+/* ── Routing Strategies ── */
+
+export type RoutingStrategy = "auto" | "cost_optimized" | "speed_optimized" | "manual";
+
+export interface UserRoutingConfig {
+  strategy: RoutingStrategy;
+  overrides?: Partial<Record<TaskType, string>>; // task type → model ID
+}
+
+// In-memory cache für User Routing Configs (Fallback wenn DB nicht erreichbar)
+const routingConfigCache = new Map<string, UserRoutingConfig>();
+
+/**
+ * Lädt die Routing-Config eines Agents aus der DB.
+ * Gibt null zurück wenn keine custom Config existiert.
+ */
+export async function getUserRoutingConfig(agentId: string): Promise<UserRoutingConfig | null> {
+  // Check cache first
+  const cached = routingConfigCache.get(agentId);
+  if (cached) return cached;
+
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    const config = await prisma.modelRoutingConfig.findUnique({
+      where: { agentId },
+    });
+
+    if (!config) return null;
+
+    const result: UserRoutingConfig = {
+      strategy: config.strategy.toLowerCase() as RoutingStrategy,
+      overrides: config.overrides ? (config.overrides as Record<string, string>) : undefined,
+    };
+
+    routingConfigCache.set(agentId, result);
+    // Cache für 5 Min
+    setTimeout(() => routingConfigCache.delete(agentId), 5 * 60 * 1000);
+
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Cost-Optimized Routing: wählt das günstigste Modell das die Aufgabe bewältigen kann.
+ * Bevorzugt günstigere Modelle wenn der Qualitätsunterschied <10% ist.
+ */
+export function selectCostOptimizedModel(context: ModelRoutingContext): RoutingDecision {
+  const { taskType, requiresVision, inputTokenEstimate } = context;
+
+  // Für einfache Tasks → Haiku
+  const simpleTasks: TaskType[] = ["classification", "routing", "data_extraction", "structured_output", "summarization"];
+  if (simpleTasks.includes(taskType)) {
+    const model = MODELS["claude-haiku-4-5-20251001"];
+    return {
+      primary: { ...model },
+      fallback: { ...MODELS["gpt-4.1-mini"], priority: 2 },
+      taskType,
+      reasoning: `Cost-Optimized | ${taskType} → Haiku (günstigstes Modell für einfache Tasks)`,
+    };
+  }
+
+  // Großer Kontext → GPT-4.1 Mini (günstiger als GPT-4.1)
+  if (inputTokenEstimate && inputTokenEstimate > 100000) {
+    const model = MODELS["gpt-4.1-mini"];
+    return {
+      primary: { ...model },
+      fallback: { ...MODELS["gemini-2.5-pro"], priority: 2 },
+      taskType,
+      reasoning: `Cost-Optimized | Large context → GPT-4.1 Mini`,
+    };
+  }
+
+  // Vision → Haiku (hat Vision, ist günstig)
+  if (requiresVision) {
+    const model = MODELS["claude-haiku-4-5-20251001"];
+    return {
+      primary: { ...model },
+      fallback: { ...MODELS["claude-sonnet-4-6"], priority: 2 },
+      taskType,
+      reasoning: `Cost-Optimized | Vision → Haiku (günstigste Vision)`,
+    };
+  }
+
+  // Default: Haiku mit Sonnet als Fallback
+  return {
+    primary: { ...MODELS["claude-haiku-4-5-20251001"] },
+    fallback: { ...MODELS["claude-sonnet-4-6"], priority: 2 },
+    taskType,
+    reasoning: `Cost-Optimized | ${taskType} → Haiku (Default cost-opt)`,
+  };
+}
+
+/**
+ * Speed-Optimized Routing: wählt das schnellste Modell.
+ */
+export function selectSpeedOptimizedModel(context: ModelRoutingContext): RoutingDecision {
+  const { taskType, inputTokenEstimate } = context;
+
+  // Großer Kontext → GPT-4.1 Mini (schneller bei großem Input)
+  if (inputTokenEstimate && inputTokenEstimate > 100000) {
+    return {
+      primary: { ...MODELS["gpt-4.1-mini"] },
+      fallback: { ...MODELS["claude-haiku-4-5-20251001"], priority: 2 },
+      taskType,
+      reasoning: `Speed-Optimized | Large context → GPT-4.1 Mini`,
+    };
+  }
+
+  // Default: Haiku (schnellstes Modell)
+  return {
+    primary: { ...MODELS["claude-haiku-4-5-20251001"] },
+    fallback: { ...MODELS["gpt-4.1-mini"], priority: 2 },
+    taskType,
+    reasoning: `Speed-Optimized | ${taskType} → Haiku (schnellstes Modell)`,
+  };
+}
+
+/**
+ * Enhanced selectOptimalModel mit User-Config Support.
+ * Bestehende Signatur bleibt kompatibel — agentId ist optional.
+ */
+export async function selectOptimalModelWithConfig(
+  context: ModelRoutingContext,
+  agentId?: string
+): Promise<RoutingDecision> {
+  // Wenn Agent-ID vorhanden, prüfe Custom-Config
+  if (agentId) {
+    const userConfig = await getUserRoutingConfig(agentId);
+    if (userConfig) {
+      // Manual Override
+      if (userConfig.strategy === "manual" && userConfig.overrides) {
+        const overrideModel = userConfig.overrides[context.taskType];
+        if (overrideModel && MODELS[overrideModel]) {
+          return {
+            primary: { ...MODELS[overrideModel] },
+            fallback: null,
+            taskType: context.taskType,
+            reasoning: `Manual Override | ${context.taskType} → ${overrideModel}`,
+          };
+        }
+      }
+
+      if (userConfig.strategy === "cost_optimized") {
+        return selectCostOptimizedModel(context);
+      }
+      if (userConfig.strategy === "speed_optimized") {
+        return selectSpeedOptimizedModel(context);
+      }
+    }
+  }
+
+  // Default: bestehendes Auto-Routing
+  return selectOptimalModel(context);
+}
+
 /* ── Workflow-Integration Helper ── */
 
 /**

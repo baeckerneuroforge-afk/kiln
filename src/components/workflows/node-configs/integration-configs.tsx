@@ -749,6 +749,120 @@ export function DeepResearchConfig({ config, onChange }: ConfigProps) {
   );
 }
 
+/* ── Code Sandbox ── */
+
+export function CodeSandboxConfig({ config, onChange }: ConfigProps) {
+  const packages = (config.packages as string[]) || [];
+  const [newPkg, setNewPkg] = useState("");
+
+  const addPackage = () => {
+    if (newPkg.trim() && !packages.includes(newPkg.trim())) {
+      onChange({ ...config, packages: [...packages, newPkg.trim()] });
+      setNewPkg("");
+    }
+  };
+
+  const removePackage = (pkg: string) => {
+    onChange({ ...config, packages: packages.filter((p: string) => p !== pkg) });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <FieldLabel label="Aufgabe / Ziel" hint="Beschreibe was der Code tun soll. Der Agent schreibt und führt den Code automatisch aus." />
+        <ConfigTextarea
+          value={String(config.goal || "")}
+          onChange={(v) => onChange({ ...config, goal: v })}
+          placeholder="Analysiere die CSV-Daten aus dem vorherigen Schritt, erstelle ein Balkendiagramm und speichere es als PNG"
+          rows={3}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <FieldLabel label="Sprache" />
+        <div className="flex gap-2">
+          {(["python", "javascript", "auto"] as const).map((lang) => (
+            <button
+              key={lang}
+              onClick={() => onChange({ ...config, language: lang })}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-colors border ${
+                (config.language || "python") === lang
+                  ? "border-green-500/50 bg-green-500/10 text-green-400"
+                  : "border-[#2a2a3a] bg-[#141418] text-zinc-500 hover:text-zinc-400"
+              }`}
+            >
+              {lang === "python" ? "Python" : lang === "javascript" ? "JavaScript" : "Auto"}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <FieldLabel label="Max. Iterationen" hint="Wie oft darf der Agent den Code überarbeiten (1-10)" />
+        <ConfigInput
+          value={String(config.maxIterations || "5")}
+          onChange={(v) => onChange({ ...config, maxIterations: parseInt(v) || 5 })}
+          placeholder="5"
+          type="number"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <FieldLabel label="Pakete vorinstallieren" hint="pip/npm Pakete die vor der Ausführung installiert werden" />
+        <div className="flex gap-2">
+          <input
+            value={newPkg}
+            onChange={(e) => setNewPkg(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addPackage()}
+            placeholder="pandas, matplotlib, ..."
+            className="flex-1 bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-300 px-3 py-2 outline-none focus:border-green-500/60 transition-colors placeholder:text-zinc-700"
+          />
+          <button
+            onClick={addPackage}
+            className="px-3 py-2 rounded-lg bg-green-500/10 text-green-400 text-xs font-medium border border-green-500/30 hover:bg-green-500/20 transition-colors"
+          >
+            +
+          </button>
+        </div>
+        {packages.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-1.5">
+            {packages.map((pkg: string) => (
+              <span
+                key={pkg}
+                className="inline-flex items-center gap-1 rounded-md bg-green-500/10 border border-green-500/20 px-2 py-1 text-[10px] font-mono text-green-400"
+              >
+                {pkg}
+                <button onClick={() => removePackage(pkg)} className="hover:text-red-400 transition-colors">
+                  <Trash2 className="h-2.5 w-2.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="space-y-1.5">
+        <FieldLabel label="Timeout (Sekunden)" hint="Maximale Laufzeit der Sandbox" />
+        <ConfigInput
+          value={String(Math.round((Number(config.timeoutMs) || 600000) / 1000))}
+          onChange={(v) => onChange({ ...config, timeoutMs: (parseInt(v) || 600) * 1000 })}
+          placeholder="600"
+          type="number"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <FieldLabel label="Result Key" />
+        <ConfigInput
+          value={String(config.resultKey || "codeSandboxResult")}
+          onChange={(v) => onChange({ ...config, resultKey: v })}
+          placeholder="codeSandboxResult"
+        />
+      </div>
+      <div className="rounded-lg border border-[#2a2a3a] bg-[#141418] p-3">
+        <p className="text-[10px] text-zinc-600">
+          <span className="font-medium text-zinc-500">Output:</span> goal, language, iterations, finalOutput, executionLog[], artifacts[], totalDurationMs, status
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /* ── Credential Selector for Computer Use ── */
 
 interface CredentialOption {

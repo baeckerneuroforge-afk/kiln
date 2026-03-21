@@ -25,6 +25,14 @@ import {
   takeBrowserScreenshot,
   closeBrowserSession,
 } from "@/lib/browser-service";
+import {
+  isCodeSandboxAvailable,
+} from "@/lib/sandbox/code-sandbox";
+import {
+  executePython,
+  executeJavascript,
+  cleanupCodeSession,
+} from "@/lib/sandbox/code-tools";
 
 const COMPUTER_USE_MODEL = "claude-sonnet-4-20250514";
 const VISION_MODEL = "claude-sonnet-4-20250514";
@@ -35,7 +43,7 @@ const MAX_LOOP_STEPS = 25;
 export interface ComputerUseSessionStep {
   stepIndex: number;
   url: string;
-  action: "navigate" | "click_link" | "extract_data" | "done" | "analyze" | "click" | "type" | "scroll";
+  action: "navigate" | "click_link" | "extract_data" | "done" | "analyze" | "click" | "type" | "scroll" | "execute_code";
   actionDetail: string;
   htmlSummary: string;
   screenshot: string | null; // base64 PNG
@@ -62,7 +70,7 @@ export interface ComputerUseSession {
 /* ── Claude Action Response (V2.0 erweitert) ── */
 
 interface ClaudeAction {
-  action: "navigate" | "click_link" | "click" | "type" | "scroll" | "extract_data" | "done";
+  action: "navigate" | "click_link" | "click" | "type" | "scroll" | "extract_data" | "done" | "execute_code";
   url?: string;
   selector?: string;
   text?: string; // Für type-Aktion
@@ -72,6 +80,8 @@ interface ClaudeAction {
   summary?: string;
   extracted_data?: Record<string, unknown>;
   reasoning: string;
+  code?: string; // Für execute_code-Aktion
+  code_language?: "python" | "javascript"; // Für execute_code-Aktion
 }
 
 /* ── HTML Parsing Helpers ── */
@@ -209,6 +219,7 @@ async function askClaudeWithVision(
   screenshot: string,
   previousSteps: ComputerUseSessionStep[],
   useBrowserMode: boolean,
+  enableCodeExecution: boolean = false,
 ): Promise<ClaudeAction> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY nicht konfiguriert");
@@ -231,6 +242,15 @@ async function askClaudeWithVision(
 {"action": "scroll", "direction": "down", "pixels": 500, "reasoning": "Warum"}`
     : "";
 
+  const codeActions = enableCodeExecution
+    ? `
+
+8. Code ausführen (Daten verarbeiten, Dateien erstellen, Berechnungen):
+{"action": "execute_code", "code": "import pandas as pd\\nprint('Hello')", "code_language": "python", "reasoning": "Warum"}
+
+Nutze Code-Ausführung wenn du Daten analysieren, transformieren, Diagramme erstellen oder Dateien generieren musst.`
+    : "";
+
   const systemPrompt = `Du bist ein visueller Web-Browsing-Agent. Du analysierst Screenshots von Webseiten und entscheidest welche Aktion als nächstes auszuführen ist.
 
 Aktuelle URL: ${currentUrl}
@@ -251,6 +271,7 @@ Antworte AUSSCHLIESSLICH als JSON mit einer dieser Aktionen:
 4. Aufgabe erledigt:
 {"action": "done", "summary": "Was gefunden wurde", "extracted_data": {}, "reasoning": "Warum fertig"}
 ${browserActions}
+${codeActions}
 
 Analysiere den Screenshot sorgfältig. Beschreibe was du siehst und wähle die beste Aktion.`;
 
@@ -633,6 +654,8 @@ async function executeWithRealBrowser(
   startUrl: string,
   maxSteps: number,
   captureScreenshots: boolean,
+  enableCodeExecution: boolean = false,
+  executionId?: string,
 ): Promise<{
   steps: ComputerUseSessionStep[];
   summary: string;
@@ -670,6 +693,7 @@ async function executeWithRealBrowser(
           screenshot,
           steps,
           true, // Browser-Modus
+          enableCodeExecution,
         );
       } else {
         claudeAction = await askClaudeForAction(
@@ -847,6 +871,52 @@ async function executeWithRealBrowser(
           continue;
         }
 
+        case "execute_code": {
+          if (!enableCodeExecution || !claudeAction.code) {
+            steps.push({
+              stepIndex: i,
+              url: currentUrl,
+              action: "analyze",
+              actionDetail: `Code-Ausführung übersprungen (${!enableCodeExecution ? "deaktiviert" : "kein Code"}) — ${claudeAction.reasoning}`,
+              htmlSummary,
+              screenshot,
+              extractedData: null,
+              timestamp: new Date().toISOString(),
+              durationMs: Date.now() - stepStart,
+            });
+            continue;
+          }
+
+          const execId = executionId || browserSession.id;
+          const codeLang = claudeAction.code_language || "python";
+          const codeResult = codeLang === "javascript"
+            ? await executeJavascript(execId, claudeAction.code)
+            : await executePython(execId, claudeAction.code);
+
+          const codeExtracted: Record<string, unknown> = {};
+          if (codeResult.output) {
+            codeExtracted._codeOutput = codeResult.output;
+          }
+
+          steps.push({
+            stepIndex: i,
+            url: currentUrl,
+            action: "execute_code",
+            actionDetail: `${codeLang}: ${claudeAction.reasoning}\n${codeResult.success ? "✓ Erfolgreich" : "✗ Fehler: " + (codeResult.error || "")}`,
+            htmlSummary,
+            screenshot,
+            extractedData: Object.keys(codeExtracted).length > 0 ? codeExtracted : null,
+            timestamp: new Date().toISOString(),
+            durationMs: Date.now() - stepStart,
+          });
+
+          if (codeResult.output && !finalExtractedData) finalExtractedData = {};
+          if (codeResult.output && finalExtractedData) {
+            finalExtractedData._codeOutput = codeResult.output;
+          }
+          continue;
+        }
+
         default: {
           steps.push({
             stepIndex: i,
@@ -867,6 +937,9 @@ async function executeWithRealBrowser(
     }
   } finally {
     closeBrowserSession(browserSession.id);
+    if (enableCodeExecution && executionId) {
+      await cleanupCodeSession(executionId).catch(() => {});
+    }
   }
 
   return {
@@ -895,6 +968,7 @@ export async function executeComputerUse(
   const credentialId = String(config.credentialId || "");
   const agentId = String(context._agentId || "");
   const useBrowserMode = config.browserMode !== "http" && isBrowserServiceAvailable();
+  const enableCodeExecution = config.enableCodeExecution === true && isCodeSandboxAvailable();
 
   if (!task) {
     return { contextDelta: {}, success: false, error: "Aufgabe fehlt" };
@@ -908,7 +982,10 @@ export async function executeComputerUse(
   try {
     // V2.0: Real Browser Mode
     if (useBrowserMode && !requiresLogin) {
-      const result = await executeWithRealBrowser(task, startUrl, maxSteps, captureScreenshots);
+      const result = await executeWithRealBrowser(
+        task, startUrl, maxSteps, captureScreenshots,
+        enableCodeExecution, String(context._executionId || "")
+      );
 
       const cuSession: ComputerUseSession = {
         task,

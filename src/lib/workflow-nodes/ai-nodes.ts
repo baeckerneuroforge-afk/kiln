@@ -10,6 +10,7 @@ import {
 import type { ActionNodeResult } from "./action-nodes";
 import { executeComputerUse } from "./computer-use-node";
 import { executeDeepResearch } from "./deep-research-node";
+import { executeCodeSandbox } from "./code-sandbox-node";
 
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 
@@ -222,6 +223,8 @@ export async function executeAiNode(
       return executeComputerUse(config, context);
     case "deep_research":
       return executeDeepResearch(config, context);
+    case "code_sandbox":
+      return executeCodeSandbox(config, context);
     default:
       throw new Error(`Unbekannter AI-Node-Typ: ${nodeType}`);
   }

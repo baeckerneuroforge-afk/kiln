@@ -48,11 +48,16 @@ export type WorkflowNodeType =
   | "ai_extract"
   | "computer_use"
   | "deep_research"
+  | "code_sandbox"
   // A2A
   | "a2a_call"
   // Goal & Sub-Agent
   | "goal_trigger"
-  | "spawn_helper";
+  | "spawn_helper"
+  // Parallel & Swarm
+  | "agent_swarm"
+  | "parallel_split"
+  | "parallel_merge";
 
 export type WorkflowNodeCategory = "agents" | "triggers" | "logic" | "actions" | "control" | "integrations" | "ai_tools" | "advanced";
 
@@ -444,6 +449,22 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       resultKey: "researchResult",
     },
   },
+  {
+    type: "code_sandbox",
+    label: "Code Sandbox",
+    description: "Code schreiben und ausführen (Python/JavaScript)",
+    category: "ai_tools",
+    icon: "Terminal",
+    color: "#22C55E",
+    defaultConfig: {
+      goal: "",
+      language: "python",
+      maxIterations: 5,
+      packages: [],
+      timeoutMs: 600000,
+      resultKey: "codeSandboxResult",
+    },
+  },
 
   // A2A (Agent-to-Agent)
   {
@@ -488,6 +509,48 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       helperType: "general",
       model: "auto",
       maxTokens: 1024,
+    },
+  },
+
+  // Parallel & Swarm
+  {
+    type: "agent_swarm",
+    label: "Agent Swarm",
+    description: "Zerlegt ein Ziel in parallele Sub-Tasks und führt sie mit mehreren Agents aus",
+    category: "advanced",
+    icon: "Layers",
+    color: "#A855F7",
+    defaultConfig: {
+      goal: "",
+      maxAgents: 5,
+      maxParallel: 3,
+      mergeStrategy: "wait_all",
+      timeoutPerAgent: 60,
+      resultKey: "swarmResult",
+    },
+  },
+  {
+    type: "parallel_split",
+    label: "Parallel Split",
+    description: "Fan-out: Startet mehrere Branches gleichzeitig",
+    category: "logic",
+    icon: "GitFork",
+    color: "#3B82F6",
+    defaultConfig: {
+      branches: 2,
+    },
+  },
+  {
+    type: "parallel_merge",
+    label: "Parallel Merge",
+    description: "Fan-in: Wartet auf parallele Branches und merged Ergebnisse",
+    category: "logic",
+    icon: "Merge",
+    color: "#3B82F6",
+    defaultConfig: {
+      mergeStrategy: "wait_all",
+      nRequired: 0,
+      resultKey: "parallelResult",
     },
   },
 ];

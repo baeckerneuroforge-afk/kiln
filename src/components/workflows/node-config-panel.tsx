@@ -53,8 +53,16 @@ import {
   AiExtractConfig,
   ComputerUseConfig,
   DeepResearchConfig,
+  CodeSandboxConfig,
 } from "./node-configs/integration-configs";
 import { AgentNodeConfig } from "./node-configs/agent-node-config";
+import {
+  GoalTriggerConfig,
+  SpawnHelperConfig,
+  AgentSwarmConfig,
+  ParallelSplitConfig,
+  ParallelMergeConfig,
+} from "./node-configs/advanced-configs";
 
 // Icon mapping
 import {
@@ -62,7 +70,7 @@ import {
   GitBranch, GitFork, Filter, Mail, Hash, Timer,
   Variable, ShieldCheck, Pause, Layers, Merge, Zap, FileText, Shuffle,
   Table, TableProperties, CalendarPlus, CalendarSearch, Database, Plug,
-  Sparkles, Tags, FileSearch, Monitor, Radio, Search,
+  Sparkles, Tags, FileSearch, Monitor, Radio, Search, Terminal, Target,
 } from "lucide-react";
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -70,7 +78,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   GitBranch, GitFork, Filter, Mail, Hash, Timer,
   Variable, ShieldCheck, Pause, Layers, Merge, Zap, FileText, Shuffle,
   Table, TableProperties, CalendarPlus, CalendarSearch, Database, Plug,
-  Sparkles, Tags, FileSearch, Monitor, Radio, Search,
+  Sparkles, Tags, FileSearch, Monitor, Radio, Search, Terminal, Target,
 };
 
 /* ── Tab type ── */
@@ -261,7 +269,13 @@ export function NodeConfigPanel({
               {nodeType === "ai_extract" && <AiExtractConfig config={config} onChange={setConfig} />}
               {nodeType === "computer_use" && <ComputerUseConfig config={config} onChange={setConfig} />}
               {nodeType === "deep_research" && <DeepResearchConfig config={config} onChange={setConfig} />}
+              {nodeType === "code_sandbox" && <CodeSandboxConfig config={config} onChange={setConfig} />}
               {nodeType === "a2a_call" && <A2ACallConfig config={config} onChange={setConfig} />}
+              {nodeType === "goal_trigger" && <GoalTriggerConfig config={config} onChange={setConfig} />}
+              {nodeType === "spawn_helper" && <SpawnHelperConfig config={config} onChange={setConfig} />}
+              {nodeType === "agent_swarm" && <AgentSwarmConfig config={config} onChange={setConfig} />}
+              {nodeType === "parallel_split" && <ParallelSplitConfig config={config} onChange={setConfig} />}
+              {nodeType === "parallel_merge" && <ParallelMergeConfig config={config} onChange={setConfig} />}
             </>
           )}
 

@@ -62,6 +62,11 @@ import {
   mapStepToNodeType,
   resolveModelHint,
 } from "@/lib/goal-planner";
+import { executeAgentSwarm } from "@/lib/workflow-nodes/agent-swarm-node";
+import {
+  executeParallelSplit,
+  executeParallelMerge,
+} from "@/lib/workflow-nodes/parallel-node";
 
 /* ── Types ── */
 
@@ -183,9 +188,14 @@ const NODE_CATEGORIES: Record<string, string> = {
   ai_extract: "ai_tool",
   computer_use: "ai_tool",
   deep_research: "ai_tool",
+  code_sandbox: "ai_tool",
   // Goal & Sub-Agent
   goal_trigger: "goal",
   spawn_helper: "spawn",
+  // Parallel & Swarm
+  agent_swarm: "swarm",
+  parallel_split: "parallel",
+  parallel_merge: "parallel",
 };
 
 const MAX_SUB_WORKFLOW_DEPTH = 5;
@@ -860,6 +870,101 @@ export async function executeWorkflow(
                   queue.push(...spawnErrorTargets);
                 }
                 failedNodes++;
+              }
+            }
+            break;
+          }
+
+          case "swarm": {
+            // Agent Swarm: Parallele Sub-Tasks mit mehreren Agents
+            const swarmResult = await executeAgentSwarm(node.config, context);
+
+            if (swarmResult.success) {
+              context = { ...context, ...swarmResult.contextDelta };
+              nodeResult = {
+                nodeId: node.id,
+                nodeType: node.type,
+                status: "completed",
+                output: JSON.stringify(swarmResult.contextDelta),
+                contextDelta: swarmResult.contextDelta,
+                startedAt: startTime,
+                completedAt: new Date(),
+                meta: swarmResult.meta,
+              };
+              queue.push(...getNormalSuccessors(node.id, edges));
+            } else {
+              nodeResult = {
+                nodeId: node.id,
+                nodeType: node.type,
+                status: "failed",
+                contextDelta: swarmResult.contextDelta,
+                error: swarmResult.error,
+                startedAt: startTime,
+                completedAt: new Date(),
+                meta: swarmResult.meta,
+              };
+              const swarmErrorTargets = getErrorSuccessors(node.id, edges);
+              if (swarmErrorTargets.length > 0) {
+                context = { ...context, _lastError: { nodeId: node.id, nodeType: node.type, error: swarmResult.error } };
+                queue.push(...swarmErrorTargets);
+              }
+              failedNodes++;
+            }
+            break;
+          }
+
+          case "parallel": {
+            if (node.type === "parallel_split") {
+              const splitResult = executeParallelSplit(node.config, context);
+              context = { ...context, ...splitResult.contextDelta };
+
+              // Alle Branches aktivieren — nutze Handle-basierte Nachfolger
+              const allSuccessors: string[] = [];
+              for (const handle of splitResult.outputHandles) {
+                allSuccessors.push(...getSuccessors(node.id, edges, handle));
+              }
+              // Fallback: wenn keine Handle-spezifischen Edges, alle normalen Nachfolger
+              if (allSuccessors.length === 0) {
+                allSuccessors.push(...getNormalSuccessors(node.id, edges));
+              }
+              queue.push(...allSuccessors);
+
+              nodeResult = {
+                nodeId: node.id,
+                nodeType: node.type,
+                status: "completed",
+                contextDelta: splitResult.contextDelta,
+                output: `Split in ${splitResult.outputHandles.length} Branches`,
+                startedAt: startTime,
+                completedAt: new Date(),
+                meta: { branches: splitResult.outputHandles.length },
+              };
+            } else {
+              // parallel_merge
+              const mergeExtra = {
+                branchesCompleted: nonErrorIncoming.filter((e) => executedNodes.has(e.sourceId)).length,
+                branchesExpected: nonErrorIncoming.length,
+              };
+
+              const mergeResult = executeParallelMerge(node.config, context, mergeExtra);
+
+              if (mergeResult.success) {
+                context = { ...context, ...mergeResult.contextDelta };
+                nodeResult = {
+                  nodeId: node.id,
+                  nodeType: node.type,
+                  status: "completed",
+                  contextDelta: mergeResult.contextDelta,
+                  startedAt: startTime,
+                  completedAt: new Date(),
+                  meta: mergeResult.meta,
+                };
+                queue.push(...getNormalSuccessors(node.id, edges));
+              } else {
+                // Noch nicht alle Branches fertig → zurück in Queue
+                queue.push(node.id);
+                executedNodes.delete(currentNodeId); // Re-evaluate später
+                continue; // Skip den Rest der Loop-Iteration
               }
             }
             break;

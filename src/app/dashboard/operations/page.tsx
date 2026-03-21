@@ -31,6 +31,7 @@ import { useToast } from "@/components/toast";
 import { cn } from "@/lib/utils";
 import { SkeletonCard, SkeletonStat } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
+import { ModelAnalyticsSection } from "@/components/dashboard/model-analytics-section";
 
 interface OperationsData {
   eligible: boolean;
@@ -588,6 +589,12 @@ export default function OperationsPage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Model Analytics & Parallel Execution */}
+      <div>
+        <p className="text-sm font-medium text-foreground mb-3">Model Intelligence</p>
+        <ModelAnalyticsSection />
       </div>
     </div>
   );

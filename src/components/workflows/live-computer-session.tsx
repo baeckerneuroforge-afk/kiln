@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ArtifactViewer } from "./artifact-viewer";
 
 interface SessionAction {
   type: string;
@@ -26,6 +27,7 @@ interface SessionState {
   latestScreenshot: string | null;
   actionLog: SessionAction[];
   actionCount: number;
+  artifacts?: Array<{ id: string; fileName: string; mimeType: string; url: string }>;
 }
 
 interface LiveComputerSessionProps {
@@ -292,6 +294,13 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
           </div>
         )}
       </div>
+
+      {/* Artifacts */}
+      {session.artifacts && session.artifacts.length > 0 && (
+        <div className="border-t border-[#2a2a3a] px-4 py-3">
+          <ArtifactViewer artifacts={session.artifacts} />
+        </div>
+      )}
 
       {/* Stats Footer */}
       <div className="border-t border-[#2a2a3a] px-4 py-2 flex items-center justify-between bg-[#141418]">
