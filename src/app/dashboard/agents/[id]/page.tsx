@@ -45,6 +45,7 @@ import {
   Trash2,
   Lightbulb,
   Cpu,
+  Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -65,6 +66,7 @@ import { TestingTab } from "@/components/agents/testing-tab";
 import { TestLab } from "@/components/agents/test-lab";
 import { WebhooksTab } from "@/components/agents/webhooks-tab";
 import { ModelRoutingTab } from "@/components/agents/model-routing-tab";
+import { BudgetSettings } from "@/components/agents/budget-settings";
 import { EventSubscriptionsTab } from "@/components/agents/event-subscriptions-tab";
 import { IntegrationsTab } from "@/components/agents/integrations-tab";
 import { ChannelsTab } from "@/components/agents/channels-tab";
@@ -152,7 +154,7 @@ type WidgetSettings = {
   soundEnabled: boolean;
 };
 
-type Tab = "config" | "knowledge" | "actions" | "analytics" | "eval" | "embed" | "channels" | "integrations" | "tools" | "debug" | "logs" | "memory" | "visitor-memories" | "automations" | "versions" | "testing" | "testlab" | "webhooks" | "runs" | "research" | "model-routing";
+type Tab = "config" | "knowledge" | "actions" | "analytics" | "eval" | "embed" | "channels" | "integrations" | "tools" | "debug" | "logs" | "memory" | "visitor-memories" | "automations" | "versions" | "testing" | "testlab" | "webhooks" | "runs" | "research" | "model-routing" | "budget";
 
 const chatBaseTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "config", label: "Configuration", icon: Settings2 },
@@ -179,6 +181,7 @@ const advancedTabs: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "testlab", label: "Test Lab", icon: FlaskConical },
   { id: "webhooks", label: "Webhooks", icon: Link2 },
   { id: "model-routing", label: "Model Routing", icon: Cpu },
+  { id: "budget", label: "Budget", icon: Wallet },
 ];
 
 const statusOptions = [
@@ -1745,6 +1748,10 @@ export default function AgentDetailPage() {
 
           {activeTab === "model-routing" && (
             <ModelRoutingTab agentId={agent.id} />
+          )}
+
+          {activeTab === "budget" && (
+            <BudgetSettings agentId={agent.id} />
           )}
 
           {activeTab === "embed" && (

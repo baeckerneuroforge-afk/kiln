@@ -9,6 +9,8 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ArtifactViewer } from "./artifact-viewer";
+import { ReasoningLogViewer } from "./reasoning-log-viewer";
+import type { ReasoningEntry } from "@/lib/sandbox/reasoning-logger";
 
 interface SessionAction {
   type: string;
@@ -28,6 +30,7 @@ interface SessionState {
   actionLog: SessionAction[];
   actionCount: number;
   artifacts?: Array<{ id: string; fileName: string; mimeType: string; url: string }>;
+  reasoningLog?: ReasoningEntry[];
 }
 
 interface LiveComputerSessionProps {
@@ -41,6 +44,7 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(true);
   const [showLog, setShowLog] = useState(true);
+  const [showReasoning, setShowReasoning] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -294,6 +298,26 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
           </div>
         )}
       </div>
+
+      {/* Reasoning Log */}
+      {session.reasoningLog && session.reasoningLog.length > 0 && (
+        <div className="border-t border-[#2a2a3a]">
+          <button
+            onClick={() => setShowReasoning(!showReasoning)}
+            className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-zinc-400 hover:text-zinc-300 transition-colors"
+          >
+            <span className="font-medium">
+              Agent Reasoning ({session.reasoningLog.length} Einträge)
+            </span>
+            {showReasoning ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          </button>
+          {showReasoning && (
+            <div className="px-4 pb-3">
+              <ReasoningLogViewer entries={session.reasoningLog} />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Artifacts */}
       {session.artifacts && session.artifacts.length > 0 && (

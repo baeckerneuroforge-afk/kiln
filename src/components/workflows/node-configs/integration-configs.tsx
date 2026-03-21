@@ -647,6 +647,58 @@ export function ComputerUseConfig({ config, onChange }: ConfigProps) {
         />
       </div>
 
+      {/* Advanced Features */}
+      <div className="border-t border-zinc-700/50 pt-4 mt-4">
+        <p className="text-[10px] font-medium text-zinc-600 uppercase tracking-wide mb-3">Erweitert</p>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <FieldLabel label="Schritt-Verifikation" hint="Prüft ob jede Aktion erfolgreich war" />
+            <button
+              onClick={() => onChange({ ...config, enableVerification: config.enableVerification === false ? true : false })}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                config.enableVerification !== false ? "bg-blue-500" : "bg-zinc-700"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-lg transition-transform ${
+                  config.enableVerification !== false ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+          <div className="flex items-center justify-between">
+            <FieldLabel label="Prozedurales Lernen" hint="Agent merkt sich erfolgreiche Abläufe" />
+            <button
+              onClick={() => onChange({ ...config, enableProceduralMemory: config.enableProceduralMemory === false ? true : false })}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                config.enableProceduralMemory !== false ? "bg-purple-500" : "bg-zinc-700"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-lg transition-transform ${
+                  config.enableProceduralMemory !== false ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+          <div className="flex items-center justify-between">
+            <FieldLabel label="Code-Ausführung" hint="Erlaubt dem Agent Python/JS Code auszuführen" />
+            <button
+              onClick={() => onChange({ ...config, enableCodeExecution: !config.enableCodeExecution })}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                config.enableCodeExecution ? "bg-green-500" : "bg-zinc-700"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-lg transition-transform ${
+                  config.enableCodeExecution ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Login/Credentials Section */}
       <div className="border-t border-zinc-700/50 pt-4 mt-4">
         <div className="flex items-center justify-between mb-3">

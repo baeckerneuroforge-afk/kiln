@@ -170,6 +170,11 @@ model Agent {
   clonedFromId         String?   // ID des Original-Agents (falls geklont)
   clonedFromName       String?   // Name des Originals zum Zeitpunkt des Klonens
 
+  // Budget Controls
+  maxCostPerRunCents    Int?      // Max cost per single execution in cents (null = unlimited)
+  monthlyCostCapCents   Int?      // Max monthly cost in cents (null = unlimited)
+  budgetExceededBehavior String?  // "pause" | "downgrade" | "notify_continue"
+
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
@@ -198,8 +203,10 @@ model Agent {
   researchEntries    AgentResearchEntry[]
   a2aLogs            A2AInteractionLog[]
   credentials        AgentCredential[]
-  codeSandboxSessions CodeSandboxSession[]
-  modelRoutingConfig  ModelRoutingConfig?
+  codeSandboxSessions  CodeSandboxSession[]
+  proceduralMemories   ProceduralMemory[]
+  modelRoutingConfig   ModelRoutingConfig?
+  costRecords          CostRecord[]
 
   @@index([userId])
 }
@@ -1378,4 +1385,40 @@ model ParallelExecution {
   results           Json?    // { [branchId]: output }
 
   @@index([workflowRunId])
+}
+
+// Cost Record — Per-Call Kostenerfassung
+model CostRecord {
+  id             String   @id @default(cuid())
+  agentId        String
+  agent          Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  workflowRunId  String?  // TeamExecution ID (optional)
+  model          String   // Model ID used
+  inputTokens    Int
+  outputTokens   Int
+  costCents      Float    // Cost in cents
+  timestamp      DateTime @default(now())
+
+  @@index([agentId])
+  @@index([agentId, timestamp])
+  @@index([workflowRunId])
+}
+
+// Procedural Memory — Agents lernen wiederverwendbare Workflows
+model ProceduralMemory {
+  id          String   @id @default(cuid())
+  agentId     String
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  domain      String   // z.B. "competitor.com"
+  taskType    String   // z.B. "price_extraction", "login_flow"
+  procedure   Json     // [{ step, action, selector, target, fields, notes }]
+  successRate Float    @default(0)
+  timesUsed   Int      @default(0)
+  lastUsedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([agentId, domain, taskType])
+  @@index([agentId])
+  @@index([agentId, domain])
 }

@@ -33,6 +33,18 @@ import {
   executeJavascript,
   cleanupCodeSession,
 } from "@/lib/sandbox/code-tools";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { StepVerifier } from "@/lib/sandbox/step-verifier";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { ReasoningLogger } from "@/lib/sandbox/reasoning-logger";
+import {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  findProcedure,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  saveProcedure,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  procedureToPromptHint,
+} from "@/lib/sandbox/procedural-memory";
 
 const COMPUTER_USE_MODEL = "claude-sonnet-4-20250514";
 const VISION_MODEL = "claude-sonnet-4-20250514";
@@ -220,6 +232,7 @@ async function askClaudeWithVision(
   previousSteps: ComputerUseSessionStep[],
   useBrowserMode: boolean,
   enableCodeExecution: boolean = false,
+  proceduralHint: string = "",
 ): Promise<ClaudeAction> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY nicht konfiguriert");
@@ -272,6 +285,7 @@ Antworte AUSSCHLIESSLICH als JSON mit einer dieser Aktionen:
 {"action": "done", "summary": "Was gefunden wurde", "extracted_data": {}, "reasoning": "Warum fertig"}
 ${browserActions}
 ${codeActions}
+${proceduralHint}
 
 Analysiere den Screenshot sorgfältig. Beschreibe was du siehst und wähle die beste Aktion.`;
 
@@ -449,6 +463,7 @@ Wähle die beste Aktion um die Aufgabe zu erfüllen. Sei effizient — navigiere
 
 /* ── Visual Verification ── */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function verifyActionWithScreenshot(
   expectedOutcome: string,
   beforeScreenshot: string,
@@ -656,12 +671,17 @@ async function executeWithRealBrowser(
   captureScreenshots: boolean,
   enableCodeExecution: boolean = false,
   executionId?: string,
+  enableVerification: boolean = true,
+  enableProceduralMemory: boolean = true,
+  agentId?: string,
 ): Promise<{
   steps: ComputerUseSessionStep[];
   summary: string;
   extractedData: Record<string, unknown> | null;
   completionReason: ComputerUseSession["completionReason"];
   sessionId: string;
+  reasoningLog?: unknown[];
+  verificationLog?: unknown[];
 }> {
   const browserSession = createBrowserSession();
   const steps: ComputerUseSessionStep[] = [];
@@ -669,6 +689,26 @@ async function executeWithRealBrowser(
   let finalSummary = "";
   let finalExtractedData: Record<string, unknown> | null = null;
   let completionReason: ComputerUseSession["completionReason"] = "max_steps";
+
+  // Reasoning Logger + Step Verifier (werden in zukünftigen Erweiterungen genutzt)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const reasoningLogger = new ReasoningLogger();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const stepVerifier = new StepVerifier(enableVerification && captureScreenshots);
+
+  // Procedural Memory: bekannte Prozedur als Prompt-Hint
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let proceduralHint = "";
+  if (enableProceduralMemory && agentId) {
+    try {
+      const procedure = await findProcedure(agentId, startUrl, task);
+      if (procedure) {
+        proceduralHint = procedureToPromptHint(procedure);
+      }
+    } catch {
+      // Fehler ignorieren — Procedural Memory ist optional
+    }
+  }
 
   try {
     for (let i = 0; i < maxSteps; i++) {
@@ -685,6 +725,7 @@ async function executeWithRealBrowser(
 
       // 2. Claude Vision fragen (wenn Screenshot vorhanden) oder Text-basiert
       let claudeAction: ClaudeAction;
+      const thinkStart = Date.now();
 
       if (screenshot) {
         claudeAction = await askClaudeWithVision(
@@ -694,12 +735,25 @@ async function executeWithRealBrowser(
           steps,
           true, // Browser-Modus
           enableCodeExecution,
+          proceduralHint,
         );
       } else {
         claudeAction = await askClaudeForAction(
           task, currentUrl, content, htmlSummary, steps, false, "", false
         );
       }
+
+      const thinkDuration = Date.now() - thinkStart;
+
+      // Reasoning loggen
+      reasoningLogger.logFromClaudeAction(
+        i,
+        claudeAction.action,
+        claudeAction.reasoning,
+        claudeAction.selector || claudeAction.url,
+        thinkDuration,
+        screenshot ? `step_${i}` : undefined,
+      );
 
       // 3. Aktion ausführen
       const beforeScreenshot = screenshot;
@@ -751,16 +805,22 @@ async function executeWithRealBrowser(
           if (claudeAction.selector) {
             const result = await clickElement(browserSession, currentUrl, claudeAction.selector);
 
-            // Visual Verification
+            // Enhanced Verification via StepVerifier
             let verified = true;
-            if (beforeScreenshot && captureScreenshots) {
+            if (stepVerifier.shouldVerify("click") && beforeScreenshot && captureScreenshots) {
               const afterScreenshot = await takeBrowserScreenshot(browserSession, result.newUrl || currentUrl);
               if (afterScreenshot && beforeScreenshot) {
-                verified = await verifyActionWithScreenshot(
-                  `Clicked "${claudeAction.selector}"`,
-                  beforeScreenshot,
-                  afterScreenshot
+                const verResult = await stepVerifier.verify(
+                  i, "click",
+                  `Clicked "${claudeAction.selector}" — ${claudeAction.reasoning}`,
+                  beforeScreenshot, afterScreenshot,
                 );
+                verified = verResult.success;
+                reasoningLogger.addVerificationResult(i, {
+                  success: verResult.success,
+                  confidence: verResult.confidence,
+                  issue: verResult.issue,
+                });
               }
             }
 
@@ -940,6 +1000,14 @@ async function executeWithRealBrowser(
     if (enableCodeExecution && executionId) {
       await cleanupCodeSession(executionId).catch(() => {});
     }
+
+    // Procedural Memory: Prozedur speichern/aktualisieren
+    if (enableProceduralMemory && agentId && steps.length >= 2) {
+      saveProcedure(
+        agentId, startUrl, task, steps,
+        completionReason === "done",
+      ).catch(() => {});
+    }
   }
 
   return {
@@ -948,6 +1016,8 @@ async function executeWithRealBrowser(
     extractedData: finalExtractedData,
     completionReason,
     sessionId: browserSession.id,
+    reasoningLog: reasoningLogger.toJSON(),
+    verificationLog: stepVerifier.getLog(),
   };
 }
 
@@ -969,6 +1039,8 @@ export async function executeComputerUse(
   const agentId = String(context._agentId || "");
   const useBrowserMode = config.browserMode !== "http" && isBrowserServiceAvailable();
   const enableCodeExecution = config.enableCodeExecution === true && isCodeSandboxAvailable();
+  const enableVerification = config.enableVerification !== false; // Default: true
+  const enableProceduralMemory = config.enableProceduralMemory !== false; // Default: true
 
   if (!task) {
     return { contextDelta: {}, success: false, error: "Aufgabe fehlt" };
@@ -984,7 +1056,8 @@ export async function executeComputerUse(
     if (useBrowserMode && !requiresLogin) {
       const result = await executeWithRealBrowser(
         task, startUrl, maxSteps, captureScreenshots,
-        enableCodeExecution, String(context._executionId || "")
+        enableCodeExecution, String(context._executionId || ""),
+        enableVerification, enableProceduralMemory, agentId,
       );
 
       const cuSession: ComputerUseSession = {
@@ -1002,7 +1075,11 @@ export async function executeComputerUse(
       };
 
       return {
-        contextDelta: { [resultKey]: cuSession },
+        contextDelta: {
+          [resultKey]: cuSession,
+          [`${resultKey}_reasoning`]: result.reasoningLog,
+          [`${resultKey}_verification`]: result.verificationLog,
+        },
         success: true,
         meta: {
           stepsCount: result.steps.length,
@@ -1014,6 +1091,8 @@ export async function executeComputerUse(
           completionReason: result.completionReason,
           browserMode: "real",
           sessionId: result.sessionId,
+          reasoningEntries: Array.isArray(result.reasoningLog) ? result.reasoningLog.length : 0,
+          verificationEntries: Array.isArray(result.verificationLog) ? result.verificationLog.length : 0,
         },
       };
     }

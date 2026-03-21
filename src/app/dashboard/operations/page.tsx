@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { SkeletonCard, SkeletonStat } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { ModelAnalyticsSection } from "@/components/dashboard/model-analytics-section";
+import { CostDashboard } from "@/components/cost/cost-dashboard";
 
 interface OperationsData {
   eligible: boolean;
@@ -595,6 +596,12 @@ export default function OperationsPage() {
       <div>
         <p className="text-sm font-medium text-foreground mb-3">Model Intelligence</p>
         <ModelAnalyticsSection />
+      </div>
+
+      {/* Cost Dashboard */}
+      <div>
+        <p className="text-sm font-medium text-foreground mb-3">Kosten-Übersicht</p>
+        <CostDashboard />
       </div>
     </div>
   );
