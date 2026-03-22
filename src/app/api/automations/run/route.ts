@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { searchRelevantChunks } from "@/lib/rag";
 import { decrypt } from "@/lib/encryption";
-import { deductCredits } from "@/lib/credits";
+import { checkCredits, deductCredits } from "@/lib/credits";
 
 // Cron-Expression Parser: Prüft ob eine Automation jetzt fällig ist
 // Unterstützt: "0 * * * *" (stündlich), "0 9 * * *" (täglich 9h),
@@ -42,7 +42,10 @@ export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret) {
+    return Response.json({ error: "CRON_SECRET not configured" }, { status: 500 });
+  }
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -101,6 +104,15 @@ export async function GET(request: NextRequest) {
         });
         if (apiKeyRecord) userApiKey = decrypt(apiKeyRecord.encryptedKey);
       } catch { /* fallback to platform key */ }
+
+      // Credit pre-check
+      const hasByokKey = !!userApiKey;
+      const creditCheck = await checkCredits(agent.userId, selectedModel, hasByokKey);
+      if (!creditCheck.allowed) {
+        console.warn(`Automation skipped: insufficient credits for agent ${agent.id}, user ${agent.userId}`);
+        results.push({ id: automation.id, name: automation.name, status: "error", error: "Insufficient credits" });
+        continue;
+      }
 
       const taskMessage = `Execute the following scheduled task:\n\n${automation.taskDescription}\n\nProvide a clear, structured result.`;
       let resultText = "";
@@ -199,6 +211,12 @@ export async function GET(request: NextRequest) {
         }
       } else if (automation.notificationMethod === "WEBHOOK" && automation.notificationTarget) {
         try {
+          const { validateUrl } = await import("@/lib/url-validation");
+          const urlCheck = await validateUrl(automation.notificationTarget);
+          if (!urlCheck.safe) {
+            console.error(`Blocked SSRF attempt to ${automation.notificationTarget}: ${urlCheck.error}`);
+            throw new Error(urlCheck.error || "Blocked URL");
+          }
           await fetch(automation.notificationTarget, {
             method: "POST",
             headers: { "Content-Type": "application/json" },

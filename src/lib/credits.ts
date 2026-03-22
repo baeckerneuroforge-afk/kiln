@@ -65,6 +65,16 @@ export function getCreditCost(modelId: string): number {
   return MODEL_CREDIT_COSTS[modelId] ?? 2;
 }
 
+// ─── Model → Provider Mapping ──────────────────────────────
+export function getModelProvider(modelId: string): string {
+  if (modelId.startsWith("claude")) return "anthropic";
+  if (modelId.startsWith("gpt") || modelId.startsWith("o3")) return "openai";
+  if (modelId.startsWith("gemini")) return "google";
+  if (modelId.startsWith("llama") || modelId.startsWith("mixtral")) return "groq";
+  if (modelId.startsWith("sonar")) return "perplexity";
+  return "anthropic";
+}
+
 // ─── Credit Usage Type ──────────────────────────────────────
 export type CreditUsageType = "CHAT" | "TEAM_TASK" | "ORCHESTRATION" | "SCHEDULED" | "WEBHOOK" | "EMBEDDING" | "TASK_RUN";
 
@@ -101,11 +111,14 @@ export async function ensureCreditsReset(userId: string) {
 
 /**
  * Check if a user has enough credits for a model call.
+ * byokKeyProvider (optional): provider of the BYOK key. When set, BYOK only applies
+ * if it matches the model's provider.
  */
 export async function checkCredits(
   userId: string,
   modelId: string,
-  hasByokKey: boolean
+  hasByokKey: boolean,
+  byokKeyProvider?: string
 ): Promise<{
   allowed: boolean;
   balance: number;
@@ -124,9 +137,17 @@ export async function checkCredits(
 
   const cost = getCreditCost(modelId);
 
-  // BYOK bypass
+  // BYOK bypass — verify key provider matches model provider when specified
   if (hasByokKey) {
-    return { allowed: true, balance: user.aiCreditsBalance, cost: 0, byokActive: true };
+    if (byokKeyProvider) {
+      const modelProv = getModelProvider(modelId);
+      if (byokKeyProvider.toLowerCase() === modelProv) {
+        return { allowed: true, balance: user.aiCreditsBalance, cost: 0, byokActive: true };
+      }
+      // Key doesn't match model provider — charge credits instead
+    } else {
+      return { allowed: true, balance: user.aiCreditsBalance, cost: 0, byokActive: true };
+    }
   }
 
   if (user.aiCreditsBalance >= cost) {
@@ -143,6 +164,38 @@ export async function checkCredits(
 }
 
 /**
+ * Atomic check-and-deduct: prevents race condition between check and deduct.
+ * Returns { success, remaining } — if success is false, balance was insufficient.
+ */
+export async function checkAndDeductCredits(
+  userId: string,
+  modelId: string,
+  type: CreditUsageType = "CHAT",
+  agentId?: string,
+  conversationId?: string
+): Promise<{ success: boolean; remaining: number }> {
+  const cost = getCreditCost(modelId);
+  if (cost <= 0) return { success: true, remaining: 0 };
+
+  const result = await prisma.user.updateMany({
+    where: { id: userId, aiCreditsBalance: { gte: cost } },
+    data: { aiCreditsBalance: { decrement: cost } },
+  });
+
+  if (result.count === 0) {
+    return { success: false, remaining: 0 };
+  }
+
+  // Log usage
+  await prisma.aiCreditUsage.create({
+    data: { userId, agentId, conversationId, creditsUsed: cost, model: modelId, type },
+  });
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { aiCreditsBalance: true } });
+  return { success: true, remaining: user?.aiCreditsBalance ?? 0 };
+}
+
+/**
  * Deduct credits after a successful LLM response.
  */
 export async function deductCredits(
@@ -155,15 +208,27 @@ export async function deductCredits(
   const cost = getCreditCost(modelId);
   if (cost <= 0) return { newBalance: 0 };
 
-  const [updated] = await prisma.$transaction([
-    prisma.user.update({
+  // Atomic deduct with floor check — balance cannot go below 0
+  const result = await prisma.user.updateMany({
+    where: { id: userId, aiCreditsBalance: { gte: cost } },
+    data: { aiCreditsBalance: { decrement: cost } },
+  });
+
+  // Log usage regardless
+  await prisma.aiCreditUsage.create({
+    data: { userId, agentId, conversationId, creditsUsed: cost, model: modelId, type },
+  });
+
+  if (result.count === 0) {
+    // Balance was insufficient — deduct to 0 instead
+    await prisma.user.update({
       where: { id: userId },
-      data: { aiCreditsBalance: { decrement: cost } },
-    }),
-    prisma.aiCreditUsage.create({
-      data: { userId, agentId, conversationId, creditsUsed: cost, model: modelId, type },
-    }),
-  ]);
+      data: { aiCreditsBalance: 0 },
+    });
+  }
+
+  const updated = await prisma.user.findUnique({ where: { id: userId } });
+  if (!updated) return { newBalance: 0 };
 
   const newBalance = Math.max(0, updated.aiCreditsBalance);
   const totalCredits = updated.aiCreditsMonthly || getPlanCredits(updated.plan, updated.creditTier);
@@ -208,15 +273,25 @@ export async function deductEmbeddingCredits(
 ): Promise<{ newBalance: number }> {
   const cost = Math.max(1, Math.ceil(chunkCount / 10));
 
-  const [updated] = await prisma.$transaction([
-    prisma.user.update({
+  // Atomic deduct with floor check
+  const result = await prisma.user.updateMany({
+    where: { id: userId, aiCreditsBalance: { gte: cost } },
+    data: { aiCreditsBalance: { decrement: cost } },
+  });
+
+  await prisma.aiCreditUsage.create({
+    data: { userId, agentId, creditsUsed: cost, model: "embedding", type: "EMBEDDING" },
+  });
+
+  if (result.count === 0) {
+    await prisma.user.update({
       where: { id: userId },
-      data: { aiCreditsBalance: { decrement: cost } },
-    }),
-    prisma.aiCreditUsage.create({
-      data: { userId, agentId, creditsUsed: cost, model: "embedding", type: "EMBEDDING" },
-    }),
-  ]);
+      data: { aiCreditsBalance: 0 },
+    });
+  }
+
+  const updated = await prisma.user.findUnique({ where: { id: userId } });
+  if (!updated) return { newBalance: 0 };
 
   return { newBalance: Math.max(0, updated.aiCreditsBalance) };
 }

@@ -524,6 +524,27 @@ export async function executeIntegrationNode(
       return executeAirtableCreate(config, context);
     case "data_query":
       return executeDataQuery(config, context);
+    case "mcp_tool": {
+      const serverName = String(config.serverName || "");
+      const toolName = String(config.toolName || "");
+      if (!serverName || !toolName) {
+        return { contextDelta: {}, success: false, error: "MCP Tool benötigt serverName und toolName" };
+      }
+      const agentId = String(context._agentId || "");
+      if (!agentId) {
+        return { contextDelta: {}, success: false, error: "MCP Tool benötigt _agentId im Context" };
+      }
+      const mcpToolName = `mcp__${serverName}__${toolName}`;
+      const args = (config.args || {}) as Record<string, unknown>;
+      const { executeMCPTool } = await import("@/lib/mcp/mcp-tool-bridge");
+      const resultStr = await executeMCPTool(agentId, mcpToolName, args);
+      const resultData = JSON.parse(resultStr);
+      return {
+        contextDelta: { mcpResult: resultData },
+        success: resultData.success !== false,
+        error: resultData.error || undefined,
+      };
+    }
     default:
       throw new Error(`Unbekannter Integration-Node-Typ: ${nodeType}`);
   }

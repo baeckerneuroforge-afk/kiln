@@ -38,6 +38,22 @@ import { matchProductFromImage } from "@/lib/image-product-match";
 const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
 const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
+// In-memory rate limiter fallback when Upstash is not configured
+const inMemoryLimits = new Map<string, { count: number; resetAt: number }>();
+const IN_MEMORY_LIMIT = 30;
+const IN_MEMORY_WINDOW_MS = 60_000;
+
+function checkInMemoryRateLimit(identifier: string): { success: boolean } {
+  const now = Date.now();
+  const entry = inMemoryLimits.get(identifier);
+  if (!entry || now >= entry.resetAt) {
+    inMemoryLimits.set(identifier, { count: 1, resetAt: now + IN_MEMORY_WINDOW_MS });
+    return { success: true };
+  }
+  entry.count++;
+  return { success: entry.count <= IN_MEMORY_LIMIT };
+}
+
 const rateLimiter =
   upstashUrl && upstashToken
     ? new Ratelimit({
@@ -137,6 +153,14 @@ export async function POST(
       if (!success) {
         return Response.json(
           { error: "Rate limit exceeded. Please try again later." },
+          { status: 429, headers: corsHeaders }
+        );
+      }
+    } else {
+      const { success } = checkInMemoryRateLimit(`chat:${ip}`);
+      if (!success) {
+        return Response.json(
+          { error: "Rate limit exceeded. Please wait a moment." },
           { status: 429, headers: corsHeaders }
         );
       }
@@ -1328,6 +1352,7 @@ export async function POST(
               convData?.leadScore ?? null,
               anthropicClient,
               selectedModel.startsWith("claude") ? selectedModel : "claude-sonnet-4-20250514",
+              agent.userId,
             );
 
             if (handoff.handedOff && handoff.targetResponse) {

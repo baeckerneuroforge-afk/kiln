@@ -1,11 +1,26 @@
 import { NextRequest } from "next/server";
+import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/unsubscribe/weekly-report?userId=xxx — One-click Unsubscribe
+// GET /api/unsubscribe/weekly-report?userId=xxx&token=xxx — One-click Unsubscribe
 export async function GET(request: NextRequest) {
   const userId = request.nextUrl.searchParams.get("userId");
-  if (!userId) {
-    return new Response("Missing userId", { status: 400 });
+  const token = request.nextUrl.searchParams.get("token");
+
+  if (!userId || !token) {
+    return new Response("Missing parameters", { status: 400 });
+  }
+
+  // Verify HMAC token
+  const expectedToken = createHmac("sha256", process.env.UNSUBSCRIBE_SECRET || "kiln-unsub-default")
+    .update(userId)
+    .digest("hex");
+
+  const tokenBuffer = Buffer.from(token, "hex");
+  const expectedBuffer = Buffer.from(expectedToken, "hex");
+
+  if (tokenBuffer.length !== expectedBuffer.length || !timingSafeEqual(tokenBuffer, expectedBuffer)) {
+    return new Response("Invalid or expired link", { status: 403 });
   }
 
   try {

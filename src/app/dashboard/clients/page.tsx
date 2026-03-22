@@ -24,7 +24,7 @@ export default function ClientsDashboardPage() {
   useEffect(() => {
     if (!isLoaded || !user) return;
     // Plan vom User laden
-    fetch("/api/user/plan")
+    fetch("/api/stripe/plan")
       .then((res) => res.json())
       .then((data) => setPlan(data.plan || "FREE"))
       .catch(() => setPlan("FREE"))

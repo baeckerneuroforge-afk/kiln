@@ -63,7 +63,7 @@ export function OnboardingWizard({ onSkip }: { onSkip?: () => void } = {}) {
         : industry?.prompt || customDescription;
 
       // Use the agent generation endpoint
-      const res = await fetch("/api/agents/generate", {
+      const res = await fetch("/api/ai/generate-agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

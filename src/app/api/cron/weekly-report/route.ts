@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { createHmac } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { generateWeeklyReport, buildWeeklyReportHtml } from "@/lib/weekly-kb-report";
 
@@ -51,11 +52,13 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // HTML generieren und User-ID für Unsubscribe-Link einsetzen
-        const html = buildWeeklyReportHtml(report, appUrl).replace(
-          "USER_ID_PLACEHOLDER",
-          user.id
-        );
+        // HTML generieren und User-ID + HMAC-Token für Unsubscribe-Link einsetzen
+        const unsubscribeToken = createHmac("sha256", process.env.UNSUBSCRIBE_SECRET || "kiln-unsub-default")
+          .update(user.id)
+          .digest("hex");
+        const html = buildWeeklyReportHtml(report, appUrl)
+          .replace("USER_ID_PLACEHOLDER", user.id)
+          .replace("UNSUBSCRIBE_TOKEN_PLACEHOLDER", unsubscribeToken);
 
         const gapCount = report.agents.reduce((sum, a) => sum + a.gaps.length, 0);
         const subject = gapCount > 0

@@ -52,12 +52,14 @@ export async function POST(request: NextRequest) {
 
     // Verify Slack signature
     const signingSecret = process.env.SLACK_SIGNING_SECRET;
-    if (signingSecret) {
-      const timestamp = request.headers.get("x-slack-request-timestamp") || "";
-      const signature = request.headers.get("x-slack-signature") || "";
-      if (!verifySlackSignature(signingSecret, timestamp, rawBody, signature)) {
-        return Response.json({ error: "Invalid signature" }, { status: 401 });
-      }
+    if (!signingSecret) {
+      console.error("SLACK_SIGNING_SECRET not configured");
+      return Response.json({ error: "Slack signing secret not configured" }, { status: 500 });
+    }
+    const timestamp = request.headers.get("x-slack-request-timestamp") || "";
+    const signature = request.headers.get("x-slack-signature") || "";
+    if (!verifySlackSignature(signingSecret, timestamp, rawBody, signature)) {
+      return Response.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     const payload = JSON.parse(rawBody);

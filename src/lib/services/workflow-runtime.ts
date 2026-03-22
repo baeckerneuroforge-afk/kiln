@@ -183,6 +183,7 @@ const NODE_CATEGORIES: Record<string, string> = {
   notion_create: "integration",
   airtable_create: "integration",
   data_query: "integration",
+  mcp_tool: "integration",
   // AI Tools
   ai_summarize: "ai_tool",
   ai_classify: "ai_tool",
@@ -461,9 +462,16 @@ export async function executeWorkflow(
 
     // BFS-Traversal durch den Workflow-DAG
     const queue = [...startNodeIds];
+    let nodeExecutionCount = 0;
+    const MAX_NODE_EXECUTIONS = 200;
 
     while (queue.length > 0 && !paused) {
       const currentNodeId = queue.shift()!;
+
+      nodeExecutionCount++;
+      if (nodeExecutionCount > MAX_NODE_EXECUTIONS) {
+        throw new Error("Workflow exceeded maximum node executions (200). Possible infinite loop.");
+      }
 
       // Schon ausgeführt? Skip.
       if (executedNodes.has(currentNodeId)) continue;

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getClaudeClient } from "@/lib/ai";
+import { checkCredits, deductCredits } from "@/lib/credits";
 
 export interface SuggestedRole {
   name: string;
@@ -24,6 +25,15 @@ export async function POST(request: NextRequest) {
     const { goal, teamName } = await request.json();
     if (!goal) {
       return Response.json({ error: "Goal is required." }, { status: 400 });
+    }
+
+    // Credit check before LLM call
+    const creditCheck = await checkCredits(userId, "claude-sonnet-4-20250514", false);
+    if (!creditCheck.allowed) {
+      return Response.json(
+        { error: creditCheck.message, creditExhausted: true },
+        { status: 402 }
+      );
     }
 
     const claude = getClaudeClient();
@@ -115,6 +125,11 @@ Design the optimal team structure.`,
       roles[0].role = "HEAD";
       delete roles[0].reportsTo;
     }
+
+    // Deduct credits after successful LLM call
+    deductCredits(userId, "claude-sonnet-4-20250514", "TEAM_TASK").catch((err) => {
+      console.error("Team suggest-structure credit deduction failed:", err);
+    });
 
     return Response.json({ roles });
   } catch (err) {

@@ -63,7 +63,7 @@ export async function POST(
     if (toolId) {
       // Update
       const tool = await prisma.agentCustomTool.update({
-        where: { id: toolId },
+        where: { id: toolId, agentId: params.id },
         data: {
           name: toolName,
           description,
@@ -117,7 +117,7 @@ export async function DELETE(
     }
 
     const { toolId } = await request.json();
-    await prisma.agentCustomTool.delete({ where: { id: toolId } });
+    await prisma.agentCustomTool.delete({ where: { id: toolId, agentId: params.id } });
 
     return Response.json({ success: true });
   } catch (err) {

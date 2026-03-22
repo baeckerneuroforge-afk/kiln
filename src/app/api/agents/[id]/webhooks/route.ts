@@ -56,7 +56,7 @@ export async function POST(
     if (webhookId) {
       // Update existing
       const webhook = await prisma.agentWebhook.update({
-        where: { id: webhookId },
+        where: { id: webhookId, agentId: params.id },
         data: {
           ...(authType !== undefined ? { authType } : {}),
           ...(authValue !== undefined ? { authValue } : {}),
@@ -112,7 +112,7 @@ export async function DELETE(
     const { webhookId } = await request.json();
     if (!webhookId) return Response.json({ error: "webhookId required" }, { status: 400 });
 
-    await prisma.agentWebhook.delete({ where: { id: webhookId } });
+    await prisma.agentWebhook.delete({ where: { id: webhookId, agentId: params.id } });
     return Response.json({ success: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";

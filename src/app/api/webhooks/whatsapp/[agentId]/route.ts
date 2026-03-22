@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { searchRelevantChunks } from "@/lib/rag";
 import { decrypt } from "@/lib/encryption";
-import { deductCredits } from "@/lib/credits";
+import { checkCredits, deductCredits } from "@/lib/credits";
 import {
   sendWhatsAppMessage,
   markAsRead,
@@ -63,14 +63,16 @@ export async function POST(
     const { agentId } = await params;
     const rawBody = await request.text();
 
-    // Optionally verify signature if WHATSAPP_APP_SECRET is set
+    // Verify WhatsApp webhook signature
     const appSecret = process.env.WHATSAPP_APP_SECRET;
-    if (appSecret) {
-      const signature = request.headers.get("x-hub-signature-256") || "";
-      if (!verifyWebhookSignature(appSecret, rawBody, signature)) {
-        console.error("WhatsApp webhook signature verification failed");
-        return Response.json({ ok: true }); // Return 200 to prevent retries
-      }
+    if (!appSecret) {
+      console.error("WHATSAPP_APP_SECRET not configured");
+      return Response.json({ error: "WhatsApp app secret not configured" }, { status: 500 });
+    }
+    const signature = request.headers.get("x-hub-signature-256") || "";
+    if (!verifyWebhookSignature(appSecret, rawBody, signature)) {
+      console.error("WhatsApp webhook signature verification failed");
+      return Response.json({ ok: true }); // Return 200 to prevent retries
     }
 
     const body = JSON.parse(rawBody);
@@ -252,6 +254,15 @@ export async function POST(
       anthropicClient = getClaudeClient();
     }
 
+    // Credit pre-check before LLM call
+    const usedModel = modelProvider === "ANTHROPIC" ? selectedModel : "claude-sonnet-4-20250514";
+    const hasByokKey = anthropicClient !== getClaudeClient();
+    const creditCheck = await checkCredits(agent.userId, usedModel, hasByokKey);
+    if (!creditCheck.allowed) {
+      console.warn(`WhatsApp webhook: insufficient credits for agent ${agentId}, user ${agent.userId}`);
+      return Response.json({ ok: true }); // Return 200 to prevent Meta retries
+    }
+
     // Call Claude (non-streaming for WhatsApp)
     const response = await anthropicClient.messages.create({
       model: modelProvider === "ANTHROPIC" ? selectedModel : "claude-sonnet-4-20250514",
@@ -277,7 +288,6 @@ export async function POST(
     });
 
     // Deduct credits (fire-and-forget)
-    const usedModel = modelProvider === "ANTHROPIC" ? selectedModel : "claude-sonnet-4-20250514";
     waitUntil(
       deductCredits(agent.userId, usedModel, "WEBHOOK", agent.id, conversation.id).catch((err) => {
         console.error("WhatsApp webhook credit deduction failed:", err);

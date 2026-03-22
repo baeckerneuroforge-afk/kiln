@@ -249,7 +249,7 @@ export function buildWeeklyReportHtml(data: WeeklyReportData, appUrl: string): s
       <p style="color:#525252;font-size:11px;margin:0">
         KILN by Hephaistos Systems &middot;
         <a href="${appUrl}/dashboard/settings" style="color:#525252">Settings</a> &middot;
-        <a href="${appUrl}/api/unsubscribe/weekly-report?userId=USER_ID_PLACEHOLDER" style="color:#525252">Unsubscribe</a>
+        <a href="${appUrl}/api/unsubscribe/weekly-report?userId=USER_ID_PLACEHOLDER&token=UNSUBSCRIBE_TOKEN_PLACEHOLDER" style="color:#525252">Unsubscribe</a>
       </p>
     </div>
   </div>

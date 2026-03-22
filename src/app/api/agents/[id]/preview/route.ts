@@ -5,6 +5,7 @@ import OpenAI from "openai";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP, type ProviderKey } from "@/lib/ai";
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/encryption";
+import { checkCredits, deductCredits } from "@/lib/credits";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
@@ -79,6 +80,7 @@ export async function POST(
     // BYOK check
     const providerLower = modelProvider.toLowerCase();
     let userApiKey: string | null = null;
+    let usingOwnKey = false;
 
     try {
       const apiKeyRecord = await prisma.apiKey.findUnique({
@@ -86,9 +88,24 @@ export async function POST(
       });
       if (apiKeyRecord) {
         userApiKey = decrypt(apiKeyRecord.encryptedKey);
+        usingOwnKey = true;
       }
     } catch {
       // Fallback to platform key
+    }
+
+    // Credit check — BYOK users bypass credits
+    const creditCheck = await checkCredits(userId, selectedModel, usingOwnKey);
+    if (!creditCheck.allowed) {
+      return Response.json(
+        {
+          error: creditCheck.message,
+          creditExhausted: true,
+          balance: creditCheck.balance,
+          cost: creditCheck.cost,
+        },
+        { status: 402 }
+      );
     }
 
     // System prompt mit Variable-Replacement
@@ -207,6 +224,13 @@ export async function POST(
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: block.text })}\n\n`));
               }
             }
+          }
+
+          // Deduct credits after LLM call (skip if BYOK)
+          if (!creditCheck.byokActive && creditCheck.cost > 0) {
+            deductCredits(userId, selectedModel, "CHAT", params.id).catch((err) => {
+              console.error("Preview credit deduction failed:", err);
+            });
           }
 
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));

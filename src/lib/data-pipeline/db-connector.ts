@@ -592,6 +592,9 @@ class DBConnector {
 
       for (const tableRow of tableRows as Record<string, string>[]) {
         const tableName = Object.values(tableRow)[0];
+        if (!/^[a-zA-Z0-9_]+$/.test(tableName)) {
+          throw new Error("Invalid table name");
+        }
         const [colRows] = await connection.query(`DESCRIBE \`${tableName}\``);
 
         tables.push({

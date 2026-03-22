@@ -4,6 +4,7 @@ import { searchRelevantChunks } from "@/lib/rag";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { decrypt } from "@/lib/encryption";
 import crypto from "crypto";
+import { deductCredits } from "@/lib/credits";
 
 // Textinhalt aus einer Nachricht extrahieren (string oder multimodales content-array)
 export function extractTextContent(content: unknown): string {
@@ -51,6 +52,8 @@ Return ONLY the JSON array, no other text.`,
       ],
     });
 
+    // Note: memory extraction credits are not billed separately to avoid double-charging
+
     const text = response.content[0]?.type === "text" ? response.content[0].text : "";
     // JSON aus der Antwort parsen
     const jsonMatch = text.match(/\[[\s\S]*\]/);
@@ -87,6 +90,7 @@ export async function evaluateOrchestrationHandoff(
   leadScore: number | null,
   client: Anthropic,
   model: string,
+  userId: string,
 ): Promise<{ handedOff: boolean; targetResponse?: string }> {
   try {
     // Load active orchestration rules for this agent
@@ -127,6 +131,12 @@ ${rulesDescription}
 Which rule (if any) should trigger?`,
       }],
     });
+
+    if (userId) {
+      deductCredits(userId, model || "claude-sonnet-4-20250514", "ORCHESTRATION").catch((err) => {
+        console.error("Orchestration eval credit deduction failed:", err);
+      });
+    }
 
     const evalText = evalResponse.content[0]?.type === "text" ? evalResponse.content[0].text : "";
     const jsonMatch = evalText.match(/\{[\s\S]*\}/);
@@ -247,6 +257,12 @@ Which rule (if any) should trigger?`,
       system: targetPrompt,
       messages: targetMessages,
     });
+
+    if (userId) {
+      deductCredits(userId, targetProvider === "ANTHROPIC" ? targetModel : "claude-sonnet-4-20250514", "ORCHESTRATION").catch((err) => {
+        console.error("Orchestration handoff credit deduction failed:", err);
+      });
+    }
 
     const targetText = targetResponse.content
       .filter((block): block is Anthropic.TextBlock => block.type === "text")

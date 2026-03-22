@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { searchRelevantChunks } from "@/lib/rag";
 import { decrypt } from "@/lib/encryption";
-import { deductCredits } from "@/lib/credits";
+import { checkCredits, deductCredits } from "@/lib/credits";
 import crypto from "crypto";
 
 function hashSession(sessionId: string): string {
@@ -203,6 +203,14 @@ Format your response in GitHub Markdown. Be concise and actionable.${ragContext}
     const anthropicClient = byokKey
       ? getClaudeClientWithKey(decrypt(byokKey.encryptedKey))
       : getClaudeClient();
+
+    // Credit pre-check before LLM call
+    const hasByokKey = !!byokKey;
+    const creditCheck = await checkCredits(agent.userId, model, hasByokKey);
+    if (!creditCheck.allowed) {
+      console.warn(`GitHub webhook: insufficient credits for agent ${agentId}, user ${agent.userId}`);
+      return Response.json({ error: "Insufficient credits" }, { status: 402 });
+    }
 
     // Call Claude
     const response = await anthropicClient.messages.create({

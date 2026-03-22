@@ -23,7 +23,8 @@ export async function GET(
   }
 
   const wl = (agent.whiteLabel || {}) as Record<string, string>;
-  const color = wl.primaryColor || "#F97316";
+  const rawColor = wl.primaryColor || "#F97316";
+  const color = /^#[0-9A-Fa-f]{3,8}$/.test(rawColor) ? rawColor : "#F97316";
 
   // Hex → RGB für box-shadow
   const r = parseInt(color.slice(1, 3), 16);

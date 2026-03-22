@@ -99,14 +99,20 @@ Antwort als JSON:
       throw new Error("LLM-Antwort konnte nicht als JSON geparst werden");
     }
 
+    // Strip multiple statements — only execute the first one
+    let sql = parsed.sql;
+    if (sql.includes(';')) {
+      sql = sql.split(';')[0].trim();
+    }
+
     // Sicherheitsvalidierung
-    const validation = this.validateSql(parsed.sql, false);
+    const validation = this.validateSql(sql, false);
     if (!validation.valid) {
       throw new Error(`Generierte Query ist unsicher: ${validation.reason}`);
     }
 
     return {
-      sql: parsed.sql,
+      sql,
       explanation: parsed.explanation,
     };
   }

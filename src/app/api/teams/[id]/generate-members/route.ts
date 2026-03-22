@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getClaudeClient } from "@/lib/ai";
+import { checkCredits, deductCredits } from "@/lib/credits";
 import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
 import crypto from "crypto";
 
@@ -55,6 +56,15 @@ export async function POST(
         return Response.json(
           { error: "Team has no goal. Provide a goal or roles array." },
           { status: 400 }
+        );
+      }
+
+      // Credit check before LLM call
+      const creditCheck = await checkCredits(userId, "claude-sonnet-4-20250514", false);
+      if (!creditCheck.allowed) {
+        return Response.json(
+          { error: creditCheck.message, creditExhausted: true },
+          { status: 402 }
         );
       }
 
@@ -122,6 +132,11 @@ JSON format:
           { status: 500 }
         );
       }
+
+      // Deduct credits after successful LLM call
+      deductCredits(userId, "claude-sonnet-4-20250514", "TEAM_TASK").catch((err) => {
+        console.error("Team generate-members credit deduction failed:", err);
+      });
     }
 
     // Ensure user exists

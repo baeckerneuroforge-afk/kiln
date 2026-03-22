@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/lib/ai";
 import { searchRelevantChunks } from "@/lib/rag";
 import { decrypt } from "@/lib/encryption";
-import { deductCredits } from "@/lib/credits";
+import { checkCredits, deductCredits } from "@/lib/credits";
 import { verifySlackSignature, sendSlackMessage, getSlackUserInfo } from "@/lib/integrations/slack";
 import crypto from "crypto";
 
@@ -218,6 +218,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       anthropicClient = getClaudeClient();
     }
 
+    // Credit pre-check before LLM call
+    const usedModel = modelProvider === "ANTHROPIC" ? selectedModel : "claude-sonnet-4-20250514";
+    const hasByokKey = anthropicClient !== getClaudeClient();
+    const creditCheck = await checkCredits(agent.userId, usedModel, hasByokKey);
+    if (!creditCheck.allowed) {
+      console.warn(`Slack webhook: insufficient credits for agent ${agentId}, user ${agent.userId}`);
+      return Response.json({ error: "Insufficient credits" }, { status: 402 });
+    }
+
     // Call Claude (non-streaming for Slack)
     const response = await anthropicClient.messages.create({
       model: modelProvider === "ANTHROPIC" ? selectedModel : "claude-sonnet-4-20250514",
@@ -242,7 +251,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     });
 
     // Deduct credits (fire-and-forget)
-    const usedModel = modelProvider === "ANTHROPIC" ? selectedModel : "claude-sonnet-4-20250514";
     waitUntil(
       deductCredits(agent.userId, usedModel, "WEBHOOK", agent.id, conversation.id).catch((err) => {
         console.error("Slack webhook credit deduction failed:", err);
