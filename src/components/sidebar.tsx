@@ -6,6 +6,7 @@ import { useUser, useClerk } from "@clerk/nextjs";
 import {
   Activity,
   Bot,
+  Building2,
   Globe,
   Zap,
   LayoutDashboard,
@@ -169,6 +170,15 @@ const allModules = [
     minAgents: 1,
   },
   {
+    name: "Clients",
+    href: "/dashboard/clients",
+    icon: Building2,
+    color: "text-muted-foreground",
+    activeColor: "text-purple-400",
+    minAgents: 1,
+    requiresBusiness: true,
+  },
+  {
     name: "Developers",
     href: "/developers",
     icon: Code2,
@@ -325,6 +335,11 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
         <nav className={cn("flex flex-1 flex-col gap-0.5 overflow-y-auto", isCollapsed ? "lg:px-1.5" : "px-3")}>
           {allModules
             .filter((item) => {
+              // Business+ only modules (e.g. Multi-Tenant Dashboard)
+              if ('requiresBusiness' in item && item.requiresBusiness) {
+                const isBusiness = ["AGENCY", "ENTERPRISE", "ADMIN"].includes(plan);
+                if (!isBusiness) return false;
+              }
               // Progressive reveal: hide modules until user has enough agents
               if (agentCount < item.minAgents) {
                 // Agent Teams also unlocks on Pro+
