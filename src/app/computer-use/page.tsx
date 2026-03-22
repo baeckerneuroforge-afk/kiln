@@ -360,6 +360,7 @@ export default function ComputerUsePage() {
             <Link href="/#features" className="transition-colors hover:text-white">Features</Link>
             <Link href="/computer-use" className="text-white font-medium">Computer Use</Link>
             <Link href="/#pricing" className="transition-colors hover:text-white">Pricing</Link>
+            <Link href="/enterprise" className="transition-colors hover:text-white">Enterprise</Link>
             <Link href="/marketplace" className="transition-colors hover:text-white">Marketplace</Link>
             <Link href="/developers" className="transition-colors hover:text-white">Developers</Link>
           </div>

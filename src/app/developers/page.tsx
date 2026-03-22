@@ -227,6 +227,7 @@ export default function DevelopersPage() {
           <div className="flex items-center gap-6 text-sm text-neutral-400">
             <Link href="/#features" className="hidden transition-colors hover:text-white sm:block">Features</Link>
             <Link href="/#pricing" className="hidden transition-colors hover:text-white sm:block">Pricing</Link>
+            <Link href="/enterprise" className="hidden transition-colors hover:text-white sm:block">Enterprise</Link>
             <Link href="/developers" className="text-white">Developers</Link>
             <Link
               href="/sign-up"
@@ -578,6 +579,135 @@ export default function DevelopersPage() {
         </div>
       </Section>
 
+      {/* ── Agent SDK & CLI ──────────────────────────────────── */}
+      <Section className="border-t border-white/[0.06] py-24">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="mb-16 text-center">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#F97316]">Agent SDK</p>
+            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">Agent SDK & CLI</h2>
+            <p className="mt-4 text-lg text-neutral-400">
+              Build, deploy, and manage agents programmatically with our TypeScript SDK and CLI tool.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              { title: "TypeScript SDK", desc: "First-class TypeScript support with full type definitions. Create agents, manage knowledge bases, and handle conversations from your codebase.", color: "#3B82F6" },
+              { title: "CLI Tool", desc: "Deploy agents from CI/CD pipelines, export configs, run tests, and manage infrastructure — all from the command line.", color: "#22C55E" },
+              { title: "RBAC Scoped Keys", desc: "Generate API keys with granular permissions. Restrict access to specific agents, actions, or read-only analytics.", color: "#A78BFA" },
+            ].map((card) => (
+              <div key={card.title} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all hover:border-white/[0.12]">
+                <div className="mb-3 h-1 w-8 rounded-full" style={{ backgroundColor: card.color }} />
+                <h3 className="mb-2 text-lg font-semibold">{card.title}</h3>
+                <p className="text-sm leading-relaxed text-neutral-400">{card.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Custom Node SDK ───────────────────────────────────── */}
+      <Section className="border-t border-white/[0.06] py-24">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="mb-16 text-center">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#14B8A6]">Extensibility</p>
+            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">Custom Node SDK</h2>
+            <p className="mt-4 text-lg text-neutral-400">
+              Build custom workflow nodes with our Node SDK. Define inputs, outputs, and execution logic — then share them on the Marketplace.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[
+              { title: "Define Schema", desc: "Strongly typed input/output schemas with validation. Your nodes appear in the visual workflow editor with auto-generated UI." },
+              { title: "Sandboxed Execution", desc: "Nodes run in isolated sandboxes with resource limits. Access HTTP, file system (scoped), and environment variables securely." },
+              { title: "Marketplace Publishing", desc: "Package and publish custom nodes to the KILN Marketplace. Version control, documentation, and usage analytics included." },
+              { title: "Pre-built Connectors", desc: "Start from 20+ pre-built connectors (Slack, Gmail, Sheets, Notion) or fork them to build your own." },
+            ].map((card) => (
+              <div key={card.title} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all hover:border-white/[0.12]">
+                <h3 className="mb-2 text-lg font-semibold">{card.title}</h3>
+                <p className="text-sm leading-relaxed text-neutral-400">{card.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Embeddable Components ─────────────────────────────── */}
+      <Section className="border-t border-white/[0.06] py-24">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="mb-16 text-center">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#EC4899]">Embed</p>
+            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">Embeddable Components</h2>
+            <p className="mt-4 text-lg text-neutral-400">
+              Drop KILN agents into any frontend. React, Vue, vanilla JS — or just an iframe.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              { title: "React SDK", desc: "<KilnChat /> component with full props API. Theme customization, event hooks, and TypeScript support.", code: "npm install @kiln/react" },
+              { title: "Web Component", desc: "Framework-agnostic <kiln-chat> custom element. Works with Vue, Svelte, Angular, or plain HTML.", code: "<script src=\"kiln.js\"></script>" },
+              { title: "iframe Embed", desc: "Zero-dependency embed with one line. Full white-label support, responsive sizing, and cross-origin messaging.", code: "<iframe src=\"/embed/slug\" />" },
+            ].map((card) => (
+              <div key={card.title} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all hover:border-white/[0.12]">
+                <h3 className="mb-2 text-lg font-semibold">{card.title}</h3>
+                <p className="mb-4 text-sm leading-relaxed text-neutral-400">{card.desc}</p>
+                <code className="block rounded-lg bg-white/[0.04] px-3 py-2 font-mono text-[11px] text-neutral-500">{card.code}</code>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Sandbox API ──────────────────────────────────────── */}
+      <Section className="border-t border-white/[0.06] py-24">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="mb-16 text-center">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#FBBF24]">Execution</p>
+            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">Sandbox API</h2>
+            <p className="mt-4 text-lg text-neutral-400">
+              Execute arbitrary code in isolated sandboxes. Perfect for AI-generated code, data transformations, and custom agent logic.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              { title: "Language Support", desc: "Run JavaScript, TypeScript, and Python in sandboxed environments with pre-installed packages and dependency management." },
+              { title: "Resource Limits", desc: "Configurable CPU, memory, and execution time limits. Auto-termination for runaway processes. Scoped filesystem access." },
+              { title: "REST API", desc: "Simple POST endpoint. Send code, get results. Supports stdin/stdout streaming for long-running tasks." },
+            ].map((card) => (
+              <div key={card.title} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all hover:border-white/[0.12]">
+                <h3 className="mb-2 text-lg font-semibold">{card.title}</h3>
+                <p className="text-sm leading-relaxed text-neutral-400">{card.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Webhook V2 ───────────────────────────────────────── */}
+      <Section className="border-t border-white/[0.06] py-24">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="mb-16 text-center">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#DC2626]">Integrations</p>
+            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">Webhook V2</h2>
+            <p className="mt-4 text-lg text-neutral-400">
+              Production-grade webhook infrastructure with retry logic, HMAC signatures, and delivery tracking.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { title: "HMAC Signatures", desc: "Every payload is signed with SHA-256 HMAC. Verify authenticity on your end with the shared secret." },
+              { title: "Auto Retry", desc: "Failed deliveries are retried with exponential backoff. Up to 5 attempts over 24 hours." },
+              { title: "Delivery Logs", desc: "Full history of every webhook delivery — payload, response code, latency, and retry count." },
+              { title: "Event Filtering", desc: "Subscribe to specific events: conversation.started, lead.captured, agent.deployed, task.completed." },
+            ].map((card) => (
+              <div key={card.title} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all hover:border-white/[0.12]">
+                <h3 className="mb-2 text-base font-semibold">{card.title}</h3>
+                <p className="text-sm leading-relaxed text-neutral-400">{card.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
       {/* ── Bottom CTA ──────────────────────────────────────── */}
       <Section className="border-t border-white/[0.06] py-28">
         <div className="mx-auto max-w-3xl px-6 text-center">
@@ -612,8 +742,11 @@ export default function DevelopersPage() {
             KILN by Hephaistos Systems
           </div>
           <div className="flex items-center gap-6 text-xs text-neutral-500">
+            <Link href="/enterprise" className="hover:text-neutral-300">Enterprise</Link>
+            <Link href="/changelog" className="hover:text-neutral-300">Changelog</Link>
             <Link href="/privacy" className="hover:text-neutral-300">Privacy</Link>
             <Link href="/terms" className="hover:text-neutral-300">Terms</Link>
+            <Link href="/dpa" className="hover:text-neutral-300">DPA</Link>
             <Link href="/impressum" className="hover:text-neutral-300">Impressum</Link>
           </div>
         </div>
