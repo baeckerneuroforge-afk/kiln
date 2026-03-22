@@ -14,7 +14,10 @@ export function LegalFooter() {
           <span className="font-serif text-sm">KILN</span>
           <span className="text-xs text-neutral-600">by Hephaistos Systems</span>
         </div>
-        <div className="flex items-center gap-6 text-xs text-neutral-600">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-neutral-600">
+          <Link href="/enterprise" className="transition-colors hover:text-neutral-300">Enterprise</Link>
+          <Link href="/services" className="transition-colors hover:text-neutral-300">Services</Link>
+          <Link href="/changelog" className="transition-colors hover:text-neutral-300">Changelog</Link>
           <Link href="/impressum" className="transition-colors hover:text-neutral-300">Impressum</Link>
           <Link href="/privacy" className="transition-colors hover:text-neutral-300">Privacy</Link>
           <Link href="/terms" className="transition-colors hover:text-neutral-300">Terms</Link>

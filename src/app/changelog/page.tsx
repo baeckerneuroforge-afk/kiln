@@ -67,6 +67,14 @@ function CategoryBadge({ category }: { category: Category }) {
 
 const entries: ChangelogEntry[] = [
   {
+    id: "march-2026-platform-update",
+    date: "2026-03-22",
+    title: "Data Pipeline Integration, PWA/Mobile, 22-Feature Platform Update",
+    description: "Massive platform update: Data Pipeline Integration for ETL workflows, PWA & mobile support for on-the-go management, Agent SDK & CLI for programmatic agent deployment, Custom Node SDK for building workflow nodes, Embeddable Components (React/Vue/vanilla), Sandbox API for isolated code execution, Webhook V2 with retry logic and HMAC signatures, RBAC with granular permissions, Multi-Tenant Dashboard for agencies, Knowledge Graph for connected KB entries, Voice Interface for hands-free interaction, Agent Collaboration protocols, Reseller Billing, SLA Monitoring, and Onboarding Wizard — plus critical cost system hardening across the entire platform.",
+    category: "Feature",
+    icon: Zap,
+  },
+  {
     id: "workflow-version-control",
     date: "2026-03-19",
     title: "Workflow Version Control & Collaboration",

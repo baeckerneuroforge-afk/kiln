@@ -15,7 +15,6 @@ import {
   Zap,
   MessageSquare,
   FileText,
-  Palette,
   BarChart3,
   Code2,
   Copy as CopyIcon,
@@ -28,7 +27,6 @@ import {
   Users,
   Layers,
   Network,
-  Coins,
   Send,
   Store,
   ChevronRight,
@@ -36,6 +34,17 @@ import {
   Wrench,
   FlaskConical,
   Monitor,
+  Eye,
+  Search,
+  Plug,
+  Database,
+  Radio,
+  Activity,
+  FileCheck,
+  Cpu,
+  Building2,
+  Lock,
+  Receipt,
 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { DEMO_AGENT_SLUG } from "@/lib/demo-agent";
@@ -377,29 +386,48 @@ export default function LandingPageV2() {
   }
 
   const features = [
-    { icon: Brain, title: "Self-Learning Agents", desc: "Agents research answers they don't know and suggest adding them to your Knowledge Base." },
-    { icon: Globe, title: "Computer Use", desc: "AI agents that browse the web, extract data, and complete multi-step tasks autonomously." },
-    { icon: Network, title: "Visual Workflows", desc: "n8n-style drag-and-drop editor with 18+ node types. AI-native, not bolted on." },
-    { icon: Users, title: "Agent Teams", desc: "Hierarchical teams with Head, Coordinator, and Executor roles. Fully autonomous." },
-    { icon: Layers, title: "Multi-LLM", desc: "Claude, GPT-4o, Perplexity, Gemini, Groq — choose per agent." },
-    { icon: MessageSquare, title: "Visitor Memory", desc: "Agents remember visitors across sessions. Personalized conversations every time." },
-    { icon: FileText, title: "RAG Knowledge Base", desc: "Upload PDFs, URLs, or FAQs. Agent answers with your data. Self-learning adds more." },
-    { icon: Zap, title: "Smart Actions", desc: "Book appointments, collect emails, score leads, trigger webhooks." },
-    { icon: BarChart3, title: "Business Intelligence", desc: "AI-powered insights from all conversations. ROI tracking, lead scoring, trends." },
-    { icon: Send, title: "Multi-Channel", desc: "Website, Slack, WhatsApp, Telegram, Email, API — deploy everywhere." },
-    { icon: Palette, title: "White-Label", desc: "Your brand, colors, logo, domain. Remove KILN branding." },
-    { icon: Timer, title: "Scheduled Workflows", desc: "Cron-triggered workflows. Reports, sync, alerts — all automated." },
-    { icon: Code2, title: "Custom Code", desc: "JavaScript actions triggered by your agent or workflow." },
-    { icon: Key, title: "Bring Your Own Key", desc: "Use your own API keys for unlimited usage." },
-    { icon: Terminal, title: "MCP Protocol", desc: "25+ tools. Manage from Claude Code, Cursor, or any MCP client." },
-    { icon: Bot, title: "A2A Protocol", desc: "Agent-to-Agent communication across platforms. Open standard." },
-    { icon: GitFork, title: "Agent Cloning", desc: "Duplicate agents with one click. Bulk clone support." },
-    { icon: Webhook, title: "Webhooks & API", desc: "REST API, webhooks, HTTP triggers for full programmatic control." },
-    { icon: Coins, title: "AI Credits", desc: "Usage-based pricing or bring your own API key." },
-    { icon: Store, title: "Marketplace", desc: "Browse community templates. Publish your own." },
-    { icon: Monitor, title: "Computer Use Agents", desc: "Your agents browse the web, fill out forms, analyze screenshots, and write code — fully autonomous." },
-    { icon: Network, title: "Agent Swarm", desc: "Complex tasks are automatically broken into subtasks and processed in parallel by specialized agents. Minutes instead of hours." },
-    { icon: Shield, title: "Smart Cost Controls", desc: "Real-time cost tracking, budget caps per run, and intelligent model routing for the best price-performance ratio." },
+    // AI Agents
+    { icon: MessageSquare, title: "Conversational Builder", desc: "Describe your agent in plain language. KILN builds it with system prompt, actions, and knowledge base." },
+    { icon: Layers, title: "Multi-LLM", desc: "Claude, GPT-4o, Gemini, Groq, Perplexity — choose per agent. Smart routing picks the best model automatically." },
+    { icon: Brain, title: "Self-Learning RAG", desc: "Upload PDFs, URLs, or FAQs. Agent learns from gaps and suggests adding new knowledge automatically." },
+    { icon: Send, title: "Multi-Channel", desc: "Deploy to Web, Slack, Telegram, WhatsApp, Email — all from one agent config." },
+    { icon: MessageSquare, title: "Agent Memory", desc: "Agents remember visitors across sessions. Personalized conversations that build over time." },
+    { icon: Zap, title: "Lead Scoring & Actions", desc: "Score leads, book appointments, collect emails, trigger webhooks — all built-in." },
+    // Computer Use
+    { icon: Monitor, title: "Browser Automation + Vision", desc: "Agents browse websites, fill forms, click buttons, and analyze screenshots autonomously." },
+    { icon: Code2, title: "Code Sandbox", desc: "Execute Python and JavaScript in isolated sandboxes. Data analysis, calculations, file generation." },
+    { icon: Search, title: "Deep Research", desc: "Agents research across 30+ sources, synthesize findings, and deliver structured reports." },
+    { icon: FileText, title: "Procedural Memory", desc: "Agents learn multi-step procedures and replay them reliably. Watch once, execute forever." },
+    { icon: FileCheck, title: "Verification Checkpoints", desc: "Agents verify their own work at each step. Self-healing when something goes wrong." },
+    { icon: Eye, title: "Reasoning Log", desc: "Full transparency into agent thinking. See every decision, every step, every source." },
+    // Workflows
+    { icon: Network, title: "Visual Orchestration Canvas", desc: "Drag-and-drop workflow editor with 18+ node types. AI-native, not bolted on." },
+    { icon: Users, title: "Agent Teams (4 Roles)", desc: "Head, Coordinator, Executor, Approval Gate — hierarchical teams that work autonomously." },
+    { icon: Cpu, title: "Agent Swarm (20 Parallel)", desc: "Break complex tasks into subtasks processed by specialized agents in parallel." },
+    { icon: Timer, title: "Scheduled Agents (Cron)", desc: "Cron-triggered workflows. Automated reports, data sync, alerts — hands-free." },
+    { icon: Radio, title: "Diff Detection", desc: "Monitor websites and data sources for changes. Get alerted when something shifts." },
+    { icon: Globe, title: "Multi-Site Orchestration", desc: "Coordinate agents across multiple websites simultaneously for research and comparison." },
+    // Advanced
+    { icon: Eye, title: "Watch & Learn", desc: "Show your agent a video or screen recording. It learns the procedure and replicates it." },
+    { icon: Bot, title: "Agent builds Agents", desc: "Your agents can create, configure, and deploy new agents programmatically." },
+    { icon: Search, title: "API Autodiscovery", desc: "Agents discover and connect to APIs automatically. No manual configuration needed." },
+    { icon: FileCheck, title: "Proof of Work Reports", desc: "Agents generate PDF reports documenting every step taken and every source used." },
+    { icon: Network, title: "Knowledge Graph", desc: "Visual map of how your knowledge connects. Identify gaps and overlaps at a glance." },
+    { icon: Wrench, title: "Zero-Config Wizard", desc: "Point at a website. KILN auto-generates the agent, knowledge base, and actions." },
+    // Platform
+    { icon: Plug, title: "500+ MCP Integrations", desc: "38 native tools plus the entire MCP ecosystem. Connect to any service." },
+    { icon: Activity, title: "Smart Model Routing", desc: "Automatically pick the fastest, cheapest, or smartest model per task." },
+    { icon: BarChart3, title: "ROI Dashboard", desc: "Track conversations, leads, revenue generated, and time saved in real-time." },
+    { icon: Shield, title: "Live Cost Controls", desc: "Budget caps per run, real-time cost tracking, and usage alerts." },
+    { icon: Key, title: "BYOK", desc: "Bring your own API keys for Claude, GPT, Gemini, Groq. Unlimited usage." },
+    { icon: Bot, title: "A2A Protocol", desc: "Agent-to-Agent communication across platforms using Google's open standard." },
+    // Enterprise
+    { icon: FlaskConical, title: "Approval Workflows", desc: "Human-in-the-loop gates. Agents pause and wait for approval before critical actions." },
+    { icon: FileText, title: "Audit Trail", desc: "Complete history of every agent action, decision, and data access. Up to 1 year retention." },
+    { icon: Lock, title: "RBAC (5 Roles)", desc: "Owner, Admin, Editor, Viewer, Billing — granular access control for teams." },
+    { icon: Building2, title: "Client Portal", desc: "White-label dashboard for your clients. Their branding, their data, your platform." },
+    { icon: Database, title: "Data Pipeline", desc: "Connect SQL databases and let AI query them with natural language. Read and write." },
+    { icon: Receipt, title: "SLA Monitoring", desc: "Track uptime, response times, and agent performance against your service agreements." },
   ];
 
   const plans = [
@@ -422,7 +450,7 @@ export default function LandingPageV2() {
         { credits: 1000, monthly: 49, yearlyMo: 34 },
         { credits: 2000, monthly: 59, yearlyMo: 41 },
       ],
-      features: ["3 Agents", "Basic Analytics", "3 Knowledge Bases (20MB)", "Email Support", "All Actions", "Agent Teams & Orchestration", "Workflow Editor", "All Basic Nodes", "Reasoning Log"],
+      features: ["3 Agents", "Basic Analytics", "3 Knowledge Bases (20MB)", "Email Support", "All Actions", "Agent Teams & Orchestration", "Workflow Editor", "All Basic Nodes", "3 Integrations", "Reasoning Log"],
       highlight: false,
       tagline: "For freelancers, coaches & small businesses getting started",
       useCases: ["Coaches", "Handwerker", "Freelancers", "Small shops"],
@@ -436,7 +464,7 @@ export default function LandingPageV2() {
         { credits: 5000, monthly: 129, yearlyMo: 90 },
         { credits: 10000, monthly: 169, yearlyMo: 118 },
       ],
-      features: ["10 Agents", "Full Analytics + ROI", "10 Knowledge Bases (50MB)", "White-Label", "Feedback Loop", "Priority Support", "Prompt Editor", "Computer Use Pro (Browser + Vision)", "100 Computer Use Steps per Run", "Code Sandbox (Python & JS)", "Agent Swarm (5 Agents)", "Verification Checkpoints", "Diff Detection", "Proof of Work", "3 Scheduled Automations", "Smart Model Routing"],
+      features: ["10 Agents", "Full Analytics + ROI", "10 Knowledge Bases (50MB)", "White-Label", "Feedback Loop", "Priority Support", "Prompt Editor", "Computer Use Pro (Browser + Vision)", "100 Computer Use Steps per Run", "Code Sandbox (Python & JS)", "Agent Swarm (5 Agents)", "Deep Research", "Verification Checkpoints", "Diff Detection", "Proof of Work", "Approval Workflows", "3 Scheduled Automations", "Smart Model Routing", "Data Pipeline (2 Connections)"],
       highlight: true,
       tagline: "For growing businesses that want to automate & convert more",
       useCases: ["Dental practices", "Real estate agencies", "Restaurants", "Growing SaaS"],
@@ -450,7 +478,7 @@ export default function LandingPageV2() {
         { credits: 15000, monthly: 329, yearlyMo: 230 },
         { credits: 30000, monthly: 449, yearlyMo: 314 },
       ],
-      features: ["Unlimited Agents", "Unlimited Knowledge Bases", "API Access + MCP Server", "Agent Cloning", "Custom Domain", "Multi-Client Management", "Dedicated Support", "Computer Use Unlimited", "Agent Swarm (20 Agents)", "Zero-Config Wizard", "Manual Model Routing", "Unlimited Schedules", "Parallel Execution (10 Branches)", "Priority Execution"],
+      features: ["Unlimited Agents", "Unlimited Knowledge Bases", "API Access + MCP Server", "Agent Cloning", "Custom Domain", "Multi-Client Management", "Dedicated Support", "Computer Use Unlimited", "Agent Swarm (20 Agents)", "Watch & Learn", "Agent builds Agents", "API Autodiscovery", "Zero-Config Wizard", "Procedural Memory", "Manual Model Routing", "Unlimited Schedules", "Parallel Execution (10 Branches)", "Priority Execution", "Client Portal (White-Label)", "Reseller Billing", "Multi-Tenant Dashboard", "RBAC (5 Roles)", "Audit Trail (1 Year)", "SLA Monitoring"],
       highlight: false,
       tagline: "For agencies & teams managing multiple clients",
       useCases: ["Marketing agencies", "AI agencies", "Consulting firms", "Multi-location businesses"],
@@ -460,7 +488,7 @@ export default function LandingPageV2() {
       price: 0,
       isCustom: true,
       creditTiers: [{ credits: 50000, monthly: 0, yearlyMo: 0 }],
-      features: ["Everything in Business", "SLA 99.9%", "Custom Onboarding", "50,000+ AI Credits", "Scheduled Agents", "Webhooks", "Priority Queue", "Dedicated Sandbox Instance", "Dedicated Resources"],
+      features: ["Everything in Business", "SLA 99.9%", "Custom Onboarding", "50,000+ AI Credits", "Scheduled Agents", "Webhooks", "Priority Queue", "Dedicated Sandbox Instance", "Dedicated Resources", "Data Pipeline (Unlimited + Write)"],
       highlight: false,
       tagline: "For large organizations with custom requirements",
       useCases: ["Enterprises", "Regulated industries", "Custom SLA requirements"],
@@ -537,8 +565,8 @@ export default function LandingPageV2() {
           </motion.div>
 
           <h1 className="text-5xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl lg:text-8xl">
-            <TextReveal text="Build AI agents." className="block bg-gradient-to-r from-[#F97316] via-[#FB923C] to-[#DC2626] bg-clip-text text-transparent" />
-            <TextReveal text="Ship in minutes." className="block text-white mt-2" />
+            <TextReveal text="The AI Agent Platform" className="block bg-gradient-to-r from-[#F97316] via-[#FB923C] to-[#DC2626] bg-clip-text text-transparent" />
+            <TextReveal text="That Actually Does The Work" className="block text-white mt-2" />
           </h1>
 
           <motion.p
@@ -547,8 +575,8 @@ export default function LandingPageV2() {
             transition={{ delay: 0.8, duration: 0.6 }}
             className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-neutral-400"
           >
-            Build AI Agents. Automate Workflows. Deploy Everywhere.
-            {" "}EU-hosted. GDPR compliant.
+            KILN agents don&apos;t just chat — they browse the web, write code, compare prices, and build reports.
+            {" "}Deploy autonomous AI agents in minutes, not months.
           </motion.p>
 
           {/* CTA */}
@@ -683,7 +711,7 @@ export default function LandingPageV2() {
         <div className="mx-auto max-w-7xl px-6">
           <div className="mb-16 text-center">
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#F97316]">Platform</p>
-            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">Four Modules. One Platform.</h2>
+            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">Five Modules. One Platform.</h2>
             <p className="mt-4 text-lg text-neutral-400">Everything you need to build, deploy, and scale AI agents.</p>
           </div>
 
@@ -693,6 +721,7 @@ export default function LandingPageV2() {
               { icon: Zap, title: "Workflow Engine", color: "#22C55E", badge: "Live", desc: "18+ node types, visual drag-and-drop editor, parallel execution, human approval gates, debug mode, Computer Use agents that browse the web." },
               { icon: Network, title: "Integration Hub", color: "#3B82F6", badge: "Live", desc: "10+ native integrations: Slack, Gmail, Calendar, Sheets, Notion, WhatsApp, Telegram, Stripe, Airtable, Calendly. Plus Webhooks, API, MCP Protocol, A2A Protocol." },
               { icon: BarChart3, title: "Deploy & Monitor", color: "#F97316", badge: "Live", desc: "Multi-channel deployment (Website, Slack, WhatsApp, Telegram, Email, API), 4 embed themes, real-time dashboard, Business Intelligence, scheduled workflows." },
+              { icon: Monitor, title: "Computer Use", color: "#EC4899", badge: "Live", desc: "Your agents browse the web, fill forms, compare prices, and execute code — fully autonomous with verification and self-healing." },
             ].map((mod, i) => (
               <motion.div
                 key={mod.title}
@@ -746,7 +775,7 @@ export default function LandingPageV2() {
             <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">What makes KILN different</h2>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { icon: Brain, title: "Self-Learning Agents", color: "#A855F7", desc: "When your agent can't answer a question, it researches the answer online and suggests adding it to your Knowledge Base. Your agents get smarter over time — automatically." },
               { icon: Globe, title: "Computer Use", color: "#EC4899", desc: "AI agents that browse websites, extract data, fill forms, and complete multi-step web tasks. Like having a virtual assistant with a browser." },
@@ -754,6 +783,8 @@ export default function LandingPageV2() {
               { icon: MessageSquare, title: "Agent Memory", color: "#3B82F6", desc: "Your agents remember visitors across sessions. Personalized conversations, context that persists, relationships that build over time." },
               { icon: Bot, title: "A2A Protocol", color: "#F97316", desc: "Agents communicate across platforms using Google's Agent-to-Agent protocol. Your agents can call external agents and be called by others." },
               { icon: BarChart3, title: "Business Intelligence", color: "#06B6D4", desc: "AI-powered insights from all conversations. Sentiment trends, topic clustering, conversion analysis — not just charts, but understanding." },
+              { icon: Users, title: "Agent Swarm", color: "#F59E0B", desc: "Deploy up to 20 specialized agents working in parallel on a single task. Minutes instead of hours." },
+              { icon: Shield, title: "Smart Cost Controls", color: "#10B981", desc: "Real-time cost tracking, budget caps, and intelligent model routing. No surprise bills." },
             ].map((usp, i) => (
               <motion.div
                 key={usp.title}
@@ -851,12 +882,12 @@ export default function LandingPageV2() {
                   className="grid gap-4 sm:grid-cols-2"
                 >
                   {[
-                    { icon: MessageSquare, title: "No-Code Agent Builder", desc: "Describe what you need in plain language. No technical knowledge required." },
-                    { icon: FileText, title: "Industry Templates", desc: "10 pre-built templates for dental, coaching, real estate, e-commerce, and more." },
-                    { icon: Users, title: "Autonomous Agent Teams", desc: "Agent Teams that handle sales, support, and marketing autonomously." },
-                    { icon: Layers, title: "Best Model for Each Task", desc: "Choose AI models optimized for each task — fast models for support, smart models for sales." },
-                    { icon: Code2, title: "Embed Widget", desc: "Add your AI agent to any website with a single line of code." },
-                    { icon: BarChart3, title: "Analytics with ROI", desc: "See conversations, leads captured, and estimated revenue generated." },
+                    { icon: Monitor, title: "Computer Use for Monitoring", desc: "Agents browse competitor websites, track pricing changes, and alert you to market shifts automatically." },
+                    { icon: Timer, title: "Scheduled Agent Reports", desc: "Cron-triggered agents generate daily/weekly reports on leads, conversations, and KPIs — delivered to your inbox." },
+                    { icon: Radio, title: "Diff Detection Alerts", desc: "Monitor any website or data source for changes. Get notified instantly when competitors update pricing or content." },
+                    { icon: BarChart3, title: "ROI Dashboard", desc: "See conversations, leads captured, time saved, and estimated revenue generated — all in real-time." },
+                    { icon: FlaskConical, title: "Approval Workflows", desc: "AI agents pause before critical actions and wait for human approval. Full control, zero risk." },
+                    { icon: Database, title: "Data Pipeline Analytics", desc: "Connect your SQL databases and let AI agents query them with natural language for instant insights." },
                   ].map((f, i) => (
                     <motion.div
                       key={f.title}
@@ -886,14 +917,14 @@ export default function LandingPageV2() {
                   className="grid gap-4 sm:grid-cols-2"
                 >
                   {[
-                    { icon: Palette, title: "White-Label", desc: "Remove all KILN branding. Your logo, colors, custom domain." },
-                    { icon: Users, title: "Agent Teams for Clients", desc: "Deploy agent teams for clients with hierarchical roles — Head, Coordinator, Executor." },
-                    { icon: Layers, title: "Multi-LLM per Agent", desc: "Use Perplexity for research, Claude for writing, Haiku for fast responses — per agent." },
-                    { icon: GitFork, title: "Agent Cloning", desc: "Duplicate proven agents across clients. Bulk clone support." },
-                    { icon: Shield, title: "Multi-Client Management", desc: "Manage agents for multiple clients from one dashboard." },
-                    { icon: Globe, title: "Custom Domains", desc: "Serve agents on your clients' domains with automatic SSL." },
-                    { icon: Key, title: "API Access", desc: "Full REST API and MCP server for programmatic agent management." },
-                    { icon: Webhook, title: "Webhooks", desc: "Real-time events for conversations, leads, and actions." },
+                    { icon: Building2, title: "Client Portal (White-Label)", desc: "Branded dashboard for each client. Their logo, their data, your platform underneath." },
+                    { icon: Receipt, title: "Reseller Billing", desc: "Stripe Connect integration. Bill clients directly and keep 80% of the margin." },
+                    { icon: FileCheck, title: "Proof of Work Reports", desc: "Agents generate PDF reports documenting every step — send to clients as deliverables." },
+                    { icon: BarChart3, title: "Multi-Client Dashboard", desc: "Manage agents, conversations, and analytics for all clients from one unified view." },
+                    { icon: GitFork, title: "Agent Cloning Across Clients", desc: "Build once, clone everywhere. Duplicate proven agents across all client accounts." },
+                    { icon: Eye, title: "Watch & Learn Onboarding", desc: "Record a screen walkthrough. Agent learns the process and replicates it for every client." },
+                    { icon: Globe, title: "Multi-Site Orchestration", desc: "Coordinate research agents across multiple client websites simultaneously." },
+                    { icon: Store, title: "Agent Marketplace", desc: "Publish and sell your pre-built agent templates. Earn revenue from the community." },
                   ].map((f, i) => (
                     <motion.div
                       key={f.title}
@@ -924,14 +955,14 @@ export default function LandingPageV2() {
                 >
                   <div className="grid gap-4 sm:grid-cols-2">
                     {[
-                      { icon: Terminal, title: "MCP Protocol (25+ tools)", desc: "Full agent lifecycle from Claude Code, Cursor, or any MCP client. YAML config export/import." },
-                      { icon: Bot, title: "A2A Protocol", desc: "Agent-to-Agent communication. Your agents can call external agents and be called by others." },
-                      { icon: Key, title: "REST API + API Keys", desc: "Programmatic access to all features. Create and rotate API keys from the dashboard." },
-                      { icon: Layers, title: "Full Multi-LLM", desc: "Route to Claude, GPT-4o, Perplexity, Gemini, or Groq per agent via REST API." },
-                      { icon: Wrench, title: "BYOK + Custom Code", desc: "Bring your own API keys. Write custom JavaScript actions. YAML agent configs." },
-                      { icon: Webhook, title: "Webhooks + HTTP Triggers", desc: "Inbound webhooks trigger workflows. Outbound HTTP actions. Real-time events." },
-                      { icon: FlaskConical, title: "Prompt Branching", desc: "Keyword-triggered conditional prompt injection for dynamic behavior." },
-                      { icon: Code2, title: "Custom Tools", desc: "Define HTTP tools with template variables. Claude calls them automatically." },
+                      { icon: Terminal, title: "Agent SDK & CLI", desc: "@kiln/sdk — programmatic agent creation, management, and chat from Node.js or the command line." },
+                      { icon: Cpu, title: "Custom Node SDK", desc: "Build and publish custom workflow nodes. Extend the platform with your own logic." },
+                      { icon: Monitor, title: "Sandbox API", desc: "Programmatic Computer Use — launch browser sessions, execute code, and extract data via REST." },
+                      { icon: Plug, title: "MCP Server (38 Tools)", desc: "Full agent lifecycle from Claude Code, Cursor, or any MCP client. YAML config export/import." },
+                      { icon: Webhook, title: "Webhook V2", desc: "Server-Sent Events, HMAC signature verification, automatic retry with exponential backoff." },
+                      { icon: Code2, title: "Embeddable Components", desc: "6 widget types — chat, price table, status, diff viewer, and more. Drop into any website." },
+                      { icon: Bot, title: "A2A Protocol", desc: "Agent-to-Agent communication across platforms using Google's open standard." },
+                      { icon: Key, title: "Full REST API + Streaming", desc: "Programmatic access to all features with SSE streaming for real-time responses." },
                     ].map((f, i) => (
                       <motion.div
                         key={f.title}
@@ -1343,6 +1374,10 @@ export default function LandingPageV2() {
                 <li><a href="#pricing" className="hover:text-neutral-300">Pricing</a></li>
                 <li><Link href="/marketplace" className="hover:text-neutral-300">Marketplace</Link></li>
                 <li><Link href="/developers" className="hover:text-neutral-300">Developers</Link></li>
+                <li><Link href="/computer-use" className="hover:text-neutral-300">Computer Use</Link></li>
+                <li><Link href="/enterprise" className="hover:text-neutral-300">Enterprise</Link></li>
+                <li><a href="#pricing" className="hover:text-neutral-300">Services</a></li>
+                <li><Link href="/changelog" className="hover:text-neutral-300">Changelog</Link></li>
               </ul>
             </div>
             <div>
@@ -1350,6 +1385,8 @@ export default function LandingPageV2() {
               <ul className="space-y-2 text-xs text-neutral-500">
                 <li><a href="https://discord.gg/kiln" target="_blank" rel="noopener noreferrer" className="hover:text-neutral-300">Community</a></li>
                 <li><a href="/impressum" className="hover:text-neutral-300">Impressum</a></li>
+                <li><a href="#" className="hover:text-neutral-300">Help Center</a></li>
+                <li><a href="#" className="hover:text-neutral-300">Blog</a></li>
               </ul>
             </div>
             <div>
@@ -1357,6 +1394,7 @@ export default function LandingPageV2() {
               <ul className="space-y-2 text-xs text-neutral-500">
                 <li><a href="/privacy" className="hover:text-neutral-300">Privacy</a></li>
                 <li><a href="/terms" className="hover:text-neutral-300">Terms</a></li>
+                <li><a href="/dpa" className="hover:text-neutral-300">DPA</a></li>
               </ul>
             </div>
           </div>

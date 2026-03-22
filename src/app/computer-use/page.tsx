@@ -315,21 +315,21 @@ export default function ComputerUsePage() {
   const pricingTeaser = [
     {
       name: "Starter", price: "\u20AC39", period: "/mo",
-      subtitle: "Agent Teams & Workflows",
-      features: ["3 Agents", "500 AI credits/mo", "Agent Teams & Orchestration", "Workflow Editor + All Basic Nodes", "Reasoning Log"],
+      subtitle: "Agent Teams, Workflows & SDK",
+      features: ["3 Agents", "500 AI credits/mo", "Agent Teams & Orchestration", "Workflow Editor + All Basic Nodes", "Reasoning Log", "Agent SDK & CLI Access"],
       note: "Computer Use starts at Pro",
       highlight: false,
     },
     {
       name: "Pro", price: "\u20AC99", period: "/mo",
-      subtitle: "Computer Use Pro",
-      features: ["10 Agents", "2,000 AI credits/mo", "Browser + Vision", "Code Sandbox", "Agent Swarm (5)", "100 Steps per Run", "Verification", "Diff Detection", "Proof of Work", "3 Scheduled Automations"],
+      subtitle: "Computer Use Pro + Embeddable",
+      features: ["10 Agents", "2,000 AI credits/mo", "Browser + Vision", "Code Sandbox", "Agent Swarm (5)", "100 Steps per Run", "Verification", "Diff Detection", "Proof of Work", "3 Scheduled Automations", "Embeddable Components", "Webhook V2"],
       highlight: true,
     },
     {
       name: "Business", price: "\u20AC249", period: "/mo",
-      subtitle: "Computer Use Unlimited",
-      features: ["Unlimited Agents", "5,000 AI credits/mo", "Everything in Pro", "Agent Swarm (20)", "Multi-Site Orchestration", "Watch & Learn", "Agent builds Agents", "API Autodiscovery", "Zero-Config Wizard", "Procedural Memory", "Manual Model Routing", "Unlimited Schedules"],
+      subtitle: "Computer Use Unlimited + MCP",
+      features: ["Unlimited Agents", "5,000 AI credits/mo", "Everything in Pro", "Agent Swarm (20)", "Multi-Site Orchestration", "Watch & Learn", "Agent builds Agents", "API Autodiscovery", "Zero-Config Wizard", "Procedural Memory", "MCP Hybrid Model Routing", "Unlimited Schedules", "Sandbox API", "Custom Node SDK"],
       highlight: false,
     },
   ];
@@ -617,6 +617,47 @@ export default function ComputerUsePage() {
         </div>
       </section>
 
+      {/* ── SECTION 6b: MCP-Powered Hybrid Routing ──────────── */}
+      <section className="border-t border-white/[0.06] py-28">
+        <div className="mx-auto max-w-5xl px-6">
+          <FadeIn className="mb-16 text-center">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#F97316]">Hybrid Intelligence</p>
+            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">MCP-Powered Hybrid Routing</h2>
+            <p className="mx-auto mt-6 max-w-2xl text-base text-neutral-400">
+              Not every task needs a browser. KILN automatically routes each step to the fastest, cheapest execution path — MCP tool call, API request, or full browser session.
+            </p>
+          </FadeIn>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              {
+                step: "01",
+                title: "Classify",
+                desc: "Each step is analyzed: Can it be done via API? MCP tool? Or does it need browser control?",
+              },
+              {
+                step: "02",
+                title: "Route",
+                desc: "API-capable tasks use direct HTTP calls. MCP tools handle structured operations. Only visual tasks launch browser sessions.",
+              },
+              {
+                step: "03",
+                title: "Execute",
+                desc: "Results are unified regardless of execution path. You get the same output — faster and at lower cost.",
+              },
+            ].map((item, i) => (
+              <FadeIn key={item.step} delay={i * 0.12}>
+                <div className="h-full rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all hover:border-white/[0.12]">
+                  <span className="text-3xl font-extrabold text-[#F97316]/20">{item.step}</span>
+                  <h3 className="mt-2 text-base font-bold">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-neutral-400">{item.desc}</p>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── SECTION 7: Comparison Table ───────────────────────── */}
       <section className="border-t border-white/[0.06] py-28">
         <div className="mx-auto max-w-5xl px-6">
@@ -665,9 +706,9 @@ export default function ComputerUsePage() {
                     <td className="p-4 text-center text-xs font-medium text-[#F97316]" style={{ backgroundColor: "rgba(249,115,22,0.03)" }}>
                       Free &ndash; &euro;249/mo
                     </td>
-                    <td className="p-4 text-center text-xs text-neutral-500">&euro;19 &ndash; &euro;399/mo</td>
-                    <td className="p-4 text-center text-xs text-neutral-500 hidden sm:table-cell">$60 &ndash; $999/mo</td>
-                    <td className="p-4 text-center text-xs text-neutral-500 hidden md:table-cell">Free &ndash; $50/mo</td>
+                    <td className="p-4 text-center text-xs text-neutral-500">$0 &ndash; $500/mo</td>
+                    <td className="p-4 text-center text-xs text-neutral-500 hidden sm:table-cell">$0 &ndash; $150+/editor/mo</td>
+                    <td className="p-4 text-center text-xs text-neutral-500 hidden md:table-cell">Free &ndash; &euro;50/mo</td>
                     <td className="p-4 text-center text-xs text-neutral-500 hidden lg:table-cell">$200/mo</td>
                   </tr>
                 </tbody>
@@ -788,15 +829,18 @@ export default function ComputerUsePage() {
               <ul className="space-y-2 text-xs text-neutral-500">
                 <li><Link href="/#features" className="hover:text-neutral-300">Features</Link></li>
                 <li><Link href="/computer-use" className="hover:text-neutral-300">Computer Use</Link></li>
+                <li><Link href="/enterprise" className="hover:text-neutral-300">Enterprise</Link></li>
                 <li><Link href="/#pricing" className="hover:text-neutral-300">Pricing</Link></li>
                 <li><Link href="/marketplace" className="hover:text-neutral-300">Marketplace</Link></li>
                 <li><Link href="/developers" className="hover:text-neutral-300">Developers</Link></li>
+                <li><Link href="/services" className="hover:text-neutral-300">Services</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">Company</h4>
               <ul className="space-y-2 text-xs text-neutral-500">
                 <li><a href="https://discord.gg/kiln" target="_blank" rel="noopener noreferrer" className="hover:text-neutral-300">Community</a></li>
+                <li><Link href="/changelog" className="hover:text-neutral-300">Changelog</Link></li>
                 <li><a href="/impressum" className="hover:text-neutral-300">Impressum</a></li>
               </ul>
             </div>
@@ -805,6 +849,7 @@ export default function ComputerUsePage() {
               <ul className="space-y-2 text-xs text-neutral-500">
                 <li><a href="/privacy" className="hover:text-neutral-300">Privacy</a></li>
                 <li><a href="/terms" className="hover:text-neutral-300">Terms</a></li>
+                <li><a href="/dpa" className="hover:text-neutral-300">DPA</a></li>
               </ul>
             </div>
           </div>
