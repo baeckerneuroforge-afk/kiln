@@ -66,6 +66,18 @@ export const PLAN_LIMITS = {
     agentCollaboration: false,
     maxCollaborations: 0,
     publicAgentDirectory: false,
+    // Developer Platform
+    customNodes: false,
+    customNodePublishing: false,
+    embedComponents: false as false | "chat_only" | "all",
+    sandboxAPI: false,
+    sandboxAPISessionsPerMonth: 0,
+    // Webhooks & Team
+    webhookSubscriptions: 0,
+    webhookSSE: false,
+    teamMembers: 1,
+    rbacRoles: false,
+    multiTenantDashboard: false,
   },
   STARTER: {
     agents: 3,
@@ -111,6 +123,18 @@ export const PLAN_LIMITS = {
     agentCollaboration: false,
     maxCollaborations: 0,
     publicAgentDirectory: false,
+    // Developer Platform
+    customNodes: false,
+    customNodePublishing: false,
+    embedComponents: "chat_only" as false | "chat_only" | "all",
+    sandboxAPI: false,
+    sandboxAPISessionsPerMonth: 0,
+    // Webhooks & Team
+    webhookSubscriptions: 3,
+    webhookSSE: false,
+    teamMembers: 1,
+    rbacRoles: false,
+    multiTenantDashboard: false,
   },
   PRO: {
     agents: 10,
@@ -156,6 +180,18 @@ export const PLAN_LIMITS = {
     agentCollaboration: true,
     maxCollaborations: 3,
     publicAgentDirectory: false,
+    // Developer Platform
+    customNodes: true,
+    customNodePublishing: false,
+    embedComponents: "all" as false | "chat_only" | "all",
+    sandboxAPI: true,
+    sandboxAPISessionsPerMonth: 100,
+    // Webhooks & Team
+    webhookSubscriptions: 10,
+    webhookSSE: true,
+    teamMembers: 3,
+    rbacRoles: true,
+    multiTenantDashboard: false,
   },
   AGENCY: {
     agents: 999999,
@@ -201,6 +237,18 @@ export const PLAN_LIMITS = {
     agentCollaboration: true,
     maxCollaborations: 999999,
     publicAgentDirectory: true,
+    // Developer Platform
+    customNodes: true,
+    customNodePublishing: true,
+    embedComponents: "all" as false | "chat_only" | "all",
+    sandboxAPI: true,
+    sandboxAPISessionsPerMonth: 999999,
+    // Webhooks & Team
+    webhookSubscriptions: 999,
+    webhookSSE: true,
+    teamMembers: 999,
+    rbacRoles: true,
+    multiTenantDashboard: true,
   },
   ENTERPRISE: {
     agents: 999999,
@@ -246,6 +294,18 @@ export const PLAN_LIMITS = {
     agentCollaboration: true,
     maxCollaborations: 999999,
     publicAgentDirectory: true,
+    // Developer Platform
+    customNodes: true,
+    customNodePublishing: true,
+    embedComponents: "all" as false | "chat_only" | "all",
+    sandboxAPI: true,
+    sandboxAPISessionsPerMonth: 999999,
+    // Webhooks & Team
+    webhookSubscriptions: 999,
+    webhookSSE: true,
+    teamMembers: 999,
+    rbacRoles: true,
+    multiTenantDashboard: true,
   },
 } as const;
 

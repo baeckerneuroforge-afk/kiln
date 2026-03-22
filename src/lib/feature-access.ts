@@ -27,7 +27,14 @@ export type FeatureName =
   | "resellerBilling"
   | "healthDashboard"
   | "healthAlerts"
-  | "slaReports";
+  | "slaReports"
+  | "customNodes"
+  | "customNodePublishing"
+  | "embedComponents"
+  | "sandboxAPI"
+  | "webhookSSE"
+  | "rbacRoles"
+  | "multiTenantDashboard";
 
 export interface FeatureAccessResult {
   allowed: boolean;
@@ -124,6 +131,13 @@ function getUpgradeMessage(feature: FeatureName, requiredPlan: string): string {
     healthDashboard: "Health Dashboard",
     healthAlerts: "Health Alerts",
     slaReports: "SLA Reports",
+    customNodes: "Custom Nodes",
+    customNodePublishing: "Custom Node Publishing",
+    embedComponents: "Embed-Komponenten",
+    sandboxAPI: "Sandbox API",
+    webhookSSE: "Webhook SSE",
+    rbacRoles: "RBAC Rollen",
+    multiTenantDashboard: "Multi-Tenant Dashboard",
   };
 
   const label = featureLabels[feature] || feature;

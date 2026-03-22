@@ -29,6 +29,7 @@ import {
   Image,
   Waypoints,
   Users,
+  Code2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -158,6 +159,22 @@ const allModules = [
     color: "text-muted-foreground",
     activeColor: "text-kiln-blue",
     minAgents: 1,
+  },
+  {
+    name: "Nodes SDK",
+    href: "/dashboard/nodes-marketplace",
+    icon: Bolt,
+    color: "text-muted-foreground",
+    activeColor: "text-purple-400",
+    minAgents: 1,
+  },
+  {
+    name: "Developers",
+    href: "/developers",
+    icon: Code2,
+    color: "text-muted-foreground",
+    activeColor: "text-emerald-400",
+    minAgents: 0,
   },
   {
     name: "Site Builder",

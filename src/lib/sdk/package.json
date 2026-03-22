@@ -1,0 +1,20 @@
+{
+  "name": "@kiln/sdk",
+  "version": "0.1.0",
+  "description": "Official SDK and CLI for the KILN AI Creation Platform",
+  "main": "kiln-sdk.ts",
+  "types": "kiln-sdk.ts",
+  "bin": {
+    "kiln": "./kiln-cli.ts"
+  },
+  "scripts": {
+    "build": "tsc --outDir dist",
+    "cli": "npx tsx kiln-cli.ts"
+  },
+  "keywords": ["kiln", "ai", "agents", "sdk", "cli"],
+  "author": "Hephaistos Systems",
+  "license": "MIT",
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
+  }
+}

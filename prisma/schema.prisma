@@ -1943,3 +1943,98 @@ model AgentPublication {
   @@index([visibility])
   @@index([category])
 }
+
+// ── Developer Platform ──────────────────────────────────────
+
+model CustomNode {
+  id             String    @id @default(cuid())
+  creatorId      String
+  nodeId         String    @unique // namespaced: "creator-name/node-name"
+  name           String
+  description    String    @db.Text
+  readme         String?   @db.Text
+  definition     Json      // CustomNodeDefinition
+  category       String
+  icon           String
+  color          String
+  version        String
+  status         String    @default("draft") // draft, pending_review, published, rejected
+  installCount   Int       @default(0)
+  rating         Float?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  installations  CustomNodeInstallation[]
+
+  @@index([creatorId])
+  @@index([status])
+  @@index([category])
+}
+
+model CustomNodeInstallation {
+  id           String   @id @default(cuid())
+  userId       String
+  customNodeId String
+  installedAt  DateTime @default(now())
+
+  customNode   CustomNode @relation(fields: [customNodeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, customNodeId])
+  @@index([userId])
+}
+
+model EmbedToken {
+  id        String    @id @default(cuid())
+  userId    String
+  agentId   String
+  token     String    @unique
+  label     String?
+  allowedComponents Json? // array of component types
+  rateLimit Int       @default(100) // requests per minute
+  isActive  Boolean   @default(true)
+  lastUsedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([agentId])
+  @@index([token])
+}
+
+model SandboxAPISession {
+  id            String   @id @default(cuid())
+  userId        String
+  status        String   @default("ready") // ready, active, completed, expired, destroyed
+  capabilities  Json     // array of capabilities
+  config        Json     // session config
+  actionHistory Json     @default("[]") // array of action+result pairs
+  artifactIds   Json?
+  creditsUsed   Float    @default(0)
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ── Feature: Workspace Members (RBAC) ──────────────────────────
+
+model WorkspaceMember {
+  id           String    @id @default(cuid())
+  workspaceId  String    // userId des Workspace-Owners
+  userId       String?   // Clerk User ID, null bis Invite angenommen
+  email        String
+  role         String    @default("VIEWER") // OWNER, ADMIN, BUILDER, VIEWER, APPROVER
+  status       String    @default("invited") // invited, active, removed
+  inviteToken  String?   @unique
+  invitedBy    String
+  joinedAt     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([workspaceId, email])
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([email])
+  @@index([inviteToken])
+}
