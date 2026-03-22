@@ -25,16 +25,31 @@ interface Template {
   authorName: string;
   name: string;
   description: string;
+  longDescription?: string;
   category: string;
   price: number;
+  pricingType?: string;
   rating: number;
   ratingCount: number;
   downloads: number;
+  installCount?: number;
   screenshotUrl: string | null;
+  screenshots?: string[];
+  tags?: string[];
+  demoConversation?: Array<{ role: "user" | "assistant"; content: string }>;
+  proceduralMemories?: unknown;
+  workflowConfig?: unknown;
+  mcpConnections?: Array<{ name: string }>;
+  requiredPlan?: string;
+  creatorAvatar?: string;
+  hasPurchased?: boolean;
+  userRating?: number | null;
+  reviews?: Array<{ id: string; userName: string; rating: number; reviewText?: string; createdAt: string }>;
   agentConfigSnapshot: {
     welcomeMessage?: string;
     suggestedQuestions?: string[];
     actions?: { type: string; enabled: boolean }[];
+    customTools?: unknown[];
     workflowTemplateId?: string;
     teamTemplateId?: string;
     workflowAgents?: { name: string; agentMode: "CHAT" | "TASK" | "APPROVAL"; role?: string; description?: string }[];
@@ -84,30 +99,45 @@ export default function TemplateDetailPage() {
   const [related, setRelated] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [deploying, setDeploying] = useState(false);
+  const [installed, setInstalled] = useState(false);
+  const [installedAgentId, setInstalledAgentId] = useState<string | null>(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewText, setReviewText] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   const templateId = params.id as string;
 
   const loadTemplate = useCallback(async () => {
     setLoading(true);
     try {
-      // Load all marketplace templates and find by ID
+      // Versuche Detail-API zuerst
+      const detailRes = await fetch(`/api/marketplace/${templateId}`);
+      if (detailRes.ok) {
+        const detailData = await detailRes.json();
+        if (detailData.template) {
+          setTemplate(detailData.template);
+          if (detailData.template.userRating) setReviewRating(detailData.template.userRating);
+        }
+      }
+      // Fallback + Related laden
       const res = await fetch("/api/marketplace");
       const data = await res.json();
       const all: Template[] = data.templates || [];
-      const found = all.find((t) => t.id === templateId);
-      if (!found) {
-        router.push("/marketplace");
-        return;
+      if (!template) {
+        const found = all.find((t) => t.id === templateId);
+        if (!found && !detailRes.ok) {
+          router.push("/marketplace");
+          return;
+        }
+        if (found && !template) setTemplate(found);
       }
-      setTemplate(found);
-      // Related: same category, excluding current
-      setRelated(all.filter((t) => t.id !== templateId && t.category === found.category).slice(0, 3));
+      setRelated(all.filter((t) => t.id !== templateId && t.category === (template?.category || all.find(a => a.id === templateId)?.category)).slice(0, 3));
     } catch {
       router.push("/marketplace");
     } finally {
       setLoading(false);
     }
-  }, [templateId, router]);
+  }, [templateId, router, template]);
 
   useEffect(() => { loadTemplate(); }, [loadTemplate]);
 
@@ -118,6 +148,23 @@ export default function TemplateDetailPage() {
     }
     setDeploying(true);
     try {
+      // Neue Install-API versuchen
+      const installRes = await fetch(`/api/marketplace/${template.id}/install`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (installRes.ok) {
+        const installData = await installRes.json();
+        setInstalled(true);
+        setInstalledAgentId(installData.agentId);
+        toast("Agent erfolgreich installiert!");
+        return;
+      }
+      if (installRes.status === 402) {
+        toast("Zahlung erforderlich. Diese Funktion kommt bald.", "error");
+        return;
+      }
+      // Fallback auf alte API
       const res = await fetch("/api/marketplace", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -130,12 +177,36 @@ export default function TemplateDetailPage() {
         window.location.href = `/dashboard/teams/${data.teamId}?deployed=true`;
         return;
       }
+      setInstalled(true);
+      setInstalledAgentId(data.agentId);
       toast(`Agent "${data.agentName}" erstellt!`);
-      window.location.href = `/dashboard/agents/${data.agentId}`;
     } catch {
       toast("Deploy fehlgeschlagen.", "error");
     } finally {
       setDeploying(false);
+    }
+  };
+
+  const submitReview = async () => {
+    if (!isSignedIn || !template || reviewRating === 0) return;
+    setSubmittingReview(true);
+    try {
+      const res = await fetch(`/api/marketplace/${template.id}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating: reviewRating, reviewText: reviewText || undefined }),
+      });
+      if (res.ok) {
+        toast("Bewertung gespeichert!");
+        loadTemplate();
+      } else {
+        const data = await res.json();
+        toast(data.error || "Fehler beim Speichern", "error");
+      }
+    } catch {
+      toast("Bewertung fehlgeschlagen.", "error");
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -299,6 +370,122 @@ export default function TemplateDetailPage() {
               </div>
             )}
 
+            {/* Long Description */}
+            {template.longDescription && (
+              <div>
+                <h2 className="text-sm font-semibold text-foreground mb-3">Detaillierte Beschreibung</h2>
+                <div className="rounded-xl border border-border bg-card/50 p-4">
+                  <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{template.longDescription}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Screenshots */}
+            {template.screenshots && template.screenshots.length > 0 && (
+              <div>
+                <h2 className="text-sm font-semibold text-foreground mb-3">Screenshots</h2>
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {template.screenshots.map((url, i) => (
+                    <img key={i} src={url} alt={`Screenshot ${i + 1}`} className="rounded-xl border border-border h-48 object-cover" />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Demo Conversation */}
+            {template.demoConversation && template.demoConversation.length > 0 && (
+              <div>
+                <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-orange-400" />
+                  Demo-Konversation
+                </h2>
+                <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
+                  {template.demoConversation.map((msg, i) => (
+                    <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
+                      <div className={cn(
+                        "rounded-2xl px-4 py-2.5 text-sm max-w-[80%]",
+                        msg.role === "user"
+                          ? "bg-orange-500/20 text-orange-100"
+                          : "bg-zinc-800 text-zinc-200"
+                      )}>
+                        {msg.content}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Tags */}
+            {template.tags && template.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {template.tags.map((tag, i) => (
+                  <span key={i} className="rounded-full bg-zinc-800/50 border border-zinc-700/50 px-2.5 py-1 text-[10px] text-zinc-400">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Reviews */}
+            {template.reviews && template.reviews.length > 0 && (
+              <div>
+                <h2 className="text-sm font-semibold text-foreground mb-3">
+                  Bewertungen ({template.reviews.length})
+                </h2>
+                <div className="space-y-3">
+                  {template.reviews.map((review) => (
+                    <div key={review.id} className="rounded-xl border border-border bg-card/50 p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs font-medium text-foreground">{review.userName}</span>
+                        <div className="flex gap-0.5">
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <Star key={i} className={cn("h-3 w-3", i <= review.rating ? "fill-amber-400 text-amber-400" : "text-zinc-700")} />
+                          ))}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">
+                          {new Date(review.createdAt).toLocaleDateString("de-DE")}
+                        </span>
+                      </div>
+                      {review.reviewText && (
+                        <p className="text-xs text-muted-foreground">{review.reviewText}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Write Review */}
+            {isSignedIn && (template.hasPurchased || template.price === 0) && (
+              <div>
+                <h2 className="text-sm font-semibold text-foreground mb-3">Bewertung schreiben</h2>
+                <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <button key={i} onClick={() => setReviewRating(i)} className="transition-transform hover:scale-110">
+                        <Star className={cn("h-5 w-5", i <= reviewRating ? "fill-amber-400 text-amber-400" : "text-zinc-600 hover:text-zinc-400")} />
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    value={reviewText}
+                    onChange={(e) => setReviewText(e.target.value)}
+                    placeholder="Deine Erfahrung mit diesem Agent..."
+                    rows={3}
+                    className="w-full rounded-lg border border-border bg-background text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 resize-none placeholder:text-muted-foreground"
+                  />
+                  <button
+                    onClick={submitReview}
+                    disabled={reviewRating === 0 || submittingReview}
+                    className="rounded-lg bg-orange-500/20 text-orange-400 px-4 py-2 text-xs font-medium hover:bg-orange-500/30 transition-colors disabled:opacity-50"
+                  >
+                    {submittingReview ? "Speichern..." : "Bewertung absenden"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Related Templates */}
             {related.length > 0 && (
               <div>
@@ -329,14 +516,24 @@ export default function TemplateDetailPage() {
           <div className="space-y-5 lg:sticky lg:top-8 self-start">
             {/* Deploy Card */}
             <div className="rounded-2xl border border-border bg-card/50 p-5 space-y-4">
-              <button
-                onClick={deploy}
-                disabled={deploying}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3.5 text-sm font-semibold text-white transition-all hover:shadow-lg hover:shadow-orange-500/20 disabled:opacity-50"
-              >
-                {deploying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-                Template deployen
-              </button>
+              {installed ? (
+                <Link
+                  href={`/dashboard/agents/${installedAgentId}`}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-green-500 to-green-600 px-4 py-3.5 text-sm font-semibold text-white transition-all hover:shadow-lg hover:shadow-green-500/20"
+                >
+                  <Zap className="h-4 w-4" />
+                  Installiert — Agent ansehen
+                </Link>
+              ) : (
+                <button
+                  onClick={deploy}
+                  disabled={deploying}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3.5 text-sm font-semibold text-white transition-all hover:shadow-lg hover:shadow-orange-500/20 disabled:opacity-50"
+                >
+                  {deploying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
+                  {template.price > 0 ? `€${template.price} — Installieren` : "Kostenlos installieren"}
+                </button>
+              )}
 
               <div className="space-y-3 text-xs text-muted-foreground">
                 <div className="flex items-center justify-between py-2 border-b border-border">
@@ -395,7 +592,30 @@ export default function TemplateDetailPage() {
                   <Sparkles className="h-4 w-4 text-purple-400 shrink-0" />
                   <span>Vollständig anpassbar nach Deploy</span>
                 </div>
+                {!!template.proceduralMemories && (
+                  <div className="flex items-center gap-2.5 text-xs text-zinc-300">
+                    <Sparkles className="h-4 w-4 text-amber-400 shrink-0" />
+                    <span>Trainierte Routinen enthalten</span>
+                  </div>
+                )}
+                {!!template.workflowConfig && (
+                  <div className="flex items-center gap-2.5 text-xs text-zinc-300">
+                    <Zap className="h-4 w-4 text-cyan-400 shrink-0" />
+                    <span>Workflow-Vorlage</span>
+                  </div>
+                )}
+                {template.mcpConnections && template.mcpConnections.length > 0 && (
+                  <div className="flex items-center gap-2.5 text-xs text-zinc-300">
+                    <Zap className="h-4 w-4 text-blue-400 shrink-0" />
+                    <span>MCP: {template.mcpConnections.map(c => c.name).join(", ")}</span>
+                  </div>
+                )}
               </div>
+              {template.requiredPlan && template.requiredPlan !== "free" && (
+                <div className="mt-3 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-[11px] text-amber-400">
+                  Mindest-Plan: {template.requiredPlan.charAt(0).toUpperCase() + template.requiredPlan.slice(1)}
+                </div>
+              )}
             </div>
 
             {/* Customization hint */}

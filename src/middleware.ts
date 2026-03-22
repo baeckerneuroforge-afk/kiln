@@ -53,6 +53,8 @@ const isPublicRoute = createRouteMatcher([
   "/docs",               // Public API Documentation
   "/changelog",          // Public Changelog
   "/computer-use",       // Computer Use Landing Page
+  "/portal/(.*)",        // Client Portal (Token-basierte Auth)
+  "/api/portal/:id",     // Portal API (dual auth: Clerk oder Token)
 ]);
 
 export default clerkMiddleware(async (auth, request) => {

@@ -20,7 +20,10 @@ export type FeatureName =
   | "proceduralMemory"
   | "verificationCheckpoints"
   | "priorityExecution"
-  | "workflows";
+  | "workflows"
+  | "approvalWorkflows"
+  | "clientPortal"
+  | "auditTrail";
 
 export interface FeatureAccessResult {
   allowed: boolean;
@@ -110,6 +113,9 @@ function getUpgradeMessage(feature: FeatureName, requiredPlan: string): string {
     verificationCheckpoints: "Verification Checkpoints",
     priorityExecution: "Priority Execution",
     workflows: "Workflows",
+    approvalWorkflows: "Approval Workflows",
+    clientPortal: "Client Portal",
+    auditTrail: "Audit Trail",
   };
 
   const label = featureLabels[feature] || feature;

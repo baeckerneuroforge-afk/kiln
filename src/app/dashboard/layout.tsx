@@ -14,6 +14,8 @@ import { OnboardingWizard } from "@/components/onboarding-wizard";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { KeyboardShortcutProvider } from "@/components/keyboard-shortcuts";
 import { ProductTour, useTourTrigger } from "@/components/product-tour";
+import { MetaAgentChat } from "@/components/meta-agent/meta-agent-chat";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 export default function DashboardLayout({
   children,
@@ -69,6 +71,9 @@ export default function DashboardLayout({
                 </div>
                 <span className="font-serif text-lg text-foreground">KILN</span>
               </div>
+              <div className="ml-auto">
+                <NotificationBell />
+              </div>
             </div>
             <UpgradeBanner />
             <CreditBanner />
@@ -86,6 +91,7 @@ export default function DashboardLayout({
         {showOnboarding === false && <OnboardingChecklist />}
         {showTour && <ProductTour onComplete={completeTour} onSkip={skipTour} />}
         <CookieBanner />
+        <MetaAgentChat />
         </KeyboardShortcutProvider>
       </ToastProvider>
     </AdvancedModeProvider>

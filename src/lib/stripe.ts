@@ -44,6 +44,16 @@ export const PLAN_LIMITS = {
     // MCP Client
     maxMCPConnections: 0,
     mcpTeamRoles: false,
+    // Marketplace & ROI
+    marketplaceSelling: false,
+    roiDashboard: false,
+    roiPdfExport: false,
+    // Enterprise Features
+    approvalWorkflows: false,
+    clientPortal: false,
+    auditTrail: false,
+    auditRetentionDays: 0,
+    notificationChannels: 1, // Nur E-Mail
   },
   STARTER: {
     agents: 3,
@@ -71,6 +81,14 @@ export const PLAN_LIMITS = {
     workflows: true,
     maxMCPConnections: 2,
     mcpTeamRoles: false,
+    marketplaceSelling: false,
+    roiDashboard: true,
+    roiPdfExport: false,
+    approvalWorkflows: false,
+    clientPortal: false,
+    auditTrail: false,
+    auditRetentionDays: 0,
+    notificationChannels: 2, // E-Mail + Slack
   },
   PRO: {
     agents: 10,
@@ -98,6 +116,14 @@ export const PLAN_LIMITS = {
     workflows: true,
     maxMCPConnections: 10,
     mcpTeamRoles: false,
+    marketplaceSelling: true,
+    roiDashboard: true,
+    roiPdfExport: true,
+    approvalWorkflows: true,
+    clientPortal: false,
+    auditTrail: true,
+    auditRetentionDays: 90,
+    notificationChannels: 3, // E-Mail + Slack + Telegram
   },
   AGENCY: {
     agents: 999999,
@@ -125,6 +151,14 @@ export const PLAN_LIMITS = {
     workflows: true,
     maxMCPConnections: 999999,
     mcpTeamRoles: true,
+    marketplaceSelling: true,
+    roiDashboard: true,
+    roiPdfExport: true,
+    approvalWorkflows: true,
+    clientPortal: true,
+    auditTrail: true,
+    auditRetentionDays: 365,
+    notificationChannels: 5, // Alle Kanäle
   },
   ENTERPRISE: {
     agents: 999999,
@@ -152,6 +186,14 @@ export const PLAN_LIMITS = {
     workflows: true,
     maxMCPConnections: 999999,
     mcpTeamRoles: true,
+    marketplaceSelling: true,
+    roiDashboard: true,
+    roiPdfExport: true,
+    approvalWorkflows: true,
+    clientPortal: true,
+    auditTrail: true,
+    auditRetentionDays: 999999,
+    notificationChannels: 5,
   },
 } as const;
 

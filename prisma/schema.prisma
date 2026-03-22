@@ -176,6 +176,10 @@ model Agent {
   monthlyCostCapCents   Int?      // Legacy: Max monthly cost in cents (null = unlimited, plan credits handle this now)
   budgetExceededBehavior String?  // "pause" | "downgrade" | "notify_continue"
 
+  // Approval Workflows — Human-in-the-Loop
+  approvalMode       String    @default("none") // "none" | "critical_only" | "all_actions" | "custom"
+  approvalConfig     Json?     // { checklist: string[], autoApproveTimeoutMinutes: number, approverEmail: string, notificationChannel: string }
+
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
@@ -211,6 +215,8 @@ model Agent {
   modelRoutingConfig   ModelRoutingConfig?
   costRecords          CostRecord[]
   mcpConnections       MCPConnection[]
+  roiConfig            ROIConfig?
+  workflowApprovals    WorkflowApproval[]
 
   @@index([userId])
 }
@@ -784,23 +790,38 @@ model MarketplaceTemplate {
   authorName          String
   name                String
   description         String   @db.Text
-  category            String   // Business, Marketing, Support, Sales, etc.
+  longDescription     String?  @db.Text
+  category            String   // sales, support, research, monitoring, e-commerce, recruiting, marketing, legal
   price               Float    @default(0) // 0 = Free, otherwise EUR amount
+  pricingType         String   @default("free") // free, one_time, monthly
   agentConfigSnapshot Json     // Sanitized agent config
+  workflowConfig      Json?    // Optional workflow blueprint
+  proceduralMemories  Json?    // Pre-trained procedural memories
+  mcpConnections      Json?    // Required MCP connections listed
+  demoConversation    Json?    // Example chat showing agent in action
+  screenshots         Json?    // Array of screenshot URLs
   rating              Float    @default(0)
   ratingCount         Int      @default(0)
   downloads           Int      @default(0)
+  installCount        Int      @default(0)
   screenshotUrl       String?
+  tags                String[] // Searchable tags
   isApproved          Boolean  @default(true)
+  status              String   @default("published") // draft, pending_review, published, rejected
+  requiredPlan        String   @default("free") // free, starter, pro, business
+  creatorAvatar       String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   purchases MarketplacePurchase[]
   ratings   MarketplaceRating[]
+  reviews   MarketplaceReview[]
 
   @@index([authorId])
   @@index([category])
   @@index([downloads])
+  @@index([installCount])
+  @@index([status])
 }
 
 // Marketplace Purchases — one-time template purchases
@@ -811,6 +832,8 @@ model MarketplacePurchase {
   template          MarketplaceTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   stripePaymentId   String?
   amount            Float
+  creatorRevenue    Float    @default(0) // 70% of amount
+  platformRevenue   Float    @default(0) // 30% of amount
   createdAt         DateTime @default(now())
 
   @@unique([userId, templateId])
@@ -825,6 +848,21 @@ model MarketplaceRating {
   templateId String
   template   MarketplaceTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   rating     Int      // 1-5 stars
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, templateId])
+  @@index([templateId])
+}
+
+// Marketplace Reviews — text reviews for templates
+model MarketplaceReview {
+  id         String   @id @default(cuid())
+  templateId String
+  template   MarketplaceTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  userId     String
+  userName   String
+  rating     Int      // 1-5 stars
+  reviewText String?  @db.Text
   createdAt  DateTime @default(now())
 
   @@unique([userId, templateId])
@@ -1588,4 +1626,142 @@ model MCPTeamRoleConfig {
 
   @@unique([teamId, role])
   @@index([teamId])
+}
+
+// ROI Config — per-agent ROI tracking configuration
+model ROIConfig {
+  id                 String   @id @default(cuid())
+  agentId            String   @unique
+  agent              Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  manualTimeMinutes  Int      // How long this task takes manually
+  hourlyRateCents    Int      // User's hourly rate in cents (e.g., 4000 = €40/hr)
+  frequency          String   // daily, weekly, monthly
+  taskDescription    String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([agentId])
+}
+
+// ── Feature 1: Approval Workflows ──────────────────────────────
+
+enum WorkflowApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  MODIFIED
+  AUTO_APPROVED
+  EXPIRED
+}
+
+model WorkflowApproval {
+  id              String                 @id @default(cuid())
+  agentId         String
+  agent           Agent                  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  userId          String                 // Agent-Besitzer
+  executionId     String?                // Optional: TeamExecution-Referenz
+  actionType      String                 // z.B. "send_email", "http_request", "fire_webhook"
+  actionPayload   Json                   // Vollständige Action-Daten zur Prüfung
+  actionSummary   String    @db.Text     // LLM-generierte Zusammenfassung
+  status          WorkflowApprovalStatus @default(PENDING)
+  token           String    @unique      // Für E-Mail-basierte Genehmigung
+  approverEmail   String
+  respondedBy     String?                // userId oder "auto" oder "email"
+  responseNote    String?   @db.Text
+  modifiedPayload Json?                  // Falls Approver Änderungen vornimmt
+  autoApproveAt   DateTime?              // Timeout: automatisch genehmigt nach X Minuten
+  requestedAt     DateTime  @default(now())
+  respondedAt     DateTime?
+  expiresAt       DateTime?              // Hard expiry — danach EXPIRED
+
+  @@index([agentId])
+  @@index([userId])
+  @@index([status])
+  @@index([token])
+}
+
+// ── Feature 2: Client Portal ───────────────────────────────────
+
+model ClientPortal {
+  id              String   @id @default(cuid())
+  userId          String   // Agency-Besitzer
+  name            String   // Portal-Name (z.B. "Kunde X Dashboard")
+  slug            String   @unique // URL-Pfad
+  clientEmail     String   // Kunde-Email
+  clientName      String?
+  accessToken     String   @unique // Token-basierte Auth (kein Clerk)
+  tokenExpiresAt  DateTime?
+  branding        Json?    // { logo, primaryColor, companyName, customCss }
+  agentIds        Json     // String[] — welche Agents sichtbar sind
+  permissions     Json?    // { viewAnalytics, viewConversations, viewReports, downloadExports }
+  lastAccessedAt  DateTime?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([clientEmail])
+  @@index([slug])
+  @@index([accessToken])
+}
+
+// ── Feature 3: Audit Trail ─────────────────────────────────────
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  userId      String   // Wer hat die Aktion ausgeführt
+  category    String   // "agent" | "workflow" | "mcp" | "approval" | "settings" | "portal" | "export"
+  action      String   // z.B. "agent.created", "workflow.executed", "approval.approved"
+  resourceId  String?  // ID der betroffenen Ressource
+  resourceType String? // "Agent" | "AgentTeam" | "Workflow" | etc.
+  details     Json?    // Freiform-Details (vorher/nachher, Parameter, etc.)
+  ipAddress   String?
+  userAgent   String?  @db.Text
+  severity    String   @default("info") // "info" | "warning" | "critical"
+  createdAt   DateTime @default(now())
+
+  // Append-only: kein updatedAt, kein onDelete Cascade
+  @@index([userId])
+  @@index([category])
+  @@index([action])
+  @@index([resourceId])
+  @@index([createdAt])
+  @@index([severity])
+}
+
+// ── Feature 4: Notification Preferences ────────────────────────
+
+model NotificationPreference {
+  id           String  @id @default(cuid())
+  userId       String
+  agentId      String? // null = globale Präferenz, sonst agent-spezifisch
+  eventType    String  // "new_lead" | "handoff" | "approval_request" | "workflow_complete" | "error" | "weekly_summary"
+  email        Boolean @default(true)
+  slack        Boolean @default(false)
+  telegram     Boolean @default(false)
+  whatsapp     Boolean @default(false)
+  browserPush  Boolean @default(false)
+  slackChannel String? // Override: spezieller Channel
+  telegramChatId String?
+  whatsappNumber String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, agentId, eventType])
+  @@index([userId])
+  @@index([agentId])
+}
+
+// Push Subscription — Web Push API Registrierung
+model PushSubscription {
+  id           String   @id @default(cuid())
+  userId       String
+  endpoint     String   @db.Text
+  p256dh       String   @db.Text // Public key
+  auth         String   // Auth secret
+  userAgent    String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, endpoint])
+  @@index([userId])
 }
