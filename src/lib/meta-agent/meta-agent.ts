@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import Anthropic from "@anthropic-ai/sdk";
+import { knowledgeGraph } from "@/lib/knowledge/knowledge-graph";
 
 const META_AGENT_MODEL = "claude-sonnet-4-20250514";
 
@@ -107,6 +108,29 @@ const META_AGENT_TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ["featureName"],
+    },
+  },
+  {
+    name: "search_knowledge",
+    description: "Knowledge Graph durchsuchen — findet Entities (Firmen, Personen, Produkte etc.) aus Agent-Aktivitäten",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        query: { type: "string" as const, description: "Suchbegriff" },
+        type: { type: "string" as const, description: "Entity-Typ Filter (Company, Person, Product, Website, Price, Event, Document, Insight)" },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "get_entity_history",
+    description: "Änderungshistorie einer Knowledge Graph Entity abrufen",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        entityId: { type: "string" as const, description: "ID der Entity" },
+      },
+      required: ["entityId"],
     },
   },
 ];
@@ -491,6 +515,48 @@ class MetaAgent {
         }
 
         return "Ich kann dir bei diesem Feature leider nicht weiterhelfen.";
+      }
+
+      case "search_knowledge": {
+        const query = toolInput.query as string;
+        const result = await knowledgeGraph.search(userId, query);
+        return JSON.stringify({
+          query,
+          results: result.entities.map((e) => ({
+            id: e.id,
+            name: e.name,
+            type: e.type,
+            properties: e.properties,
+          })),
+          total: result.entities.length,
+        });
+      }
+
+      case "get_entity_history": {
+        const entityId = toolInput.entityId as string;
+        const [entity, history] = await Promise.all([
+          knowledgeGraph.getEntity(entityId),
+          knowledgeGraph.getEntityHistory(entityId),
+        ]);
+
+        if (!entity) {
+          return JSON.stringify({ error: "Entity nicht gefunden" });
+        }
+
+        return JSON.stringify({
+          entity: {
+            name: entity.name,
+            type: entity.type,
+            properties: entity.properties,
+            sources: entity.sources,
+          },
+          history: history.map((h) => ({
+            eventType: h.eventType,
+            timestamp: h.createdAt.toISOString(),
+            previousValue: h.previousValue,
+            newValue: h.newValue,
+          })),
+        });
       }
 
       default:

@@ -1699,6 +1699,8 @@ model ClientPortal {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  clientSubscriptions ClientSubscription[]
+
   @@index([userId])
   @@index([clientEmail])
   @@index([slug])
@@ -1764,4 +1766,180 @@ model PushSubscription {
 
   @@unique([userId, endpoint])
   @@index([userId])
+}
+
+// ── Feature: Reseller Billing (Stripe Connect) ────────────────
+
+model ResellerAccount {
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
+  stripeConnectAccountId  String   @unique
+  stripeConnectStatus     String   @default("pending") // "pending" | "active" | "disabled"
+  defaultMonthlyPriceCents Int?
+  platformFeePercent      Int      @default(20)
+  totalRevenueCents       Int      @default(0)
+  totalFeePaidCents       Int      @default(0)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  clientSubscriptions     ClientSubscription[]
+
+  @@index([userId])
+}
+
+model ClientSubscription {
+  id                   String   @id @default(cuid())
+  clientPortalId       String
+  clientPortal         ClientPortal @relation(fields: [clientPortalId], references: [id], onDelete: Cascade)
+  resellerAccountId    String
+  resellerAccount      ResellerAccount @relation(fields: [resellerAccountId], references: [id], onDelete: Cascade)
+  stripeSubscriptionId String   @unique
+  stripeCustomerId     String
+  monthlyPriceCents    Int
+  platformFeeCents     Int
+  status               String   @default("active") // "active" | "past_due" | "canceled" | "trialing"
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  canceledAt           DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([clientPortalId])
+  @@index([resellerAccountId])
+  @@index([status])
+}
+
+// ── Feature: Onboarding State ──────────────────────────────────
+
+model OnboardingState {
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  completedSteps      Json      // String[] — welche Schritte abgeschlossen sind
+  answers             Json?     // Onboarding-Antworten für Template-Empfehlung
+  recommendedTemplateId String?
+  completedAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+// ── Feature: Agent Health Monitoring ───────────────────────────
+
+model AgentHealthRecord {
+  id             String   @id @default(cuid())
+  agentId        String
+  executionType  String   // "chat" | "workflow" | "computer_use" | "scheduled"
+  success        Boolean
+  durationMs     Int
+  creditsUsed    Float?
+  errorType      String?  // "timeout" | "api_error" | "auth_failed" | "budget_exceeded" | "unknown"
+  errorMessage   String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  @@index([agentId, createdAt])
+  @@index([agentId, success])
+}
+
+model AgentHealthAlert {
+  id           String   @id @default(cuid())
+  agentId      String
+  userId       String
+  alertType    String   // "consecutive_failures" | "low_uptime" | "inactive" | "budget_warning"
+  severity     String   // "warning" | "critical"
+  message      String   @db.Text
+  acknowledged Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([userId, acknowledged])
+  @@index([agentId])
+}
+
+// ── Knowledge Graph ──────────────────────────────────────────
+
+model KnowledgeEntity {
+  id         String   @id @default(cuid())
+  userId     String
+  type       String   // Company, Person, Product, Website, Price, Event, Document, Insight
+  name       String
+  properties Json     // Freiform-Eigenschaften
+  sources    Json     // Array of { agentId, executionId, timestamp }
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  relationsFrom KnowledgeRelation[] @relation("RelationFrom")
+  relationsTo   KnowledgeRelation[] @relation("RelationTo")
+  events        KnowledgeEvent[]
+
+  @@unique([userId, type, name])
+  @@index([userId, type])
+  @@index([userId])
+}
+
+model KnowledgeRelation {
+  id                String   @id @default(cuid())
+  userId            String
+  fromEntityId      String
+  fromEntity        KnowledgeEntity @relation("RelationFrom", fields: [fromEntityId], references: [id], onDelete: Cascade)
+  toEntityId        String
+  toEntity          KnowledgeEntity @relation("RelationTo", fields: [toEntityId], references: [id], onDelete: Cascade)
+  relationType      String   // has_product, employs, competes_with, changed_price, mentioned_in, located_at, sells
+  properties        Json?
+  sourceAgentId     String?
+  sourceExecutionId String?
+  createdAt         DateTime @default(now())
+
+  @@index([fromEntityId])
+  @@index([toEntityId])
+  @@index([userId])
+}
+
+model KnowledgeEvent {
+  id                String   @id @default(cuid())
+  entityId          String
+  entity            KnowledgeEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  eventType         String   // created, updated, price_changed, relation_added
+  previousValue     Json?
+  newValue          Json?
+  sourceAgentId     String?
+  sourceExecutionId String?
+  createdAt         DateTime @default(now())
+
+  @@index([entityId])
+  @@index([entityId, createdAt])
+}
+
+// ── Agent Collaboration ──────────────────────────────────────
+
+model CollaborationLink {
+  id             String    @id @default(cuid())
+  ownerUserId    String
+  ownerAgentId   String
+  targetUserId   String
+  targetAgentId  String?
+  permissions    String    // read, trigger, full
+  status         String    @default("pending") // pending, active, revoked
+  lastActivityAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([ownerAgentId, targetUserId])
+  @@index([ownerUserId])
+  @@index([targetUserId])
+  @@index([status])
+}
+
+model AgentPublication {
+  id                String   @id @default(cuid())
+  agentId           String   @unique
+  userId            String
+  visibility        String   @default("private") // private, public
+  publicName        String
+  publicDescription String   @db.Text
+  category          String
+  createdAt         DateTime @default(now())
+
+  @@index([userId])
+  @@index([visibility])
+  @@index([category])
 }

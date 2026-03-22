@@ -54,6 +54,18 @@ export const PLAN_LIMITS = {
     auditTrail: false,
     auditRetentionDays: 0,
     notificationChannels: 1, // Nur E-Mail
+    // Reseller & Monitoring
+    resellerBilling: false,
+    healthDashboard: false,
+    healthAlerts: false,
+    slaReports: false,
+    // Knowledge Graph, Voice, Collaboration
+    knowledgeGraph: false,
+    knowledgeGraphVisual: false,
+    voiceInterface: true,
+    agentCollaboration: false,
+    maxCollaborations: 0,
+    publicAgentDirectory: false,
   },
   STARTER: {
     agents: 3,
@@ -89,6 +101,16 @@ export const PLAN_LIMITS = {
     auditTrail: false,
     auditRetentionDays: 0,
     notificationChannels: 2, // E-Mail + Slack
+    resellerBilling: false,
+    healthDashboard: true,
+    healthAlerts: false,
+    slaReports: false,
+    knowledgeGraph: false,
+    knowledgeGraphVisual: false,
+    voiceInterface: true,
+    agentCollaboration: false,
+    maxCollaborations: 0,
+    publicAgentDirectory: false,
   },
   PRO: {
     agents: 10,
@@ -124,6 +146,16 @@ export const PLAN_LIMITS = {
     auditTrail: true,
     auditRetentionDays: 90,
     notificationChannels: 3, // E-Mail + Slack + Telegram
+    resellerBilling: false,
+    healthDashboard: true,
+    healthAlerts: true,
+    slaReports: false,
+    knowledgeGraph: true,
+    knowledgeGraphVisual: false,
+    voiceInterface: true,
+    agentCollaboration: true,
+    maxCollaborations: 3,
+    publicAgentDirectory: false,
   },
   AGENCY: {
     agents: 999999,
@@ -159,6 +191,16 @@ export const PLAN_LIMITS = {
     auditTrail: true,
     auditRetentionDays: 365,
     notificationChannels: 5, // Alle Kanäle
+    resellerBilling: true,
+    healthDashboard: true,
+    healthAlerts: true,
+    slaReports: true,
+    knowledgeGraph: true,
+    knowledgeGraphVisual: true,
+    voiceInterface: true,
+    agentCollaboration: true,
+    maxCollaborations: 999999,
+    publicAgentDirectory: true,
   },
   ENTERPRISE: {
     agents: 999999,
@@ -194,6 +236,16 @@ export const PLAN_LIMITS = {
     auditTrail: true,
     auditRetentionDays: 999999,
     notificationChannels: 5,
+    resellerBilling: true,
+    healthDashboard: true,
+    healthAlerts: true,
+    slaReports: true,
+    knowledgeGraph: true,
+    knowledgeGraphVisual: true,
+    voiceInterface: true,
+    agentCollaboration: true,
+    maxCollaborations: 999999,
+    publicAgentDirectory: true,
   },
 } as const;
 

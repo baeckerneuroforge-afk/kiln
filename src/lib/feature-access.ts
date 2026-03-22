@@ -23,7 +23,11 @@ export type FeatureName =
   | "workflows"
   | "approvalWorkflows"
   | "clientPortal"
-  | "auditTrail";
+  | "auditTrail"
+  | "resellerBilling"
+  | "healthDashboard"
+  | "healthAlerts"
+  | "slaReports";
 
 export interface FeatureAccessResult {
   allowed: boolean;
@@ -116,6 +120,10 @@ function getUpgradeMessage(feature: FeatureName, requiredPlan: string): string {
     approvalWorkflows: "Approval Workflows",
     clientPortal: "Client Portal",
     auditTrail: "Audit Trail",
+    resellerBilling: "Reseller Billing",
+    healthDashboard: "Health Dashboard",
+    healthAlerts: "Health Alerts",
+    slaReports: "SLA Reports",
   };
 
   const label = featureLabels[feature] || feature;

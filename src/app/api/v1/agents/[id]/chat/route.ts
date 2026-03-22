@@ -15,6 +15,7 @@ import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
 import { decrypt } from "@/lib/encryption";
 import { deductCredits } from "@/lib/credits";
+import { AgentHealthMonitor } from "@/lib/monitoring/agent-health-monitor";
 import crypto from "crypto";
 
 const corsHeaders = {
@@ -33,8 +34,10 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   let authResult: ApiKeyAuthSuccess | null = null;
+  const startTime = Date.now();
 
   try {
+
     // API Key Auth
     const auth = await authenticateApiKey(request.headers.get("authorization"));
     if (!auth.ok) {
@@ -230,6 +233,16 @@ export async function POST(
       );
     }
 
+    // Health recording (non-blocking)
+    waitUntil(
+      AgentHealthMonitor.recordExecution({
+        agentId: params.id,
+        executionType: "chat",
+        success: true,
+        durationMs: Date.now() - startTime,
+      })
+    );
+
     return apiKeyJson(
       request,
       authResult,
@@ -249,6 +262,19 @@ export async function POST(
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
+
+    // Health recording (non-blocking)
+    waitUntil(
+      AgentHealthMonitor.recordExecution({
+        agentId: params.id,
+        executionType: "chat",
+        success: false,
+        durationMs: Date.now() - startTime,
+        errorType: err instanceof Error ? err.constructor.name : "UnknownError",
+        errorMessage: message,
+      })
+    );
+
     if (authResult) {
       return apiKeyJson(request, authResult, { error: message }, { status: 500, headers: corsHeaders });
     }

@@ -209,29 +209,80 @@ Antworte AUSSCHLIESSLICH als JSON-Objekt mit den genannten Feldern als Keys. Wen
 
 /* ── Dispatcher ── */
 
+// Knowledge-Extraction-Typen die automatisch populiert werden
+const KNOWLEDGE_EXTRACTABLE_TYPES = new Set([
+  "computer_use",
+  "deep_research",
+  "diff_detection",
+  "multi_site",
+]);
+
 export async function executeAiNode(
   nodeType: string,
   config: Record<string, unknown>,
   context: ExpressionContext
 ): Promise<ActionNodeResult> {
+  let result: ActionNodeResult;
+
   switch (nodeType) {
     case "ai_summarize":
-      return executeAiSummarize(config, context);
+      result = await executeAiSummarize(config, context);
+      break;
     case "ai_classify":
-      return executeAiClassify(config, context);
+      result = await executeAiClassify(config, context);
+      break;
     case "ai_extract":
-      return executeAiExtract(config, context);
+      result = await executeAiExtract(config, context);
+      break;
     case "computer_use":
-      return executeComputerUse(config, context);
+      result = await executeComputerUse(config, context);
+      break;
     case "deep_research":
-      return executeDeepResearch(config, context);
+      result = await executeDeepResearch(config, context);
+      break;
     case "code_sandbox":
-      return executeCodeSandbox(config, context);
+      result = await executeCodeSandbox(config, context);
+      break;
     case "diff_detection":
-      return executeDiffDetection(config, context);
+      result = await executeDiffDetection(config, context);
+      break;
     case "multi_site":
-      return executeMultiSite(config, context);
+      result = await executeMultiSite(config, context);
+      break;
     default:
       throw new Error(`Unbekannter AI-Node-Typ: ${nodeType}`);
   }
+
+  // Knowledge Graph Auto-Population: Extrahiere Entitäten aus erfolgreichen Ergebnissen
+  if (result.success && KNOWLEDGE_EXTRACTABLE_TYPES.has(nodeType)) {
+    const userId = String(context._userId || "");
+    const agentId = String(context._agentId || "");
+    const executionId = String(context._executionId || "");
+
+    if (userId && agentId) {
+      // Asynchron im Hintergrund — blockiert den Workflow NICHT
+      import("@/lib/knowledge/knowledge-extractor").then(({ knowledgeExtractor }) => {
+        const resultType = nodeType as "computer_use" | "diff_detection" | "deep_research" | "multi_site";
+
+        if (nodeType === "computer_use") {
+          const cuData = result.contextDelta?.[Object.keys(result.contextDelta)[0]];
+          knowledgeExtractor.extractFromComputerUse(userId, agentId, executionId, {
+            summary: (cuData as Record<string, unknown>)?.summary as string,
+            extractedData: (cuData as Record<string, unknown>)?.extractedData,
+            urls: (cuData as Record<string, unknown>)?.urlsVisited as string[],
+          }).catch(() => {});
+        } else if (nodeType === "diff_detection") {
+          knowledgeExtractor.extract(userId, agentId, executionId, result.contextDelta, resultType).catch(() => {});
+        } else if (nodeType === "deep_research") {
+          knowledgeExtractor.extract(userId, agentId, executionId, result.contextDelta, resultType).catch(() => {});
+        } else if (nodeType === "multi_site") {
+          knowledgeExtractor.extract(userId, agentId, executionId, result.contextDelta, resultType).catch(() => {});
+        }
+      }).catch(() => {
+        // Knowledge-Extraktion darf den Hauptfluss NICHT blockieren
+      });
+    }
+  }
+
+  return result;
 }

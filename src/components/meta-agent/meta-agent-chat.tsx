@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Sparkles, X, ArrowUp, Loader2, Bot } from "lucide-react";
+import { Sparkles, X, ArrowUp, Loader2, Bot, Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // --- Types ---
@@ -89,10 +89,13 @@ export function MetaAgentChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPulse, setShowPulse] = useState(true);
   const [hasMounted, setHasMounted] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   // Hydration-safe mount + localStorage restore
   useEffect(() => {
@@ -100,6 +103,11 @@ export function MetaAgentChat() {
     const stored = loadMessages();
     if (stored.length > 0) {
       setMessages(stored);
+    }
+    // Check Web Speech API support
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      setVoiceSupported(true);
     }
     // Pulse-Animation nach 3 Sekunden stoppen
     const timer = setTimeout(() => setShowPulse(false), 3000);
@@ -177,6 +185,42 @@ export function MetaAgentChat() {
     document.addEventListener("keydown", handleTab);
     return () => document.removeEventListener("keydown", handleTab);
   }, [isOpen]);
+
+  const toggleVoice = useCallback(() => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "de-DE";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = event.results[0]?.[0]?.transcript;
+      if (transcript) {
+        setInput(transcript);
+      }
+      setIsRecording(false);
+    };
+
+    recognition.onerror = () => {
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsRecording(true);
+  }, [isRecording]);
 
   const handleSend = useCallback(
     async (text?: string) => {
@@ -387,6 +431,21 @@ export function MetaAgentChat() {
       {/* Input Area */}
       <div className="border-t border-zinc-800 px-3 py-3">
         <div className="flex items-end gap-2">
+          {voiceSupported && (
+            <button
+              onClick={toggleVoice}
+              aria-label={isRecording ? "Aufnahme stoppen" : "Spracheingabe"}
+              className={cn(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-150",
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400",
+                isRecording
+                  ? "bg-red-500/20 text-red-400 animate-pulse"
+                  : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+              )}
+            >
+              {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </button>
+          )}
           <textarea
             ref={textareaRef}
             value={input}

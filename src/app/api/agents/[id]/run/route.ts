@@ -14,6 +14,7 @@ import { buildStripeTools } from "@/lib/integrations/agent-stripe";
 import { safeEval } from "@/lib/safe-eval";
 import { executeTaskTool, evalCondition, executeOutputAction, executeBranchOutputs } from "@/lib/services/task-service";
 import { emitEvent } from "@/lib/events";
+import { AgentHealthMonitor } from "@/lib/monitoring/agent-health-monitor";
 
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
@@ -484,6 +485,17 @@ export async function POST(
       })
     );
 
+    // Health recording (non-blocking)
+    waitUntil(
+      AgentHealthMonitor.recordExecution({
+        agentId: agent.id,
+        executionType: "workflow",
+        success: true,
+        durationMs: duration,
+        creditsUsed: creditCheck.byokActive ? 0 : creditCheck.cost,
+      })
+    );
+
     // 13. Update agent.lastRunAt and lastRunResult
     waitUntil(
       prisma.agent.update({
@@ -551,6 +563,18 @@ export async function POST(
         },
       });
     } catch { /* ignore logging errors */ }
+
+    // Health recording (non-blocking)
+    waitUntil(
+      AgentHealthMonitor.recordExecution({
+        agentId: params.id,
+        executionType: "workflow",
+        success: false,
+        durationMs: duration,
+        errorType: err instanceof Error ? err.constructor.name : "UnknownError",
+        errorMessage: message,
+      })
+    );
 
     // Emit task.failed event (best-effort, userId may not be available in all error paths)
     try {

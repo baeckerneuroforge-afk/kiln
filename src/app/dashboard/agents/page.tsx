@@ -20,6 +20,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/toast";
 import { getModelDef } from "@/lib/ai";
+import { AgentStatusBadge } from "@/components/monitoring/agent-status-badge";
 
 interface AgentWithCount {
   id: string;
@@ -220,6 +221,7 @@ export default function AgentsPage() {
                   <h3 className="font-semibold text-foreground group-hover:text-kiln-orange transition-colors truncate">
                     {agent.name}
                   </h3>
+                  <AgentStatusBadge agentId={agent.id} />
                   {agent.agentTeamMembers?.[0]?.team && (
                     <span className="shrink-0 rounded-full bg-purple-500/10 px-2 py-0.5 text-[9px] font-medium text-purple-400">
                       Team: {agent.agentTeamMembers[0].team.name}

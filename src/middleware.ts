@@ -55,6 +55,7 @@ const isPublicRoute = createRouteMatcher([
   "/computer-use",       // Computer Use Landing Page
   "/portal/(.*)",        // Client Portal (Token-basierte Auth)
   "/api/portal/:id",     // Portal API (dual auth: Clerk oder Token)
+  "/api/webhooks/stripe-connect", // Stripe Connect Webhooks (eigene Signatur-Auth)
 ]);
 
 export default clerkMiddleware(async (auth, request) => {

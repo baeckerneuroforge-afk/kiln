@@ -27,6 +27,8 @@ import {
   FlaskConical,
   Brain,
   Image,
+  Waypoints,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -140,6 +142,22 @@ const allModules = [
     activeColor: "text-kiln-blue",
     minAgents: 1,
     tourId: "integrations",
+  },
+  {
+    name: "Knowledge Graph",
+    href: "/dashboard/knowledge",
+    icon: Waypoints,
+    color: "text-muted-foreground",
+    activeColor: "text-teal-400",
+    minAgents: 1,
+  },
+  {
+    name: "Shared Agents",
+    href: "/dashboard/shared",
+    icon: Users,
+    color: "text-muted-foreground",
+    activeColor: "text-kiln-blue",
+    minAgents: 1,
   },
   {
     name: "Site Builder",
