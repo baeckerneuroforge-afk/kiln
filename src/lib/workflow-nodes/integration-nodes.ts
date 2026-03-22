@@ -12,6 +12,7 @@ import {
   type ExpressionContext,
 } from "@/lib/workflow-expressions";
 import type { ActionNodeResult } from "./action-nodes";
+import { executeDataQuery } from "./data-pipeline-node";
 
 /* ── Helper: userId aus Context extrahieren ── */
 
@@ -521,6 +522,8 @@ export async function executeIntegrationNode(
       return executeNotionCreate(config, context);
     case "airtable_create":
       return executeAirtableCreate(config, context);
+    case "data_query":
+      return executeDataQuery(config, context);
     default:
       throw new Error(`Unbekannter Integration-Node-Typ: ${nodeType}`);
   }

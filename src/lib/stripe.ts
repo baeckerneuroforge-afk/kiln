@@ -72,6 +72,11 @@ export const PLAN_LIMITS = {
     embedComponents: false as false | "chat_only" | "all",
     sandboxAPI: false,
     sandboxAPISessionsPerMonth: 0,
+    // Data Pipeline
+    dataPipeline: false,
+    maxDataConnections: 0,
+    dataWriteEnabled: false,
+    dataExplorer: false,
     // Webhooks & Team
     webhookSubscriptions: 0,
     webhookSSE: false,
@@ -129,6 +134,11 @@ export const PLAN_LIMITS = {
     embedComponents: "chat_only" as false | "chat_only" | "all",
     sandboxAPI: false,
     sandboxAPISessionsPerMonth: 0,
+    // Data Pipeline
+    dataPipeline: false,
+    maxDataConnections: 0,
+    dataWriteEnabled: false,
+    dataExplorer: false,
     // Webhooks & Team
     webhookSubscriptions: 3,
     webhookSSE: false,
@@ -186,6 +196,11 @@ export const PLAN_LIMITS = {
     embedComponents: "all" as false | "chat_only" | "all",
     sandboxAPI: true,
     sandboxAPISessionsPerMonth: 100,
+    // Data Pipeline
+    dataPipeline: true,
+    maxDataConnections: 2,
+    dataWriteEnabled: false,
+    dataExplorer: true,
     // Webhooks & Team
     webhookSubscriptions: 10,
     webhookSSE: true,
@@ -243,6 +258,11 @@ export const PLAN_LIMITS = {
     embedComponents: "all" as false | "chat_only" | "all",
     sandboxAPI: true,
     sandboxAPISessionsPerMonth: 999999,
+    // Data Pipeline
+    dataPipeline: true,
+    maxDataConnections: 999999,
+    dataWriteEnabled: true,
+    dataExplorer: true,
     // Webhooks & Team
     webhookSubscriptions: 999,
     webhookSSE: true,
@@ -300,6 +320,11 @@ export const PLAN_LIMITS = {
     embedComponents: "all" as false | "chat_only" | "all",
     sandboxAPI: true,
     sandboxAPISessionsPerMonth: 999999,
+    // Data Pipeline
+    dataPipeline: true,
+    maxDataConnections: 999999,
+    dataWriteEnabled: true,
+    dataExplorer: true,
     // Webhooks & Team
     webhookSubscriptions: 999,
     webhookSSE: true,

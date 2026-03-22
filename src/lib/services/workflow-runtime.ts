@@ -182,6 +182,7 @@ const NODE_CATEGORIES: Record<string, string> = {
   calendar_check: "integration",
   notion_create: "integration",
   airtable_create: "integration",
+  data_query: "integration",
   // AI Tools
   ai_summarize: "ai_tool",
   ai_classify: "ai_tool",

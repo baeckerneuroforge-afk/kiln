@@ -61,7 +61,9 @@ export type WorkflowNodeType =
   | "parallel_split"
   | "parallel_merge"
   // MCP
-  | "mcp_tool";
+  | "mcp_tool"
+  // Data Pipeline
+  | "data_query";
 
 export type WorkflowNodeCategory = "agents" | "triggers" | "logic" | "actions" | "control" | "integrations" | "ai_tools" | "advanced";
 
@@ -400,6 +402,15 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     icon: "Plug",
     color: "#3B82F6",
     defaultConfig: { mcpConnectionId: "", toolName: "", toolParams: {}, resultKey: "mcpResult", agentId: "" },
+  },
+  {
+    type: "data_query",
+    label: "Datenbank-Abfrage",
+    description: "SQL oder natuerlichsprachige Abfrage auf verbundener Datenbank ausfuehren",
+    category: "integrations",
+    icon: "Database",
+    color: "#06B6D4",
+    defaultConfig: { connectionId: "", queryMode: "natural_language", query: "", resultKey: "queryResult" },
   },
 
   // AI Tools

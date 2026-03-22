@@ -26,6 +26,25 @@ export const metadata: Metadata = {
   title: "KILN — AI Creation Platform",
   description:
     "Create AI Agents, Websites & Workflows with Natural Language.",
+  manifest: "/manifest.json",
+  themeColor: "#0A0A0A",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "KILN",
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
+  icons: {
+    apple: "/icons/icon-192x192.png",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export default function RootLayout({

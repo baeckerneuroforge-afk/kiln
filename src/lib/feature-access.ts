@@ -34,7 +34,9 @@ export type FeatureName =
   | "sandboxAPI"
   | "webhookSSE"
   | "rbacRoles"
-  | "multiTenantDashboard";
+  | "multiTenantDashboard"
+  | "dataPipeline"
+  | "dataExplorer";
 
 export interface FeatureAccessResult {
   allowed: boolean;
@@ -138,6 +140,8 @@ function getUpgradeMessage(feature: FeatureName, requiredPlan: string): string {
     webhookSSE: "Webhook SSE",
     rbacRoles: "RBAC Rollen",
     multiTenantDashboard: "Multi-Tenant Dashboard",
+    dataPipeline: "Data Pipeline",
+    dataExplorer: "Data Explorer",
   };
 
   const label = featureLabels[feature] || feature;

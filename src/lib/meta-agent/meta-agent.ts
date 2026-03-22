@@ -133,6 +133,39 @@ const META_AGENT_TOOLS: Anthropic.Tool[] = [
       required: ["entityId"],
     },
   },
+  // Data Pipeline Tools
+  {
+    name: "query_database",
+    description: "SQL-Abfrage auf einer verbundenen Datenbank ausfuehren",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        connectionId: { type: "string" as const, description: "ID der Datenbankverbindung" },
+        query: { type: "string" as const, description: "SQL-Abfrage" },
+      },
+      required: ["connectionId", "query"],
+    },
+  },
+  {
+    name: "list_data_connections",
+    description: "Alle Datenbankverbindungen des Users auflisten",
+    input_schema: {
+      type: "object" as const,
+      properties: {},
+    },
+  },
+  {
+    name: "analyze_data",
+    description: "Datenanalyse: Stelle eine Frage in natuerlicher Sprache an eine verbundene Datenbank",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        connectionId: { type: "string" as const, description: "ID der Datenbankverbindung" },
+        question: { type: "string" as const, description: "Frage in natuerlicher Sprache, z.B. 'Was waren die Top 10 Produkte nach Umsatz letzten Monat?'" },
+      },
+      required: ["connectionId", "question"],
+    },
+  },
 ];
 
 interface MetaAgentResponse {
@@ -557,6 +590,66 @@ class MetaAgent {
             newValue: h.newValue,
           })),
         });
+      }
+
+      case "query_database": {
+        const { dbConnector } = await import("@/lib/data-pipeline/db-connector");
+        const connectionId = toolInput.connectionId as string;
+        const query = toolInput.query as string;
+        try {
+          const result = await dbConnector.executeQuery(connectionId, userId, query);
+          return JSON.stringify({
+            columns: result.columns,
+            rows: result.rows.slice(0, 50),
+            rowCount: result.rowCount,
+            executionTimeMs: result.executionTimeMs,
+            truncated: result.rowCount > 50,
+          });
+        } catch (err) {
+          return JSON.stringify({ error: err instanceof Error ? err.message : "Query fehlgeschlagen" });
+        }
+      }
+
+      case "list_data_connections": {
+        const { dbConnector } = await import("@/lib/data-pipeline/db-connector");
+        try {
+          const connections = await dbConnector.getConnections(userId);
+          return JSON.stringify({
+            connections: connections.map((c) => ({
+              id: c.id,
+              name: c.name,
+              type: c.type,
+              status: c.status,
+            })),
+          });
+        } catch (err) {
+          return JSON.stringify({ error: err instanceof Error ? err.message : "Fehler beim Laden" });
+        }
+      }
+
+      case "analyze_data": {
+        const { dbConnector } = await import("@/lib/data-pipeline/db-connector");
+        const { queryBuilder } = await import("@/lib/data-pipeline/query-builder");
+        const connectionId = toolInput.connectionId as string;
+        const question = toolInput.question as string;
+        try {
+          const conn = await dbConnector.getConnection(connectionId, userId);
+          if (!conn) return JSON.stringify({ error: "Verbindung nicht gefunden" });
+          const schema = await dbConnector.getSchema(connectionId, userId);
+          const built = await queryBuilder.buildQuery(schema, question, conn.type as "postgresql" | "mysql" | "sqlite");
+          const result = await dbConnector.executeQuery(connectionId, userId, built.sql);
+          return JSON.stringify({
+            question,
+            generatedSql: built.sql,
+            explanation: built.explanation,
+            columns: result.columns,
+            rows: result.rows.slice(0, 50),
+            rowCount: result.rowCount,
+            executionTimeMs: result.executionTimeMs,
+          });
+        } catch (err) {
+          return JSON.stringify({ error: err instanceof Error ? err.message : "Analyse fehlgeschlagen" });
+        }
       }
 
       default:

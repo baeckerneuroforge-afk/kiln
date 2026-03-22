@@ -31,6 +31,7 @@ import {
   Waypoints,
   Users,
   Code2,
+  Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -159,6 +160,14 @@ const allModules = [
     icon: Users,
     color: "text-muted-foreground",
     activeColor: "text-kiln-blue",
+    minAgents: 1,
+  },
+  {
+    name: "Data Explorer",
+    href: "/dashboard/data-explorer",
+    icon: Database,
+    color: "text-muted-foreground",
+    activeColor: "text-cyan-400",
     minAgents: 1,
   },
   {

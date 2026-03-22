@@ -66,6 +66,7 @@ import {
 import { DiffDetectionConfig } from "./nodes/diff-detection-node";
 import { MultiSiteConfig } from "./nodes/multi-site-node";
 import { MCPToolConfig } from "./nodes/mcp-tool-node";
+import { DataPipelineNode as DataPipelineNodeConfig } from "./nodes/data-pipeline-node";
 
 // Icon mapping
 import {
@@ -282,6 +283,7 @@ export function NodeConfigPanel({
               {nodeType === "diff_detection" && <DiffDetectionConfig config={config} onChange={setConfig} />}
               {nodeType === "multi_site" && <MultiSiteConfig config={config} onChange={setConfig} />}
               {nodeType === "mcp_tool" && <MCPToolConfig config={config} onChange={setConfig} />}
+              {nodeType === "data_query" && <DataPipelineNodeConfig config={config} onChange={setConfig} />}
             </>
           )}
 

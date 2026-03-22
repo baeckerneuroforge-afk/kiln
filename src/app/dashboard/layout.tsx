@@ -16,6 +16,7 @@ import { KeyboardShortcutProvider } from "@/components/keyboard-shortcuts";
 import { ProductTour, useTourTrigger } from "@/components/product-tour";
 import { MetaAgentChat } from "@/components/meta-agent/meta-agent-chat";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { PWAInstallPrompt } from "@/components/mobile/pwa-install-prompt";
 
 export default function DashboardLayout({
   children,
@@ -92,6 +93,7 @@ export default function DashboardLayout({
         {showTour && <ProductTour onComplete={completeTour} onSkip={skipTour} />}
         <CookieBanner />
         <MetaAgentChat />
+        <PWAInstallPrompt />
         </KeyboardShortcutProvider>
       </ToastProvider>
     </AdvancedModeProvider>

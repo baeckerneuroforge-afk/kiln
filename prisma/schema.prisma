@@ -2038,3 +2038,44 @@ model WorkspaceMember {
   @@index([email])
   @@index([inviteToken])
 }
+
+// ── Feature: Data Pipeline ──────────────────────────
+
+model DataConnection {
+  id                   String    @id @default(cuid())
+  userId               String
+  name                 String
+  type                 String    // postgresql, mysql, snowflake, bigquery, supabase, sqlite, rest_api
+  encryptedConfig      String    // AES-256-GCM encrypted JSON with connection details
+  status               String    @default("disconnected") // connected, disconnected, error
+  schemaCache          Json?     // cached table/column info
+  schemaCacheUpdatedAt DateTime?
+  writeEnabled         Boolean   @default(false)
+  lastUsedAt           DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  queryLogs            DataQueryLog[]
+
+  @@index([userId])
+  @@index([userId, type])
+}
+
+model DataQueryLog {
+  id               String   @id @default(cuid())
+  dataConnectionId String
+  userId           String
+  agentId          String?
+  queryMode        String   // sql, natural_language
+  originalQuery    String
+  generatedSql     String?
+  rowCount         Int?
+  executionTimeMs  Int?
+  creditsUsed      Float?
+  status           String   // success, error
+  error            String?
+  createdAt        DateTime @default(now())
+  dataConnection   DataConnection @relation(fields: [dataConnectionId], references: [id], onDelete: Cascade)
+
+  @@index([dataConnectionId, createdAt])
+  @@index([userId, createdAt])
+}
