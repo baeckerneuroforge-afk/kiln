@@ -45,6 +45,8 @@ import {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   procedureToPromptHint,
 } from "@/lib/sandbox/procedural-memory";
+import { routeAction } from "@/lib/mcp/hybrid-router";
+import { executeMCPTool } from "@/lib/mcp/mcp-tool-bridge";
 
 const COMPUTER_USE_MODEL = "claude-sonnet-4-20250514";
 const VISION_MODEL = "claude-sonnet-4-20250514";
@@ -1049,9 +1051,47 @@ export async function executeComputerUse(
     return { contextDelta: {}, success: false, error: "Start-URL fehlt" };
   }
 
+  const preferMCPOverBrowser = config.preferMCPOverBrowser !== false; // Default: true
   const sessionStart = Date.now();
 
   try {
+    // MCP Hybrid Routing: Prüfe ob ein MCP-Server die Aufgabe erledigen kann
+    if (preferMCPOverBrowser && agentId) {
+      try {
+        const routeDecision = await routeAction(agentId, task, startUrl, true);
+        if (routeDecision.method === "mcp" && routeDecision.tool) {
+          const mcpResult = await executeMCPTool(
+            agentId,
+            routeDecision.tool,
+            { task, url: startUrl },
+          );
+
+          return {
+            contextDelta: {
+              [resultKey]: JSON.parse(mcpResult),
+              [`${resultKey}_routing`]: {
+                method: "mcp",
+                server: routeDecision.server,
+                tool: routeDecision.tool,
+                reasoning: routeDecision.reasoning,
+                estimatedCreditsSaved: routeDecision.estimatedCreditsSaved,
+                durationMs: Date.now() - sessionStart,
+              },
+            },
+            success: true,
+            meta: {
+              routedViaMCP: true,
+              mcpServer: routeDecision.server,
+              mcpTool: routeDecision.tool,
+              totalDurationMs: Date.now() - sessionStart,
+            },
+          };
+        }
+      } catch {
+        // MCP-Routing fehlgeschlagen — Fallback zu Browser-Modus
+      }
+    }
+
     // V2.0: Real Browser Mode
     if (useBrowserMode && !requiresLogin) {
       const result = await executeWithRealBrowser(

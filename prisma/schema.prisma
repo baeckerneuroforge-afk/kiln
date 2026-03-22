@@ -210,6 +210,7 @@ model Agent {
   apiDiscoveries       ApiDiscovery[]
   modelRoutingConfig   ModelRoutingConfig?
   costRecords          CostRecord[]
+  mcpConnections       MCPConnection[]
 
   @@index([userId])
 }
@@ -1551,4 +1552,40 @@ model MultiSiteExecution {
 
   @@index([agentId])
   @@index([status])
+}
+
+// MCP Client Connections — Verbindungen zu externen MCP Servern
+model MCPConnection {
+  id                String    @id @default(cuid())
+  agentId           String
+  agent             Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  name              String    // Display-Name (z.B. "Notion", "GitHub")
+  serverUrl         String    // MCP Server URL
+  transport         String    @default("sse") // "sse" | "stdio"
+  authType          String    @default("none") // "none" | "api_key" | "oauth"
+  encryptedAuthValue String?  @db.Text // Verschlüsselter API-Key oder OAuth-Token
+  status            String    @default("disconnected") // "connected" | "disconnected" | "error"
+  discoveredTools   Json?     // Gecachte Tool-Liste vom Server
+  enabledTools      Json?     // Array der aktivierten Tool-Namen (Subset von discovered)
+  lastTestedAt      DateTime?
+  lastUsedAt        DateTime?
+  lastError         String?   @db.Text
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([agentId, serverUrl])
+  @@index([agentId])
+}
+
+// MCP Team Role Config — Welche Rollen welche MCP-Server nutzen dürfen
+model MCPTeamRoleConfig {
+  id                String   @id @default(cuid())
+  teamId            String
+  role              String   // HEAD, COORDINATOR, EXECUTOR, REPORTER
+  mcpConnectionIds  Json     // Array of MCPConnection IDs
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([teamId, role])
+  @@index([teamId])
 }

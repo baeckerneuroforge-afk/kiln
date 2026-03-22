@@ -15,6 +15,7 @@ import {
 import { safeEval } from "@/lib/safe-eval";
 import { validateUrl } from "@/lib/url-validation";
 import { logHandoff } from "@/lib/orchestration-logger";
+import { isMCPToolName, executeMCPTool } from "@/lib/mcp/mcp-tool-bridge";
 
 // Custom Tool Definition Typ
 export interface CustomToolDef {
@@ -372,6 +373,11 @@ export async function executeChatTool(
   customTools: CustomToolDef[] = [],
   context: ChatToolExecutionContext = {}
 ): Promise<string> {
+  // MCP Tool?
+  if (isMCPToolName(toolName)) {
+    return executeMCPTool(agentId, toolName, toolInput);
+  }
+
   if (isStripeToolName(toolName)) {
     const result = await executeStripeTool(toolName, toolInput, agentId);
     return JSON.stringify(result);

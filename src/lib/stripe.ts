@@ -41,6 +41,9 @@ export const PLAN_LIMITS = {
     priorityExecution: false,
     // Workflows
     workflows: false,
+    // MCP Client
+    maxMCPConnections: 0,
+    mcpTeamRoles: false,
   },
   STARTER: {
     agents: 3,
@@ -66,6 +69,8 @@ export const PLAN_LIMITS = {
     verificationCheckpoints: false,
     priorityExecution: false,
     workflows: true,
+    maxMCPConnections: 2,
+    mcpTeamRoles: false,
   },
   PRO: {
     agents: 10,
@@ -91,6 +96,8 @@ export const PLAN_LIMITS = {
     verificationCheckpoints: true,
     priorityExecution: false,
     workflows: true,
+    maxMCPConnections: 10,
+    mcpTeamRoles: false,
   },
   AGENCY: {
     agents: 999999,
@@ -116,6 +123,8 @@ export const PLAN_LIMITS = {
     verificationCheckpoints: true,
     priorityExecution: true,
     workflows: true,
+    maxMCPConnections: 999999,
+    mcpTeamRoles: true,
   },
   ENTERPRISE: {
     agents: 999999,
@@ -141,6 +150,8 @@ export const PLAN_LIMITS = {
     verificationCheckpoints: true,
     priorityExecution: true,
     workflows: true,
+    maxMCPConnections: 999999,
+    mcpTeamRoles: true,
   },
 } as const;
 

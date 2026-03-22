@@ -59,7 +59,9 @@ export type WorkflowNodeType =
   // Parallel & Swarm
   | "agent_swarm"
   | "parallel_split"
-  | "parallel_merge";
+  | "parallel_merge"
+  // MCP
+  | "mcp_tool";
 
 export type WorkflowNodeCategory = "agents" | "triggers" | "logic" | "actions" | "control" | "integrations" | "ai_tools" | "advanced";
 
@@ -389,6 +391,15 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     icon: "Database",
     color: "#22C55E",
     defaultConfig: { baseId: "", tableName: "", fields: {} },
+  },
+  {
+    type: "mcp_tool",
+    label: "MCP Tool",
+    description: "Tool eines verbundenen MCP-Servers ausführen",
+    category: "integrations",
+    icon: "Plug",
+    color: "#3B82F6",
+    defaultConfig: { mcpConnectionId: "", toolName: "", toolParams: {}, resultKey: "mcpResult", agentId: "" },
   },
 
   // AI Tools
