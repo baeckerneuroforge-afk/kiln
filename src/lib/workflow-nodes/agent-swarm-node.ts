@@ -267,9 +267,12 @@ async function executeSwarmSubAgent(
     modelPreference: task.modelPreference,
     estimatedComplexity: task.estimatedComplexity,
     outputFormat: task.outputFormat,
-    maxIterations: 10,
+    maxIterations: (task.tools || []).includes("computer_use") ? 25 : 15,
     budgetCredits: swarmConfig.budgetCredits
-      ? Math.round((swarmConfig.budgetCredits / (swarmConfig.maxAgents || 5)) * 1.5)
+      ? Math.max(
+          (task.tools || []).includes("computer_use") ? 20 : 10,
+          Math.round((swarmConfig.budgetCredits / (swarmConfig.maxAgents || 5)) * 1.5)
+        )
       : undefined,
   };
 

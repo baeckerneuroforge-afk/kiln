@@ -20,6 +20,7 @@ import {
 import { ReasoningLogger } from "@/lib/sandbox/reasoning-logger";
 import { ElementFinder } from "@/lib/browser/element-finder";
 import { ActionExecutor } from "@/lib/browser/action-executor";
+import type { BrowserSession } from "@/lib/browser-service";
 // DomVerifier wird indirekt via ActionExecutor/ElementFinder genutzt
 import { ScreenshotStrategy } from "@/lib/browser/screenshot-strategy";
 import { PageCache, type PageStructure } from "@/lib/browser/page-cache";
@@ -76,6 +77,33 @@ export interface SpawnRequest {
 }
 
 export type SpawnHandler = (request: SpawnRequest, parentId: string) => void;
+
+const subAgentBrowserSessions = new Map<string, BrowserSession>();
+
+async function getOrCreateSubAgentBrowserSession(agentId: string): Promise<BrowserSession | null> {
+  const existing = subAgentBrowserSessions.get(agentId);
+  if (existing && existing.status === "active") {
+    return existing;
+  }
+
+  const { isBrowserServiceAvailable, createBrowserSession } = await import("@/lib/browser-service");
+  if (!isBrowserServiceAvailable()) {
+    return null;
+  }
+
+  const session = await createBrowserSession();
+  subAgentBrowserSessions.set(agentId, session);
+  return session;
+}
+
+async function cleanupSubAgentBrowserSession(agentId: string): Promise<void> {
+  const session = subAgentBrowserSessions.get(agentId);
+  if (!session) return;
+
+  const { closeBrowserSession } = await import("@/lib/browser-service");
+  await closeBrowserSession(session.id).catch(() => {});
+  subAgentBrowserSessions.delete(agentId);
+}
 
 /* ── Model Preference → Routing Context Mapping ── */
 
@@ -328,13 +356,26 @@ async function executeSubAgentTool(
 
     case "browse_url": {
       try {
-        const { safeFetch } = await import("@/lib/url-validation");
         const url = String(toolInput.url || "");
-        const response = await safeFetch(url, { signal: AbortSignal.timeout(15000) });
-        if (!response.ok) {
-          return JSON.stringify({ success: false, error: `HTTP ${response.status}` });
+        const browserSession = await getOrCreateSubAgentBrowserSession(agentId);
+        let html = "";
+        let browserWarning: string | undefined;
+
+        if (browserSession) {
+          const { navigateTo } = await import("@/lib/browser-service");
+          const navResult = await navigateTo(browserSession, url, { timeout: 30000 });
+          html = navResult.content;
+          browserWarning = browserSession.warning;
+        } else {
+          const { safeFetch } = await import("@/lib/url-validation");
+          const response = await safeFetch(url, { signal: AbortSignal.timeout(15000) });
+          if (!response.ok) {
+            return JSON.stringify({ success: false, error: `HTTP ${response.status}` });
+          }
+          html = await response.text();
+          browserWarning = "Running in limited HTTP mode for this sub-agent.";
         }
-        const html = await response.text();
+
         // Extrahiere sinnvollen Text (ohne Tags)
         const text = html
           .replace(/<script[\s\S]*?<\/script>/gi, "")
@@ -372,6 +413,12 @@ async function executeSubAgentTool(
         }
 
         const result: Record<string, unknown> = { success: true, url, content: text };
+        if (browserSession) {
+          result.browserBackend = browserSession.backend;
+        }
+        if (browserWarning) {
+          result.warning = browserWarning;
+        }
         if (cachedStructure) {
           result.pageStructure = {
             forms: cachedStructure.forms.length,
@@ -389,8 +436,21 @@ async function executeSubAgentTool(
 
     case "take_screenshot": {
       try {
-        const { takeScreenshot } = await import("@/lib/screenshot-service");
         const url = toolInput.url ? String(toolInput.url) : undefined;
+        const browserSession = await getOrCreateSubAgentBrowserSession(agentId);
+
+        if (browserSession) {
+          const { takeBrowserScreenshot } = await import("@/lib/browser-service");
+          const screenshot = await takeBrowserScreenshot(browserSession, url);
+          return JSON.stringify({
+            success: !!screenshot,
+            screenshot: screenshot ? "screenshot_captured" : "screenshot_unavailable",
+            backend: browserSession.backend,
+            warning: browserSession.warning,
+          });
+        }
+
+        const { takeScreenshot } = await import("@/lib/screenshot-service");
         if (!url) return JSON.stringify({ success: false, error: "URL required for screenshot" });
 
         // Prüfe ob Screenshot nötig ist (ScreenshotStrategy)
@@ -410,32 +470,26 @@ async function executeSubAgentTool(
 
     case "click_element": {
       try {
-        // Sub-agents verwenden browse_url + DOM-basierte Clicks
-        // Erstelle temporäre Session-Emulation via Browserless
         const selector = String(toolInput.selector || "");
-        const { isBrowserServiceAvailable, createBrowserSession, closeBrowserSession } = await import("@/lib/browser-service");
-
-        if (!isBrowserServiceAvailable()) {
+        const session = await getOrCreateSubAgentBrowserSession(agentId);
+        if (!session) {
           return JSON.stringify({
             success: false,
             error: "Browser service not available. Use browse_url for content extraction.",
           });
         }
 
-        const session = await createBrowserSession();
-        try {
-          const elementFinder = new ElementFinder();
-          const actionExecutor = new ActionExecutor(elementFinder);
-          const result = await actionExecutor.executeClick(session, "", selector);
-          return JSON.stringify({
-            success: result.success,
-            method: result.methodUsed,
-            alternativesTried: result.alternativesTried,
-            error: result.error,
-          });
-        } finally {
-          closeBrowserSession(session.id);
-        }
+        const elementFinder = new ElementFinder();
+        const actionExecutor = new ActionExecutor(elementFinder);
+        const result = await actionExecutor.executeClick(session, "", selector);
+        return JSON.stringify({
+          success: result.success,
+          method: result.methodUsed,
+          alternativesTried: result.alternativesTried,
+          error: result.error,
+          backend: session.backend,
+          warning: session.warning,
+        });
       } catch (err) {
         return JSON.stringify({
           success: false,
@@ -449,28 +503,24 @@ async function executeSubAgentTool(
       try {
         const selector = String(toolInput.selector || "");
         const text = String(toolInput.text || "");
-        const { isBrowserServiceAvailable, createBrowserSession, closeBrowserSession } = await import("@/lib/browser-service");
-
-        if (!isBrowserServiceAvailable()) {
+        const session = await getOrCreateSubAgentBrowserSession(agentId);
+        if (!session) {
           return JSON.stringify({
             success: false,
             error: "Browser service not available.",
           });
         }
 
-        const session = await createBrowserSession();
-        try {
-          const elementFinder = new ElementFinder();
-          const actionExecutor = new ActionExecutor(elementFinder);
-          const result = await actionExecutor.executeType(session, "", selector, text);
-          return JSON.stringify({
-            success: result.success,
-            method: result.methodUsed,
-            error: result.error,
-          });
-        } finally {
-          closeBrowserSession(session.id);
-        }
+        const elementFinder = new ElementFinder();
+        const actionExecutor = new ActionExecutor(elementFinder);
+        const result = await actionExecutor.executeType(session, "", selector, text);
+        return JSON.stringify({
+          success: result.success,
+          method: result.methodUsed,
+          error: result.error,
+          backend: session.backend,
+          warning: session.warning,
+        });
       } catch (err) {
         return JSON.stringify({
           success: false,
@@ -483,23 +533,19 @@ async function executeSubAgentTool(
       try {
         const direction = String(toolInput.direction || "down") as "up" | "down";
         const pixels = Number(toolInput.pixels) || 500;
-        const { isBrowserServiceAvailable, createBrowserSession, closeBrowserSession } = await import("@/lib/browser-service");
-
-        if (!isBrowserServiceAvailable()) {
+        const session = await getOrCreateSubAgentBrowserSession(agentId);
+        if (!session) {
           return JSON.stringify({ success: true, note: "Scroll noted (no browser session)." });
         }
 
-        const session = await createBrowserSession();
-        try {
-          const actionExecutor = new ActionExecutor();
-          const result = await actionExecutor.executeScroll(session, "", direction, pixels);
-          return JSON.stringify({
-            success: result.success,
-            method: result.methodUsed,
-          });
-        } finally {
-          closeBrowserSession(session.id);
-        }
+        const actionExecutor = new ActionExecutor();
+        const result = await actionExecutor.executeScroll(session, "", direction, pixels);
+        return JSON.stringify({
+          success: result.success,
+          method: result.methodUsed,
+          backend: session.backend,
+          warning: session.warning,
+        });
       } catch (err) {
         return JSON.stringify({
           success: false,
@@ -836,6 +882,7 @@ export class SubAgentExecutor {
 
     // Kosten-Summary
     const costSummary = this.costTracker.getCostSoFar();
+    await cleanupSubAgentBrowserSession(this.config.id);
 
     eventStream.agentCompleted(this.config.id, finalResult.slice(0, 500), costSummary.totalCostDollars);
 

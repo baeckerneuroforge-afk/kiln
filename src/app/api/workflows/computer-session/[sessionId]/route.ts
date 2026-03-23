@@ -58,7 +58,7 @@ export async function POST(
   switch (body.action) {
     case "close":
     case "abort":
-      closeBrowserSession(sessionId);
+      await closeBrowserSession(sessionId);
       return Response.json({ success: true, status: "closed" });
 
     case "pause":

@@ -84,13 +84,18 @@ export async function POST(request: NextRequest) {
   });
 
   const decompositionCreditCost = getCreditCost(DECOMPOSITION_MODEL);
-  const modelPlan = decomposition.tasks.map((task) =>
-    task.suggestedModelTier === "fast"
-      ? "claude-haiku-4-5-20251001"
-      : "claude-sonnet-4-6"
-  );
   const hasComputerUse = decomposition.tasks.some((task) => task.tools?.includes("computer_use"));
-  const baseEstimate = estimateSwarmCost(modelPlan, 3, hasComputerUse);
+
+  // Model selection: computer_use tasks need Sonnet (Vision), text-only can use Haiku
+  const modelPlan = decomposition.tasks.map((task) => {
+    if (task.tools?.includes("computer_use")) return "claude-sonnet-4-6"; // Vision required
+    if (task.suggestedModelTier === "fast") return "claude-haiku-4-5-20251001";
+    return "claude-sonnet-4-6";
+  });
+
+  // Budget: 15 calls per agent for computer_use tasks, 8 for LLM-only
+  const callsPerAgent = hasComputerUse ? 15 : 8;
+  const baseEstimate = estimateSwarmCost(modelPlan, callsPerAgent, hasComputerUse);
   const estimatedCredits = baseEstimate.totalCredits + decompositionCreditCost;
   const affordability = await canAffordExecution(
     userId,

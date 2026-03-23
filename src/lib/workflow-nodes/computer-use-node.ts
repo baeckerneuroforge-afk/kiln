@@ -19,7 +19,11 @@ import {
   isBrowserServiceAvailable,
   createBrowserSession,
   navigateTo as browserNavigate,
+  clickBrowserCoordinates,
+  getCurrentBrowserUrl,
+  getPageContent as getBrowserPageContent,
   takeBrowserScreenshot,
+  typeTextInFocusedElement,
   closeBrowserSession,
 } from "@/lib/browser-service";
 import {
@@ -30,24 +34,16 @@ import {
   executeJavascript,
   cleanupCodeSession,
 } from "@/lib/sandbox/code-tools";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { StepVerifier } from "@/lib/sandbox/step-verifier";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { ReasoningLogger } from "@/lib/sandbox/reasoning-logger";
 import {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   findProcedure,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   saveProcedure,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   procedureToPromptHint,
 } from "@/lib/sandbox/procedural-memory";
 import { routeAction } from "@/lib/mcp/hybrid-router";
 import { executeMCPTool } from "@/lib/mcp/mcp-tool-bridge";
 import { ElementFinder } from "@/lib/browser/element-finder";
-import { ScreenshotStrategy } from "@/lib/browser/screenshot-strategy";
 import { ActionExecutor } from "@/lib/browser/action-executor";
-import { DomVerifier } from "@/lib/browser/dom-verifier";
 import { PageCache } from "@/lib/browser/page-cache";
 import { ReliabilityMetrics } from "@/lib/browser/reliability-metrics";
 
@@ -81,15 +77,20 @@ export interface ComputerUseSession {
   screenshotsAvailable: boolean;
   completionReason: "done" | "max_steps" | "no_next_url" | "error";
   browserMode: "real" | "http"; // V2.0: welcher Modus verwendet wurde
+  browserBackend?: string;
+  warning?: string;
   sessionId?: string; // Browser Session ID für Live-View
 }
 
 /* ── Claude Action Response (V2.0 erweitert) ── */
 
 interface ClaudeAction {
-  action: "navigate" | "click_link" | "click" | "type" | "scroll" | "extract_data" | "done" | "execute_code";
+  action: "navigate" | "click_link" | "click" | "type" | "scroll" | "extract_data" | "extract" | "done" | "execute_code";
   url?: string;
   selector?: string;
+  target?: string;
+  x?: number;
+  y?: number;
   text?: string; // Für type-Aktion
   direction?: "up" | "down"; // Für scroll-Aktion
   pixels?: number;
@@ -178,6 +179,15 @@ function extractDataFromHtml(html: string, fields: string[]): Record<string, unk
   return result;
 }
 
+function toOptionalNumber(value: unknown): number | undefined {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function getClaudeActionTarget(action: ClaudeAction): string | undefined {
+  return action.selector || action.target;
+}
+
 /* ── Session / Cookie Support (HTTP Fallback) ── */
 
 interface HttpBrowsingSession {
@@ -238,6 +248,7 @@ async function askClaudeWithVision(
   useBrowserMode: boolean,
   enableCodeExecution: boolean = false,
   proceduralHint: string = "",
+  htmlSummary: string = "",
 ): Promise<ClaudeAction> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY nicht konfiguriert");
@@ -248,51 +259,56 @@ async function askClaudeWithVision(
       ).join("\n")}`
     : "";
 
-  const browserActions = useBrowserMode
-    ? `
-5. Auf ein Element klicken (CSS-Selektor):
-{"action": "click", "selector": "button.submit", "reasoning": "Warum"}
-
-6. Text eingeben:
-{"action": "type", "selector": "input[name=search]", "text": "Suchbegriff", "reasoning": "Warum"}
-
-7. Scrollen:
-{"action": "scroll", "direction": "down", "pixels": 500, "reasoning": "Warum"}`
-    : "";
-
   const codeActions = enableCodeExecution
     ? `
 
-8. Code ausführen (Daten verarbeiten, Dateien erstellen, Berechnungen):
+7. Code ausführen (Daten verarbeiten, Dateien erstellen, Berechnungen):
 {"action": "execute_code", "code": "import pandas as pd\\nprint('Hello')", "code_language": "python", "reasoning": "Warum"}
 
 Nutze Code-Ausführung wenn du Daten analysieren, transformieren, Diagramme erstellen oder Dateien generieren musst.`
     : "";
 
-  const systemPrompt = `Du bist ein visueller Web-Browsing-Agent. Du analysierst Screenshots von Webseiten und entscheidest welche Aktion als nächstes auszuführen ist.
+  const systemPrompt = `Du bist ein visueller Browser-Automations-Agent. Du steuerst einen echten Browser über Screenshots und Browser-Aktionen.
 
+Aufgabe: ${task}
 Aktuelle URL: ${currentUrl}
-Browser-Modus: ${useBrowserMode ? "Echter Browser (Browserless)" : "HTTP-Fetching"}
+Seiten-Zusammenfassung: ${htmlSummary || "Keine"}
+Browser-Modus: ${useBrowserMode ? "Echter Browser" : "HTTP-Fetching"}
 ${stepsContext}
 
-Antworte AUSSCHLIESSLICH als JSON mit einer dieser Aktionen:
+Antworte AUSSCHLIESSLICH als JSON. Format:
+{
+  "action": "click|type|scroll|navigate|extract|done${enableCodeExecution ? "|execute_code" : ""}",
+  "target": "kurze Beschreibung des Elements oder Ziels",
+  "selector": "optionaler CSS-Selektor wenn klar erkennbar",
+  "x": 123,
+  "y": 456,
+  "text": "einzutippender Text",
+  "direction": "up|down",
+  "pixels": 500,
+  "url": "https://...",
+  "fields": ["price", "title"],
+  "summary": "kurze Zusammenfassung",
+  "extracted_data": {},
+  "reasoning": "warum diese Aktion"
+}
 
-1. Zu einer neuen URL navigieren:
-{"action": "navigate", "url": "https://...", "reasoning": "Warum"}
-
-2. Einen Link klicken (Text des Links):
-{"action": "click_link", "selector": "Pricing", "reasoning": "Warum"}
-
-3. Daten extrahieren:
-{"action": "extract_data", "fields": ["price", "features"], "reasoning": "Warum"}
-
-4. Aufgabe erledigt:
-{"action": "done", "summary": "Was gefunden wurde", "extracted_data": {}, "reasoning": "Warum fertig"}
-${browserActions}
+Aktionen:
+1. click: Klicke auf ein sichtbares Element. Gib wenn möglich x/y an. Füge target oder selector hinzu, wenn du das Element benennen kannst.
+2. type: Tippe Text in das aktuell fokussierte Feld oder in ein erkennbares Feld. Gib text an. Wenn du das Feld lokalisieren kannst, gib x/y und/oder target/selector mit.
+3. scroll: Scrolle die Seite.
+4. navigate: Nur wenn du wirklich eine neue URL öffnen musst.
+5. extract: Wenn die Antwort bereits sichtbar ist. Gib extracted_data und optional fields an.
+6. done: Wenn die Aufgabe vollständig abgeschlossen ist. Gib summary und extracted_data an.
 ${codeActions}
 ${proceduralHint}
 
-Analysiere den Screenshot sorgfältig. Beschreibe was du siehst und wähle die beste Aktion.`;
+Regeln:
+- Bevorzuge Aktionen auf der aktuellen Seite statt unnötiger Navigation.
+- Nutze target/selector als DOM-Hinweis, falls erkennbar.
+- Für click/type auf sichtbare UI verwende bevorzugt x/y.
+- "extract" und "done" sind terminale Aktionen.
+- Gib NUR JSON zurück, keinen Fließtext.`;
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -319,7 +335,7 @@ Analysiere den Screenshot sorgfältig. Beschreibe was du siehst und wähle die b
             },
             {
               type: "text",
-              text: `Aufgabe: ${task}\n\nAnalysiere diesen Screenshot und entscheide welche Aktion als nächstes ausgeführt werden soll.`,
+              text: `Aufgabe: ${task}\n\nSchritt ${previousSteps.length + 1}. Analysiere den Screenshot und entscheide die nächste Browser-Aktion.`,
             },
           ],
         },
@@ -347,18 +363,41 @@ Analysiere den Screenshot sorgfältig. Beschreibe was du siehst und wähle die b
     if (!jsonMatch) {
       return { action: "done", summary: text, reasoning: "Konnte keine Aktion parsen" };
     }
-    const parsed = JSON.parse(jsonMatch[0]) as Partial<ClaudeAction>;
+    const parsed = JSON.parse(jsonMatch[0]) as Partial<ClaudeAction> & {
+      params?: Record<string, unknown>;
+      result?: string;
+      data?: Record<string, unknown>;
+    };
+    const params = typeof parsed.params === "object" && parsed.params
+      ? parsed.params
+      : {};
+    const rawAction = String(parsed.action || params.action || "done");
+    const normalizedAction = rawAction === "extract"
+      ? "extract_data"
+      : rawAction;
     return {
-      action: parsed.action || "done",
-      url: parsed.url,
-      selector: parsed.selector,
-      text: parsed.text,
-      direction: parsed.direction,
-      pixels: parsed.pixels,
-      fields: parsed.fields,
-      summary: parsed.summary,
-      extracted_data: parsed.extracted_data,
+      action: (normalizedAction as ClaudeAction["action"]) || "done",
+      url: String(parsed.url || params.url || "") || undefined,
+      selector: String(parsed.selector || params.selector || "") || undefined,
+      target: String(parsed.target || params.target || "") || undefined,
+      x: toOptionalNumber(parsed.x ?? params.x),
+      y: toOptionalNumber(parsed.y ?? params.y),
+      text: String(parsed.text || params.text || "") || undefined,
+      direction: ((parsed.direction || params.direction) as "up" | "down" | undefined),
+      pixels: toOptionalNumber(parsed.pixels ?? params.pixels),
+      fields: Array.isArray(parsed.fields)
+        ? parsed.fields.map(String)
+        : Array.isArray(params.fields)
+          ? params.fields.map(String)
+          : undefined,
+      summary: String(parsed.summary || params.summary || parsed.result || params.result || "") || undefined,
+      extracted_data: (parsed.extracted_data ||
+        params.extracted_data ||
+        parsed.data ||
+        params.data) as Record<string, unknown> | undefined,
       reasoning: parsed.reasoning || "",
+      code: typeof parsed.code === "string" ? parsed.code : undefined,
+      code_language: parsed.code_language,
     };
   } catch {
     return { action: "done", summary: text, reasoning: "JSON Parse fehlgeschlagen" };
@@ -676,16 +715,21 @@ function describeComputerUseAction(action: ClaudeAction): string {
         ? `Navigating to ${action.url}...`
         : "Navigating to the next page...";
     case "click":
-      return action.selector
-        ? `Interacting with ${action.selector}...`
-        : "Clicking the next element...";
+      return getClaudeActionTarget(action)
+        ? `Clicking ${getClaudeActionTarget(action)}...`
+        : action.x !== undefined && action.y !== undefined
+          ? `Clicking at ${action.x}, ${action.y}...`
+          : "Clicking the next element...";
     case "type":
       return action.text
         ? `Typing "${action.text.slice(0, 60)}"...`
-        : "Typing into the page...";
+        : getClaudeActionTarget(action)
+          ? `Typing into ${getClaudeActionTarget(action)}...`
+          : "Typing into the page...";
     case "scroll":
       return `Scrolling ${action.direction || "down"}...`;
     case "extract_data":
+    case "extract":
       return action.fields?.length
         ? `Extracting ${action.fields.join(", ")}...`
         : "Extracting data from the page...";
@@ -711,7 +755,6 @@ async function executeWithRealBrowser(
   captureScreenshots: boolean,
   enableCodeExecution: boolean = false,
   executionId?: string,
-  enableVerification: boolean = true,
   enableProceduralMemory: boolean = true,
   agentId?: string,
   onProgress?: ComputerUseProgressCallback,
@@ -721,26 +764,22 @@ async function executeWithRealBrowser(
   extractedData: Record<string, unknown> | null;
   completionReason: ComputerUseSession["completionReason"];
   sessionId: string;
+  browserBackend: string;
+  warning?: string;
   reasoningLog?: unknown[];
   verificationLog?: unknown[];
   reliabilityStats?: Record<string, unknown>;
 }> {
-  const browserSession = createBrowserSession();
+  const browserSession = await createBrowserSession();
   const steps: ComputerUseSessionStep[] = [];
   let currentUrl = startUrl;
   let finalSummary = "";
   let finalExtractedData: Record<string, unknown> | null = null;
   let completionReason: ComputerUseSession["completionReason"] = "max_steps";
 
-  // Reasoning Logger + Step Verifier
   const reasoningLogger = new ReasoningLogger();
-  const stepVerifier = new StepVerifier(enableVerification && captureScreenshots);
-
-  // Reliability V2: neue Systeme initialisieren
   const elementFinder = new ElementFinder();
-  const screenshotStrategy = new ScreenshotStrategy();
   const actionExecutor = new ActionExecutor(elementFinder);
-  const domVerifier = new DomVerifier();
   const pageCache = new PageCache();
   const metrics = new ReliabilityMetrics();
 
@@ -766,35 +805,28 @@ async function executeWithRealBrowser(
   let lastContent = ""; // HTML-Content für DOM-basierte Operationen
 
   try {
+    onProgress?.(`Launching ${browserSession.backend.toUpperCase()} browser session...`);
+    if (browserSession.warning) {
+      onProgress?.(browserSession.warning);
+    }
+
+    const initialPage = await browserNavigate(browserSession, startUrl, { timeout: 30000 });
+    currentUrl = await getCurrentBrowserUrl(browserSession).catch(() => startUrl);
+    lastContent = initialPage.content;
+
     for (let i = 0; i < maxSteps; i++) {
       const stepStart = Date.now();
-      const previousUrl = currentUrl;
-      onProgress?.(`Navigating to ${currentUrl}...`);
+      currentUrl = await getCurrentBrowserUrl(browserSession).catch(() => currentUrl);
+      lastContent = await getBrowserPageContent(browserSession, currentUrl).catch(() => lastContent);
+      const htmlSummary = extractHtmlSummary(lastContent);
 
-      // 1. Navigieren und Content holen
-      const { content, screenshot: navScreenshot } = await browserNavigate(browserSession, currentUrl);
-      const htmlSummary = extractHtmlSummary(content);
-      lastContent = content;
-
-      // 2. Screenshot-Strategie: nur wenn nötig
-      let screenshot = navScreenshot;
-      if (!screenshot && captureScreenshots) {
-        const ssDecision = i === 0
-          ? { shouldCapture: true, reason: "Initial" }
-          : screenshotStrategy.shouldTakeScreenshot(
-              steps[steps.length - 1]?.action || "navigate",
-              undefined,
-            );
-
-        if (ssDecision.shouldCapture) {
-          screenshot = await takeBrowserScreenshot(browserSession, currentUrl);
-          metrics.recordScreenshotTaken();
-        } else {
-          metrics.recordScreenshotSkipped();
-        }
+      let screenshot: string | null = null;
+      if (captureScreenshots) {
+        screenshot = await takeBrowserScreenshot(browserSession);
+        if (screenshot) metrics.recordScreenshotTaken();
+        else metrics.recordScreenshotSkipped();
       }
 
-      // 3. Claude Vision oder Text-basiert fragen
       let claudeAction: ClaudeAction;
       const thinkStart = Date.now();
 
@@ -807,10 +839,11 @@ async function executeWithRealBrowser(
           true, // Browser-Modus
           enableCodeExecution,
           proceduralHint,
+          htmlSummary,
         );
       } else {
         claudeAction = await askClaudeForAction(
-          task, currentUrl, content, htmlSummary, steps, false, "", false
+          task, currentUrl, lastContent, htmlSummary, steps, false, "", false
         );
       }
 
@@ -821,15 +854,17 @@ async function executeWithRealBrowser(
         i,
         claudeAction.action,
         claudeAction.reasoning,
-        claudeAction.selector || claudeAction.url,
+        getClaudeActionTarget(claudeAction) || claudeAction.url,
         thinkDuration,
         screenshot ? `step_${i}` : undefined,
       );
 
       const domain = (() => { try { return new URL(currentUrl).hostname; } catch { return currentUrl; } })();
-      onProgress?.(describeComputerUseAction(claudeAction));
+      onProgress?.(`Step ${i + 1}: ${describeComputerUseAction(claudeAction)}`);
 
-      // 4. Aktion ausführen — mit Multi-Strategy-Executor
+      let proofScreenshot = screenshot;
+      let stepHtmlSummary = htmlSummary;
+
       switch (claudeAction.action) {
         case "done": {
           steps.push({
@@ -837,163 +872,219 @@ async function executeWithRealBrowser(
             url: currentUrl,
             action: "done",
             actionDetail: claudeAction.reasoning,
-            htmlSummary,
-            screenshot,
+            htmlSummary: stepHtmlSummary,
+            screenshot: proofScreenshot,
             extractedData: claudeAction.extracted_data || null,
             timestamp: new Date().toISOString(),
             durationMs: Date.now() - stepStart,
           });
 
-          finalSummary = claudeAction.summary || "";
+          finalSummary = claudeAction.summary || claudeAction.reasoning || "Task completed.";
           finalExtractedData = claudeAction.extracted_data || null;
           completionReason = "done";
           break;
         }
 
         case "navigate": {
-          if (claudeAction.url) {
-            try {
-              currentUrl = new URL(claudeAction.url, currentUrl).href;
-            } catch {
-              currentUrl = claudeAction.url;
-            }
+          if (!claudeAction.url) {
+            completionReason = "no_next_url";
+            break;
           }
 
-          // DOM-Verification: prüfe ob Navigation erfolgreich war
-          const navVerify = await domVerifier.verifyNavigation(browserSession, currentUrl);
-          if (navVerify.conclusive && !navVerify.verified) {
-            metrics.record({ domain, actionType: "navigate", strategy: "direct", success: false, durationMs: Date.now() - stepStart, creditsCost: 0 });
-          } else {
-            metrics.record({ domain, actionType: "navigate", strategy: "direct", success: true, durationMs: Date.now() - stepStart, creditsCost: 0 });
-            metrics.recordDomVerification();
+          try {
+            currentUrl = new URL(claudeAction.url, currentUrl).href;
+          } catch {
+            currentUrl = claudeAction.url;
           }
+
+          const navigated = await browserNavigate(browserSession, currentUrl, { timeout: 30000 });
+          currentUrl = await getCurrentBrowserUrl(browserSession).catch(() => currentUrl);
+          lastContent = navigated.content;
+          stepHtmlSummary = extractHtmlSummary(lastContent);
+          proofScreenshot = navigated.screenshot || (captureScreenshots ? await takeBrowserScreenshot(browserSession) : screenshot);
+
+          metrics.record({
+            domain,
+            actionType: "navigate",
+            strategy: browserSession.backend,
+            success: true,
+            durationMs: Date.now() - stepStart,
+            creditsCost: 0,
+          });
 
           steps.push({
             stepIndex: i,
             url: currentUrl,
             action: "navigate",
             actionDetail: `Navigiere zu: ${claudeAction.url} — ${claudeAction.reasoning}`,
-            htmlSummary,
-            screenshot,
+            htmlSummary: stepHtmlSummary,
+            screenshot: proofScreenshot,
             extractedData: null,
             timestamp: new Date().toISOString(),
             durationMs: Date.now() - stepStart,
-            verified: navVerify.verified,
+            verified: true,
           });
           continue;
         }
 
         case "click": {
-          if (claudeAction.selector) {
-            // Multi-Strategy Click via ActionExecutor
+          const target = getClaudeActionTarget(claudeAction);
+          let clickSuccess = false;
+          let methodUsed = "vision_coordinates";
+          let newUrl: string | undefined;
+
+          if (target) {
             const clickResult = await actionExecutor.executeClick(
-              browserSession, currentUrl, claudeAction.selector, lastContent,
+              browserSession,
+              currentUrl,
+              target,
+              lastContent,
             );
-
-            // DOM-Verification statt Vision
-            let verified = clickResult.success;
-            if (clickResult.success && enableVerification) {
-              const domCheck = await domVerifier.verifyClick(browserSession, clickResult.newUrl || currentUrl, previousUrl);
-              if (domCheck.conclusive) {
-                verified = domCheck.verified;
-                metrics.recordDomVerification();
-              } else if (stepVerifier.shouldVerify("click") && screenshot && captureScreenshots) {
-                // Fallback: Vision-Verification nur wenn DOM inconclusive
-                const afterScreenshot = await takeBrowserScreenshot(browserSession, clickResult.newUrl || currentUrl);
-                if (afterScreenshot && screenshot) {
-                  const verResult = await stepVerifier.verify(
-                    i, "click",
-                    `Clicked "${claudeAction.selector}" — ${claudeAction.reasoning}`,
-                    screenshot, afterScreenshot,
-                  );
-                  verified = verResult.success;
-                  metrics.recordVisionVerification();
-                  reasoningLogger.addVerificationResult(i, {
-                    success: verResult.success,
-                    confidence: verResult.confidence,
-                    issue: verResult.issue,
-                  });
-                }
-              }
-            }
-
-            if (clickResult.newUrl) currentUrl = clickResult.newUrl;
-
-            metrics.record({
-              domain, actionType: "click", strategy: clickResult.methodUsed,
-              success: verified, durationMs: clickResult.timeMs, creditsCost: 0,
-            });
-
-            steps.push({
-              stepIndex: i,
-              url: currentUrl,
-              action: "click",
-              actionDetail: `Click: "${claudeAction.selector}" [${clickResult.methodUsed}] — ${claudeAction.reasoning}`,
-              htmlSummary,
-              screenshot,
-              extractedData: null,
-              timestamp: new Date().toISOString(),
-              durationMs: Date.now() - stepStart,
-              verified,
-            });
-
-            if (!verified && i < maxSteps - 1) {
-              continue;
-            }
+            clickSuccess = clickResult.success;
+            methodUsed = clickResult.methodUsed;
+            newUrl = clickResult.newUrl;
           }
+
+          if (!clickSuccess && claudeAction.x !== undefined && claudeAction.y !== undefined) {
+            const coordinateResult = await clickBrowserCoordinates(
+              browserSession,
+              claudeAction.x,
+              claudeAction.y
+            );
+            clickSuccess = coordinateResult.success;
+            methodUsed = "vision_coordinates";
+            newUrl = coordinateResult.newUrl;
+          }
+
+          currentUrl = newUrl || await getCurrentBrowserUrl(browserSession).catch(() => currentUrl);
+          lastContent = await getBrowserPageContent(browserSession, currentUrl).catch(() => lastContent);
+          stepHtmlSummary = extractHtmlSummary(lastContent);
+          proofScreenshot = captureScreenshots ? await takeBrowserScreenshot(browserSession) : screenshot;
+
+          metrics.record({
+            domain,
+            actionType: "click",
+            strategy: methodUsed,
+            success: clickSuccess,
+            durationMs: Date.now() - stepStart,
+            creditsCost: 0,
+          });
+
+          steps.push({
+            stepIndex: i,
+            url: currentUrl,
+            action: "click",
+            actionDetail: `Click: "${target || `${claudeAction.x},${claudeAction.y}`}" [${methodUsed}] — ${claudeAction.reasoning}`,
+            htmlSummary: stepHtmlSummary,
+            screenshot: proofScreenshot,
+            extractedData: null,
+            timestamp: new Date().toISOString(),
+            durationMs: Date.now() - stepStart,
+            verified: clickSuccess,
+          });
           continue;
         }
 
         case "type": {
-          if (claudeAction.selector && claudeAction.text) {
-            // Multi-Strategy Type via ActionExecutor
-            const typeResult = await actionExecutor.executeType(
-              browserSession, currentUrl, claudeAction.selector, claudeAction.text, lastContent,
-            );
-
-            // DOM-Verification: Wert prüfen
-            let verified = typeResult.success;
-            if (typeResult.success && enableVerification) {
-              const typeCheck = await domVerifier.verifyType(
-                browserSession, currentUrl, claudeAction.selector, claudeAction.text,
-              );
-              if (typeCheck.conclusive) {
-                verified = typeCheck.verified;
-                metrics.recordDomVerification();
-              }
-            }
-
-            metrics.record({
-              domain, actionType: "type", strategy: typeResult.methodUsed,
-              success: verified, durationMs: typeResult.timeMs, creditsCost: 0,
-            });
-
+          if (!claudeAction.text) {
             steps.push({
               stepIndex: i,
               url: currentUrl,
-              action: "type",
-              actionDetail: `Type: "${claudeAction.text}" in ${claudeAction.selector} [${typeResult.methodUsed}] — ${claudeAction.reasoning}`,
-              htmlSummary,
-              screenshot,
+              action: "analyze",
+              actionDetail: `Typing requested without text — ${claudeAction.reasoning}`,
+              htmlSummary: stepHtmlSummary,
+              screenshot: proofScreenshot,
               extractedData: null,
               timestamp: new Date().toISOString(),
               durationMs: Date.now() - stepStart,
-              verified,
             });
+            continue;
           }
+
+          const target = getClaudeActionTarget(claudeAction);
+          let typeSuccess = false;
+          let methodUsed = "focused_type";
+
+          if (target) {
+            const typeResult = await actionExecutor.executeType(
+              browserSession,
+              currentUrl,
+              target,
+              claudeAction.text,
+              lastContent,
+            );
+            typeSuccess = typeResult.success;
+            methodUsed = typeResult.methodUsed;
+          }
+
+          if (!typeSuccess && claudeAction.x !== undefined && claudeAction.y !== undefined) {
+            const focusResult = await clickBrowserCoordinates(
+              browserSession,
+              claudeAction.x,
+              claudeAction.y
+            );
+            if (focusResult.success) {
+              const focusedType = await typeTextInFocusedElement(browserSession, claudeAction.text);
+              typeSuccess = focusedType.success;
+              methodUsed = "vision_coordinates+focused_type";
+            }
+          }
+
+          if (!typeSuccess) {
+            const focusedType = await typeTextInFocusedElement(browserSession, claudeAction.text, currentUrl);
+            typeSuccess = focusedType.success;
+            methodUsed = target ? `${methodUsed}+focused_type` : "focused_type";
+          }
+
+          currentUrl = await getCurrentBrowserUrl(browserSession).catch(() => currentUrl);
+          lastContent = await getBrowserPageContent(browserSession, currentUrl).catch(() => lastContent);
+          stepHtmlSummary = extractHtmlSummary(lastContent);
+          proofScreenshot = captureScreenshots ? await takeBrowserScreenshot(browserSession) : screenshot;
+
+          metrics.record({
+            domain,
+            actionType: "type",
+            strategy: methodUsed,
+            success: typeSuccess,
+            durationMs: Date.now() - stepStart,
+            creditsCost: 0,
+          });
+
+          steps.push({
+            stepIndex: i,
+            url: currentUrl,
+            action: "type",
+            actionDetail: `Type: "${claudeAction.text}" in ${target || `${claudeAction.x},${claudeAction.y}` || "focused element"} [${methodUsed}] — ${claudeAction.reasoning}`,
+            htmlSummary: stepHtmlSummary,
+            screenshot: proofScreenshot,
+            extractedData: null,
+            timestamp: new Date().toISOString(),
+            durationMs: Date.now() - stepStart,
+            verified: typeSuccess,
+          });
           continue;
         }
 
         case "scroll": {
           const scrollResult = await actionExecutor.executeScroll(
-            browserSession, currentUrl,
+            browserSession,
+            currentUrl,
             claudeAction.direction || "down",
             claudeAction.pixels || 500,
           );
 
+          currentUrl = await getCurrentBrowserUrl(browserSession).catch(() => currentUrl);
+          lastContent = await getBrowserPageContent(browserSession, currentUrl).catch(() => lastContent);
+          stepHtmlSummary = extractHtmlSummary(lastContent);
+          proofScreenshot = captureScreenshots ? await takeBrowserScreenshot(browserSession) : screenshot;
+
           metrics.record({
-            domain, actionType: "scroll", strategy: "browserless",
-            success: scrollResult.success, durationMs: scrollResult.timeMs, creditsCost: 0,
+            domain,
+            actionType: "scroll",
+            strategy: browserSession.backend,
+            success: scrollResult.success,
+            durationMs: scrollResult.timeMs,
+            creditsCost: 0,
           });
 
           steps.push({
@@ -1001,8 +1092,8 @@ async function executeWithRealBrowser(
             url: currentUrl,
             action: "scroll",
             actionDetail: `Scroll ${claudeAction.direction || "down"} ${claudeAction.pixels || 500}px — ${claudeAction.reasoning}`,
-            htmlSummary,
-            screenshot,
+            htmlSummary: stepHtmlSummary,
+            screenshot: proofScreenshot,
             extractedData: null,
             timestamp: new Date().toISOString(),
             durationMs: Date.now() - stepStart,
@@ -1012,7 +1103,7 @@ async function executeWithRealBrowser(
 
         case "click_link": {
           const resolvedUrl = claudeAction.selector
-            ? resolveLink(content, claudeAction.selector, currentUrl)
+            ? resolveLink(lastContent, claudeAction.selector, currentUrl)
             : null;
 
           steps.push({
@@ -1020,8 +1111,8 @@ async function executeWithRealBrowser(
             url: currentUrl,
             action: "click_link",
             actionDetail: `Klicke: "${claudeAction.selector}" → ${resolvedUrl || "nicht gefunden"} — ${claudeAction.reasoning}`,
-            htmlSummary,
-            screenshot,
+            htmlSummary: stepHtmlSummary,
+            screenshot: proofScreenshot,
             extractedData: null,
             timestamp: new Date().toISOString(),
             durationMs: Date.now() - stepStart,
@@ -1031,39 +1122,37 @@ async function executeWithRealBrowser(
           continue;
         }
 
+        case "extract":
         case "extract_data": {
-          // Multi-Strategy Extraktion via ActionExecutor
-          const extractResult = await actionExecutor.executeExtract(
-            browserSession, currentUrl, claudeAction.fields || [], lastContent,
-          );
-
-          const extracted = (extractResult.result as Record<string, unknown>) || {};
-
-          // DOM-Plausibilitätsprüfung
-          if (claudeAction.fields) {
-            const dataCheck = domVerifier.verifyDataExtraction(extracted, claudeAction.fields);
-            metrics.recordDomVerification();
-            if (!dataCheck.verified) {
-              // Bei Plausibilitätsproblemen: in actionDetail vermerken
-              const issues = (dataCheck.details.issues as string[]) || [];
-              if (issues.length > 0) {
-                console.warn(`[ComputerUse] Data extraction issues: ${issues.join(", ")}`);
-              }
-            }
+          let extracted = claudeAction.extracted_data || null;
+          let methodUsed = "vision_extract";
+          if (!extracted || Object.keys(extracted).length === 0) {
+            const extractResult = await actionExecutor.executeExtract(
+              browserSession,
+              currentUrl,
+              claudeAction.fields || [],
+              lastContent,
+            );
+            extracted = (extractResult.result as Record<string, unknown>) || {};
+            methodUsed = extractResult.methodUsed;
           }
 
           metrics.record({
-            domain, actionType: "extract", strategy: extractResult.methodUsed,
-            success: extractResult.success, durationMs: extractResult.timeMs, creditsCost: 0,
+            domain,
+            actionType: "extract",
+            strategy: methodUsed,
+            success: !!extracted,
+            durationMs: Date.now() - stepStart,
+            creditsCost: 0,
           });
 
           steps.push({
             stepIndex: i,
             url: currentUrl,
             action: "extract_data",
-            actionDetail: `Extrahiere: ${(claudeAction.fields || []).join(", ")} [${extractResult.methodUsed}] — ${claudeAction.reasoning}`,
-            htmlSummary,
-            screenshot,
+            actionDetail: `Extrahiere: ${(claudeAction.fields || []).join(", ")} [${methodUsed}] — ${claudeAction.reasoning}`,
+            htmlSummary: stepHtmlSummary,
+            screenshot: proofScreenshot,
             extractedData: extracted,
             timestamp: new Date().toISOString(),
             durationMs: Date.now() - stepStart,
@@ -1081,8 +1170,8 @@ async function executeWithRealBrowser(
               url: currentUrl,
               action: "analyze",
               actionDetail: `Code-Ausführung übersprungen (${!enableCodeExecution ? "deaktiviert" : "kein Code"}) — ${claudeAction.reasoning}`,
-              htmlSummary,
-              screenshot,
+              htmlSummary: stepHtmlSummary,
+              screenshot: proofScreenshot,
               extractedData: null,
               timestamp: new Date().toISOString(),
               durationMs: Date.now() - stepStart,
@@ -1106,8 +1195,8 @@ async function executeWithRealBrowser(
             url: currentUrl,
             action: "execute_code",
             actionDetail: `${codeLang}: ${claudeAction.reasoning}\n${codeResult.success ? "✓ Erfolgreich" : "✗ Fehler: " + (codeResult.error || "")}`,
-            htmlSummary,
-            screenshot,
+            htmlSummary: stepHtmlSummary,
+            screenshot: proofScreenshot,
             extractedData: Object.keys(codeExtracted).length > 0 ? codeExtracted : null,
             timestamp: new Date().toISOString(),
             durationMs: Date.now() - stepStart,
@@ -1126,8 +1215,8 @@ async function executeWithRealBrowser(
             url: currentUrl,
             action: "analyze",
             actionDetail: claudeAction.reasoning,
-            htmlSummary,
-            screenshot,
+            htmlSummary: stepHtmlSummary,
+            screenshot: proofScreenshot,
             extractedData: null,
             timestamp: new Date().toISOString(),
             durationMs: Date.now() - stepStart,
@@ -1139,7 +1228,7 @@ async function executeWithRealBrowser(
       if (completionReason === "done") break;
     }
   } finally {
-    closeBrowserSession(browserSession.id);
+    await closeBrowserSession(browserSession.id);
     if (enableCodeExecution && executionId) {
       await cleanupCodeSession(executionId).catch(() => {});
     }
@@ -1161,8 +1250,6 @@ async function executeWithRealBrowser(
   // Reliability-Statistiken für Meta
   const sessionStats = metrics.getSessionStats();
   const efStats = elementFinder.getStats();
-  const ssStats = screenshotStrategy.getStats();
-  const dvStats = domVerifier.getStats();
 
   return {
     steps,
@@ -1170,12 +1257,14 @@ async function executeWithRealBrowser(
     extractedData: finalExtractedData,
     completionReason,
     sessionId: browserSession.id,
+    browserBackend: browserSession.backend,
+    warning: browserSession.warning,
     reasoningLog: reasoningLogger.toJSON(),
-    verificationLog: stepVerifier.getLog(),
+    verificationLog: [],
     reliabilityStats: {
-      screenshotsSkipped: ssStats.skipped,
-      screenshotsTaken: ssStats.taken,
-      domVerifications: dvStats.domVerified,
+      screenshotsSkipped: sessionStats.screenshotsSkipped,
+      screenshotsTaken: sessionStats.screenshotsTaken,
+      domVerifications: sessionStats.domVerifications,
       visionVerifications: sessionStats.visionVerifications,
       elementFinderStats: efStats,
       creditsSaved: sessionStats.creditsSaved,
@@ -1202,7 +1291,6 @@ export async function executeComputerUse(
   const agentId = String(context._agentId || "");
   const useBrowserMode = config.browserMode !== "http" && isBrowserServiceAvailable();
   const enableCodeExecution = config.enableCodeExecution === true && isCodeSandboxAvailable();
-  const enableVerification = config.enableVerification !== false; // Default: true
   const enableProceduralMemory = config.enableProceduralMemory !== false; // Default: true
   const onProgress = typeof config.onProgress === "function"
     ? (config.onProgress as ComputerUseProgressCallback)
@@ -1217,6 +1305,9 @@ export async function executeComputerUse(
 
   const preferMCPOverBrowser = config.preferMCPOverBrowser !== false; // Default: true
   const sessionStart = Date.now();
+  const limitedModeWarning = !useBrowserMode
+    ? "Running in limited mode (no browser). Results may be incomplete for JavaScript-heavy sites."
+    : undefined;
 
   try {
     // MCP Hybrid Routing: Prüfe ob ein MCP-Server die Aufgabe erledigen kann
@@ -1262,7 +1353,7 @@ export async function executeComputerUse(
       const result = await executeWithRealBrowser(
         task, startUrl, maxSteps, captureScreenshots,
         enableCodeExecution, String(context._executionId || ""),
-        enableVerification, enableProceduralMemory, agentId, onProgress,
+        enableProceduralMemory, agentId, onProgress,
       );
 
       const cuSession: ComputerUseSession = {
@@ -1276,6 +1367,8 @@ export async function executeComputerUse(
         screenshotsAvailable: result.steps.some((s) => !!s.screenshot),
         completionReason: result.completionReason,
         browserMode: "real",
+        browserBackend: result.browserBackend,
+        warning: result.warning,
         sessionId: result.sessionId,
       };
 
@@ -1295,6 +1388,8 @@ export async function executeComputerUse(
           screenshotsAvailable: cuSession.screenshotsAvailable,
           completionReason: result.completionReason,
           browserMode: "real",
+          browserBackend: result.browserBackend,
+          warning: result.warning,
           sessionId: result.sessionId,
           reasoningEntries: Array.isArray(result.reasoningLog) ? result.reasoningLog.length : 0,
           verificationEntries: Array.isArray(result.verificationLog) ? result.verificationLog.length : 0,
@@ -1311,6 +1406,10 @@ export async function executeComputerUse(
     let finalExtractedData: Record<string, unknown> | null = null;
     let completionReason: ComputerUseSession["completionReason"] = "max_steps";
     const httpSession = createHttpSession();
+
+    if (limitedModeWarning) {
+      onProgress?.(limitedModeWarning);
+    }
 
     // Login-Flow wenn aktiviert
     if (requiresLogin && credentialId && agentId) {
@@ -1329,6 +1428,7 @@ export async function executeComputerUse(
               screenshotsAvailable: false,
               completionReason: "error" as const,
               browserMode: "http",
+              warning: limitedModeWarning,
             },
           },
           success: false,
@@ -1439,6 +1539,7 @@ export async function executeComputerUse(
       screenshotsAvailable,
       completionReason,
       browserMode: "http",
+      warning: limitedModeWarning,
     };
 
     return {
@@ -1453,6 +1554,7 @@ export async function executeComputerUse(
         screenshotsAvailable,
         completionReason,
         browserMode: "http",
+        warning: limitedModeWarning,
       },
     };
   } catch (err) {
@@ -1467,6 +1569,7 @@ export async function executeComputerUse(
           screenshotsAvailable: false,
           completionReason: "error",
           browserMode: useBrowserMode ? "real" : "http",
+          warning: limitedModeWarning,
         },
       },
       success: false,

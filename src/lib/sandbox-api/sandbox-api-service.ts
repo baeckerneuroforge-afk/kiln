@@ -8,6 +8,8 @@ import { PLAN_LIMITS, type PlanType } from "@/lib/stripe";
 import { isAdmin } from "@/lib/admin";
 import {
   createBrowserSession,
+  clickBrowserCoordinates,
+  typeTextInFocusedElement,
   navigateTo,
   takeBrowserScreenshot,
   scrollPage,
@@ -129,7 +131,7 @@ export class SandboxAPIService {
     const resources: SessionResources = {};
 
     if (capabilities.includes("browser") || capabilities.includes("screenshots")) {
-      resources.browserSession = createBrowserSession();
+      resources.browserSession = await createBrowserSession();
     }
 
     if (capabilities.includes("code_python")) {
@@ -318,7 +320,7 @@ export class SandboxAPIService {
     const resources = sessionResources.get(sessionId);
     if (resources) {
       if (resources.browserSession) {
-        closeBrowserSession(resources.browserSession.id);
+        await closeBrowserSession(resources.browserSession.id);
       }
       if (resources.codeSandboxId) {
         await destroyCodeSandbox(resources.codeSandboxId).catch(() => {});
@@ -353,7 +355,7 @@ export class SandboxAPIService {
 
       if (!sess || sess.status === "expired" || sess.status === "destroyed") {
         if (resources.browserSession) {
-          closeBrowserSession(resources.browserSession.id);
+          await closeBrowserSession(resources.browserSession.id);
         }
         if (resources.codeSandboxId) {
           await destroyCodeSandbox(resources.codeSandboxId).catch(() => {});
@@ -493,45 +495,22 @@ export class SandboxAPIService {
         if (!resources.browserSession) {
           throw new Error("Browser-Session nicht verfügbar.");
         }
-        const clickUrl = resources.currentUrl || "about:blank";
-        const BROWSERLESS_BASE = "https://production-sfo.browserless.io";
-        const apiKey = process.env.BROWSERLESS_API_KEY;
+        const clickResult = await clickBrowserCoordinates(
+          resources.browserSession,
+          action.x,
+          action.y,
+          resources.currentUrl
+        );
 
-        if (!apiKey) {
-          throw new Error("Browser-Service nicht konfiguriert (BROWSERLESS_API_KEY fehlt).");
-        }
-
-        const clickResponse = await fetch(`${BROWSERLESS_BASE}/function?token=${apiKey}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            code: `
-              module.exports = async ({ page }) => {
-                await page.goto('${clickUrl.replace(/'/g, "\\'")}', { waitUntil: 'networkidle2', timeout: 30000 });
-                await page.mouse.click(${action.x}, ${action.y});
-                await new Promise(r => setTimeout(r, 1000));
-                return { success: true, newUrl: page.url() };
-              };
-            `,
-          }),
-          signal: AbortSignal.timeout(45000),
-        });
-
-        const clickResult = (await clickResponse.json()) as {
-          data?: { success: boolean; newUrl?: string };
-          error?: string;
-        };
-
-        if (clickResult.data?.newUrl) {
-          resources.currentUrl = clickResult.data.newUrl;
+        if (clickResult.newUrl) {
+          resources.currentUrl = clickResult.newUrl;
           sessionResources.set(sessionId, resources);
         }
 
         return {
-          success: !clickResult.error,
-          result: { x: action.x, y: action.y, newUrl: clickResult.data?.newUrl },
+          success: clickResult.success,
+          result: { x: action.x, y: action.y, newUrl: clickResult.newUrl },
           creditsUsed: credits,
-          error: clickResult.error,
           durationMs: Date.now() - start,
         };
       }
@@ -540,36 +519,16 @@ export class SandboxAPIService {
         if (!resources.browserSession) {
           throw new Error("Browser-Session nicht verfügbar.");
         }
-        const typeUrl = resources.currentUrl || "about:blank";
-        const BROWSERLESS_TYPE = "https://production-sfo.browserless.io";
-        const typeApiKey = process.env.BROWSERLESS_API_KEY;
-
-        if (!typeApiKey) {
-          throw new Error("Browser-Service nicht konfiguriert (BROWSERLESS_API_KEY fehlt).");
-        }
-
-        const typeResponse = await fetch(`${BROWSERLESS_TYPE}/function?token=${typeApiKey}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            code: `
-              module.exports = async ({ page }) => {
-                await page.goto('${typeUrl.replace(/'/g, "\\'")}', { waitUntil: 'networkidle2', timeout: 30000 });
-                await page.keyboard.type('${action.text.replace(/'/g, "\\'")}', { delay: 30 });
-                return { success: true };
-              };
-            `,
-          }),
-          signal: AbortSignal.timeout(45000),
-        });
-
-        const typeResult = (await typeResponse.json()) as { error?: string };
+        const typeResult = await typeTextInFocusedElement(
+          resources.browserSession,
+          action.text,
+          resources.currentUrl
+        );
 
         return {
-          success: !typeResult.error,
+          success: typeResult.success,
           result: { text: action.text, length: action.text.length },
           creditsUsed: credits,
-          error: typeResult.error,
           durationMs: Date.now() - start,
         };
       }

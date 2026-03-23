@@ -35,6 +35,8 @@ interface ComputerUseSessionLike {
   totalDurationMs: number;
   urlsVisited: string[];
   completionReason: string;
+  browserBackend?: string;
+  warning?: string;
 }
 
 async function extractComputerUseRequest(message: string): Promise<{
@@ -104,15 +106,17 @@ Rules:
 }
 
 function buildComputerUseResult(session: ComputerUseSessionLike): QuickUseResult {
-  const latestScreenshot = [...session.steps]
+  const screenshots = [...session.steps]
     .reverse()
-    .find((step) => typeof step.screenshot === "string" && step.screenshot.length > 0);
+    .filter((step) => typeof step.screenshot === "string" && step.screenshot.length > 0)
+    .slice(0, 3);
 
   return {
     title: session.task,
     summary: session.summary || "Computer Use completed.",
     markdown: [
       session.summary || "Computer Use completed.",
+      "warning" in session && typeof session.warning === "string" ? `Warning: ${session.warning}` : null,
       session.urlsVisited.length > 0
         ? `Visited ${session.urlsVisited.length} page${session.urlsVisited.length === 1 ? "" : "s"}.`
         : null,
@@ -124,15 +128,13 @@ function buildComputerUseResult(session: ComputerUseSessionLike): QuickUseResult
       totalSteps: session.steps.length,
       totalDurationMs: session.totalDurationMs,
     },
-    artifacts: latestScreenshot
-      ? [
-          {
-            kind: "image",
-            name: `Screenshot after step ${latestScreenshot.stepIndex + 1}`,
-            dataUrl: `data:image/png;base64,${latestScreenshot.screenshot}`,
-            mimeType: "image/png",
-          },
-        ]
+    artifacts: screenshots.length > 0
+      ? screenshots.map((step) => ({
+          kind: "image" as const,
+          name: `Screenshot after step ${step.stepIndex + 1}`,
+          dataUrl: `data:image/png;base64,${step.screenshot}`,
+          mimeType: "image/png",
+        }))
       : undefined,
     meta: {
       startUrl: session.startUrl,
@@ -140,6 +142,8 @@ function buildComputerUseResult(session: ComputerUseSessionLike): QuickUseResult
       totalSteps: session.steps.length,
       totalDurationMs: session.totalDurationMs,
       completionReason: session.completionReason,
+      browserBackend: "browserBackend" in session ? session.browserBackend : undefined,
+      warning: "warning" in session ? session.warning : undefined,
     },
   };
 }
@@ -171,12 +175,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const creditEstimate = estimateComputerUseCost(
-    "claude-sonnet-4-6",
-    extracted.maxSteps,
-    true,
-    true
-  );
+  const creditEstimate = estimateComputerUseCost("claude-sonnet-4-6", extracted.maxSteps, false, false);
   const affordability = await canAffordExecution(userId, creditEstimate);
 
   if (!affordability.affordable) {
@@ -240,9 +239,16 @@ export async function POST(request: NextRequest) {
           throw new Error("Computer Use returned no session data");
         }
 
+        const actualCreditEstimate = estimateComputerUseCost(
+          "claude-sonnet-4-6",
+          Math.max(session.steps.length, 1),
+          false,
+          false
+        );
+
         const charge = await deductCreditsByAmount(
           userId,
-          creditEstimate.totalCredits,
+          actualCreditEstimate.totalCredits,
           "TASK_RUN",
           "quick_use_computer_use"
         );
@@ -252,7 +258,7 @@ export async function POST(request: NextRequest) {
           result: buildComputerUseResult(session),
           credits: {
             estimatedCredits: creditEstimate.totalCredits,
-            creditsUsed: creditEstimate.totalCredits,
+            creditsUsed: actualCreditEstimate.totalCredits,
             creditsRemaining: charge.newBalance,
           },
         });
