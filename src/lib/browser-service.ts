@@ -8,6 +8,11 @@ import { E2BBrowserSession } from "@/lib/browser/e2b-browser-session";
 
 const BROWSERLESS_BASE = "https://production-sfo.browserless.io";
 const SESSION_TIMEOUT_MS = 5 * 60 * 1000;
+export const HTTP_FALLBACK_WARNING =
+  "Could not start a browser session. Falling back to limited HTTP mode. Results may be incomplete for JavaScript-heavy sites.";
+const BROWSERLESS_COMPAT_WARNING =
+  "Running on Browserless compatibility mode. Multi-step state is more limited than E2B-backed browser sessions.";
+const E2B_TO_BROWSERLESS_WARNING = "E2B browser failed, falling back to Browserless.";
 
 export type BrowserBackend = "e2b" | "browserless";
 
@@ -82,6 +87,16 @@ interface BrowserlessResponse {
   error?: string;
 }
 
+export class BrowserSessionStartError extends Error {
+  readonly attempts: Array<{ backend: BrowserBackend; message: string }>;
+
+  constructor(attempts: Array<{ backend: BrowserBackend; message: string }>) {
+    super(HTTP_FALLBACK_WARNING);
+    this.name = "BrowserSessionStartError";
+    this.attempts = attempts;
+  }
+}
+
 const activeSessions = new Map<string, SessionRecord>();
 
 export function isBrowserServiceAvailable(): boolean {
@@ -95,14 +110,38 @@ export function getPreferredBrowserBackend(): BrowserBackend | null {
 }
 
 export async function createBrowserSession(): Promise<BrowserSession> {
-  const backend = getPreferredBrowserBackend();
-  if (!backend) {
+  if (!process.env.E2B_API_KEY && !process.env.BROWSERLESS_API_KEY) {
     throw new Error("Computer Use requires an E2B or Browserless API key. Add one in Settings → API Keys.");
   }
 
-  const runtime: BrowserRuntime = backend === "e2b"
-    ? await E2BRuntime.start()
-    : new BrowserlessRuntime();
+  const attempts: Array<{ backend: BrowserBackend; message: string }> = [];
+  let runtime: BrowserRuntime | null = null;
+
+  if (process.env.E2B_API_KEY) {
+    try {
+      runtime = await E2BRuntime.start();
+    } catch (error) {
+      const message = getErrorMessage(error);
+      attempts.push({ backend: "e2b", message });
+      console.warn(`[browser-service] ${E2B_TO_BROWSERLESS_WARNING}`, error);
+    }
+  }
+
+  if (!runtime && process.env.BROWSERLESS_API_KEY) {
+    try {
+      runtime = new BrowserlessRuntime(
+        attempts.some((attempt) => attempt.backend === "e2b") ? E2B_TO_BROWSERLESS_WARNING : undefined
+      );
+    } catch (error) {
+      const message = getErrorMessage(error);
+      attempts.push({ backend: "browserless", message });
+      console.warn("[browser-service] Browserless browser startup failed.", error);
+    }
+  }
+
+  if (!runtime) {
+    throw new BrowserSessionStartError(attempts);
+  }
 
   const session: BrowserSession = {
     id: `browser_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -538,6 +577,10 @@ function getBrowserlessApiKey(): string {
   return key;
 }
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown browser startup error";
+}
+
 class E2BRuntime implements BrowserRuntime {
   readonly backend = "e2b" as const;
   readonly sessionRef?: string;
@@ -621,12 +664,15 @@ class E2BRuntime implements BrowserRuntime {
 
 class BrowserlessRuntime implements BrowserRuntime {
   readonly backend = "browserless" as const;
-  readonly warning =
-    "Running on Browserless compatibility mode. Multi-step state is more limited than E2B-backed browser sessions.";
+  readonly warning?: string;
 
   private currentUrl: string | null = null;
   private currentHtml: string | null = null;
   private lastClickPoint: { x: number; y: number } | null = null;
+
+  constructor(fallbackWarning?: string) {
+    this.warning = [fallbackWarning, BROWSERLESS_COMPAT_WARNING].filter(Boolean).join(" ");
+  }
 
   async navigate(url: string, options?: { timeout?: number; withScreenshot?: boolean }): Promise<RuntimeNavigationResult> {
     const apiKey = getBrowserlessApiKey();

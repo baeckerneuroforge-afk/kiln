@@ -84,11 +84,24 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: access.upgradeMessage }, { status: 403 });
   }
 
-  const body = await request.json().catch(() => null) as { message?: string; userId?: string } | null;
+  const body = await request.json().catch(() => null) as {
+    message?: string;
+    userId?: string;
+    files?: QuickUseFileAttachment[];
+  } | null;
   const message = body?.message?.trim();
+  const fileAttachments = Array.isArray(body?.files) ? body.files : [];
 
   if (!message) {
     return Response.json({ error: "Message is required" }, { status: 400 });
+  }
+
+  // Process uploaded files and append context to research topic
+  let topicWithFiles = message;
+  if (fileAttachments.length > 0) {
+    const processed = await processFiles(fileAttachments);
+    const fileContext = buildFileContext(processed);
+    topicWithFiles = `${message}\n\n${fileContext}`;
   }
 
   const depth = selectResearchDepth(message);
@@ -132,7 +145,7 @@ export async function POST(request: NextRequest) {
         const resultKey = "quickDeepResearchResult";
         const result = await executeDeepResearch(
           {
-            topic: message,
+            topic: topicWithFiles,
             depth,
             language,
             resultKey,

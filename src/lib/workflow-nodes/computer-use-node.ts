@@ -16,6 +16,7 @@ import {
   markCredentialUsed,
 } from "@/lib/computer-use-credentials";
 import {
+  HTTP_FALLBACK_WARNING,
   isBrowserServiceAvailable,
   createBrowserSession,
   navigateTo as browserNavigate,
@@ -50,6 +51,8 @@ import { ReliabilityMetrics } from "@/lib/browser/reliability-metrics";
 const COMPUTER_USE_MODEL = "claude-sonnet-4-6";
 const VISION_MODEL = "claude-sonnet-4-6";
 const MAX_LOOP_STEPS = 25;
+const LIMITED_HTTP_WARNING =
+  "Running in limited mode (no browser). Results may be incomplete for JavaScript-heavy sites.";
 
 /* ── Types ── */
 
@@ -1305,8 +1308,8 @@ export async function executeComputerUse(
 
   const preferMCPOverBrowser = config.preferMCPOverBrowser !== false; // Default: true
   const sessionStart = Date.now();
-  const limitedModeWarning = !useBrowserMode
-    ? "Running in limited mode (no browser). Results may be incomplete for JavaScript-heavy sites."
+  let httpModeWarning = !useBrowserMode
+    ? LIMITED_HTTP_WARNING
     : undefined;
 
   try {
@@ -1350,52 +1353,58 @@ export async function executeComputerUse(
     // V2.0: Real Browser Mode
     if (useBrowserMode && !requiresLogin) {
       onProgress?.(`Opening browser session for ${startUrl}...`);
-      const result = await executeWithRealBrowser(
-        task, startUrl, maxSteps, captureScreenshots,
-        enableCodeExecution, String(context._executionId || ""),
-        enableProceduralMemory, agentId, onProgress,
-      );
+      try {
+        const result = await executeWithRealBrowser(
+          task, startUrl, maxSteps, captureScreenshots,
+          enableCodeExecution, String(context._executionId || ""),
+          enableProceduralMemory, agentId, onProgress,
+        );
 
-      const cuSession: ComputerUseSession = {
-        task,
-        startUrl,
-        steps: result.steps,
-        summary: result.summary,
-        extractedData: result.extractedData,
-        totalDurationMs: Date.now() - sessionStart,
-        urlsVisited: Array.from(new Set(result.steps.map((s) => s.url))),
-        screenshotsAvailable: result.steps.some((s) => !!s.screenshot),
-        completionReason: result.completionReason,
-        browserMode: "real",
-        browserBackend: result.browserBackend,
-        warning: result.warning,
-        sessionId: result.sessionId,
-      };
-
-      return {
-        contextDelta: {
-          [resultKey]: cuSession,
-          [`${resultKey}_reasoning`]: result.reasoningLog,
-          [`${resultKey}_verification`]: result.verificationLog,
-        },
-        success: true,
-        meta: {
-          stepsCount: result.steps.length,
-          urlsVisited: cuSession.urlsVisited,
-          totalDurationMs: cuSession.totalDurationMs,
-          model: VISION_MODEL,
-          hasExtractedData: !!result.extractedData,
-          screenshotsAvailable: cuSession.screenshotsAvailable,
+        const cuSession: ComputerUseSession = {
+          task,
+          startUrl,
+          steps: result.steps,
+          summary: result.summary,
+          extractedData: result.extractedData,
+          totalDurationMs: Date.now() - sessionStart,
+          urlsVisited: Array.from(new Set(result.steps.map((s) => s.url))),
+          screenshotsAvailable: result.steps.some((s) => !!s.screenshot),
           completionReason: result.completionReason,
           browserMode: "real",
           browserBackend: result.browserBackend,
           warning: result.warning,
           sessionId: result.sessionId,
-          reasoningEntries: Array.isArray(result.reasoningLog) ? result.reasoningLog.length : 0,
-          verificationEntries: Array.isArray(result.verificationLog) ? result.verificationLog.length : 0,
-          reliabilityStats: result.reliabilityStats,
-        },
-      };
+        };
+
+        return {
+          contextDelta: {
+            [resultKey]: cuSession,
+            [`${resultKey}_reasoning`]: result.reasoningLog,
+            [`${resultKey}_verification`]: result.verificationLog,
+          },
+          success: true,
+          meta: {
+            stepsCount: result.steps.length,
+            urlsVisited: cuSession.urlsVisited,
+            totalDurationMs: cuSession.totalDurationMs,
+            model: VISION_MODEL,
+            hasExtractedData: !!result.extractedData,
+            screenshotsAvailable: cuSession.screenshotsAvailable,
+            completionReason: result.completionReason,
+            browserMode: "real",
+            browserBackend: result.browserBackend,
+            warning: result.warning,
+            sessionId: result.sessionId,
+            reasoningEntries: Array.isArray(result.reasoningLog) ? result.reasoningLog.length : 0,
+            verificationEntries: Array.isArray(result.verificationLog) ? result.verificationLog.length : 0,
+            reliabilityStats: result.reliabilityStats,
+          },
+        };
+      } catch (error) {
+        httpModeWarning = HTTP_FALLBACK_WARNING;
+        console.warn("[computer-use] Real browser execution failed, falling back to HTTP mode.", error);
+        onProgress?.(HTTP_FALLBACK_WARNING);
+      }
     }
 
     // V1.0 Fallback: HTTP-Modus
@@ -1407,8 +1416,8 @@ export async function executeComputerUse(
     let completionReason: ComputerUseSession["completionReason"] = "max_steps";
     const httpSession = createHttpSession();
 
-    if (limitedModeWarning) {
-      onProgress?.(limitedModeWarning);
+    if (httpModeWarning) {
+      onProgress?.(httpModeWarning);
     }
 
     // Login-Flow wenn aktiviert
@@ -1428,7 +1437,7 @@ export async function executeComputerUse(
               screenshotsAvailable: false,
               completionReason: "error" as const,
               browserMode: "http",
-              warning: limitedModeWarning,
+              warning: httpModeWarning,
             },
           },
           success: false,
@@ -1539,7 +1548,7 @@ export async function executeComputerUse(
       screenshotsAvailable,
       completionReason,
       browserMode: "http",
-      warning: limitedModeWarning,
+      warning: httpModeWarning,
     };
 
     return {
@@ -1554,7 +1563,7 @@ export async function executeComputerUse(
         screenshotsAvailable,
         completionReason,
         browserMode: "http",
-        warning: limitedModeWarning,
+        warning: httpModeWarning,
       },
     };
   } catch (err) {
@@ -1569,7 +1578,7 @@ export async function executeComputerUse(
           screenshotsAvailable: false,
           completionReason: "error",
           browserMode: useBrowserMode ? "real" : "http",
-          warning: limitedModeWarning,
+          warning: httpModeWarning,
         },
       },
       success: false,

@@ -3,11 +3,14 @@ import { Sandbox } from "e2b";
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
 const BROWSER_CONTROLLER_PORT = 8765;
 const BROWSER_CONTROLLER_PATH = "/tmp/kiln_browser_controller.py";
+const E2B_STARTUP_TIMEOUT_MS = 120 * 1000;
+const E2B_RPC_TIMEOUT_MS = 45 * 1000;
 
 const BROWSER_CONTROLLER_SCRIPT = String.raw`
 import base64
 import json
 import sys
+import threading
 import traceback
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse
@@ -17,18 +20,72 @@ from playwright.sync_api import sync_playwright
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
-playwright = sync_playwright().start()
-browser = playwright.chromium.launch(headless=True)
-context = browser.new_context(
-    viewport={"width": 1280, "height": 720},
-    user_agent=USER_AGENT,
-)
-page = context.new_page()
-page.set_default_timeout(30000)
-page.set_default_navigation_timeout(30000)
+playwright = None
+browser = None
+context = None
+page = None
+browser_error = None
+browser_ready = False
+warmup_started = False
+browser_lock = threading.Lock()
+
+
+def _start_browser():
+    global playwright, browser, context, page, browser_ready, browser_error
+
+    playwright = sync_playwright().start()
+    browser = playwright.chromium.launch(headless=True)
+    context = browser.new_context(
+        viewport={"width": 1280, "height": 720},
+        user_agent=USER_AGENT,
+    )
+    page = context.new_page()
+    page.set_default_timeout(30000)
+    page.set_default_navigation_timeout(30000)
+    browser_ready = True
+    browser_error = None
+
+
+def warmup_browser():
+    global browser_error
+    try:
+        ensure_browser()
+    except Exception as exc:
+        browser_error = str(exc)
+
+
+def ensure_warmup_started():
+    global warmup_started
+    if warmup_started:
+        return
+    with browser_lock:
+        if warmup_started:
+            return
+        warmup_started = True
+        thread = threading.Thread(target=warmup_browser, daemon=True)
+        thread.start()
+
+
+def ensure_browser():
+    global browser_error
+    if browser_ready and page is not None:
+        return
+
+    with browser_lock:
+        if browser_ready and page is not None:
+            return
+        if browser_error:
+            raise RuntimeError(browser_error)
+
+        try:
+            _start_browser()
+        except Exception as exc:
+            browser_error = str(exc)
+            raise
 
 
 def wait_after_action():
+    ensure_browser()
     try:
         page.wait_for_load_state("networkidle", timeout=5000)
     except Exception:
@@ -39,6 +96,7 @@ def wait_after_action():
 
 
 def pack_state(include_screenshot=False, full_page=False):
+    ensure_browser()
     payload = {
         "success": True,
         "url": page.url or "",
@@ -73,8 +131,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def _handle(self, path, payload):
         if path == "/health":
-            return {"success": True, "url": page.url or ""}
+            ensure_warmup_started()
+            return {
+                "success": True,
+                "ready": browser_ready,
+                "url": (page.url or "") if page else "",
+                "error": browser_error,
+            }
 
+        ensure_browser()
         if path == "/navigate":
             page.goto(
                 payload["url"],
@@ -201,19 +266,23 @@ def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
     server = HTTPServer(("0.0.0.0", port), Handler)
     print(f"KILN_BROWSER_CONTROLLER_READY:{port}", flush=True)
+    ensure_warmup_started()
     try:
         server.serve_forever()
     finally:
         try:
-            context.close()
+            if context is not None:
+                context.close()
         except Exception:
             pass
         try:
-            browser.close()
+            if browser is not None:
+                browser.close()
         except Exception:
             pass
         try:
-            playwright.stop()
+            if playwright is not None:
+                playwright.stop()
         except Exception:
             pass
 
@@ -228,6 +297,7 @@ interface BrowserRpcResponse<T = unknown> {
   html?: string;
   screenshot?: string;
   result?: T;
+  ready?: boolean;
   error?: string;
   traceback?: string;
 }
@@ -376,16 +446,23 @@ export class E2BBrowserSession {
   }
 
   private async ensurePlaywright(): Promise<void> {
+    const verifyBrowserCommand = [
+      "python3 -c \"from playwright.sync_api import sync_playwright;",
+      "p = sync_playwright().start();",
+      "b = p.chromium.launch(headless=True);",
+      "b.close();",
+      "p.stop()\" >/dev/null 2>&1",
+    ].join(" ");
     const installCommand = [
-      "python3 -c \"import playwright\" >/dev/null 2>&1",
-      "(python3 -m pip install --disable-pip-version-check playwright && python3 -m playwright install chromium)",
+      `(${verifyBrowserCommand})`,
+      `(python3 -m pip install --disable-pip-version-check playwright && python3 -m playwright install chromium && ${verifyBrowserCommand})`,
     ].join(" || ");
 
     const result = await this.sandbox.commands.run(
       `bash -lc ${JSON.stringify(installCommand)}`,
       {
         cwd: "/home/user",
-        timeoutMs: 240000,
+        timeoutMs: 300000,
       }
     );
 
@@ -408,17 +485,23 @@ export class E2BBrowserSession {
     const startedAt = Date.now();
     let lastError = "Browser controller did not start";
 
-    while (Date.now() - startedAt < 60000) {
+    while (Date.now() - startedAt < E2B_STARTUP_TIMEOUT_MS) {
       try {
         const response = await fetch(`${this.baseUrl}/health`, {
           signal: AbortSignal.timeout(3000),
         });
 
-        if (response.ok) {
+        const payload = await response.json().catch(() => ({ success: false, error: response.statusText })) as BrowserRpcResponse;
+        if (response.ok && payload.ready) {
           return;
         }
 
-        lastError = `Health check returned ${response.status}`;
+        if (payload.error && !payload.ready) {
+          throw new Error(payload.error);
+        }
+
+        lastError = payload.error
+          || (response.ok ? "Browser controller still warming up" : `Health check returned ${response.status}`);
       } catch (error) {
         lastError = error instanceof Error ? error.message : "Health check failed";
       }
@@ -440,7 +523,7 @@ export class E2BBrowserSession {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload || {}),
-      signal: AbortSignal.timeout(35000),
+      signal: AbortSignal.timeout(E2B_RPC_TIMEOUT_MS),
     });
 
     const data = await response.json().catch(() => ({ success: false, error: response.statusText })) as BrowserRpcResponse<T>;
