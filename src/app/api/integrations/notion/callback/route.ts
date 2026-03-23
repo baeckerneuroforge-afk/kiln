@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const stateParam = url.searchParams.get("state");
     const error = url.searchParams.get("error");
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln-topaz.vercel.app";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
 
     if (error) {
       return Response.redirect(`${appUrl}/dashboard/integrations?notion_error=${encodeURIComponent(error)}`);
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     return Response.redirect(redirect);
   } catch (err) {
     console.error("Notion OAuth callback error:", err);
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln-topaz.vercel.app";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
     return Response.redirect(`${appUrl}/dashboard/integrations?notion_error=oauth_failed`);
   }
 }

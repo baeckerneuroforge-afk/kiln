@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -22,7 +22,90 @@ import {
   Zap,
   Database,
   Code2,
+  Monitor,
+  MousePointer2,
+  Shield,
 } from "lucide-react";
+
+// ─── Star Field Background ─────────────────────────────────────────
+function StarField() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let animId: number;
+    let stars: { x: number; y: number; r: number; vx: number; vy: number; opacity: number; twinkleSpeed: number }[] = [];
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+
+    const createStars = () => {
+      stars = [];
+      const count = Math.floor((canvas.width * canvas.height) / 4000);
+      for (let i = 0; i < count; i++) {
+        stars.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          r: Math.random() * 1.5 + 0.3,
+          vx: (Math.random() - 0.5) * 0.15,
+          vy: (Math.random() - 0.5) * 0.1,
+          opacity: Math.random() * 0.6 + 0.2,
+          twinkleSpeed: Math.random() * 0.02 + 0.005,
+        });
+      }
+    };
+    createStars();
+
+    let time = 0;
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      time += 1;
+
+      for (const star of stars) {
+        star.x += star.vx;
+        star.y += star.vy;
+
+        if (star.x < 0) star.x = canvas.width;
+        if (star.x > canvas.width) star.x = 0;
+        if (star.y < 0) star.y = canvas.height;
+        if (star.y > canvas.height) star.y = 0;
+
+        const twinkle = Math.sin(time * star.twinkleSpeed) * 0.3 + 0.7;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity * twinkle})`;
+        ctx.fill();
+      }
+
+      animId = requestAnimationFrame(animate);
+    };
+    animId = requestAnimationFrame(animate);
+
+    window.addEventListener("resize", () => {
+      resize();
+      createStars();
+    });
+
+    return () => {
+      cancelAnimationFrame(animId);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="pointer-events-none fixed inset-0 z-0"
+      style={{ background: "transparent" }}
+    />
+  );
+}
 
 // ─── MCP Tool Reference Data ─────────────────────────────────────
 const TOOL_CATEGORIES = [
@@ -215,6 +298,8 @@ function ToolCategory({ category, defaultOpen = false }: { category: typeof TOOL
 export default function DevelopersPage() {
   return (
     <div className="min-h-screen bg-[#0C0A09] text-white">
+      <StarField />
+      <div className="relative z-10">
       {/* ── Nav ─────────────────────────────────────────────── */}
       <nav className="fixed top-0 z-50 w-full border-b border-white/[0.06] bg-[#0C0A09]/70 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
@@ -339,7 +424,7 @@ export default function DevelopersPage() {
               <div className="rounded-xl border border-white/[0.06] bg-[#0A0A0A] p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-xs text-neutral-500">Terminal</span>
-                  <CopyButton text='claude mcp add kiln-mcp --transport http https://kiln-topaz.vercel.app/api/mcp -H "Authorization: Bearer sk-kiln-YOUR_KEY"' />
+                  <CopyButton text='claude mcp add kiln-mcp --transport http https://kilnbase.com/api/mcp -H "Authorization: Bearer sk-kiln-YOUR_KEY"' />
                 </div>
                 <pre className="overflow-x-auto font-mono text-xs leading-relaxed">
                   <code>
@@ -349,7 +434,7 @@ export default function DevelopersPage() {
                     <span className="text-neutral-500">\</span>{"\n"}
                     {"  "}<span className="text-neutral-400">--transport http</span>{" "}
                     <span className="text-neutral-500">\</span>{"\n"}
-                    {"  "}<span className="text-[#22C55E]">https://kiln-topaz.vercel.app/api/mcp</span>{" "}
+                    {"  "}<span className="text-[#22C55E]">https://kilnbase.com/api/mcp</span>{" "}
                     <span className="text-neutral-500">\</span>{"\n"}
                     {"  "}<span className="text-neutral-400">-H</span>{" "}
                     <span className="text-[#3B82F6]">&quot;Authorization: Bearer sk-kiln-YOUR_KEY&quot;</span>
@@ -367,14 +452,14 @@ export default function DevelopersPage() {
               <div className="rounded-xl border border-white/[0.06] bg-[#0A0A0A] p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-xs text-neutral-500">.cursor/mcp.json or claude_desktop_config.json</span>
-                  <CopyButton text={`{\n  "mcpServers": {\n    "kiln-mcp": {\n      "url": "https://kiln-topaz.vercel.app/api/mcp",\n      "headers": {\n        "Authorization": "Bearer sk-kiln-YOUR_KEY"\n      }\n    }\n  }\n}`} />
+                  <CopyButton text={`{\n  "mcpServers": {\n    "kiln-mcp": {\n      "url": "https://kilnbase.com/api/mcp",\n      "headers": {\n        "Authorization": "Bearer sk-kiln-YOUR_KEY"\n      }\n    }\n  }\n}`} />
                 </div>
                 <pre className="overflow-x-auto font-mono text-xs leading-relaxed">
                   <code>
                     <span className="text-neutral-500">{"{"}</span>{"\n"}
                     {"  "}<span className="text-[#3B82F6]">&quot;mcpServers&quot;</span><span className="text-neutral-500">:</span> <span className="text-neutral-500">{"{"}</span>{"\n"}
                     {"    "}<span className="text-[#3B82F6]">&quot;kiln-mcp&quot;</span><span className="text-neutral-500">:</span> <span className="text-neutral-500">{"{"}</span>{"\n"}
-                    {"      "}<span className="text-[#3B82F6]">&quot;url&quot;</span><span className="text-neutral-500">:</span> <span className="text-[#22C55E]">&quot;https://kiln-topaz.vercel.app/api/mcp&quot;</span><span className="text-neutral-500">,</span>{"\n"}
+                    {"      "}<span className="text-[#3B82F6]">&quot;url&quot;</span><span className="text-neutral-500">:</span> <span className="text-[#22C55E]">&quot;https://kilnbase.com/api/mcp&quot;</span><span className="text-neutral-500">,</span>{"\n"}
                     {"      "}<span className="text-[#3B82F6]">&quot;headers&quot;</span><span className="text-neutral-500">:</span> <span className="text-neutral-500">{"{"}</span>{"\n"}
                     {"        "}<span className="text-[#3B82F6]">&quot;Authorization&quot;</span><span className="text-neutral-500">:</span> <span className="text-[#22C55E]">&quot;Bearer sk-kiln-YOUR_KEY&quot;</span>{"\n"}
                     {"      "}<span className="text-neutral-500">{"}"}</span>{"\n"}
@@ -406,7 +491,7 @@ export default function DevelopersPage() {
                     <span className="text-[#22C55E]">Agent created</span>{" "}
                     <span className="text-neutral-400">&#8212; &quot;Acme Support&quot;</span>{"\n"}
                     <span className="text-neutral-500">  Status:</span> <span className="text-[#F97316]">LIVE</span>{"\n"}
-                    <span className="text-neutral-500">  URL:</span> <span className="text-[#3B82F6]">kiln.hephaistos-systems.de/a/acme-support</span>{"\n"}
+                    <span className="text-neutral-500">  URL:</span> <span className="text-[#3B82F6]">kilnbase.com/a/acme-support</span>{"\n"}
                     <span className="text-neutral-500">  Actions:</span> <span className="text-neutral-400">COLLECT_EMAIL, SCORE_LEAD, HANDOFF_HUMAN</span>{"\n"}
                     <span className="text-neutral-500">  Knowledge:</span> <span className="text-neutral-400">Crawling acme.com... 12 pages indexed</span>
                   </div>
@@ -575,6 +660,94 @@ export default function DevelopersPage() {
             {TOOL_CATEGORIES.map((category, i) => (
               <ToolCategory key={category.name} category={category} defaultOpen={i === 0} />
             ))}
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Computer Use & Sandbox ─────────────────────────── */}
+      <Section className="border-t border-white/[0.06] py-24">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="mb-16 text-center">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#DC2626]">Computer Use</p>
+            <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
+              Computer Use &
+              <br />
+              <span className="bg-gradient-to-r from-[#DC2626] to-[#F97316] bg-clip-text text-transparent">Sandbox Execution</span>
+            </h2>
+            <p className="mt-4 max-w-2xl mx-auto text-lg text-neutral-400">
+              Give your agents real computer capabilities. Browse websites, fill forms, extract data,
+              and execute code in isolated sandboxes — all orchestrated through KILN.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              {
+                icon: Monitor,
+                title: "Browser Automation",
+                desc: "Agents navigate real websites, click buttons, fill forms, and extract structured data. Powered by Playwright with anti-detection.",
+                color: "#DC2626",
+              },
+              {
+                icon: MousePointer2,
+                title: "Visual Understanding",
+                desc: "Screenshot-based reasoning. Agents see the page like a human, identify elements, and take action based on visual context.",
+                color: "#F97316",
+              },
+              {
+                icon: Code2,
+                title: "Code Sandbox",
+                desc: "Execute Python, JavaScript, and TypeScript in isolated E2B sandboxes. Install packages, process files, run data pipelines.",
+                color: "#22C55E",
+              },
+              {
+                icon: Shield,
+                title: "Isolated Execution",
+                desc: "Every sandbox is a fresh VM with resource limits. No cross-session contamination. Auto-cleanup after execution completes.",
+                color: "#3B82F6",
+              },
+              {
+                icon: Database,
+                title: "Persistent Workspace",
+                desc: "Agents save files, reports, and artifacts to persistent workspaces. Version history, download API, and plan-gated storage limits.",
+                color: "#A78BFA",
+              },
+              {
+                icon: Zap,
+                title: "Checkpoint & Resume",
+                desc: "Long-running browser and code tasks checkpoint automatically. If the serverless function times out, execution resumes from the last checkpoint.",
+                color: "#14B8A6",
+              },
+            ].map((card, i) => (
+              <motion.div
+                key={card.title}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08, duration: 0.5 }}
+                whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                className="group rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all hover:border-white/[0.12]"
+              >
+                <div
+                  className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl transition-transform group-hover:scale-110"
+                  style={{ backgroundColor: `${card.color}15` }}
+                >
+                  <card.icon className="h-5 w-5" style={{ color: card.color }} />
+                </div>
+                <h3 className="mb-2 text-lg font-semibold">{card.title}</h3>
+                <p className="text-sm leading-relaxed text-neutral-400">{card.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="mt-12 flex items-center justify-center gap-4">
+            <Link
+              href="/computer-use"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-6 py-3 text-sm font-medium text-neutral-300 transition-all hover:border-white/20 hover:text-white"
+            >
+              Learn more about Computer Use
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       </Section>
@@ -751,6 +924,7 @@ export default function DevelopersPage() {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 }

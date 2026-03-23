@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 
 const RESEND_API = "https://api.resend.com";
 const EMAIL_DOMAIN = "getkiln.com";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://kiln-topaz.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
 
 // GET: List team members for an agent
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -187,7 +187,7 @@ export class NotificationRouter {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "KILN <noreply@kiln.hephaistos-systems.de>",
+        from: "KILN <noreply@kilnbase.com>",
         to: [user.email],
         subject: payload.title,
         html,

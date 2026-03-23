@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   }
 
   const resendKey = process.env.RESEND_API_KEY;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln.hephaistos-systems.de";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
 
   try {
     // Alle User mit Enterprise Insights
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              from: "KILN <noreply@kiln.hephaistos-systems.de>",
+              from: "KILN <noreply@kilnbase.com>",
               to: [user.email],
               subject,
               html,

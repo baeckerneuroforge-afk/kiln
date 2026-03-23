@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     <div style="display:inline-block;width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#F97316,#DC2626);line-height:48px;text-align:center;font-family:serif;font-size:24px;font-weight:700;color:#fff;margin-bottom:16px">K</div>
     <h1 style="font-family:serif;font-size:24px;color:#F5F5F5;margin:0 0 8px">Unsubscribed</h1>
     <p style="color:#A3A3A3;font-size:14px;margin:0 0 24px">You won&rsquo;t receive weekly KB reports anymore.</p>
-    <p style="color:#737373;font-size:12px">You can re-enable this in <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://kiln.hephaistos-systems.de"}/dashboard/settings" style="color:#F97316">Settings</a>.</p>
+    <p style="color:#737373;font-size:12px">You can re-enable this in <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com"}/dashboard/settings" style="color:#F97316">Settings</a>.</p>
   </div>
 </body>
 </html>`;

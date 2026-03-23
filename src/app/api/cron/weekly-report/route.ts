@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "RESEND_API_KEY not configured" }, { status: 500 });
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln.hephaistos-systems.de";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
 
   try {
     // Alle User mit mindestens 1 LIVE Agent und aktiviertem Weekly Report
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "KILN <noreply@kiln.hephaistos-systems.de>",
+            from: "KILN <noreply@kilnbase.com>",
             to: [user.email],
             subject,
             html,

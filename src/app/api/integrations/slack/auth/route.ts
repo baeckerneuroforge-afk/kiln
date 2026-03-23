@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "Slack integration not configured" }, { status: 500 });
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln-topaz.vercel.app";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
   const redirectUri = `${appUrl}/api/integrations/slack/callback`;
 
   // Pass agentId through state param so we know which agent to connect after OAuth

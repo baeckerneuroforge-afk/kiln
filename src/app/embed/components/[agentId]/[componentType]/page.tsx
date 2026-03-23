@@ -402,7 +402,7 @@ function PoweredByFooter({ isDark }: { isDark: boolean }) {
   return (
     <div className={`mt-4 text-center text-xs ${subText}`}>
       <a
-        href="https://kiln.hephaistos-systems.de"
+        href="https://kilnbase.com"
         target="_blank"
         rel="noopener noreferrer"
         className="transition-colors hover:text-orange-500"

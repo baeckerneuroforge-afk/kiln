@@ -31,7 +31,7 @@ export async function POST(
 
     try {
       const records = await dns.resolveCname(cleanDomain);
-      const expectedTarget = process.env.VERCEL_DOMAIN || "kiln-topaz.vercel.app";
+      const expectedTarget = process.env.VERCEL_DOMAIN || "kilnbase.com";
 
       const isValid = records.some(
         (record) => record.toLowerCase() === expectedTarget.toLowerCase()

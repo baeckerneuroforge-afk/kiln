@@ -32,7 +32,7 @@ interface WebhooksTabProps {
   agentId: string;
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://kiln-topaz.vercel.app";
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
 
 export function WebhooksTab({ agentId }: WebhooksTabProps) {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);

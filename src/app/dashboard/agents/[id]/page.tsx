@@ -1558,7 +1558,7 @@ export default function AgentDetailPage() {
                       <li className="ml-7">
                         <div className="rounded-lg border border-border bg-card px-3 py-2 font-mono text-[11px]">
                           <div><span className="text-muted-foreground">Name:</span> <span className="text-foreground">{customDomain.trim() ? customDomain.trim().split(".")[0] : "bot"}</span></div>
-                          <div><span className="text-muted-foreground">Target:</span> <span className="text-kiln-orange">kiln-topaz.vercel.app</span></div>
+                          <div><span className="text-muted-foreground">Target:</span> <span className="text-kiln-orange">kilnbase.com</span></div>
                           <div><span className="text-muted-foreground">TTL:</span> <span className="text-foreground">Auto</span></div>
                         </div>
                       </li>

@@ -14,7 +14,7 @@ KILN exposes a [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) 
 Add via command line:
 
 ```bash
-claude mcp add --transport http kiln https://kiln-topaz.vercel.app/api/mcp --header "Authorization: Bearer sk-kiln-YOUR_API_KEY"
+claude mcp add --transport http kiln https://kilnbase.com/api/mcp --header "Authorization: Bearer sk-kiln-YOUR_API_KEY"
 ```
 
 Or add to your `~/.claude.json` or project `.mcp.json`:
@@ -24,7 +24,7 @@ Or add to your `~/.claude.json` or project `.mcp.json`:
   "mcpServers": {
     "kiln": {
       "type": "streamableHttp",
-      "url": "https://kiln-topaz.vercel.app/api/mcp",
+      "url": "https://kilnbase.com/api/mcp",
       "headers": {
         "Authorization": "Bearer sk-kiln-YOUR_API_KEY"
       }
@@ -42,7 +42,7 @@ Add to your Cursor MCP settings (`.cursor/mcp.json` in your project or global co
   "mcpServers": {
     "kiln": {
       "type": "streamableHttp",
-      "url": "https://kiln-topaz.vercel.app/api/mcp",
+      "url": "https://kilnbase.com/api/mcp",
       "headers": {
         "Authorization": "Bearer sk-kiln-YOUR_API_KEY"
       }

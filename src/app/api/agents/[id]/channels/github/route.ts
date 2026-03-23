@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://kiln-topaz.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
 
 // POST: Connect GitHub to agent — register webhook on repo
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

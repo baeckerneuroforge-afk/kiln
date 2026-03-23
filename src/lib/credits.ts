@@ -243,6 +243,11 @@ export async function deductCredits(
         sendCreditWarningEmail(updated.email, newBalance, totalCredits, "low")
       );
     }
+    if (prevPct > 0.05 && pct <= 0.05 && newBalance > 0) {
+      notificationTasks.push(
+        sendCreditWarningEmail(updated.email, newBalance, totalCredits, "critical")
+      );
+    }
     if (newBalance <= 0 && (newBalance + cost) > 0) {
       notificationTasks.push(
         sendCreditWarningEmail(updated.email, 0, totalCredits, "empty")
@@ -258,6 +263,11 @@ export async function deductCredits(
       }
     }
   }
+
+  // Auto Top-Up prüfen und ggf. auslösen
+  checkAutoTopUp(userId, newBalance).catch((err) => {
+    console.error("Auto top-up check failed:", err);
+  });
 
   const creditsLow = totalCredits > 0 && newBalance > 0 && (newBalance / totalCredits) <= 0.2;
   return { newBalance, creditsLow, totalCredits };
@@ -367,46 +377,195 @@ export async function getAgentCreditUsage(agentId: string) {
   return { creditsUsed: result._sum.creditsUsed || 0, messageCount: result._count };
 }
 
+// ─── Auto Top-Up ────────────────────────────────────────────
+
+/** Top-Up Package Preise (match CREDIT_PACKAGES) */
+const TOP_UP_PRICES: Record<number, number> = {
+  500: 900,    // €9 in Cents
+  2000: 2900,  // €29 in Cents
+  5000: 5900,  // €59 in Cents
+};
+
+/**
+ * Prüft ob Auto-Top-Up ausgelöst werden soll.
+ * Wird nach jeder Credit-Deduktion aufgerufen.
+ */
+export async function checkAutoTopUp(userId: string, currentBalance: number): Promise<void> {
+  const config = await prisma.autoTopUpConfig.findUnique({ where: { userId } });
+  if (!config || !config.isEnabled) return;
+  if (currentBalance >= config.triggerThreshold) return;
+  if (!config.stripePaymentMethodId) return;
+
+  // Monatszähler zurücksetzen wenn neuer Monat
+  const now = new Date();
+  if (config.topUpsResetDate) {
+    const resetDate = new Date(config.topUpsResetDate);
+    if (now.getMonth() !== resetDate.getMonth() || now.getFullYear() !== resetDate.getFullYear()) {
+      await prisma.autoTopUpConfig.update({
+        where: { userId },
+        data: { topUpsThisMonth: 0, topUpsResetDate: now },
+      });
+      config.topUpsThisMonth = 0;
+    }
+  }
+
+  if (config.topUpsThisMonth >= config.maxPerMonth) return;
+
+  const amountCents = TOP_UP_PRICES[config.creditAmount];
+  if (!amountCents) return;
+
+  // Stripe Charge erstellen
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecretKey) return;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { stripeCustomerId: true, email: true } });
+    if (!user?.stripeCustomerId) return;
+
+    const Stripe = (await import("stripe")).default;
+    const stripe = new Stripe(stripeSecretKey);
+
+    await stripe.paymentIntents.create({
+      amount: amountCents,
+      currency: "eur",
+      customer: user.stripeCustomerId,
+      payment_method: config.stripePaymentMethodId,
+      off_session: true,
+      confirm: true,
+      description: `KILN Auto Top-Up: ${config.creditAmount} Credits`,
+      metadata: { userId, credits: String(config.creditAmount), type: "auto_top_up" },
+    });
+
+    // Credits hinzufügen und Zähler erhöhen
+    await Promise.all([
+      addPurchasedCredits(userId, config.creditAmount),
+      prisma.autoTopUpConfig.update({
+        where: { userId },
+        data: {
+          topUpsThisMonth: { increment: 1 },
+          lastTopUpAt: now,
+          topUpsResetDate: config.topUpsResetDate || now,
+        },
+      }),
+    ]);
+
+    console.log(`Auto top-up successful: ${config.creditAmount} credits for user ${userId}`);
+
+    // Bestätigungs-Email senden
+    const priceFmt = (amountCents / 100).toFixed(0);
+    if (user.email) {
+      sendAutoTopUpNotification(user.email, config.creditAmount, Number(priceFmt)).catch(() => {});
+    }
+  } catch (err) {
+    console.error(`Auto top-up failed for user ${userId}:`, err);
+
+    // Bei Zahlung-Fehler: Auto-Top-Up deaktivieren und User informieren
+    await prisma.autoTopUpConfig.update({
+      where: { userId },
+      data: { isEnabled: false },
+    });
+
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    if (user?.email) {
+      sendAutoTopUpFailedNotification(user.email).catch(() => {});
+    }
+  }
+}
+
+async function sendAutoTopUpNotification(email: string, credits: number, priceEur: number): Promise<void> {
+  const resendKey = process.env.RESEND_API_KEY;
+  if (!resendKey) return;
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: "KILN <noreply@kilnbase.com>",
+      to: [email],
+      subject: `KILN: Auto top-up — ${credits} credits added (€${priceEur})`,
+      html: `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px">
+        <h2 style="color:#22C55E">Auto Top-Up Successful</h2>
+        <p><strong>${credits} credits</strong> have been added to your account (€${priceEur}).</p>
+        <p style="color:#888;font-size:12px">You can manage auto top-up in your <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com"}/dashboard/settings?tab=billing">billing settings</a>.</p>
+        <p style="color:#888;font-size:12px">— The KILN Team</p>
+      </div>`,
+    }),
+  });
+}
+
+async function sendAutoTopUpFailedNotification(email: string): Promise<void> {
+  const resendKey = process.env.RESEND_API_KEY;
+  if (!resendKey) return;
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: "KILN <noreply@kilnbase.com>",
+      to: [email],
+      subject: "KILN: Auto top-up payment failed — auto top-up disabled",
+      html: `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px">
+        <h2 style="color:#DC2626">Auto Top-Up Payment Failed</h2>
+        <p>We couldn't charge your payment method. Auto top-up has been disabled.</p>
+        <p>Please update your payment method in <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com"}/dashboard/settings?tab=billing">billing settings</a> and re-enable auto top-up.</p>
+        <p style="color:#888;font-size:12px">— The KILN Team</p>
+      </div>`,
+    }),
+  });
+}
+
 // ─── Email Notifications ────────────────────────────────────
 
 async function sendCreditWarningEmail(
   email: string,
   balance: number,
   total: number,
-  type: "low" | "empty"
+  type: "low" | "critical" | "empty"
 ) {
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey) return;
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln.hephaistos-systems.de";
-  const subject = type === "empty"
-    ? "KILN: Your AI credits are exhausted — upgrade or add your API key"
-    : `KILN: Your AI credits are running low (${balance} remaining)`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
 
-  const html = type === "empty"
-    ? `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px">
-        <h2 style="color:#F97316">Your AI Credits Are Exhausted</h2>
-        <p>Your KILN agents can no longer respond until you have more credits.</p>
-        <p><strong>Three options:</strong></p>
-        <ul>
-          <li><a href="${appUrl}/dashboard/settings?tab=billing">Upgrade your credit tier</a></li>
-          <li><a href="${appUrl}/dashboard/settings?tab=billing">Buy a credit top-up</a> (starting at €9)</li>
-          <li><a href="${appUrl}/dashboard/settings?tab=api-keys">Add your own API key</a> for unlimited usage</li>
-        </ul>
-        <p style="color:#888;font-size:12px">— The KILN Team</p>
-      </div>`
-    : `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px">
-        <h2 style="color:#EAB308">Your AI Credits Are Running Low</h2>
-        <p>You have <strong>${balance} of ${total}</strong> AI credits remaining this month.</p>
-        <p>Consider <a href="${appUrl}/dashboard/settings?tab=billing">upgrading your credit tier</a> or <a href="${appUrl}/dashboard/settings?tab=api-keys">adding your API key</a>.</p>
-        <p style="color:#888;font-size:12px">— The KILN Team</p>
-      </div>`;
+  let subject: string;
+  let html: string;
+
+  if (type === "empty") {
+    subject = "KILN: Your AI credits are exhausted — agents paused";
+    html = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px">
+      <h2 style="color:#DC2626">Your AI Credits Are Exhausted</h2>
+      <p>Your KILN agents are paused and can no longer respond until you have more credits.</p>
+      <p><strong>Three options:</strong></p>
+      <ul>
+        <li><a href="${appUrl}/dashboard/settings?tab=billing">Upgrade your credit tier</a></li>
+        <li><a href="${appUrl}/dashboard/settings?tab=billing">Buy a credit top-up</a> (starting at €9)</li>
+        <li><a href="${appUrl}/dashboard/settings?tab=api-keys">Add your own API key</a> for unlimited usage</li>
+      </ul>
+      <p style="color:#888;font-size:12px">Tip: Enable Auto Top-Up in billing settings to prevent this in the future.</p>
+      <p style="color:#888;font-size:12px">— The KILN Team</p>
+    </div>`;
+  } else if (type === "critical") {
+    subject = `KILN: Only ${balance} credits left — agents will stop soon`;
+    html = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px">
+      <h2 style="color:#DC2626">Only ${balance} Credits Left</h2>
+      <p>You have <strong>${balance} of ${total}</strong> AI credits remaining. Your agents will stop when credits reach 0.</p>
+      <p><a href="${appUrl}/dashboard/settings?tab=billing" style="display:inline-block;background:#F97316;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Top Up Now</a></p>
+      <p style="color:#888;font-size:12px">Or <a href="${appUrl}/dashboard/settings?tab=api-keys">add your own API key</a> for unlimited usage.</p>
+      <p style="color:#888;font-size:12px">— The KILN Team</p>
+    </div>`;
+  } else {
+    subject = `KILN: Your AI credits are running low (${balance} remaining)`;
+    html = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px">
+      <h2 style="color:#EAB308">Your AI Credits Are Running Low</h2>
+      <p>You have <strong>${balance} of ${total}</strong> AI credits remaining this month.</p>
+      <p>Consider <a href="${appUrl}/dashboard/settings?tab=billing">upgrading your credit tier</a> or <a href="${appUrl}/dashboard/settings?tab=api-keys">adding your API key</a>.</p>
+      <p style="color:#888;font-size:12px">— The KILN Team</p>
+    </div>`;
+  }
 
   await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: "KILN <noreply@kiln.hephaistos-systems.de>",
+      from: "KILN <noreply@kilnbase.com>",
       to: [email],
       subject,
       html,

@@ -1436,6 +1436,24 @@ model ParallelExecution {
   @@index([workflowRunId])
 }
 
+// Auto Top-Up Config — automatische Credit-Nachladung
+model AutoTopUpConfig {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  isEnabled              Boolean  @default(false)
+  creditAmount           Int      @default(500)    // Wie viele Credits nachgeladen werden
+  triggerThreshold       Int      @default(50)     // Trigger wenn Balance unter diesen Wert fällt
+  maxPerMonth            Int      @default(3)      // Max Top-Ups pro Monat
+  topUpsThisMonth        Int      @default(0)      // Zähler, wird am 1. zurückgesetzt
+  topUpsResetDate        DateTime?                 // Wann der Zähler zuletzt zurückgesetzt wurde
+  stripePaymentMethodId  String?                   // Gespeicherte Zahlungsmethode
+  lastTopUpAt            DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([userId])
+}
+
 // Cost Record — Per-Call Kostenerfassung
 model CostRecord {
   id             String   @id @default(cuid())

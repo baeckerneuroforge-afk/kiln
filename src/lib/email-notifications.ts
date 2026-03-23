@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 
-const FROM = "KILN <noreply@kiln.hephaistos-systems.de>";
+const FROM = "KILN <noreply@kilnbase.com>";
 
 async function sendEmail(to: string, subject: string, html: string) {
   const resendKey = process.env.RESEND_API_KEY;
@@ -200,7 +200,7 @@ export async function sendWeeklySummaryEmail(userId: string, stats: {
   if (!email) return;
 
   const subject = `Weekly Report — ${stats.totalConversations} conversations, ${stats.newLeads} leads`;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln.hephaistos-systems.de";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
 
   const html = `
     <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:480px;color:#1a1a1a">
@@ -314,7 +314,7 @@ export async function sendTeamInviteEmail(
   role: string,
   inviteToken: string
 ) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.kiln.hephaistos-systems.de";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
   const acceptUrl = `${baseUrl}/api/teams/invite/accept?token=${inviteToken}`;
 
   const roleLabels: Record<string, string> = {

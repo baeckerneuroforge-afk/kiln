@@ -1284,21 +1284,23 @@ export async function POST(
             });
           }
 
-          // Deduct AI credits (skip if BYOK)
+          // Deduct AI credits (skip if BYOK) — inline to capture result for SSE
+          let creditResult: { newBalance: number; creditsLow?: boolean; totalCredits?: number } | null = null;
           if (!creditCheck.byokActive && creditCheck.cost > 0) {
-            waitUntil(
-              deductCredits(agent.userId, selectedModel, "CHAT", params.id, conversationId).then((result) => {
-                if (result.creditsLow) {
+            try {
+              creditResult = await deductCredits(agent.userId, selectedModel, "CHAT", params.id, conversationId);
+              if (creditResult.creditsLow) {
+                waitUntil(
                   emitEvent("credits.low", agent.userId, params.id, {
-                    balance: result.newBalance,
-                    total: result.totalCredits,
-                    percentRemaining: result.totalCredits ? Math.round((result.newBalance / result.totalCredits) * 100) : 0,
-                  });
-                }
-              }).catch((err) => {
-                Sentry.captureException(err, { tags: { component: "credit-deduction", agentId: params.id }, extra: { userId: agent.userId, model: selectedModel } });
-              })
-            );
+                    balance: creditResult.newBalance,
+                    total: creditResult.totalCredits,
+                    percentRemaining: creditResult.totalCredits ? Math.round((creditResult.newBalance / creditResult.totalCredits) * 100) : 0,
+                  })
+                );
+              }
+            } catch (err) {
+              Sentry.captureException(err, { tags: { component: "credit-deduction", agentId: params.id }, extra: { userId: agent.userId, model: selectedModel } });
+            }
           }
 
           // Conversation-Metadaten aktualisieren
@@ -1605,6 +1607,20 @@ export async function POST(
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({ intentRouting: intentRoutingEvent })}\n\n`
+              )
+            );
+          }
+
+          // Credit usage info — sent before [DONE] so the client can display it
+          if (creditResult) {
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  credits: {
+                    creditsUsed: creditCheck.cost,
+                    creditsRemaining: creditResult.newBalance,
+                  },
+                })}\n\n`
               )
             );
           }

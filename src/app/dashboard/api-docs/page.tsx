@@ -42,19 +42,19 @@ const endpoints = [
     path: "/api/v1/agents",
     description: "List all your agents",
     examples: {
-      curl: `curl -X GET https://kiln-topaz.vercel.app/api/v1/agents \\
+      curl: `curl -X GET https://kilnbase.com/api/v1/agents \\
   -H "Authorization: Bearer sk-kiln-YOUR_KEY"`,
       python: `import requests
 
 response = requests.get(
-    "https://kiln-topaz.vercel.app/api/v1/agents",
+    "https://kilnbase.com/api/v1/agents",
     headers={"Authorization": "Bearer sk-kiln-YOUR_KEY"}
 )
 
 agents = response.json()["agents"]
 for agent in agents:
     print(f"{agent['name']} ({agent['id']})")`,
-      javascript: `const response = await fetch("https://kiln-topaz.vercel.app/api/v1/agents", {
+      javascript: `const response = await fetch("https://kilnbase.com/api/v1/agents", {
   headers: { "Authorization": "Bearer sk-kiln-YOUR_KEY" }
 });
 
@@ -81,14 +81,14 @@ console.log(agents);`,
     path: "/api/v1/agents/:id/chat",
     description: "Send a message to an agent and get a response",
     examples: {
-      curl: `curl -X POST https://kiln-topaz.vercel.app/api/v1/agents/YOUR_AGENT_ID/chat \\
+      curl: `curl -X POST https://kilnbase.com/api/v1/agents/YOUR_AGENT_ID/chat \\
   -H "Authorization: Bearer sk-kiln-YOUR_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"message": "What are your pricing plans?", "sessionId": "user-123"}'`,
       python: `import requests
 
 response = requests.post(
-    "https://kiln-topaz.vercel.app/api/v1/agents/YOUR_AGENT_ID/chat",
+    "https://kilnbase.com/api/v1/agents/YOUR_AGENT_ID/chat",
     headers={
         "Authorization": "Bearer sk-kiln-YOUR_KEY",
         "Content-Type": "application/json"
@@ -103,7 +103,7 @@ data = response.json()
 print(data["response"])
 print(f"Session: {data['sessionId']}")`,
       javascript: `const response = await fetch(
-  "https://kiln-topaz.vercel.app/api/v1/agents/YOUR_AGENT_ID/chat",
+  "https://kilnbase.com/api/v1/agents/YOUR_AGENT_ID/chat",
   {
     method: "POST",
     headers: {

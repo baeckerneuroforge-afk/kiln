@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 // Bekannte App-Domains (nicht als Custom Domain behandeln)
 const APP_DOMAINS = new Set([
   "localhost",
-  "kiln-topaz.vercel.app",
+  "kilnbase.com",
   process.env.NEXT_PUBLIC_APP_DOMAIN,
 ].filter(Boolean).map((d) => d!.toLowerCase()));
 
@@ -39,6 +39,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks/slack/(.*)",    // Slack Event Subscriptions
   "/api/v1/(.*)",           // Public API (eigene Key-Auth)
   "/api/mcp(.*)",            // MCP Server (eigene Key-Auth)
+  "/api/health",             // Health Check
   "/api/automations/run",   // Cron-Endpoint (eigene Secret-Auth)
   "/api/teams/:id/executions/:execId/approve",
   "/api/teams/:id/executions/:execId/reject",

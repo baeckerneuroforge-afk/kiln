@@ -242,7 +242,7 @@ Format your response in GitHub Markdown. Be concise and actionable.${ragContext}
       try {
         await postGitHubComment(
           parsed.replyUrl,
-          `${assistantText}\n\n---\n*🤖 Powered by [KILN AI](https://kiln-topaz.vercel.app) — ${agent.name}*`,
+          `${assistantText}\n\n---\n*🤖 Powered by [KILN AI](https://kilnbase.com) — ${agent.name}*`,
           githubToken
         );
       } catch (err) {

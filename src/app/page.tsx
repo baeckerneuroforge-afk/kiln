@@ -988,7 +988,7 @@ export default function LandingPageV2() {
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(
-                            'claude mcp add kiln-mcp --transport http https://kiln-topaz.vercel.app/api/mcp -H "Authorization: Bearer sk-kiln-YOUR_KEY"'
+                            'claude mcp add kiln-mcp --transport http https://kilnbase.com/api/mcp -H "Authorization: Bearer sk-kiln-YOUR_KEY"'
                           );
                           setMcpCopied(true);
                           setTimeout(() => setMcpCopied(false), 2000);
@@ -1009,7 +1009,7 @@ export default function LandingPageV2() {
                         <span className="text-neutral-400">--transport http</span>{" "}
                         <span className="text-neutral-500">\</span>
                         {"\n"}{"  "}
-                        <span className="text-[#22C55E]">https://kiln-topaz.vercel.app/api/mcp</span>{" "}
+                        <span className="text-[#22C55E]">https://kilnbase.com/api/mcp</span>{" "}
                         <span className="text-neutral-500">\</span>
                         {"\n"}{"  "}
                         <span className="text-neutral-400">-H</span>{" "}
@@ -1057,7 +1057,7 @@ export default function LandingPageV2() {
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(
-                        'claude mcp add kiln-mcp --transport http https://kiln-topaz.vercel.app/api/mcp -H "Authorization: Bearer sk-kiln-YOUR_KEY"'
+                        'claude mcp add kiln-mcp --transport http https://kilnbase.com/api/mcp -H "Authorization: Bearer sk-kiln-YOUR_KEY"'
                       );
                       setMcpCopied(true);
                       setTimeout(() => setMcpCopied(false), 2000);
@@ -1076,7 +1076,7 @@ export default function LandingPageV2() {
                     <span className="text-neutral-500">\</span>{"\n"}
                     {"  "}<span className="text-neutral-400">--transport http</span>{" "}
                     <span className="text-neutral-500">\</span>{"\n"}
-                    {"  "}<span className="text-[#22C55E]">https://kiln-topaz.vercel.app/api/mcp</span>{" "}
+                    {"  "}<span className="text-[#22C55E]">https://kilnbase.com/api/mcp</span>{" "}
                     <span className="text-neutral-500">\</span>{"\n"}
                     {"  "}<span className="text-neutral-400">-H</span>{" "}
                     <span className="text-[#3B82F6]">&quot;Authorization: Bearer sk-kiln-YOUR_KEY&quot;</span>

@@ -271,7 +271,7 @@ export async function executeOutputAction(
       const targetAgentId = outputConfig.targetAgentId;
       if (targetAgentId) {
         try {
-          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln.hephaistos-systems.de";
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
           const chainResp = await fetch(`${baseUrl}/api/agents/${targetAgentId}/run`, {
             method: "POST",
             headers: {
@@ -419,7 +419,7 @@ export async function executeBranchOutputs(
         case "NEXT_AGENT": {
           const targetId = branch.config.targetAgentId;
           if (targetId) {
-            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln.hephaistos-systems.de";
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
             const r = await fetch(`${baseUrl}/api/agents/${targetId}/run`, {
               method: "POST",
               headers: { "Content-Type": "application/json", Cookie: request.headers.get("cookie") || "" },

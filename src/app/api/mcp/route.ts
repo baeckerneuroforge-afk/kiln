@@ -759,7 +759,7 @@ function createMcpServer(userId: string) {
       const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
       if (!agent) return err("Agent not found or unauthorized.");
 
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln-topaz.vercel.app";
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
       const publicUrl = `${baseUrl}/embed/${agent.slug}`;
       const scriptTag = `<script src="${baseUrl}/api/embed/${agent.slug}" async></script>`;
       const iframeTag = `<iframe src="${publicUrl}" width="400" height="600" frameborder="0"></iframe>`;
@@ -998,7 +998,7 @@ function createMcpServer(userId: string) {
         },
       });
 
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln-topaz.vercel.app";
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
       return ok({
         id: webhook.id,
         url: `${baseUrl}/api/webhooks/agent/${webhook.path}`,
@@ -1028,7 +1028,7 @@ function createMcpServer(userId: string) {
         orderBy: { createdAt: "desc" },
       });
 
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln-topaz.vercel.app";
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
       return ok({
         agentId,
         agentName: agent.name,
@@ -1966,7 +1966,7 @@ Return ONLY a JSON array: [{"title": "...", "description": "...", "assignTo": "A
           },
         });
 
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kiln-topaz.vercel.app";
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
         return ok({
           id: webhook.id,
           name: autoName,

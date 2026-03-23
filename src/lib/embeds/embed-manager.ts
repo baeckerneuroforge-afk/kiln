@@ -64,7 +64,7 @@ export interface TokenValidationResult {
 
 export class EmbedManager {
   private static readonly BASE_URL =
-    process.env.NEXT_PUBLIC_APP_URL || "https://app.kiln.hephaistos-systems.de";
+    process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
 
   /**
    * Neues Embed-Token generieren und in DB speichern

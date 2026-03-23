@@ -164,7 +164,7 @@ export function EmbedConfigurator({
   const baseUrl =
     typeof window !== "undefined"
       ? window.location.origin
-      : "https://app.kiln.hephaistos-systems.de";
+      : "https://kilnbase.com";
 
   const embedCode =
     selectedComponent && selectedToken

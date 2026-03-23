@@ -63,7 +63,7 @@
 - **Fix:** Add all to `.env.example` with descriptions.
 
 ### BC-09 — Inconsistent `NEXT_PUBLIC_APP_URL` fallbacks (LOW)
-- **Issue:** Fallback values differ across files: `kilnbase.com`, `kiln.hephaistos-systems.de`, `app.kiln.hephaistos-systems.de`, `kiln-topaz.vercel.app`, `localhost:3000`
+- **Issue:** Fallback values differ across files: `kilnbase.com`, `kilnbase.com`, `kilnbase.com`, `kilnbase.com`, `localhost:3000`
 - **Fix:** Standardize all fallbacks to one domain.
 
 ### BC-10 — Missing "advanced" WORKFLOW_CATEGORIES entry (LOW)
