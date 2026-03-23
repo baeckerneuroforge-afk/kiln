@@ -107,6 +107,11 @@ Rules:
 }
 
 function buildComputerUseResult(session: ComputerUseSessionLike): QuickUseResult {
+  // Log internal backend warnings server-side only
+  if ("warning" in session && typeof session.warning === "string") {
+    console.log(`[ComputerUse] Backend warning: ${session.warning}`);
+  }
+
   const screenshots = [...session.steps]
     .reverse()
     .filter((step) => typeof step.screenshot === "string" && step.screenshot.length > 0)
@@ -117,7 +122,6 @@ function buildComputerUseResult(session: ComputerUseSessionLike): QuickUseResult
     summary: session.summary || "Computer Use completed.",
     markdown: [
       session.summary || "Computer Use completed.",
-      "warning" in session && typeof session.warning === "string" ? `Warning: ${session.warning}` : null,
       session.urlsVisited.length > 0
         ? `Visited ${session.urlsVisited.length} page${session.urlsVisited.length === 1 ? "" : "s"}.`
         : null,

@@ -6,6 +6,7 @@ import { useAuth } from "@clerk/nextjs";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowUp,
+  Clipboard,
   Coins,
   Download,
   ExternalLink,
@@ -132,6 +133,156 @@ function getFileExtension(name: string): string {
 function isAllowedFile(file: File): boolean {
   const ext = getFileExtension(file.name);
   return (ALLOWED_EXTENSIONS as readonly string[]).includes(ext);
+}
+
+/** Filter out internal backend warnings from user-facing text */
+const INTERNAL_WARNING_PATTERNS = [/E2B/i, /fallback/i, /Browserless/i, /compatibility mode/i];
+
+function isInternalWarning(text: string): boolean {
+  return INTERNAL_WARNING_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+function filterWarnings(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => !isInternalWarning(line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** Generate a download filename from a screenshot name */
+function screenshotFileName(name: string): string {
+  const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const slug = name.replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 40);
+  return `kiln-screenshot-${slug}-${ts}.png`;
+}
+
+/** Download a data URL as a file */
+function downloadDataUrl(dataUrl: string, fileName: string) {
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = fileName;
+  a.click();
+}
+
+/** Copy image data URL to clipboard as PNG */
+async function copyImageToClipboard(dataUrl: string) {
+  try {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    await navigator.clipboard.write([
+      new ClipboardItem({ "image/png": blob }),
+    ]);
+  } catch {
+    // Fallback: some browsers don't support ClipboardItem with images
+  }
+}
+
+/* ── Screenshot Lightbox ── */
+
+function ScreenshotLightbox({
+  src,
+  alt,
+  onClose,
+}: {
+  src: string;
+  alt: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+      >
+        <X className="h-5 w-5" />
+      </button>
+      <Image
+        src={src}
+        alt={alt}
+        width={1920}
+        height={1080}
+        unoptimized
+        className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+}
+
+/* ── Interactive Screenshot Card ── */
+
+function ScreenshotCard({
+  dataUrl,
+  name,
+  onOpenLightbox,
+}: {
+  dataUrl: string;
+  name: string;
+  onOpenLightbox: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <div className="group relative overflow-hidden rounded-2xl border border-white/6 bg-black/20">
+      <button
+        type="button"
+        onClick={onOpenLightbox}
+        className="block w-full cursor-pointer"
+      >
+        <Image
+          src={dataUrl}
+          alt={name}
+          width={1200}
+          height={800}
+          unoptimized
+          className="h-auto w-full object-cover transition-[filter] group-hover:brightness-110"
+        />
+      </button>
+
+      {/* Action buttons — visible on hover */}
+      <div className="absolute right-2 top-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+        <button
+          type="button"
+          onClick={() => downloadDataUrl(dataUrl, screenshotFileName(name))}
+          className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/80"
+          title="Download"
+        >
+          <Download className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={async () => {
+            await copyImageToClipboard(dataUrl);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }}
+          className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/80"
+          title={copied ? "Copied!" : "Copy to clipboard"}
+        >
+          <Clipboard className={cn("h-3.5 w-3.5", copied && "text-emerald-400")} />
+        </button>
+      </div>
+
+      {/* Caption */}
+      <div className="px-3 py-2">
+        <p className="text-xs text-zinc-400">{name}</p>
+      </div>
+    </div>
+  );
 }
 
 function exportResearchAsPdf(result: QuickUseResult) {
@@ -279,83 +430,94 @@ function ResultCard({
   actionBusy?: boolean;
   actionDone?: boolean;
 }) {
+  const [lightboxSrc, setLightboxSrc] = useState<{ src: string; alt: string } | null>(null);
+
+  // Filter internal warnings from user-facing text
+  const cleanSummary = filterWarnings(result.summary);
+  const cleanMarkdown = result.markdown ? filterWarnings(result.markdown) : undefined;
+
   return (
-    <MessageBubble
-      icon={<Sparkles className="h-4 w-4" />}
-      className="bg-[linear-gradient(180deg,rgba(36,26,20,0.97),rgba(24,20,17,0.96))]"
-    >
-      <div className="space-y-4">
-        <div className="space-y-1">
-          {result.title ? <h3 className="text-base font-semibold text-white">{result.title}</h3> : null}
-          <p className="text-sm leading-relaxed text-zinc-300">{result.summary}</p>
-        </div>
+    <>
+      {lightboxSrc ? (
+        <ScreenshotLightbox
+          src={lightboxSrc.src}
+          alt={lightboxSrc.alt}
+          onClose={() => setLightboxSrc(null)}
+        />
+      ) : null}
 
-        {result.markdown ? (
-          <div className="rounded-2xl border border-white/6 bg-black/15 p-4 text-[15px] leading-7 text-zinc-200">
-            <MarkdownMessage content={result.markdown} />
+      <MessageBubble
+        icon={<Sparkles className="h-4 w-4" />}
+        className="bg-[linear-gradient(180deg,rgba(36,26,20,0.97),rgba(24,20,17,0.96))]"
+      >
+        <div className="space-y-4">
+          <div className="space-y-1">
+            {result.title ? <h3 className="text-base font-semibold text-white">{result.title}</h3> : null}
+            <p className="text-sm leading-relaxed text-zinc-300">{cleanSummary}</p>
           </div>
-        ) : null}
 
-        {result.data !== undefined ? (
-          <div className="rounded-2xl border border-white/6 bg-black/20 p-4">
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
-              Structured Data
-            </p>
-            <pre className="overflow-x-auto whitespace-pre-wrap text-xs leading-6 text-zinc-300">
-              {stringifyData(result.data)}
-            </pre>
-          </div>
-        ) : null}
-
-        {/* Generated Files */}
-        {result.generatedFiles?.length ? (
-          <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
-              Generated Files
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {result.generatedFiles.map((file) => (
-                <GeneratedFileCard key={`${file.name}-${file.url}`} file={file} />
-              ))}
+          {cleanMarkdown ? (
+            <div className="rounded-2xl border border-white/6 bg-black/15 p-4 text-[15px] leading-7 text-zinc-200">
+              <MarkdownMessage content={cleanMarkdown} />
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {result.artifacts?.length ? (
-          <div className="grid gap-3 md:grid-cols-2">
-            {result.artifacts.map((artifact) => (
-              <div
-                key={`${artifact.name}-${artifact.url || artifact.dataUrl || ""}`}
-                className="overflow-hidden rounded-2xl border border-white/6 bg-black/20"
-              >
-                {artifact.kind === "image" && artifact.dataUrl ? (
-                  <Image
-                    src={artifact.dataUrl}
-                    alt={artifact.name}
-                    width={1200}
-                    height={800}
-                    unoptimized
-                    className="h-auto w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex items-center justify-between p-4">
-                    <div>
-                      <p className="text-sm font-medium text-white">{artifact.name}</p>
-                      <p className="text-xs text-zinc-400">{artifact.mimeType || artifact.kind}</p>
+          {result.data !== undefined ? (
+            <div className="rounded-2xl border border-white/6 bg-black/20 p-4">
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
+                Structured Data
+              </p>
+              <pre className="overflow-x-auto whitespace-pre-wrap text-xs leading-6 text-zinc-300">
+                {stringifyData(result.data)}
+              </pre>
+            </div>
+          ) : null}
+
+          {/* Generated Files */}
+          {result.generatedFiles?.length ? (
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
+                Generated Files
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {result.generatedFiles.map((file) => (
+                  <GeneratedFileCard key={`${file.name}-${file.url}`} file={file} />
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {result.artifacts?.length ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              {result.artifacts.map((artifact) => (
+                <div key={`${artifact.name}-${artifact.url || artifact.dataUrl || ""}`}>
+                  {artifact.kind === "image" && artifact.dataUrl ? (
+                    <ScreenshotCard
+                      dataUrl={artifact.dataUrl}
+                      name={artifact.name}
+                      onOpenLightbox={() =>
+                        setLightboxSrc({ src: artifact.dataUrl!, alt: artifact.name })
+                      }
+                    />
+                  ) : (
+                    <div className="flex items-center justify-between overflow-hidden rounded-2xl border border-white/6 bg-black/20 p-4">
+                      <div>
+                        <p className="text-sm font-medium text-white">{artifact.name}</p>
+                        <p className="text-xs text-zinc-400">{artifact.mimeType || artifact.kind}</p>
+                      </div>
+                      {artifact.url ? (
+                        <a
+                          href={artifact.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-medium text-orange-300"
+                        >
+                          Open
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      ) : null}
                     </div>
-                    {artifact.url ? (
-                      <a
-                        href={artifact.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs font-medium text-orange-300"
-                      >
-                        Open
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    ) : null}
-                  </div>
-                )}
+                  )}
               </div>
             ))}
           </div>
@@ -420,6 +582,7 @@ function ResultCard({
         </div>
       </div>
     </MessageBubble>
+    </>
   );
 }
 
@@ -835,7 +998,9 @@ export function QuickUseChat({
             }
 
             if (event.type === "progress") {
-              setActiveProgress(event.message);
+              if (!isInternalWarning(event.message)) {
+                setActiveProgress(event.message);
+              }
             }
 
             if (event.type === "finding") {
