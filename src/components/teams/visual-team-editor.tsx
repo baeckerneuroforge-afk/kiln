@@ -371,7 +371,8 @@ type WorkflowNodeData = {
   iconName: string;
   config: Record<string, unknown>;
   hasErrorPath?: boolean;
-  execStatus?: "completed" | "failed" | "running";
+  execStatus?: "completed" | "failed" | "running" | "skipped";
+  execError?: string;
   execDuration?: string;
   [key: string]: unknown;
 };
@@ -392,7 +393,9 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
       ? "ring-2 ring-green-400/60 ring-offset-1 ring-offset-[#1e1d1b]"
       : execStatus === "failed"
         ? "ring-2 ring-red-400/60 ring-offset-1 ring-offset-[#1e1d1b]"
-        : "";
+        : execStatus === "skipped"
+          ? "ring-1 ring-zinc-600/40 ring-offset-1 ring-offset-[#1e1d1b] opacity-60"
+          : "";
 
   // Config preview text
   let preview = "";
@@ -456,10 +459,28 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
       </div>
 
       {/* Config preview */}
-      {preview && (
+      {preview && !data.execError && (
         <div className="px-3 pb-2.5 -mt-1">
           <p className="text-[10px] font-mono text-zinc-500 truncate bg-[#242220] rounded px-2 py-1 border border-[#3d3935]/50">
             {preview}
+          </p>
+        </div>
+      )}
+
+      {/* Error preview — shown below failed nodes */}
+      {execStatus === "failed" && data.execError && (
+        <div className="px-3 pb-2.5 -mt-1" title={data.execError as string}>
+          <p className="text-[10px] text-red-400 truncate bg-red-500/5 rounded px-2 py-1 border border-red-500/15">
+            ✕ {(data.execError as string).slice(0, 60)}{(data.execError as string).length > 60 ? "…" : ""}
+          </p>
+        </div>
+      )}
+
+      {/* Skipped state — upstream node failed */}
+      {execStatus === "skipped" && (
+        <div className="px-3 pb-2.5 -mt-1">
+          <p className="text-[10px] text-zinc-500 italic truncate bg-[#242220] rounded px-2 py-1 border border-[#3d3935]/50">
+            Skipped — upstream node failed
           </p>
         </div>
       )}
@@ -1280,23 +1301,64 @@ function VisualTeamEditorInner({
     }
   }, [members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges, setNodes, setEdges]);
 
-  // Update workflow nodes with execution results
+  // Update workflow nodes with execution results (including error info + downstream skipping)
   useEffect(() => {
     if (!nodeResults || Object.keys(nodeResults).length === 0) return;
+
+    // Collect IDs of failed nodes
+    const failedNodeIds = new Set<string>();
+    for (const [id, result] of Object.entries(nodeResults)) {
+      if (result.status === "failed") failedNodeIds.add(id);
+    }
+
+    // Find all nodes downstream of any failed node via BFS on edges
+    const skippedNodeIds = new Set<string>();
+    if (failedNodeIds.size > 0) {
+      const queue = [...failedNodeIds];
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        for (const edge of edges) {
+          if (edge.source === current && !failedNodeIds.has(edge.target) && !skippedNodeIds.has(edge.target)) {
+            skippedNodeIds.add(edge.target);
+            queue.push(edge.target);
+          }
+        }
+      }
+    }
+
     setNodes((nds) =>
       nds.map((n) => {
+        if (n.type !== "workflowNode") return n;
+
+        // Mark downstream nodes as skipped
+        if (skippedNodeIds.has(n.id)) {
+          return {
+            ...n,
+            data: { ...n.data, execStatus: "skipped" as const },
+          };
+        }
+
         const result = nodeResults[n.id];
-        if (!result || n.type !== "workflowNode") return n;
+        if (!result) return n;
+
+        // Fehler-Details aus Output extrahieren für fehlgeschlagene Nodes
+        let execError: string | undefined;
+        if (result.status === "failed" && result.output) {
+          const out = result.output as Record<string, unknown>;
+          execError = (out.message as string) || (out.error as string) || String(result.output);
+        }
+
         return {
           ...n,
           data: {
             ...n.data,
             execStatus: result.status,
+            ...(execError ? { execError } : {}),
           },
         };
       })
     );
-  }, [nodeResults, setNodes]);
+  }, [nodeResults, edges, setNodes]);
 
   // Push initial history snapshot once nodes are rendered
   const initialHistoryPushed = useRef(false);

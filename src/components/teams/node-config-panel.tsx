@@ -44,6 +44,10 @@ import {
   Sparkles,
   Shield,
   Loader2,
+  AlertTriangle,
+  Lightbulb,
+  ChevronRight,
+  RotateCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -52,14 +56,39 @@ import type { WorkflowNodeType } from "@/lib/workflow-node-types";
 
 /* ========== Types ========== */
 
+interface StructuredError {
+  type: "api_error" | "config_error" | "auth_error" | "timeout" | "credit_error" | "runtime_error" | "connection_error";
+  message: string;
+  details?: string;
+  nodeType: string;
+  field?: string;
+  suggestions: string[];
+}
+
+interface ValidationError {
+  field: string;
+  message: string;
+}
+
 interface TestNodeResult {
   success: boolean;
-  output: Record<string, unknown>;
-  error?: string;
+  output?: Record<string, unknown>;
+  error?: StructuredError;
+  validationErrors?: ValidationError[];
   durationMs: number;
   creditsUsed: number;
   dryRun?: boolean;
 }
+
+const ERROR_TYPE_LABELS: Record<string, { label: string; color: string; bgColor: string; borderColor: string }> = {
+  api_error: { label: "API Error", color: "text-red-400", bgColor: "bg-red-500/10", borderColor: "border-red-500/20" },
+  config_error: { label: "Configuration Error", color: "text-amber-400", bgColor: "bg-amber-500/10", borderColor: "border-amber-500/20" },
+  auth_error: { label: "Authentication Error", color: "text-red-400", bgColor: "bg-red-500/10", borderColor: "border-red-500/20" },
+  timeout: { label: "Timeout", color: "text-blue-400", bgColor: "bg-blue-500/10", borderColor: "border-blue-500/20" },
+  credit_error: { label: "Credit Error", color: "text-amber-400", bgColor: "bg-amber-500/10", borderColor: "border-amber-500/20" },
+  runtime_error: { label: "Runtime Error", color: "text-red-400", bgColor: "bg-red-500/10", borderColor: "border-red-500/20" },
+  connection_error: { label: "Connection Error", color: "text-orange-400", bgColor: "bg-orange-500/10", borderColor: "border-orange-500/20" },
+};
 
 interface NodeConfigPanelProps {
   nodeId: string;
@@ -1766,7 +1795,10 @@ export function NodeConfigPanel({
   const panelRef = useRef<HTMLDivElement>(null);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestNodeResult | null>(null);
-  const [testError, setTestError] = useState<string | null>(null);
+  const [testError, setTestError] = useState<StructuredError | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const [errorCopied, setErrorCopied] = useState(false);
 
   // Close on Escape
   useEffect(() => {
@@ -1780,8 +1812,12 @@ export function NodeConfigPanel({
   const handleConfigChange = useCallback(
     (newConfig: Record<string, unknown>) => {
       onConfigChange(nodeId, newConfig);
+      // Clear field errors when user edits config
+      if (Object.keys(fieldErrors).length > 0) {
+        setFieldErrors({});
+      }
     },
-    [nodeId, onConfigChange]
+    [nodeId, onConfigChange, fieldErrors]
   );
 
   // Test node execution
@@ -1794,10 +1830,12 @@ export function NodeConfigPanel({
     setTesting(true);
     setTestResult(null);
     setTestError(null);
+    setFieldErrors({});
+    setDetailsExpanded(false);
+    setErrorCopied(false);
 
     try {
       const testInput: Record<string, unknown> = {};
-      // If there's last run input data, use it as test input
       if (lastRunInput && typeof lastRunInput === "object") {
         Object.assign(testInput, lastRunInput);
       }
@@ -1813,23 +1851,63 @@ export function NodeConfigPanel({
         }),
       });
 
-      const data = await resp.json();
+      const data = await resp.json() as TestNodeResult & { error?: StructuredError };
 
-      if (!resp.ok) {
-        setTestError(data.error || `HTTP ${resp.status}`);
+      if (data.success) {
+        setTestResult(data);
         setActiveTab("output");
         return;
       }
 
-      setTestResult(data as TestNodeResult);
+      // Handle structured error
+      const structuredErr = data.error;
+      if (structuredErr) {
+        setTestError(structuredErr);
+
+        // Set field-level errors from validation or error.field
+        if (data.validationErrors && data.validationErrors.length > 0) {
+          const fe: Record<string, string> = {};
+          data.validationErrors.forEach((ve: ValidationError) => { fe[ve.field] = ve.message; });
+          setFieldErrors(fe);
+          // Switch to config tab to show field errors
+          setActiveTab("config");
+          return;
+        }
+        if (structuredErr.field) {
+          setFieldErrors({ [structuredErr.field]: structuredErr.message });
+        }
+      }
+
+      setTestResult(data);
       setActiveTab("output");
     } catch (err) {
-      setTestError(err instanceof Error ? err.message : "Test failed");
+      setTestError({
+        type: "connection_error",
+        message: err instanceof Error ? err.message : "Test request failed",
+        nodeType,
+        suggestions: ["Check your internet connection", "Try again in a moment"],
+      });
       setActiveTab("output");
     } finally {
       setTesting(false);
     }
   }, [teamId, nodeId, nodeType, config, lastRunInput, onTestNode]);
+
+  const handleCopyError = useCallback(() => {
+    if (!testError) return;
+    const text = [
+      `Error Type: ${testError.type}`,
+      `Message: ${testError.message}`,
+      testError.details ? `Details: ${testError.details}` : null,
+      `Node Type: ${testError.nodeType}`,
+      testError.field ? `Field: ${testError.field}` : null,
+      testError.suggestions.length > 0 ? `Suggestions:\n${testError.suggestions.map(s => `  - ${s}`).join("\n")}` : null,
+    ].filter(Boolean).join("\n");
+    navigator.clipboard.writeText(text).then(() => {
+      setErrorCopied(true);
+      setTimeout(() => setErrorCopied(false), 2000);
+    });
+  }, [testError]);
 
   const typeMeta = nodeTypeLabels[nodeType];
   const TypeIcon = typeMeta ? iconMap[typeMeta.icon] || Zap : Zap;
@@ -1886,6 +1964,23 @@ export function NodeConfigPanel({
       <div className="flex-1 overflow-y-auto px-4 py-4 scrollbar-thin">
         {activeTab === "config" && (
           <div className="space-y-4">
+            {/* Field validation errors banner */}
+            {Object.keys(fieldErrors).length > 0 && (
+              <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                  <span className="text-[11px] font-medium text-amber-400">Fix these fields before testing</span>
+                </div>
+                {Object.entries(fieldErrors).map(([field, msg]) => (
+                  <div key={field} className="flex items-start gap-1.5 pl-5">
+                    <span className="text-amber-500/60 mt-0.5 shrink-0">•</span>
+                    <span className="text-xs text-amber-300/80">
+                      <span className="font-mono text-amber-400">{field}</span>: {msg}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             {getConfigComponent(nodeType, config, handleConfigChange)}
           </div>
         )}
@@ -1915,16 +2010,84 @@ export function NodeConfigPanel({
 
         {activeTab === "output" && (
           <div className="space-y-3">
-            {/* Test error */}
-            {testError && (
-              <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3">
-                <p className="text-[11px] font-medium uppercase tracking-wider text-red-400 mb-1.5">Test Error</p>
-                <p className="text-xs text-red-300 font-mono">{testError}</p>
-              </div>
-            )}
+            {/* ── Structured Error Analysis ── */}
+            {testError && (() => {
+              const errStyle = ERROR_TYPE_LABELS[testError.type] || ERROR_TYPE_LABELS.runtime_error;
+              return (
+                <div className={cn("rounded-lg border p-4 space-y-3", errStyle.borderColor, errStyle.bgColor)}>
+                  {/* Header: icon + type badge */}
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className={cn("h-4.5 w-4.5 shrink-0 mt-0.5", errStyle.color)} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={cn("text-[9px] font-bold uppercase tracking-wider rounded px-1.5 py-0.5", errStyle.bgColor, errStyle.color, "border", errStyle.borderColor)}>
+                          {errStyle.label}
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium text-zinc-200">{testError.message}</p>
+                    </div>
+                  </div>
 
-            {/* Test result */}
-            {testResult && (
+                  {/* Details (collapsible) */}
+                  {testError.details && (
+                    <div>
+                      <button
+                        onClick={() => setDetailsExpanded(!detailsExpanded)}
+                        className="flex items-center gap-1 text-[10px] font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
+                      >
+                        <ChevronRight className={cn("h-3 w-3 transition-transform", detailsExpanded && "rotate-90")} />
+                        Technical Details
+                      </button>
+                      {detailsExpanded && (
+                        <pre className="mt-1.5 rounded border border-[#332f2b] bg-[#1a1918] p-2.5 text-[10px] text-zinc-400 font-mono overflow-auto max-h-[120px]">
+                          {testError.details}
+                        </pre>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Suggestions */}
+                  {testError.suggestions.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Lightbulb className="h-3 w-3 text-amber-400" />
+                        <span className="text-[10px] font-medium uppercase tracking-wider text-amber-400">Suggestions</span>
+                      </div>
+                      <ul className="space-y-1 pl-1">
+                        {testError.suggestions.map((s, i) => (
+                          <li key={i} className="flex items-start gap-1.5 text-xs text-zinc-400">
+                            <span className="text-zinc-600 mt-0.5 shrink-0">•</span>
+                            <span>{s}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      onClick={handleCopyError}
+                      className="flex items-center gap-1 rounded border border-[#3d3935] bg-[#1e1d1b] px-2 py-1 text-[10px] text-zinc-400 hover:text-zinc-200 hover:bg-[#2a2826] transition-colors"
+                    >
+                      <Copy className="h-3 w-3" />
+                      {errorCopied ? "Copied!" : "Copy Error"}
+                    </button>
+                    <button
+                      onClick={handleTestNode}
+                      disabled={testing}
+                      className="flex items-center gap-1 rounded border border-[#3d3935] bg-[#1e1d1b] px-2 py-1 text-[10px] text-zinc-400 hover:text-zinc-200 hover:bg-[#2a2826] transition-colors disabled:opacity-50"
+                    >
+                      <RotateCw className={cn("h-3 w-3", testing && "animate-spin")} />
+                      Retry Test
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ── Successful test result ── */}
+            {testResult && testResult.success && (
               <>
                 <div className="flex items-center gap-3">
                   <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
@@ -1936,13 +2099,8 @@ export function NodeConfigPanel({
                         Dry Run
                       </span>
                     )}
-                    <span className={cn(
-                      "text-[9px] font-medium uppercase tracking-wider rounded px-1.5 py-0.5",
-                      testResult.success
-                        ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                        : "bg-red-500/10 text-red-400 border border-red-500/20"
-                    )}>
-                      {testResult.success ? "Success" : "Failed"}
+                    <span className="text-[9px] font-medium uppercase tracking-wider rounded px-1.5 py-0.5 bg-green-500/10 text-green-400 border border-green-500/20">
+                      Success
                     </span>
                   </div>
                 </div>
@@ -1953,15 +2111,10 @@ export function NodeConfigPanel({
                 <pre className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 text-xs text-zinc-300 font-mono overflow-auto max-h-[400px]">
                   {JSON.stringify(testResult.output, null, 2)}
                 </pre>
-                {testResult.error && (
-                  <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-2">
-                    <p className="text-xs text-red-300 font-mono">{testResult.error}</p>
-                  </div>
-                )}
               </>
             )}
 
-            {/* Last workflow run result */}
+            {/* ── Last workflow run result (when no test has been run) ── */}
             {!testResult && !testError && (
               <>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
