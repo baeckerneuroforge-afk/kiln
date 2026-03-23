@@ -43,6 +43,7 @@ import {
   FileSearch,
   Sparkles,
   Shield,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -94,6 +95,117 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+/* ========== AI Assist Button ========== */
+function AiAssistButton({
+  fieldType,
+  currentValue,
+  nodeName,
+  onGenerated,
+}: {
+  fieldType: "email_subject" | "email_body" | "system_prompt" | "condition" | "prompt" | "request_body";
+  currentValue?: string;
+  nodeName?: string;
+  onGenerated: (text: string) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [description, setDescription] = useState("");
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/ai/generate-field", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fieldType,
+          context: {
+            currentValue: currentValue || undefined,
+            nodeName: nodeName || undefined,
+            description: description || undefined,
+          },
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error("AI generate failed:", data.error || res.statusText);
+        return;
+      }
+      const data = await res.json();
+      if (data.generatedText) {
+        onGenerated(data.generatedText);
+        setOpen(false);
+        setDescription("");
+      }
+    } catch (err) {
+      console.error("AI generate error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        title="AI Generate"
+        className="flex h-6 w-6 items-center justify-center rounded-md text-orange-400/70 hover:text-orange-400 hover:bg-orange-500/10 transition-colors"
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+      </button>
+
+      {open && (
+        <div
+          ref={popoverRef}
+          className="absolute right-0 top-full mt-1 z-50 w-64 rounded-xl border border-[#3d3935] bg-[#242220] p-3 shadow-xl"
+        >
+          <p className="text-[11px] font-medium text-zinc-300 mb-2">AI Generieren</p>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Beschreibe was du brauchst..."
+            rows={2}
+            className="w-full rounded-lg border border-[#332f2b] bg-[#1a1918] px-2.5 py-1.5 text-xs text-zinc-200 outline-none focus:border-orange-500/50 placeholder:text-zinc-500 resize-none mb-2"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleGenerate();
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={loading}
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-500 disabled:opacity-50 transition-colors"
+          >
+            {loading ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Sparkles className="h-3 w-3" />
+            )}
+            {loading ? "Generiere..." : "Generieren"}
+          </button>
+          <p className="mt-1.5 text-[9px] text-zinc-600 text-center">1 Credit pro Generierung</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TextInput({
   label,
   value,
@@ -127,16 +239,31 @@ function TextArea({
   onChange,
   placeholder,
   rows = 4,
+  aiAssist,
 }: {
   label: string;
   value: string;
   onChange: (val: string) => void;
   placeholder?: string;
   rows?: number;
+  aiAssist?: {
+    fieldType: "email_subject" | "email_body" | "system_prompt" | "condition" | "prompt" | "request_body";
+    nodeName?: string;
+  };
 }) {
   return (
     <div>
-      <FieldLabel>{label}</FieldLabel>
+      <div className="flex items-center justify-between">
+        <FieldLabel>{label}</FieldLabel>
+        {aiAssist && (
+          <AiAssistButton
+            fieldType={aiAssist.fieldType}
+            currentValue={value}
+            nodeName={aiAssist.nodeName}
+            onGenerated={onChange}
+          />
+        )}
+      </div>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -344,6 +471,7 @@ function AIAgentConfig({
         onChange={(v) => update("systemPrompt", v)}
         placeholder="You are a helpful assistant that..."
         rows={6}
+        aiAssist={{ fieldType: "system_prompt", nodeName: (config.name as string) || "AI Agent" }}
       />
       <CheckboxGroup
         label="Available Tools"
@@ -389,6 +517,7 @@ function LLMPromptConfig({
         onChange={(v) => update("systemPrompt", v)}
         placeholder="You are..."
         rows={3}
+        aiAssist={{ fieldType: "system_prompt" }}
       />
       <TextArea
         label="User Prompt"
@@ -396,6 +525,7 @@ function LLMPromptConfig({
         onChange={(v) => update("userPrompt", v)}
         placeholder="Use {{input}} to reference upstream data"
         rows={4}
+        aiAssist={{ fieldType: "prompt" }}
       />
       <SliderField
         label="Temperature"
@@ -719,6 +849,7 @@ function HTTPRequestConfig({
         onChange={(v) => update("body", v)}
         placeholder="Request body..."
         rows={4}
+        aiAssist={{ fieldType: "request_body" }}
       />
     </div>
   );
@@ -737,7 +868,7 @@ function EmailConfig({
     <div className="space-y-4">
       <TextInput label="To" value={(config.to as string) || ""} onChange={(v) => update("to", v)} placeholder="recipient@example.com" />
       <TextInput label="Subject" value={(config.subject as string) || ""} onChange={(v) => update("subject", v)} placeholder="Subject line" />
-      <TextArea label="Body" value={(config.body as string) || ""} onChange={(v) => update("body", v)} placeholder="Email body..." rows={5} />
+      <TextArea label="Body" value={(config.body as string) || ""} onChange={(v) => update("body", v)} placeholder="Email body..." rows={5} aiAssist={{ fieldType: "email_body" }} />
     </div>
   );
 }
@@ -1220,7 +1351,7 @@ function GmailSendConfig({ config, onChange }: { config: Record<string, unknown>
       <TextInput label="CC" value={(config.cc as string) || ""} onChange={(v) => update("cc", v)} placeholder="cc@example.com (optional)" />
       <TextInput label="BCC" value={(config.bcc as string) || ""} onChange={(v) => update("bcc", v)} placeholder="bcc@example.com (optional)" />
       <TextInput label="Subject" value={(config.subject as string) || ""} onChange={(v) => update("subject", v)} placeholder="Subject line" />
-      <TextArea label="Body" value={(config.body as string) || ""} onChange={(v) => update("body", v)} placeholder="Email body..." rows={5} />
+      <TextArea label="Body" value={(config.body as string) || ""} onChange={(v) => update("body", v)} placeholder="Email body..." rows={5} aiAssist={{ fieldType: "email_body" }} />
     </div>
   );
 }

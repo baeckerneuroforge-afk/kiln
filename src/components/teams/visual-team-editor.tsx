@@ -76,6 +76,7 @@ import {
   Terminal,
   Undo2,
   Redo2,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getModelDef } from "@/lib/ai";
@@ -90,6 +91,8 @@ import {
 } from "@/lib/workflow-node-types";
 import { NodeConfigPanel } from "./node-config-panel";
 import { CanvasErrorBoundary, NodeErrorBoundary } from "./canvas-error-boundary";
+import { getNodeIcon } from "@/components/workflows/node-icons";
+import { NodeSearch } from "@/components/workflows/node-search";
 
 /* ========== Types ========== */
 interface OutputSchemaField {
@@ -428,7 +431,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
           style={{ backgroundColor: `${colors.hex}15` }}
         >
-          <span style={{ color: colors.hex }}><IconComp className="h-4.5 w-4.5" /></span>
+          {getNodeIcon(nodeType, "h-4.5 w-4.5") || <span style={{ color: colors.hex }}><IconComp className="h-4.5 w-4.5" /></span>}
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-semibold text-zinc-100 truncate leading-tight">{data.label as string}</p>
@@ -807,7 +810,7 @@ function NodePaletteSidebar({
                             className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded"
                             style={{ backgroundColor: `${def.color}12` }}
                           >
-                            <span style={{ color: def.color }}><Icon className="h-[14px] w-[14px]" /></span>
+                            {getNodeIcon(def.type, "h-[14px] w-[14px]") || <span style={{ color: def.color }}><Icon className="h-[14px] w-[14px]" /></span>}
                           </div>
                           <span className="text-[12px] text-zinc-300 truncate">{def.label}</span>
                         </div>
@@ -1105,13 +1108,17 @@ function VisualTeamEditorInner({
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   // Unified panel state — only ONE panel open at a time
   type ActivePanel = "palette" | "config" | "none";
-  const [activePanel, setActivePanel] = useState<ActivePanel>("palette");
+  const [activePanel, setActivePanel] = useState<ActivePanel>("none");
   const [selectedNode, setSelectedNode] = useState<{
     id: string;
     type: WorkflowNodeType;
     label: string;
     config: Record<string, unknown>;
   } | null>(null);
+
+  // Node search command palette
+  const [nodeSearchOpen, setNodeSearchOpen] = useState(false);
+  const [nodeSearchPosition, setNodeSearchPosition] = useState<{ x: number; y: number } | undefined>();
 
   // Derived helpers
   const sidebarCollapsed = activePanel !== "palette";
@@ -1340,12 +1347,22 @@ function VisualTeamEditorInner({
         setEdges((eds) => eds.map((e) => ({ ...e, selected: true })));
         return;
       }
-      // Escape → deselect all + close config panel
+      // Escape → close node search, deselect all, close config panel
       if (e.key === "Escape") {
+        if (nodeSearchOpen) {
+          setNodeSearchOpen(false);
+          return;
+        }
         setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
         setEdges((eds) => eds.map((e) => ({ ...e, selected: false })));
         setSelectedNode(null);
-        setActivePanel("palette");
+        setActivePanel("none");
+        return;
+      }
+      // "/" → open node search command palette
+      if (e.key === "/" && !ctrl) {
+        e.preventDefault();
+        setNodeSearchOpen(true);
         return;
       }
       // Ctrl+D → duplicate selected nodes
@@ -1390,7 +1407,7 @@ function VisualTeamEditorInner({
 
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [undo, redo, setNodes, setEdges, reactFlowInstance, onWorkflowNodesChange, wfNodes, pushHistory, updateUndoRedoState]);
+  }, [undo, redo, setNodes, setEdges, reactFlowInstance, onWorkflowNodesChange, wfNodes, pushHistory, updateUndoRedoState, nodeSearchOpen]);
 
   // Save positions on drag end (debounced)
   const handleNodeDragStop = useCallback(
@@ -1521,12 +1538,11 @@ function VisualTeamEditorInner({
           defaultConfig: Record<string, unknown>;
         };
 
-        const bounds = reactFlowWrapper.current?.getBoundingClientRect();
-        if (!bounds) return;
+        if (!reactFlowWrapper.current) return;
 
         const position = reactFlowInstance.screenToFlowPosition({
-          x: e.clientX - bounds.left,
-          y: e.clientY - bounds.top,
+          x: e.clientX,
+          y: e.clientY,
         });
 
         const wfNode = createWorkflowNode(payload.type, position);
@@ -1636,8 +1652,66 @@ function VisualTeamEditorInner({
 
   const handleClosePanel = useCallback(() => {
     setSelectedNode(null);
-    setActivePanel("palette");
+    setActivePanel("none");
   }, []);
+
+  // Node search: create node and open config panel
+  const handleNodeSearchSelect = useCallback(
+    (nodeType: string, position?: { x: number; y: number }) => {
+      const def = WORKFLOW_NODE_DEFINITIONS.find((d) => d.type === nodeType);
+      if (!def) return;
+
+      // Default position: center of viewport
+      let pos = position;
+      if (!pos) {
+        const viewport = reactFlowInstance.getViewport();
+        const bounds = reactFlowWrapper.current?.getBoundingClientRect();
+        if (bounds) {
+          pos = reactFlowInstance.screenToFlowPosition({
+            x: bounds.width / 2,
+            y: bounds.height / 2,
+          });
+        } else {
+          pos = { x: -viewport.x / viewport.zoom + 400, y: -viewport.y / viewport.zoom + 300 };
+        }
+      }
+
+      const wfNode = createWorkflowNode(nodeType as WorkflowNodeType, pos);
+      const newFlowNode: Node = {
+        id: wfNode.id,
+        type: "workflowNode",
+        position: pos,
+        data: {
+          label: wfNode.label,
+          nodeType: wfNode.type,
+          category: def.category,
+          description: def.description,
+          iconName: def.icon,
+          config: wfNode.config,
+        },
+      };
+
+      setNodes((nds) => [...nds, newFlowNode]);
+      if (onWorkflowNodesChange && wfNodes) {
+        onWorkflowNodesChange([...wfNodes, wfNode]);
+      }
+
+      // Open config panel for the new node
+      setSelectedNode({
+        id: wfNode.id,
+        type: wfNode.type,
+        label: wfNode.label,
+        config: wfNode.config,
+      });
+      setActivePanel("config");
+
+      setTimeout(() => {
+        pushHistory(reactFlowInstance.getNodes(), reactFlowInstance.getEdges());
+        updateUndoRedoState();
+      }, 50);
+    },
+    [setNodes, onWorkflowNodesChange, wfNodes, reactFlowInstance, pushHistory, updateUndoRedoState]
+  );
 
   const isEmpty = members.length === 0 && (!wfNodes || wfNodes.length === 0) && nodes.length === 0;
 
@@ -1678,10 +1752,12 @@ function VisualTeamEditorInner({
         onDrop={onDrop}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        nodesDraggable
         fitView
         fitViewOptions={{ padding: 0.3 }}
         minZoom={0.15}
         maxZoom={2}
+        nodeDragThreshold={2}
         proOptions={{ hideAttribution: true }}
         className="bg-[#1a1918]"
         isValidConnection={isValidConnection}
@@ -1707,8 +1783,17 @@ function VisualTeamEditorInner({
         onPaneClick={() => {
           if (selectedNode) {
             setSelectedNode(null);
-            setActivePanel("palette");
+            setActivePanel("none");
           }
+        }}
+        onDoubleClick={(e) => {
+          // Double-click on empty canvas → open node search at cursor position
+          const bounds = reactFlowWrapper.current?.getBoundingClientRect();
+          if (bounds) {
+            const pos = reactFlowInstance.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+            setNodeSearchPosition(pos);
+          }
+          setNodeSearchOpen(true);
         }}
         onEdgeClick={(_event, edge) => {
           onEdgeClickProp?.(edge.id, edge.source, edge.target);
@@ -1893,7 +1978,30 @@ function VisualTeamEditorInner({
             </div>
           </Panel>
         )}
+        {/* Add node button — bottom center */}
+        <Panel position="bottom-center" className="!mb-4">
+          <button
+            onClick={() => {
+              setNodeSearchPosition(undefined);
+              setNodeSearchOpen(true);
+            }}
+            className="flex items-center gap-1.5 rounded-xl border border-[#3d3935] bg-[#242220] px-3.5 py-2 text-xs font-medium text-zinc-400 shadow-lg transition-all hover:border-orange-500/40 hover:text-orange-400 hover:shadow-orange-500/5"
+            title="Add node (or press /)"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Node
+            <kbd className="ml-1 rounded bg-[#1a1918] px-1 py-0.5 text-[9px] font-mono text-zinc-600">/</kbd>
+          </button>
+        </Panel>
       </ReactFlow>
+
+      {/* Node Search Command Palette */}
+      <NodeSearch
+        open={nodeSearchOpen}
+        onClose={() => setNodeSearchOpen(false)}
+        onSelectNode={handleNodeSearchSelect}
+        position={nodeSearchPosition}
+      />
 
       {/* Node Config Panel (right side) */}
       {selectedNode && (
