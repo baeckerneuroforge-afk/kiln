@@ -73,7 +73,7 @@ export async function POST(
       return Response.json({ error: "Agent not found" }, { status: 404 });
     }
 
-    const selectedModel = config.model || "claude-sonnet-4-20250514";
+    const selectedModel = config.model || "claude-sonnet-4-6";
     const modelProvider: ProviderKey = (config.modelProvider as ProviderKey) || MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
     const temperature = typeof config.temperature === "number" ? config.temperature : 0.7;
 

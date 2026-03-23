@@ -249,7 +249,7 @@ export async function PATCH(request: NextRequest) {
           personality: config.personality as object ?? undefined,
           welcomeMessage: config.welcomeMessage as string ?? null,
           suggestedQuestions: (config.suggestedQuestions as string[]) || [],
-          llmModel: (config.llmModel as string) || "claude-sonnet-4-20250514",
+          llmModel: (config.llmModel as string) || "claude-sonnet-4-6",
           status: "DRAFT",
           memoryEnabled: (config.memoryEnabled as boolean) || false,
           imageAnalysisEnabled: (config.imageAnalysisEnabled as boolean) || false,

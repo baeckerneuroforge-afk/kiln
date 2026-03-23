@@ -32,7 +32,7 @@ export interface VideoAnalysisResult {
   taskType: string;
 }
 
-const ANALYSIS_MODEL = "claude-sonnet-4-20250514";
+const ANALYSIS_MODEL = "claude-sonnet-4-6";
 const FRAMES_PER_BATCH = 4; // Vision-Modelle: max 4 Bilder pro Request sinnvoll
 
 /* ── Frame Extraction ── */

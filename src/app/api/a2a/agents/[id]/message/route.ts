@@ -143,7 +143,7 @@ export async function POST(
     const client = apiKey ? getClaudeClientWithKey(apiKey) : getClaudeClient();
 
     // Urgent priority → schnellstes Modell
-    let selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+    let selectedModel = agent.llmModel || "claude-sonnet-4-6";
     if (context?.priority === "urgent") {
       selectedModel = "claude-haiku-4-5-20251001";
     }
@@ -154,7 +154,7 @@ export async function POST(
       : [{ role: "user" as const, content: task }];
 
     const response = await client.messages.create({
-      model: selectedModel.startsWith("claude") ? selectedModel : "claude-sonnet-4-20250514",
+      model: selectedModel.startsWith("claude") ? selectedModel : "claude-sonnet-4-6",
       max_tokens: 2048,
       system: systemPrompt,
       messages,

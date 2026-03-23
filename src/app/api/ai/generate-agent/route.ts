@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     // Streaming response
     const stream = await client.messages.stream({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       system: AGENT_GENERATION_SYSTEM_PROMPT,
       messages: messages.map((m: { role: string; content: string }) => ({
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Deduct credits (fire-and-forget)
-    deductCredits(userId, "claude-sonnet-4-20250514", "CHAT").catch((err) => {
+    deductCredits(userId, "claude-sonnet-4-6", "CHAT").catch((err) => {
       console.error("Agent generation credit deduction failed:", err);
     });
 

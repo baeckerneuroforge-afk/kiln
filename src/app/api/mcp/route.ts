@@ -118,7 +118,7 @@ function createMcpServer(userId: string) {
           personality: { tone: "professional", language: "en", formality: "balanced" },
           welcomeMessage: mode === "CHAT" ? `Hi! I'm ${name}. How can I help you today?` : "",
           suggestedQuestions: [],
-          llmModel: "claude-sonnet-4-20250514",
+          llmModel: "claude-sonnet-4-6",
           status: "DRAFT",
           whiteLabel: { primaryColor: "#F97316", position: "bottom-right" },
         },
@@ -440,7 +440,7 @@ function createMcpServer(userId: string) {
       }
 
       // BYOK
-      const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+      const selectedModel = agent.llmModel || "claude-sonnet-4-6";
       const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
       let userApiKey: string | null = null;
       try {
@@ -641,7 +641,7 @@ function createMcpServer(userId: string) {
       if (testCases.length === 0) return err("No test cases found. Create tests with kiln_create_test first.");
 
       // BYOK
-      const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+      const selectedModel = agent.llmModel || "claude-sonnet-4-6";
       const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
       let userApiKey: string | null = null;
       try {
@@ -1186,7 +1186,7 @@ function createMcpServer(userId: string) {
           personality: (cfg.personality || { tone: "professional", language: "en", formality: "balanced" }) as object,
           welcomeMessage: cfg.welcomeMessage || "",
           suggestedQuestions: cfg.suggestedQuestions || [],
-          llmModel: cfg.llmModel || "claude-sonnet-4-20250514",
+          llmModel: cfg.llmModel || "claude-sonnet-4-6",
           modelProvider: (cfg.modelProvider || "ANTHROPIC") as "ANTHROPIC" | "OPENAI" | "PERPLEXITY" | "GOOGLE" | "GROQ",
           memoryEnabled: cfg.memoryEnabled ?? false,
           imageAnalysisEnabled: cfg.imageAnalysisEnabled ?? false,
@@ -1396,7 +1396,7 @@ function createMcpServer(userId: string) {
       name: z.string().describe("Name of the task agent"),
       description: z.string().describe("What the task does"),
       systemPrompt: z.string().optional().describe("Custom system prompt (auto-generated if omitted)"),
-      model: z.string().optional().describe("LLM model ID (default: claude-sonnet-4-20250514)"),
+      model: z.string().optional().describe("LLM model ID (default: claude-sonnet-4-6)"),
       inputSchema: z.object({
         fields: z.array(z.object({
           name: z.string(),
@@ -1465,7 +1465,7 @@ function createMcpServer(userId: string) {
           personality: { tone: "professional", language: "en", formality: "balanced" },
           welcomeMessage: "",
           suggestedQuestions: [],
-          llmModel: model || "claude-sonnet-4-20250514",
+          llmModel: model || "claude-sonnet-4-6",
           status: "DRAFT",
           whiteLabel: { primaryColor: "#F97316" },
           ...(preProcess ? {
@@ -1540,7 +1540,7 @@ function createMcpServer(userId: string) {
       if (agent.agentMode !== "TASK") return err("This tool only works for Task Agents (agentMode=TASK). Use kiln_chat for Chat Agents.");
 
       const startTime = Date.now();
-      const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+      const selectedModel = agent.llmModel || "claude-sonnet-4-6";
       const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
 
       // Pre-process: evaluate conditions
@@ -1832,7 +1832,7 @@ function createMcpServer(userId: string) {
       const client = userApiKey ? getClaudeClientWithKey(userApiKey) : getClaudeClient();
 
       const decomposition = await client.messages.create({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 2048,
         system: `You are a project manager. Given a goal and a list of team members with roles, decompose the goal into 3-8 concrete, actionable subtasks. Assign each to the most appropriate team member.
 
@@ -2085,7 +2085,7 @@ Return ONLY a JSON array: [{"title": "...", "description": "...", "assignTo": "A
       if (agent.agentMode !== "TASK") return err("This tool only works for Task Agents (agentMode=TASK). Use kiln_chat for Chat Agents.");
 
       const startTime = Date.now();
-      const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+      const selectedModel = agent.llmModel || "claude-sonnet-4-6";
       const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
 
       // BYOK

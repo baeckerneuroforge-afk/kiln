@@ -177,7 +177,7 @@ try {
                   example={`await sdk.agents.create({
   name: "Sales Bot",
   systemPrompt: "Du bist ein Sales Agent...",
-  llmModel: "claude-sonnet-4-20250514",
+  llmModel: "claude-sonnet-4-6",
   status: "LIVE",
   actions: ["SCORE_LEAD", "COLLECT_EMAIL"],
 });`}

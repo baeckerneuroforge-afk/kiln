@@ -60,7 +60,7 @@ export async function POST(
       }
 
       // Credit check before LLM call
-      const creditCheck = await checkCredits(userId, "claude-sonnet-4-20250514", false);
+      const creditCheck = await checkCredits(userId, "claude-sonnet-4-6", false);
       if (!creditCheck.allowed) {
         return Response.json(
           { error: creditCheck.message, creditExhausted: true },
@@ -70,7 +70,7 @@ export async function POST(
 
       const claude = getClaudeClient();
       const response = await claude.messages.create({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         max_tokens: 4000,
         system: `You are KILN's Team Architect AI. Given a team name and goal, design the optimal hierarchical agent team structure.
 
@@ -86,10 +86,10 @@ RULES:
   - HEAD, COORDINATOR, REPORTER → always "TASK"
   - EXECUTOR → "TASK" by default, "CHAT" only if the role involves direct customer/user interaction
 - Each agent must have a "suggestedModel" and "suggestedProvider" for the optimal LLM:
-  - HEAD: "claude-opus-4-20250514" (ANTHROPIC) or "gpt-4o" (OPENAI)
-  - COORDINATOR: "claude-sonnet-4-20250514" (ANTHROPIC)
+  - HEAD: "claude-opus-4-6" (ANTHROPIC) or "gpt-4o" (OPENAI)
+  - COORDINATOR: "claude-sonnet-4-6" (ANTHROPIC)
   - EXECUTOR research: "sonar-pro" (PERPLEXITY)
-  - EXECUTOR writing: "claude-sonnet-4-20250514" (ANTHROPIC)
+  - EXECUTOR writing: "claude-sonnet-4-6" (ANTHROPIC)
   - EXECUTOR fast tasks: "claude-haiku-4-5-20251001" (ANTHROPIC) or "llama-3.3-70b-versatile" (GROQ)
   - REPORTER: "gpt-4o-mini" (OPENAI)
 
@@ -134,7 +134,7 @@ JSON format:
       }
 
       // Deduct credits after successful LLM call
-      deductCredits(userId, "claude-sonnet-4-20250514", "TEAM_TASK").catch((err) => {
+      deductCredits(userId, "claude-sonnet-4-6", "TEAM_TASK").catch((err) => {
         console.error("Team generate-members credit deduction failed:", err);
       });
     }

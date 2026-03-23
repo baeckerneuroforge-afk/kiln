@@ -399,7 +399,7 @@ async function runTeamMemberTask(
   }
 
   const selectedModel =
-    options?.modelOverride || agent.llmModel || "claude-sonnet-4-20250514";
+    options?.modelOverride || agent.llmModel || "claude-sonnet-4-6";
   const modelProvider =
     MODEL_PROVIDER_MAP[selectedModel] || agent.modelProvider || "ANTHROPIC";
 

@@ -169,7 +169,7 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
   const [name, setName] = useState(initialAgent.name);
   const [systemPrompt, setSystemPrompt] = useState(initialAgent.systemPrompt);
   const [status, setStatus] = useState(initialAgent.status);
-  const [llmModel, setLlmModel] = useState(initialAgent.llmModel || "claude-sonnet-4-20250514");
+  const [llmModel, setLlmModel] = useState(initialAgent.llmModel || "claude-sonnet-4-6");
   const [modelProvider, setModelProvider] = useState(initialAgent.modelProvider || "ANTHROPIC");
   const [triggerType, setTriggerType] = useState(initialAgent.triggerType || "MANUAL");
   const [triggerConfig, setTriggerConfig] = useState<Record<string, unknown>>(

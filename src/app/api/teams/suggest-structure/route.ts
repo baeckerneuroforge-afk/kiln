@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Credit check before LLM call
-    const creditCheck = await checkCredits(userId, "claude-sonnet-4-20250514", false);
+    const creditCheck = await checkCredits(userId, "claude-sonnet-4-6", false);
     if (!creditCheck.allowed) {
       return Response.json(
         { error: creditCheck.message, creditExhausted: true },
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     const claude = getClaudeClient();
     const response = await claude.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 4000,
       system: `You are KILN's Team Architect AI. Given a team name and goal, you design the optimal hierarchical agent team structure.
 
@@ -58,10 +58,10 @@ RULES:
   - REPORTER → always "TASK"
   - EXECUTOR → "TASK" by default, but use "CHAT" if the role involves direct customer/user interaction (e.g. support chat, onboarding, live sales conversations)
 - Each agent must have a "suggestedModel" and "suggestedProvider" for the optimal LLM:
-  - HEAD (strategy/delegation): "claude-opus-4-20250514" (ANTHROPIC) or "gpt-4o" (OPENAI)
-  - COORDINATOR (balanced): "claude-sonnet-4-20250514" (ANTHROPIC)
+  - HEAD (strategy/delegation): "claude-opus-4-6" (ANTHROPIC) or "gpt-4o" (OPENAI)
+  - COORDINATOR (balanced): "claude-sonnet-4-6" (ANTHROPIC)
   - EXECUTOR doing research: "sonar-pro" (PERPLEXITY) — has built-in web search
-  - EXECUTOR doing writing/content: "claude-sonnet-4-20250514" (ANTHROPIC) — best writing quality
+  - EXECUTOR doing writing/content: "claude-sonnet-4-6" (ANTHROPIC) — best writing quality
   - EXECUTOR doing fast/simple tasks: "claude-haiku-4-5-20251001" (ANTHROPIC) or "llama-3.3-70b-versatile" (GROQ) — fastest, cheapest
   - REPORTER (summarization): "gpt-4o-mini" (OPENAI) — cost-effective summarization
 
@@ -127,7 +127,7 @@ Design the optimal team structure.`,
     }
 
     // Deduct credits after successful LLM call
-    deductCredits(userId, "claude-sonnet-4-20250514", "TEAM_TASK").catch((err) => {
+    deductCredits(userId, "claude-sonnet-4-6", "TEAM_TASK").catch((err) => {
       console.error("Team suggest-structure credit deduction failed:", err);
     });
 

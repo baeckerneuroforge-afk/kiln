@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
     }));
 
     // Get Claude client (BYOK support)
-    const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+    const selectedModel = agent.llmModel || "claude-sonnet-4-6";
     const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
     let anthropicClient: Anthropic;
 
@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
 
     // Call Claude (non-streaming for Slack)
     const response = await anthropicClient.messages.create({
-      model: modelProvider === "ANTHROPIC" ? selectedModel : "claude-sonnet-4-20250514",
+      model: modelProvider === "ANTHROPIC" ? selectedModel : "claude-sonnet-4-6",
       max_tokens: 1024,
       system: systemPrompt,
       messages: claudeMessages,
@@ -263,7 +263,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Deduct credits (fire-and-forget)
-    const usedModel = modelProvider === "ANTHROPIC" ? selectedModel : "claude-sonnet-4-20250514";
+    const usedModel = modelProvider === "ANTHROPIC" ? selectedModel : "claude-sonnet-4-6";
     waitUntil(
       deductCredits(agent.userId, usedModel, "WEBHOOK", agent.id, conversation.id).catch((err) => {
         console.error("Slack events credit deduction failed:", err);

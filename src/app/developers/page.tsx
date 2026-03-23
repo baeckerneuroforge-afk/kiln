@@ -615,14 +615,14 @@ export default function DevelopersPage() {
                   <div className="h-3 w-3 rounded-full bg-[#22C55E]/60" />
                   <span className="ml-3 text-xs text-neutral-500">agent-config.json</span>
                 </div>
-                <CopyButton text={`{\n  "name": "Acme Support",\n  "systemPrompt": "Du bist der Kundenservice...",\n  "llmModel": "claude-sonnet-4-20250514",\n  "temperature": 0.7,\n  "actions": [\n    { "type": "COLLECT_EMAIL", "enabled": true },\n    { "type": "SCORE_LEAD", "enabled": true },\n    { "type": "BOOK_APPOINTMENT", "config": {\n      "calendlyUrl": "https://cal.com/acme"\n    }}\n  ],\n  "whiteLabel": {\n    "primaryColor": "#2563EB",\n    "showPoweredBy": false\n  }\n}`} />
+                <CopyButton text={`{\n  "name": "Acme Support",\n  "systemPrompt": "Du bist der Kundenservice...",\n  "llmModel": "claude-sonnet-4-6",\n  "temperature": 0.7,\n  "actions": [\n    { "type": "COLLECT_EMAIL", "enabled": true },\n    { "type": "SCORE_LEAD", "enabled": true },\n    { "type": "BOOK_APPOINTMENT", "config": {\n      "calendlyUrl": "https://cal.com/acme"\n    }}\n  ],\n  "whiteLabel": {\n    "primaryColor": "#2563EB",\n    "showPoweredBy": false\n  }\n}`} />
               </div>
               <pre className="overflow-x-auto font-mono text-xs leading-relaxed">
                 <code>
                   <span className="text-neutral-500">{"{"}</span>{"\n"}
                   {"  "}<span className="text-[#3B82F6]">&quot;name&quot;</span><span className="text-neutral-500">:</span> <span className="text-[#22C55E]">&quot;Acme Support&quot;</span><span className="text-neutral-500">,</span>{"\n"}
                   {"  "}<span className="text-[#3B82F6]">&quot;systemPrompt&quot;</span><span className="text-neutral-500">:</span> <span className="text-[#22C55E]">&quot;Du bist der Kundenservice...&quot;</span><span className="text-neutral-500">,</span>{"\n"}
-                  {"  "}<span className="text-[#3B82F6]">&quot;llmModel&quot;</span><span className="text-neutral-500">:</span> <span className="text-[#22C55E]">&quot;claude-sonnet-4-20250514&quot;</span><span className="text-neutral-500">,</span>{"\n"}
+                  {"  "}<span className="text-[#3B82F6]">&quot;llmModel&quot;</span><span className="text-neutral-500">:</span> <span className="text-[#22C55E]">&quot;claude-sonnet-4-6&quot;</span><span className="text-neutral-500">,</span>{"\n"}
                   {"  "}<span className="text-[#3B82F6]">&quot;temperature&quot;</span><span className="text-neutral-500">:</span> <span className="text-[#F97316]">0.7</span><span className="text-neutral-500">,</span>{"\n"}
                   {"  "}<span className="text-[#3B82F6]">&quot;actions&quot;</span><span className="text-neutral-500">:</span> <span className="text-neutral-500">[</span>{"\n"}
                   {"    "}<span className="text-neutral-500">{"{"}</span> <span className="text-[#3B82F6]">&quot;type&quot;</span><span className="text-neutral-500">:</span> <span className="text-[#22C55E]">&quot;COLLECT_EMAIL&quot;</span><span className="text-neutral-500">,</span> <span className="text-[#3B82F6]">&quot;enabled&quot;</span><span className="text-neutral-500">:</span> <span className="text-[#F97316]">true</span> <span className="text-neutral-500">{"}"}</span><span className="text-neutral-500">,</span>{"\n"}

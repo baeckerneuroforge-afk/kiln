@@ -63,7 +63,7 @@ export async function POST(
 
     const claude = getClaudeClient();
     const response = await claude.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 2000,
       system: `You are a team coordinator AI. You decompose a goal into actionable subtasks and assign them to team members.
 
@@ -88,7 +88,7 @@ Respond ONLY with a valid JSON array, no other text.`,
 
     // Deduct credits for team task decomposition
     waitUntil(
-      deductCredits(userId, "claude-sonnet-4-20250514", "TEAM_TASK").catch((err) => {
+      deductCredits(userId, "claude-sonnet-4-6", "TEAM_TASK").catch((err) => {
         console.error("Team execution credit deduction failed:", err);
       })
     );

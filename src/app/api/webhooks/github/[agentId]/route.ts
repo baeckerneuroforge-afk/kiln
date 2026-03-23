@@ -190,7 +190,7 @@ Format your response in GitHub Markdown. Be concise and actionable.${ragContext}
     }));
 
     // Get Claude client (BYOK support)
-    const model = agent.llmModel || "claude-sonnet-4-20250514";
+    const model = agent.llmModel || "claude-sonnet-4-6";
     const provider = MODEL_PROVIDER_MAP[model] || "ANTHROPIC";
 
     if (provider !== "ANTHROPIC") {

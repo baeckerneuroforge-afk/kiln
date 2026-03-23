@@ -204,7 +204,7 @@ async function handleTemplate(userId: string, template: string) {
         description: agentDef.description,
         welcomeMessage: `Hello! I'm ${agentDef.name}. How can I help you today?`,
         status: "DRAFT",
-        llmModel: "claude-sonnet-4-20250514",
+        llmModel: "claude-sonnet-4-6",
       },
     });
     createdAgents.push(agent);

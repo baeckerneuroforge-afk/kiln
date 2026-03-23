@@ -51,8 +51,8 @@ import { DomVerifier } from "@/lib/browser/dom-verifier";
 import { PageCache } from "@/lib/browser/page-cache";
 import { ReliabilityMetrics } from "@/lib/browser/reliability-metrics";
 
-const COMPUTER_USE_MODEL = "claude-sonnet-4-20250514";
-const VISION_MODEL = "claude-sonnet-4-20250514";
+const COMPUTER_USE_MODEL = "claude-sonnet-4-6";
+const VISION_MODEL = "claude-sonnet-4-6";
 const MAX_LOOP_STEPS = 25;
 
 /* ── Types ── */

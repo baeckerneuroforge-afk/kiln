@@ -76,7 +76,7 @@ export function estimateStepCost(
  * Mit Smart Element Targeting werden ~60% der Steps DOM-basiert (0 Credits).
  */
 export function estimateComputerUseCost(
-  model: string = "claude-sonnet-4-20250514",
+  model: string = "claude-sonnet-4-6",
   estimatedSteps: number = 10,
   enableVerification: boolean = true,
   useSmartTargeting: boolean = true,
@@ -108,7 +108,7 @@ export function estimateComputerUseCost(
  * Schätzt die Kosten für einen Code Sandbox Lauf.
  */
 export function estimateCodeSandboxCost(
-  model: string = "claude-sonnet-4-20250514",
+  model: string = "claude-sonnet-4-6",
   estimatedIterations: number = 3,
 ): CostEstimate {
   const steps: StepEstimate[] = [];
@@ -144,8 +144,8 @@ export function estimateSwarmCost(
   }
 
   // Orchestrator-Aufrufe
-  steps.push(estimateStepCost("claude-sonnet-4-20250514", "chat"));
-  steps.push(estimateStepCost("claude-sonnet-4-20250514", "chat"));
+  steps.push(estimateStepCost("claude-sonnet-4-6", "chat"));
+  steps.push(estimateStepCost("claude-sonnet-4-6", "chat"));
 
   return aggregateEstimate(steps);
 }

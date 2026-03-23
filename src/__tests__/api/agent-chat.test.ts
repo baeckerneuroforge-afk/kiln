@@ -136,7 +136,7 @@ describe("POST /api/agents/[id]/chat", () => {
       userId: "user_123",
       name: "Support Agent",
       systemPrompt: "You are helpful.",
-      llmModel: "claude-sonnet-4-20250514",
+      llmModel: "claude-sonnet-4-6",
       modelProvider: "ANTHROPIC",
       knowledgeBases: [],
       actions: [],

@@ -160,7 +160,7 @@ export async function updateVisitorMemory(
       .join("\n");
 
     const response = await client.messages.create({
-      model: model || "claude-sonnet-4-20250514",
+      model: model || "claude-sonnet-4-6",
       max_tokens: 512,
       system: `You extract and update a visitor profile from a conversation. You receive the existing profile and a new conversation transcript.
 

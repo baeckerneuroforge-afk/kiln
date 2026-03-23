@@ -44,7 +44,7 @@ async function decomposeScheduledGoal(params: {
 
   const claude = getClaudeClient();
   const response = await claude.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-6",
     max_tokens: 2000,
     system: `You are a team coordinator AI. You decompose a goal into actionable subtasks and assign them to team members.
 
@@ -63,7 +63,7 @@ Respond ONLY with a valid JSON array, no other text.`,
     messages: [{ role: "user", content: params.goal }],
   });
 
-  await deductCredits(team.userId, "claude-sonnet-4-20250514", "TEAM_TASK").catch(
+  await deductCredits(team.userId, "claude-sonnet-4-6", "TEAM_TASK").catch(
     (error) => {
       console.error("Scheduled team decomposition credit deduction failed:", error);
     }

@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
       const systemPrompt = `${agent.systemPrompt}\n\nYou are running as a scheduled automation. The current time is ${new Date().toISOString()}.${knowledgeContext}`;
 
       // BYOK prüfen
-      const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+      const selectedModel = agent.llmModel || "claude-sonnet-4-6";
       const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
       let userApiKey: string | null = null;
 

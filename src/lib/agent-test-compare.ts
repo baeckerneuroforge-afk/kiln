@@ -24,7 +24,7 @@ export interface TestCompareResult {
   provider: ProviderKey;
 }
 
-const DEFAULT_MODEL = "claude-sonnet-4-20250514";
+const DEFAULT_MODEL = "claude-sonnet-4-6";
 
 export function clampTemperature(value: unknown): number {
   const numeric = typeof value === "number" ? value : Number(value);

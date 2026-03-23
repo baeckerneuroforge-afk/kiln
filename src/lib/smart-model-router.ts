@@ -55,8 +55,8 @@ const MODELS: Record<string, ModelSelection> = {
     model: "claude-opus-4-6",
     provider: "anthropic",
     reason: "Höchste Qualität für komplexe Aufgaben",
-    estimatedCostPer1kTokens: 0.075,
-    maxContextTokens: 200000,
+    estimatedCostPer1kTokens: 0.025,
+    maxContextTokens: 1000000,
     supportsVision: true,
     priority: 1,
   },
@@ -65,7 +65,7 @@ const MODELS: Record<string, ModelSelection> = {
     provider: "anthropic",
     reason: "Beste Balance aus Qualität und Geschwindigkeit",
     estimatedCostPer1kTokens: 0.015,
-    maxContextTokens: 200000,
+    maxContextTokens: 1000000,
     supportsVision: true,
     priority: 1,
   },
@@ -78,21 +78,21 @@ const MODELS: Record<string, ModelSelection> = {
     supportsVision: true,
     priority: 1,
   },
-  "gpt-4.1": {
-    model: "gpt-4.1",
+  "gpt-4o": {
+    model: "gpt-4o",
     provider: "openai",
-    reason: "Großer Kontext, gut für lange Dokumente",
-    estimatedCostPer1kTokens: 0.03,
-    maxContextTokens: 1000000,
+    reason: "Starke Reasoning und Vision-Fähigkeiten",
+    estimatedCostPer1kTokens: 0.0025,
+    maxContextTokens: 128000,
     supportsVision: true,
     priority: 2,
   },
-  "gpt-4.1-mini": {
-    model: "gpt-4.1-mini",
+  "gpt-4o-mini": {
+    model: "gpt-4o-mini",
     provider: "openai",
     reason: "Schnelle OpenAI-Alternative",
-    estimatedCostPer1kTokens: 0.004,
-    maxContextTokens: 1000000,
+    estimatedCostPer1kTokens: 0.00015,
+    maxContextTokens: 128000,
     supportsVision: true,
     priority: 2,
   },
@@ -105,12 +105,12 @@ const MODELS: Record<string, ModelSelection> = {
     supportsVision: false,
     priority: 1,
   },
-  "gemini-2.5-pro": {
-    model: "gemini-2.5-pro",
+  "gemini-2.0-pro": {
+    model: "gemini-2.0-pro",
     provider: "google",
-    reason: "Starke Multilingual-Fähigkeiten",
+    reason: "Großer Kontext (2M), starke Multilingual-Fähigkeiten",
     estimatedCostPer1kTokens: 0.00125,
-    maxContextTokens: 1000000,
+    maxContextTokens: 2000000,
     supportsVision: true,
     priority: 2,
   },
@@ -124,12 +124,12 @@ const ROUTING_RULES: Record<TaskType, { primary: string; fallback: string }> = {
   research: { primary: "sonar-pro", fallback: "claude-sonnet-4-6" },
   classification: { primary: "claude-haiku-4-5-20251001", fallback: "claude-sonnet-4-6" },
   routing: { primary: "claude-haiku-4-5-20251001", fallback: "claude-sonnet-4-6" },
-  long_document: { primary: "gpt-4.1", fallback: "gemini-2.5-pro" },
-  image_analysis: { primary: "claude-sonnet-4-6", fallback: "gpt-4.1" },
+  long_document: { primary: "gpt-4o", fallback: "gemini-2.0-pro" },
+  image_analysis: { primary: "claude-sonnet-4-6", fallback: "gpt-4o" },
   creative_writing: { primary: "claude-opus-4-6", fallback: "claude-sonnet-4-6" },
   data_extraction: { primary: "claude-haiku-4-5-20251001", fallback: "claude-sonnet-4-6" },
   structured_output: { primary: "claude-haiku-4-5-20251001", fallback: "claude-sonnet-4-6" },
-  translation: { primary: "gpt-4.1", fallback: "gemini-2.5-pro" },
+  translation: { primary: "gpt-4o", fallback: "gemini-2.0-pro" },
   conversation: { primary: "claude-sonnet-4-6", fallback: "claude-haiku-4-5-20251001" },
   summarization: { primary: "claude-haiku-4-5-20251001", fallback: "claude-sonnet-4-6" },
   general: { primary: "claude-sonnet-4-6", fallback: "claude-haiku-4-5-20251001" },
@@ -173,7 +173,7 @@ export function selectOptimalModel(context: ModelRoutingContext): RoutingDecisio
   // Budget-Anpassungen
   if (budget === "low") {
     // Immer das günstigste Modell
-    rule = { primary: "claude-haiku-4-5-20251001", fallback: "gpt-4.1-mini" };
+    rule = { primary: "claude-haiku-4-5-20251001", fallback: "gpt-4o-mini" };
   } else if (budget === "high" && complexity === "complex") {
     // Höchste Qualität
     rule = { primary: "claude-opus-4-6", fallback: "claude-sonnet-4-6" };
@@ -181,19 +181,19 @@ export function selectOptimalModel(context: ModelRoutingContext): RoutingDecisio
 
   // Speed-Override
   if (requiresSpeed) {
-    rule = { primary: "claude-haiku-4-5-20251001", fallback: "gpt-4.1-mini" };
+    rule = { primary: "claude-haiku-4-5-20251001", fallback: "gpt-4o-mini" };
   }
 
   // Großer Kontext → Modelle mit großem Context-Window
   if (inputTokenEstimate && inputTokenEstimate > 150000) {
-    rule = { primary: "gpt-4.1", fallback: "gemini-2.5-pro" };
+    rule = { primary: "gpt-4o", fallback: "gemini-2.0-pro" };
   }
 
   // Vision-Anforderung
   if (requiresVision) {
     const primaryModel = MODELS[rule.primary];
     if (primaryModel && !primaryModel.supportsVision) {
-      rule = { primary: "claude-sonnet-4-6", fallback: "gpt-4.1" };
+      rule = { primary: "claude-sonnet-4-6", fallback: "gpt-4o" };
     }
   }
 
@@ -240,11 +240,11 @@ function getEscalationModel(currentFallback: string): string {
   const escalation: Record<string, string> = {
     "claude-haiku-4-5-20251001": "claude-sonnet-4-6",
     "claude-sonnet-4-6": "claude-opus-4-6",
-    "claude-opus-4-6": "gpt-4.1",
-    "gpt-4.1-mini": "gpt-4.1",
-    "gpt-4.1": "claude-opus-4-6",
+    "claude-opus-4-6": "gpt-4o",
+    "gpt-4o-mini": "gpt-4o",
+    "gpt-4o": "claude-opus-4-6",
     "sonar-pro": "claude-sonnet-4-6",
-    "gemini-2.5-pro": "claude-sonnet-4-6",
+    "gemini-2.0-pro": "claude-sonnet-4-6",
   };
   return escalation[currentFallback] || "claude-sonnet-4-6";
 }
@@ -365,7 +365,7 @@ export function selectCostOptimizedModel(context: ModelRoutingContext): RoutingD
     const model = MODELS["claude-haiku-4-5-20251001"];
     return {
       primary: { ...model },
-      fallback: { ...MODELS["gpt-4.1-mini"], priority: 2 },
+      fallback: { ...MODELS["gpt-4o-mini"], priority: 2 },
       taskType,
       reasoning: `Cost-Optimized | ${taskType} → Haiku (günstigstes Modell für einfache Tasks)`,
     };
@@ -373,10 +373,10 @@ export function selectCostOptimizedModel(context: ModelRoutingContext): RoutingD
 
   // Großer Kontext → GPT-4.1 Mini (günstiger als GPT-4.1)
   if (inputTokenEstimate && inputTokenEstimate > 100000) {
-    const model = MODELS["gpt-4.1-mini"];
+    const model = MODELS["gpt-4o-mini"];
     return {
       primary: { ...model },
-      fallback: { ...MODELS["gemini-2.5-pro"], priority: 2 },
+      fallback: { ...MODELS["gemini-2.0-pro"], priority: 2 },
       taskType,
       reasoning: `Cost-Optimized | Large context → GPT-4.1 Mini`,
     };
@@ -411,7 +411,7 @@ export function selectSpeedOptimizedModel(context: ModelRoutingContext): Routing
   // Großer Kontext → GPT-4.1 Mini (schneller bei großem Input)
   if (inputTokenEstimate && inputTokenEstimate > 100000) {
     return {
-      primary: { ...MODELS["gpt-4.1-mini"] },
+      primary: { ...MODELS["gpt-4o-mini"] },
       fallback: { ...MODELS["claude-haiku-4-5-20251001"], priority: 2 },
       taskType,
       reasoning: `Speed-Optimized | Large context → GPT-4.1 Mini`,
@@ -421,7 +421,7 @@ export function selectSpeedOptimizedModel(context: ModelRoutingContext): Routing
   // Default: Haiku (schnellstes Modell)
   return {
     primary: { ...MODELS["claude-haiku-4-5-20251001"] },
-    fallback: { ...MODELS["gpt-4.1-mini"], priority: 2 },
+    fallback: { ...MODELS["gpt-4o-mini"], priority: 2 },
     taskType,
     reasoning: `Speed-Optimized | ${taskType} → Haiku (schnellstes Modell)`,
   };

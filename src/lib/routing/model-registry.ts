@@ -7,7 +7,7 @@
 
 export type ModelCapability = "reasoning" | "speed" | "vision" | "code" | "research" | "creative" | "tools";
 export type ModelTierLevel = "fast" | "balanced" | "powerful";
-export type ModelProviderName = "anthropic" | "openai" | "google" | "perplexity";
+export type ModelProviderName = "anthropic" | "openai" | "google" | "perplexity" | "groq";
 
 export interface ModelEntry {
   id: string;
@@ -15,6 +15,7 @@ export interface ModelEntry {
   displayName: string;
   capabilities: ModelCapability[];
   maxContext: number;
+  maxOutput?: number; // Max output tokens pro Aufruf
   inputPricePer1M: number;  // $ per 1M input tokens
   outputPricePer1M: number; // $ per 1M output tokens
   supportsVision: boolean;
@@ -33,9 +34,10 @@ export const MODEL_REGISTRY: ModelEntry[] = [
     provider: "anthropic",
     displayName: "Claude Opus 4.6",
     capabilities: ["reasoning", "code", "creative", "vision", "tools"],
-    maxContext: 200000,
-    inputPricePer1M: 15,
-    outputPricePer1M: 75,
+    maxContext: 1000000,
+    maxOutput: 128000,
+    inputPricePer1M: 5,
+    outputPricePer1M: 25,
     supportsVision: true,
     supportsTools: true,
     tier: "powerful",
@@ -46,7 +48,8 @@ export const MODEL_REGISTRY: ModelEntry[] = [
     provider: "anthropic",
     displayName: "Claude Sonnet 4.6",
     capabilities: ["reasoning", "code", "vision", "speed", "tools"],
-    maxContext: 200000,
+    maxContext: 1000000,
+    maxOutput: 64000,
     inputPricePer1M: 3,
     outputPricePer1M: 15,
     supportsVision: true,
@@ -69,44 +72,57 @@ export const MODEL_REGISTRY: ModelEntry[] = [
   },
   // OpenAI
   {
-    id: "gpt-4.1",
+    id: "gpt-4o",
     provider: "openai",
-    displayName: "GPT-4.1",
+    displayName: "GPT-4o",
     capabilities: ["reasoning", "code", "vision", "tools"],
-    maxContext: 1000000,
-    inputPricePer1M: 2,
-    outputPricePer1M: 8,
-    supportsVision: true,
-    supportsTools: true,
-    tier: "balanced",
-    updatedAt: "2025-04-14",
-  },
-  {
-    id: "gpt-4.1-mini",
-    provider: "openai",
-    displayName: "GPT-4.1 Mini",
-    capabilities: ["speed", "code", "tools"],
-    maxContext: 1000000,
-    inputPricePer1M: 0.4,
-    outputPricePer1M: 1.6,
-    supportsVision: true,
-    supportsTools: true,
-    tier: "fast",
-    updatedAt: "2025-04-14",
-  },
-  // Google
-  {
-    id: "gemini-2.5-pro",
-    provider: "google",
-    displayName: "Gemini 2.5 Pro",
-    capabilities: ["reasoning", "code", "vision", "creative"],
-    maxContext: 1000000,
-    inputPricePer1M: 1.25,
+    maxContext: 128000,
+    inputPricePer1M: 2.5,
     outputPricePer1M: 10,
     supportsVision: true,
     supportsTools: true,
     tier: "balanced",
-    updatedAt: "2025-03-25",
+    updatedAt: "2026-01-01",
+  },
+  {
+    id: "gpt-4o-mini",
+    provider: "openai",
+    displayName: "GPT-4o Mini",
+    capabilities: ["speed", "code", "vision", "tools"],
+    maxContext: 128000,
+    inputPricePer1M: 0.15,
+    outputPricePer1M: 0.6,
+    supportsVision: true,
+    supportsTools: true,
+    tier: "fast",
+    updatedAt: "2026-01-01",
+  },
+  // Google
+  {
+    id: "gemini-2.0-pro",
+    provider: "google",
+    displayName: "Gemini 2.0 Pro",
+    capabilities: ["reasoning", "code", "vision", "creative"],
+    maxContext: 2000000,
+    inputPricePer1M: 1.25,
+    outputPricePer1M: 5,
+    supportsVision: true,
+    supportsTools: true,
+    tier: "balanced",
+    updatedAt: "2026-01-01",
+  },
+  {
+    id: "gemini-2.0-flash",
+    provider: "google",
+    displayName: "Gemini 2.0 Flash",
+    capabilities: ["speed", "vision"],
+    maxContext: 1000000,
+    inputPricePer1M: 0.075,
+    outputPricePer1M: 0.3,
+    supportsVision: true,
+    supportsTools: false,
+    tier: "fast",
+    updatedAt: "2026-01-01",
   },
   // Perplexity
   {
@@ -122,6 +138,33 @@ export const MODEL_REGISTRY: ModelEntry[] = [
     tier: "balanced",
     updatedAt: "2025-02-01",
   },
+  // Groq
+  {
+    id: "llama-3.3-70b-versatile",
+    provider: "groq",
+    displayName: "Llama 3.3 70B",
+    capabilities: ["speed", "code"],
+    maxContext: 128000,
+    inputPricePer1M: 0.59,
+    outputPricePer1M: 0.79,
+    supportsVision: false,
+    supportsTools: false,
+    tier: "fast",
+    updatedAt: "2026-01-01",
+  },
+  {
+    id: "mixtral-8x7b-32768",
+    provider: "groq",
+    displayName: "Mixtral 8x7B",
+    capabilities: ["speed"],
+    maxContext: 32000,
+    inputPricePer1M: 0.24,
+    outputPricePer1M: 0.24,
+    supportsVision: false,
+    supportsTools: false,
+    tier: "fast",
+    updatedAt: "2026-01-01",
+  },
 ];
 
 /* ── Provider API Key Mapping ── */
@@ -131,6 +174,7 @@ const PROVIDER_ENV_KEYS: Record<ModelProviderName, string> = {
   openai: "OPENAI_API_KEY",
   google: "GOOGLE_AI_API_KEY",
   perplexity: "PERPLEXITY_API_KEY",
+  groq: "GROQ_API_KEY",
 };
 
 /**

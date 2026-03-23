@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Anthropic from "@anthropic-ai/sdk";
 import { knowledgeGraph } from "@/lib/knowledge/knowledge-graph";
 
-const META_AGENT_MODEL = "claude-sonnet-4-20250514";
+const META_AGENT_MODEL = "claude-sonnet-4-6";
 
 const META_AGENT_SYSTEM_PROMPT = `Du bist KILN Assistant — der intelligente Assistent der KILN AI Creation Platform.
 

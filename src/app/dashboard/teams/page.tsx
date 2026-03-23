@@ -286,7 +286,7 @@ function newManualMember(overrides: Partial<ManualMember> = {}): ManualMember {
     role,
     agentMode: defaultAgentMode(role, overrides.name),
     provider: "ANTHROPIC",
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-6",
     systemPrompt: "",
     reportsTo: "",
     trigger: "MANUAL",
@@ -712,6 +712,7 @@ function ManualStep2({
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
         Define the agents that will be part of this workflow. Each agent has a role, model, and system prompt.
+        You can also skip this step — agents are optional when using the visual canvas editor.
       </p>
       {members.map((member, idx) => {
         const providerModels = getModelsForProvider(member.provider);
@@ -1104,7 +1105,7 @@ function CreateTeamModal({
       // Ensure suggested roles have agentMode and model fields
       const roles: SuggestedRole[] = (data.roles || []).map((r: SuggestedRole) => ({
         suggestedProvider: "ANTHROPIC",
-        suggestedModel: "claude-sonnet-4-20250514",
+        suggestedModel: "claude-sonnet-4-6",
         ...r,
         // Default to Task unless Claude already set it or role name is customer-facing
         agentMode: r.agentMode || defaultAgentMode(r.role, r.name),
@@ -1121,7 +1122,6 @@ function CreateTeamModal({
 
   // ---- Shared: Create team with roles ----
   async function handleCreate(roles: SuggestedRole[]) {
-    if (roles.length === 0) return;
     setSubmitting(true);
     setError(null);
 
@@ -1139,17 +1139,50 @@ function CreateTeamModal({
 
       const team = await teamRes.json();
 
-      const membersRes = await fetch(`/api/teams/${team.id}/generate-members`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roles }),
-      });
+      // Generate members only if roles are provided
+      if (roles.length > 0) {
+        const membersRes = await fetch(`/api/teams/${team.id}/generate-members`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roles }),
+        });
 
-      if (!membersRes.ok) {
-        const data = await membersRes.json().catch(() => ({}));
-        throw new Error(data.error || `HTTP ${membersRes.status}`);
+        if (!membersRes.ok) {
+          const data = await membersRes.json().catch(() => ({}));
+          throw new Error(data.error || `HTTP ${membersRes.status}`);
+        }
       }
 
+      handleClose();
+      onCreated();
+      router.push(`/dashboard/teams/${team.id}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to create workflow";
+      setError(message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // ---- Quick Start: Create minimal workflow and go straight to canvas ----
+  async function handleQuickStart() {
+    if (!name.trim() || !goal.trim()) return;
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const teamRes = await fetch("/api/teams", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), goal: goal.trim() }),
+      });
+
+      if (!teamRes.ok) {
+        const data = await teamRes.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${teamRes.status}`);
+      }
+
+      const team = await teamRes.json();
       handleClose();
       onCreated();
       router.push(`/dashboard/teams/${team.id}`);
@@ -1182,7 +1215,7 @@ function CreateTeamModal({
         responsibilities: "",
         systemPrompt: "",
         suggestedProvider: "ANTHROPIC",
-        suggestedModel: "claude-sonnet-4-20250514",
+        suggestedModel: "claude-sonnet-4-6",
       },
     ]);
   }
@@ -1259,7 +1292,7 @@ function CreateTeamModal({
   /* ---- Validation helpers ---- */
   const autoStep1Valid = name.trim().length > 0 && goal.trim().length > 0;
   const manualStep1Valid = name.trim().length > 0 && goal.trim().length > 0;
-  const manualStep2Valid = manualMembers.length > 0 && manualMembers.every((m) => m.name.trim().length > 0);
+  const manualStep2Valid = manualMembers.length === 0 || manualMembers.every((m) => m.name.trim().length > 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1531,6 +1564,24 @@ function CreateTeamModal({
               </Button>
             )}
 
+            {/* Manual step 1: Skip to Canvas shortcut */}
+            {mode === "manual" && manualStep === 1 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleQuickStart}
+                disabled={submitting || !manualStep1Valid}
+                className="border-kiln-orange/30 text-kiln-orange hover:bg-kiln-orange/10"
+              >
+                {submitting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <GitFork className="mr-2 h-4 w-4" />
+                )}
+                Skip to Canvas
+              </Button>
+            )}
+
             {/* Manual steps 1–3: Next */}
             {mode === "manual" && manualStep < 4 && (
               <Button
@@ -1551,17 +1602,17 @@ function CreateTeamModal({
               <Button
                 size="sm"
                 onClick={() => handleCreate(manualMembersToRoles())}
-                disabled={submitting || manualMembers.length === 0}
+                disabled={submitting}
               >
                 {submitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating {manualMembers.length} agents...
+                    Creating workflow...
                   </>
                 ) : (
                   <>
                     <Plus className="mr-2 h-4 w-4" />
-                    Create Workflow ({manualMembers.length} agents)
+                    Create Workflow{manualMembers.length > 0 ? ` (${manualMembers.length} agents)` : ""}
                   </>
                 )}
               </Button>

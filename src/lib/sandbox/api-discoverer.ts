@@ -50,7 +50,7 @@ export interface DiscoveryResult {
   testResults?: Array<{ endpoint: string; success: boolean; statusCode?: number; error?: string }>;
 }
 
-const DISCOVERY_MODEL = "claude-sonnet-4-20250514";
+const DISCOVERY_MODEL = "claude-sonnet-4-6";
 
 /* ── API Discovery ── */
 

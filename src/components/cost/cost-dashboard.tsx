@@ -58,13 +58,14 @@ function formatEuro(cents: number): string {
 
 function shortModelName(id: string): string {
   const map: Record<string, string> = {
-    "claude-opus-4-20250514": "Opus 4",
-    "claude-sonnet-4-20250514": "Sonnet 4",
+    "claude-opus-4-6": "Opus 4.6",
+    "claude-sonnet-4-6": "Sonnet 4.6",
     "claude-haiku-4-5-20251001": "Haiku 4.5",
     "gpt-4o": "GPT-4o",
-    "gpt-4o-mini": "GPT-4o mini",
+    "gpt-4o-mini": "GPT-4o Mini",
     "sonar-pro": "Sonar Pro",
-    "gemini-2.5-pro": "Gemini 2.5",
+    "gemini-2.0-pro": "Gemini Pro",
+    "gemini-2.0-flash": "Gemini Flash",
   };
   return map[id] || id;
 }

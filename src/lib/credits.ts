@@ -49,20 +49,30 @@ export const MODEL_CREDIT_COSTS: Record<string, number> = {
   "mixtral-8x7b-32768": 1,
   "gemini-2.0-flash": 1,
   // 2 credits — balanced
-  "claude-sonnet-4-20250514": 2,
+  "claude-sonnet-4-6": 2,
   "sonar": 2,
-  "o3-mini": 2,
+  "gemini-2.0-pro": 2,
   // 3 credits — capable
   "gpt-4o": 3,
-  "gemini-2.5-pro": 3,
   // 4 credits — premium
   "sonar-pro": 4,
   // 5 credits — most capable
-  "claude-opus-4-20250514": 5,
+  "claude-opus-4-6": 5,
+};
+
+// Backward-compat mapping for credit lookups
+const CREDIT_MODEL_MAP: Record<string, string> = {
+  "claude-opus-4-20250514": "claude-opus-4-6",
+  "claude-sonnet-4-20250514": "claude-sonnet-4-6",
+  "o3-mini": "gpt-4o-mini",
+  "gpt-4.1": "gpt-4o",
+  "gpt-4.1-mini": "gpt-4o-mini",
+  "gemini-2.5-pro": "gemini-2.0-pro",
 };
 
 export function getCreditCost(modelId: string): number {
-  return MODEL_CREDIT_COSTS[modelId] ?? 2;
+  const resolved = CREDIT_MODEL_MAP[modelId] || modelId;
+  return MODEL_CREDIT_COSTS[resolved] ?? 2;
 }
 
 // ─── Model → Provider Mapping ──────────────────────────────

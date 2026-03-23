@@ -366,7 +366,7 @@ export async function POST(
     }
 
     // BYOK: Prüfen ob der User einen eigenen Key für den gewählten Provider hat
-    const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+    const selectedModel = agent.llmModel || "claude-sonnet-4-6";
     const modelProvider: ProviderKey = (agent.modelProvider as ProviderKey) || MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
     const providerLower = modelProvider.toLowerCase();
     let userApiKey: string | null = null;
@@ -1226,10 +1226,10 @@ export async function POST(
 
                     // Get response from target agent
                     const targetClient = anthropicClient || getClaudeClient();
-                    const targetModel = targetAgent.llmModel || "claude-sonnet-4-20250514";
+                    const targetModel = targetAgent.llmModel || "claude-sonnet-4-6";
 
                     const handoffResponse = await targetClient.messages.create({
-                      model: targetModel.startsWith("claude") ? targetModel : "claude-sonnet-4-20250514",
+                      model: targetModel.startsWith("claude") ? targetModel : "claude-sonnet-4-6",
                       max_tokens: 2048,
                       system: targetPrompt,
                       messages: currentMessages,
@@ -1353,7 +1353,7 @@ export async function POST(
               fullAssistantText,
               convData?.leadScore ?? null,
               anthropicClient,
-              selectedModel.startsWith("claude") ? selectedModel : "claude-sonnet-4-20250514",
+              selectedModel.startsWith("claude") ? selectedModel : "claude-sonnet-4-6",
               agent.userId,
             );
 
@@ -1377,7 +1377,7 @@ export async function POST(
                 sessionHash,
                 allMessages,
                 anthropicClient,
-                selectedModel.startsWith("claude") ? selectedModel : "claude-sonnet-4-20250514"
+                selectedModel.startsWith("claude") ? selectedModel : "claude-sonnet-4-6"
               ).catch((err) => {
                 console.error("Memory extraction failed:", err);
               })
@@ -1396,7 +1396,7 @@ export async function POST(
                 activeVisitorId,
                 allMsgs,
                 anthropicClient,
-                selectedModel.startsWith("claude") ? selectedModel : "claude-sonnet-4-20250514"
+                selectedModel.startsWith("claude") ? selectedModel : "claude-sonnet-4-6"
               ).catch((err) => {
                 console.error("Visitor memory update failed:", err);
               })
@@ -1594,7 +1594,7 @@ export async function POST(
                   output: debugOutputTokens,
                   total: debugInputTokens + debugOutputTokens,
                 },
-                model: agent.llmModel || "claude-sonnet-4-20250514",
+                model: agent.llmModel || "claude-sonnet-4-6",
               },
             };
             controller.enqueue(

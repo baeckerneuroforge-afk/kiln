@@ -74,7 +74,7 @@ export async function GET(
       const agentId = log.agentId || "unknown";
       const tokensIn = log.tokensIn || 0;
       const tokensOut = log.tokensOut || 0;
-      const model = log.model || "claude-sonnet-4-20250514";
+      const model = log.model || "claude-sonnet-4-6";
       const cost = log.estimatedCost || estimateCost(model, tokensIn, tokensOut);
 
       totalTeamTokensIn += tokensIn;

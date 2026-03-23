@@ -1565,7 +1565,7 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
   const [role, setRole] = useState<"HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER" | "APPROVAL_GATE">("EXECUTOR");
   const [agentMode, setAgentMode] = useState<"CHAT" | "TASK">("CHAT");
   const [provider, setProvider] = useState<ProviderKey>("ANTHROPIC");
-  const [llmModel, setLlmModel] = useState("claude-sonnet-4-20250514");
+  const [llmModel, setLlmModel] = useState("claude-sonnet-4-6");
   const [systemPrompt, setSystemPrompt] = useState("");
   const [reportsToMemberId, setReportsToMemberId] = useState("");
   const [responsibilities, setResponsibilities] = useState("");

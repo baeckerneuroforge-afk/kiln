@@ -65,7 +65,7 @@ Verfügbare Node-Typen:
 - delay: Warten (config: { delayMs })
 `;
 
-const BUILDER_MODEL = "claude-sonnet-4-20250514";
+const BUILDER_MODEL = "claude-sonnet-4-6";
 
 /* ── WorkflowBuilder ── */
 
@@ -261,7 +261,7 @@ function estimateCreditsFromBlueprint(nodes: BlueprintNode[]): number {
     switch (node.type) {
       case "computer_use": {
         const maxSteps = Number(node.config.maxSteps || 10);
-        const model = "claude-sonnet-4-20250514";
+        const model = "claude-sonnet-4-6";
         credits += maxSteps * getCreditCost(model); // Jeder Schritt = 1 LLM-Call
         if (node.config.enableVerification) {
           credits += maxSteps * getCreditCost("claude-haiku-4-5-20251001"); // Verification
@@ -269,10 +269,10 @@ function estimateCreditsFromBlueprint(nodes: BlueprintNode[]): number {
         break;
       }
       case "code_sandbox":
-        credits += 3 * getCreditCost("claude-sonnet-4-20250514"); // ~3 Iterationen
+        credits += 3 * getCreditCost("claude-sonnet-4-6"); // ~3 Iterationen
         break;
       case "ai_agent":
-        credits += getCreditCost(String(node.config.model || "claude-sonnet-4-20250514"));
+        credits += getCreditCost(String(node.config.model || "claude-sonnet-4-6"));
         break;
       case "http_request":
       case "gmail_send":

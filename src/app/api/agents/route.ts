@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         personality: personality || {},
         welcomeMessage: welcomeMessage || "",
         suggestedQuestions: suggestedQuestions || [],
-        llmModel: bodyLlmModel || "claude-sonnet-4-20250514",
+        llmModel: bodyLlmModel || "claude-sonnet-4-6",
         modelProvider: modelProvider || "ANTHROPIC",
         status: "DRAFT",
         agentMode: agentMode || "CHAT",

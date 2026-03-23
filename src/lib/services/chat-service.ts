@@ -37,7 +37,7 @@ export async function extractAndSaveMemories(
       .join("\n");
 
     const response = await client.messages.create({
-      model: model || "claude-sonnet-4-20250514",
+      model: model || "claude-sonnet-4-6",
       max_tokens: 512,
       system: `You extract key facts about the user from a conversation. Return a JSON array of {key, value} pairs.
 Keys should be short identifiers like: name, email, company, role, preference, interest, decision, question_topic, location, budget, timeline.
@@ -113,7 +113,7 @@ export async function evaluateOrchestrationHandoff(
     const rulesDescription = rules.map((r, i) => `Rule ${i + 1}: "${r.condition}" → Agent "${r.targetAgent.name}"`).join("\n");
 
     const evalResponse = await client.messages.create({
-      model: model || "claude-sonnet-4-20250514",
+      model: model || "claude-sonnet-4-6",
       max_tokens: 256,
       system: `You evaluate orchestration handoff rules. Given a conversation context, determine if any rule should trigger.
 Return ONLY a JSON object: {"ruleIndex": <number or null>, "reason": "<brief reason>"}
@@ -133,7 +133,7 @@ Which rule (if any) should trigger?`,
     });
 
     if (userId) {
-      deductCredits(userId, model || "claude-sonnet-4-20250514", "ORCHESTRATION").catch((err) => {
+      deductCredits(userId, model || "claude-sonnet-4-6", "ORCHESTRATION").catch((err) => {
         console.error("Orchestration eval credit deduction failed:", err);
       });
     }
@@ -229,7 +229,7 @@ Which rule (if any) should trigger?`,
     }));
 
     // Get Claude client for target agent (BYOK)
-    const targetModel = targetAgent.llmModel || "claude-sonnet-4-20250514";
+    const targetModel = targetAgent.llmModel || "claude-sonnet-4-6";
     const targetProvider = MODEL_PROVIDER_MAP[targetModel] || "ANTHROPIC";
     let targetClient: Anthropic;
 
@@ -252,14 +252,14 @@ Which rule (if any) should trigger?`,
 
     // Call target agent's Claude
     const targetResponse = await targetClient.messages.create({
-      model: targetProvider === "ANTHROPIC" ? targetModel : "claude-sonnet-4-20250514",
+      model: targetProvider === "ANTHROPIC" ? targetModel : "claude-sonnet-4-6",
       max_tokens: 2048,
       system: targetPrompt,
       messages: targetMessages,
     });
 
     if (userId) {
-      deductCredits(userId, targetProvider === "ANTHROPIC" ? targetModel : "claude-sonnet-4-20250514", "ORCHESTRATION").catch((err) => {
+      deductCredits(userId, targetProvider === "ANTHROPIC" ? targetModel : "claude-sonnet-4-6", "ORCHESTRATION").catch((err) => {
         console.error("Orchestration handoff credit deduction failed:", err);
       });
     }

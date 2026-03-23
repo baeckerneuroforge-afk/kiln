@@ -68,7 +68,7 @@ console.log(agents);`,
       "name": "Sales Bot",
       "slug": "sales-bot",
       "description": "Handles sales inquiries",
-      "model": "claude-sonnet-4-20250514",
+      "model": "claude-sonnet-4-6",
       "status": "LIVE",
       "conversationCount": 142,
       "createdAt": "2026-01-15T10:00:00.000Z"
@@ -125,7 +125,7 @@ console.log(reply);`,
   "sessionId": "user-123",
   "leadScore": null,
   "conversationId": "clx1def...",
-  "model": "claude-sonnet-4-20250514"
+  "model": "claude-sonnet-4-6"
 }`,
   },
 ];

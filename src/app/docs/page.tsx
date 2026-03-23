@@ -404,7 +404,7 @@ export default function DocsPage() {
       "slug": "sales-assistant",
       "status": "LIVE",
       "agentType": "PUBLIC",
-      "llmModel": "claude-sonnet-4-20250514",
+      "llmModel": "claude-sonnet-4-6",
       "createdAt": "2026-01-15T10:00:00Z"
     }
   ]
@@ -432,7 +432,7 @@ agents = res.json()["agents"]` },
               requestBody={`{
   name: string;           // Agent display name
   systemPrompt: string;   // System instructions
-  llmModel?: string;      // Default: "claude-sonnet-4-20250514"
+  llmModel?: string;      // Default: "claude-sonnet-4-6"
   temperature?: number;   // 0.0 - 1.0, default: 0.7
   welcomeMessage?: string;
   agentType?: "PUBLIC" | "INTERNAL";

@@ -38,9 +38,13 @@ const MODELS: ModelOption[] = [
   { id: "claude-opus-4-6", displayName: "Opus 4.6", provider: "anthropic", tier: "powerful", available: true },
   { id: "claude-sonnet-4-6", displayName: "Sonnet 4.6", provider: "anthropic", tier: "balanced", available: true },
   { id: "claude-haiku-4-5-20251001", displayName: "Haiku 4.5", provider: "anthropic", tier: "fast", available: true },
-  { id: "gpt-4.1", displayName: "GPT-4.1", provider: "openai", tier: "balanced", available: false },
-  { id: "gpt-4.1-mini", displayName: "GPT-4.1m", provider: "openai", tier: "fast", available: false },
+  { id: "gpt-4o", displayName: "GPT-4o", provider: "openai", tier: "balanced", available: false },
+  { id: "gpt-4o-mini", displayName: "GPT-4o Mini", provider: "openai", tier: "fast", available: false },
+  { id: "gemini-2.0-pro", displayName: "Gemini 2.0 Pro", provider: "google", tier: "balanced", available: false },
+  { id: "gemini-2.0-flash", displayName: "Gemini 2.0 Flash", provider: "google", tier: "fast", available: false },
   { id: "sonar-pro", displayName: "Sonar Pro", provider: "perplexity", tier: "balanced", available: false },
+  { id: "llama-3.3-70b-versatile", displayName: "Llama 3.3 70B", provider: "groq", tier: "fast", available: false },
+  { id: "mixtral-8x7b-32768", displayName: "Mixtral 8x7B", provider: "groq", tier: "fast", available: false },
 ];
 
 interface ModelRoutingTabProps {

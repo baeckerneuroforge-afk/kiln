@@ -46,8 +46,10 @@ const MODEL_COLORS: Record<string, string> = {
   "claude-opus-4-6": "#A855F7",
   "claude-sonnet-4-6": "#F97316",
   "claude-haiku-4-5-20251001": "#22C55E",
-  "gpt-4.1": "#3B82F6",
-  "gpt-4.1-mini": "#06B6D4",
+  "gpt-4o": "#3B82F6",
+  "gpt-4o-mini": "#06B6D4",
+  "gemini-2.0-pro": "#FBBF24",
+  "gemini-2.0-flash": "#34D399",
   "sonar-pro": "#EF4444",
 };
 const FALLBACK_COLOR = "#71717A";
@@ -69,8 +71,10 @@ function shortModelName(id: string): string {
     "claude-opus-4-6": "Opus 4.6",
     "claude-sonnet-4-6": "Sonnet 4.6",
     "claude-haiku-4-5-20251001": "Haiku 4.5",
-    "gpt-4.1": "GPT-4.1",
-    "gpt-4.1-mini": "GPT-4.1m",
+    "gpt-4o": "GPT-4o",
+    "gpt-4o-mini": "GPT-4o Mini",
+    "gemini-2.0-pro": "Gemini Pro",
+    "gemini-2.0-flash": "Gemini Flash",
     "sonar-pro": "Sonar Pro",
   };
   return map[id] || id;

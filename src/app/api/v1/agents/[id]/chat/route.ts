@@ -157,7 +157,7 @@ export async function POST(
     }
 
     // BYOK Check
-    const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+    const selectedModel = agent.llmModel || "claude-sonnet-4-6";
     const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
     let userApiKey: string | null = null;
 

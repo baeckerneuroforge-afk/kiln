@@ -107,7 +107,7 @@ export async function POST(
     }
 
     // BYOK prüfen
-    const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+    const selectedModel = agent.llmModel || "claude-sonnet-4-6";
     const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
     let client: Anthropic;
 
@@ -124,7 +124,7 @@ export async function POST(
       client = getClaudeClient();
     }
 
-    const model = selectedModel.startsWith("gpt") ? "claude-sonnet-4-20250514" : selectedModel;
+    const model = selectedModel.startsWith("gpt") ? "claude-sonnet-4-6" : selectedModel;
     let passed = 0;
     let failed = 0;
     const results: { id: string; result: string; response: string; matchedKeywords: string[]; missedKeywords: string[] }[] = [];

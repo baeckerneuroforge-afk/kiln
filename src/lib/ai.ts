@@ -46,9 +46,9 @@ export const PROVIDERS: Record<ProviderKey, { label: string; keyPrefix?: string;
 export const ALL_MODELS: ModelDef[] = [
   // Anthropic
   {
-    id: "claude-opus-4-20250514",
-    label: "Claude Opus 4",
-    shortLabel: "Opus 4",
+    id: "claude-opus-4-6",
+    label: "Claude Opus 4.6",
+    shortLabel: "Opus 4.6",
     provider: "ANTHROPIC",
     badge: "Most Capable",
     speed: 1, quality: 3, cost: 3,
@@ -57,9 +57,9 @@ export const ALL_MODELS: ModelDef[] = [
     requiresByok: false,
   },
   {
-    id: "claude-sonnet-4-20250514",
-    label: "Claude Sonnet 4",
-    shortLabel: "Sonnet 4",
+    id: "claude-sonnet-4-6",
+    label: "Claude Sonnet 4.6",
+    shortLabel: "Sonnet 4.6",
     provider: "ANTHROPIC",
     badge: "Best Value",
     speed: 2, quality: 3, cost: 2,
@@ -69,8 +69,8 @@ export const ALL_MODELS: ModelDef[] = [
   },
   {
     id: "claude-haiku-4-5-20251001",
-    label: "Claude Haiku 3.5",
-    shortLabel: "Haiku 3.5",
+    label: "Claude Haiku 4.5",
+    shortLabel: "Haiku 4.5",
     provider: "ANTHROPIC",
     badge: "Fastest",
     speed: 3, quality: 2, cost: 1,
@@ -101,17 +101,6 @@ export const ALL_MODELS: ModelDef[] = [
     supportsVision: true,
     requiresByok: true,
   },
-  {
-    id: "o3-mini",
-    label: "o3-mini",
-    shortLabel: "o3-mini",
-    provider: "OPENAI",
-    badge: undefined,
-    speed: 2, quality: 3, cost: 2,
-    supportsTools: true,
-    supportsVision: false,
-    requiresByok: true,
-  },
   // Perplexity
   {
     id: "sonar-pro",
@@ -137,23 +126,23 @@ export const ALL_MODELS: ModelDef[] = [
   },
   // Google
   {
+    id: "gemini-2.0-pro",
+    label: "Gemini 2.0 Pro",
+    shortLabel: "Gemini Pro",
+    provider: "GOOGLE",
+    badge: undefined,
+    speed: 2, quality: 3, cost: 2,
+    supportsTools: false,
+    supportsVision: true,
+    requiresByok: true,
+  },
+  {
     id: "gemini-2.0-flash",
     label: "Gemini 2.0 Flash",
     shortLabel: "Gemini Flash",
     provider: "GOOGLE",
     badge: "Fastest",
     speed: 3, quality: 2, cost: 1,
-    supportsTools: false,
-    supportsVision: true,
-    requiresByok: true,
-  },
-  {
-    id: "gemini-2.5-pro",
-    label: "Gemini 2.5 Pro",
-    shortLabel: "Gemini Pro",
-    provider: "GOOGLE",
-    badge: undefined,
-    speed: 2, quality: 3, cost: 3,
     supportsTools: false,
     supportsVision: true,
     requiresByok: true,
@@ -183,8 +172,36 @@ export const ALL_MODELS: ModelDef[] = [
   },
 ];
 
+// Backward-compatibility: map deprecated model IDs → current IDs
+export const DEPRECATED_MODEL_MAP: Record<string, string> = {
+  "claude-opus-4-20250514": "claude-opus-4-6",
+  "claude-sonnet-4-20250514": "claude-sonnet-4-6",
+  "claude-3-opus-20240229": "claude-opus-4-6",
+  "claude-3-sonnet-20240229": "claude-sonnet-4-6",
+  "claude-3-haiku-20240307": "claude-haiku-4-5-20251001",
+  "claude-3-5-sonnet-20241022": "claude-sonnet-4-6",
+  "claude-3-5-haiku-20241022": "claude-haiku-4-5-20251001",
+  "gpt-4-turbo": "gpt-4o",
+  "gpt-4": "gpt-4o",
+  "gpt-3.5-turbo": "gpt-4o-mini",
+  "gpt-4.1": "gpt-4o",
+  "gpt-4.1-mini": "gpt-4o-mini",
+  "o3-mini": "gpt-4o-mini",
+  "gemini-2.5-pro": "gemini-2.0-pro",
+  "gemini-1.5-pro": "gemini-2.0-pro",
+  "gemini-1.5-flash": "gemini-2.0-flash",
+};
+
+/**
+ * Resolves a model ID, mapping deprecated IDs to their current equivalents.
+ */
+export function resolveModelId(modelId: string): string {
+  return DEPRECATED_MODEL_MAP[modelId] || modelId;
+}
+
 export function getModelDef(modelId: string): ModelDef | undefined {
-  return ALL_MODELS.find((m) => m.id === modelId);
+  const resolved = resolveModelId(modelId);
+  return ALL_MODELS.find((m) => m.id === resolved);
 }
 
 export function getModelsForProvider(provider: ProviderKey): ModelDef[] {
@@ -211,18 +228,18 @@ export const AVAILABLE_MODELS = ALL_MODELS.map((m) => ({
 // Team role → recommended model mapping
 export const TEAM_ROLE_MODEL_RECOMMENDATIONS: Record<string, { modelId: string; reason: string }[]> = {
   HEAD: [
-    { modelId: "claude-opus-4-20250514", reason: "Most capable for strategy and delegation" },
+    { modelId: "claude-opus-4-6", reason: "Most capable for strategy and delegation" },
     { modelId: "gpt-4o", reason: "Strong reasoning for complex decisions" },
   ],
   COORDINATOR: [
-    { modelId: "claude-sonnet-4-20250514", reason: "Best balance of speed and quality" },
+    { modelId: "claude-sonnet-4-6", reason: "Best balance of speed and quality" },
   ],
   EXECUTOR_RESEARCH: [
     { modelId: "sonar-pro", reason: "Built-in web search for research tasks" },
-    { modelId: "claude-sonnet-4-20250514", reason: "Strong analytical capabilities" },
+    { modelId: "claude-sonnet-4-6", reason: "Strong analytical capabilities" },
   ],
   EXECUTOR_WRITER: [
-    { modelId: "claude-sonnet-4-20250514", reason: "Excellent writing quality" },
+    { modelId: "claude-sonnet-4-6", reason: "Excellent writing quality" },
     { modelId: "gpt-4o", reason: "Strong creative writing" },
   ],
   EXECUTOR_FAST: [

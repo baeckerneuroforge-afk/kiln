@@ -146,7 +146,7 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
 
   // Kosten pro Agent berechnen
   const memberCosts: MemberCostRow[] = teamMembers.map((m) => {
-    const modelId = m.model ?? "claude-sonnet-4-20250514";
+    const modelId = m.model ?? "claude-sonnet-4-6";
     const modelDef = getModelDef(modelId);
     const cost = estimateCost(modelId, AVG_INPUT_TOKENS, AVG_OUTPUT_TOKENS);
     return {

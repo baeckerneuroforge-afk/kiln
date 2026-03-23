@@ -11,7 +11,7 @@ import {
 import type { ActionNodeResult } from "./action-nodes";
 
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
-const SONNET_MODEL = "claude-sonnet-4-20250514";
+const SONNET_MODEL = "claude-sonnet-4-6";
 
 type ResearchDepth = "quick" | "standard" | "deep";
 

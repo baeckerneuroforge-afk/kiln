@@ -127,7 +127,7 @@ export async function POST(
     }
 
     // 5. Check credits
-    const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+    const selectedModel = agent.llmModel || "claude-sonnet-4-6";
     const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
 
     let userApiKey: string | null = null;

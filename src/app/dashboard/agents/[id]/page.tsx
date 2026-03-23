@@ -281,7 +281,7 @@ export default function AgentDetailPage() {
   const [status, setStatus] = useState<string>("DRAFT");
   const [primaryColor, setPrimaryColor] = useState("#F97316");
   const [logoUrl, setLogoUrl] = useState("");
-  const [llmModel, setLlmModel] = useState("claude-sonnet-4-20250514");
+  const [llmModel, setLlmModel] = useState("claude-sonnet-4-6");
   const [temperature, setTemperature] = useState(0.7);
   const [modelProvider, setModelProvider] = useState("ANTHROPIC");
   const [autoDetectLanguage, setAutoDetectLanguage] = useState(true);
@@ -341,7 +341,7 @@ export default function AgentDetailPage() {
     setSystemPrompt(data.systemPrompt);
     setWelcomeMessage(data.welcomeMessage || "");
     setStatus(data.status);
-    setLlmModel(data.llmModel || "claude-sonnet-4-20250514");
+    setLlmModel(data.llmModel || "claude-sonnet-4-6");
     setTemperature(typeof data.temperature === "number" ? data.temperature : 0.7);
     setModelProvider(data.modelProvider || "ANTHROPIC");
     setAutoDetectLanguage(data.autoDetectLanguage !== false);

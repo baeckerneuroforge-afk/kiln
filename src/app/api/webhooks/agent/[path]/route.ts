@@ -171,7 +171,7 @@ async function processWebhookPayload(webhook: any, payload: unknown, startTime: 
   const userMessage = `Process this incoming webhook data and take appropriate action:\n\n\`\`\`json\n${payloadStr}\n\`\`\``;
 
   // LLM call
-  const selectedModel = agent.llmModel || "claude-sonnet-4-20250514";
+  const selectedModel = agent.llmModel || "claude-sonnet-4-6";
   const modelProvider = MODEL_PROVIDER_MAP[selectedModel] || "ANTHROPIC";
   let userApiKey: string | null = null;
   try {

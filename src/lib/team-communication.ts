@@ -87,7 +87,7 @@ export async function triggerTeamExecution({
 
   const claude = getClaudeClient();
   const response = await claude.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: "claude-sonnet-4-6",
     max_tokens: 2000,
     system: `You are a team coordinator AI. You decompose a goal into actionable subtasks and assign them to team members.
 

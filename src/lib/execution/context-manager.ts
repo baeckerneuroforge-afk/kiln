@@ -8,34 +8,33 @@
 
 const MODEL_CONTEXT_LIMITS: Record<string, number> = {
   // Anthropic
-  "claude-opus-4-6": 200000,
-  "claude-sonnet-4-6": 200000,
+  "claude-opus-4-6": 1000000,
+  "claude-sonnet-4-6": 1000000,
   "claude-haiku-4-5-20251001": 200000,
-  // Legacy Anthropic IDs
-  "claude-sonnet-4-20250514": 200000,
   // OpenAI
-  "gpt-4.1": 1000000,
-  "gpt-4.1-mini": 1000000,
   "gpt-4o": 128000,
   "gpt-4o-mini": 128000,
   // Google
-  "gemini-2.5-pro": 1000000,
-  "gemini-2.5-flash": 1000000,
+  "gemini-2.0-pro": 2000000,
+  "gemini-2.0-flash": 1000000,
+  // Groq
+  "llama-3.3-70b-versatile": 128000,
+  "mixtral-8x7b-32768": 32000,
   // Perplexity
   "sonar-pro": 200000,
 };
 
 // Kosten pro 1K Input-Tokens (USD)
 const MODEL_INPUT_COSTS: Record<string, number> = {
-  "claude-opus-4-6": 0.015,
+  "claude-opus-4-6": 0.005,
   "claude-sonnet-4-6": 0.003,
   "claude-haiku-4-5-20251001": 0.0008,
-  "gpt-4.1": 0.002,
-  "gpt-4.1-mini": 0.0004,
-  "gpt-4o": 0.005,
+  "gpt-4o": 0.0025,
   "gpt-4o-mini": 0.00015,
-  "gemini-2.5-pro": 0.00125,
-  "gemini-2.5-flash": 0.000075,
+  "gemini-2.0-pro": 0.00125,
+  "gemini-2.0-flash": 0.000075,
+  "llama-3.3-70b-versatile": 0.00059,
+  "mixtral-8x7b-32768": 0.00024,
   "sonar-pro": 0.003,
 };
 

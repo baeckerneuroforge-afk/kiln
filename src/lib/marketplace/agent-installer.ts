@@ -99,7 +99,7 @@ export async function installAgent(
       personality: agentConfig.personality ?? undefined,
       welcomeMessage: agentConfig.welcomeMessage ?? undefined,
       suggestedQuestions: agentConfig.suggestedQuestions ?? [],
-      llmModel: agentConfig.llmModel ?? "claude-sonnet-4-20250514",
+      llmModel: agentConfig.llmModel ?? "claude-sonnet-4-6",
       temperature: agentConfig.temperature ?? 0.7,
       modelProvider: agentConfig.modelProvider ?? "ANTHROPIC",
       agentMode: agentConfig.agentMode ?? "CHAT",
