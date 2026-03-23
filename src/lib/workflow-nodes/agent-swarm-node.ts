@@ -16,7 +16,7 @@ import {
   type MergeStrategy,
   type ParallelExecutionProgress,
 } from "@/lib/execution/parallel-executor";
-import { decomposeGoal } from "@/lib/execution/task-decomposer";
+import { decomposeGoal, type DecompositionResult } from "@/lib/execution/task-decomposer";
 import { SharedWorkspace } from "@/lib/execution/shared-workspace";
 import { SwarmEventStream } from "@/lib/execution/swarm-event-stream";
 import { SubAgentExecutor, type SubAgentConfig, type SubAgentResult } from "@/lib/execution/sub-agent-executor";
@@ -41,6 +41,10 @@ export interface AgentSwarmConfig {
   userId?: string;
   /** Agent ID für Cost-Tracking */
   agentId?: string;
+  /** Optional: bereits vorbereitete Task-Zerlegung */
+  taskDecomposition?: DecompositionResult;
+  /** Optional: externes Event-Stream-Objekt für Live-Streaming */
+  eventStream?: SwarmEventStream;
 }
 
 /* ── Executor ── */
@@ -61,6 +65,8 @@ export async function executeAgentSwarm(
     mcpAgentId: config.mcpAgentId ? String(config.mcpAgentId) : undefined,
     userId: config.userId ? String(config.userId) : undefined,
     agentId: config.agentId ? String(config.agentId) : undefined,
+    taskDecomposition: config.taskDecomposition as DecompositionResult | undefined,
+    eventStream: config.eventStream as SwarmEventStream | undefined,
   };
 
   if (!swarmConfig.goal) {
@@ -78,14 +84,14 @@ export async function executeAgentSwarm(
 
     // Shared systems initialisieren
     const workspace = new SharedWorkspace(swarmId);
-    const eventStream = new SwarmEventStream();
+    const eventStream = swarmConfig.eventStream || new SwarmEventStream();
     const costTracker = new CostTracker({
       userId: swarmConfig.userId,
       agentId: swarmConfig.agentId,
     });
 
     // 1. Task-Zerlegung
-    const decomposition = await decomposeGoal(swarmConfig.goal, {
+    const decomposition = swarmConfig.taskDecomposition || await decomposeGoal(swarmConfig.goal, {
       maxTasks: swarmConfig.maxAgents,
       availableTools: ["computer_use", "code_sandbox", "mcp", "deep_research", "web_search"],
     });

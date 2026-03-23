@@ -13,9 +13,9 @@ import type { ActionNodeResult } from "./action-nodes";
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 const SONNET_MODEL = "claude-sonnet-4-6";
 
-type ResearchDepth = "quick" | "standard" | "deep";
+export type ResearchDepth = "quick" | "standard" | "deep";
 
-interface ResearchSource {
+export interface ResearchSource {
   url: string;
   title: string;
   snippet: string;
@@ -23,7 +23,7 @@ interface ResearchSource {
   domain: string;
 }
 
-interface ResearchResult {
+export interface ResearchResult {
   summary: string;
   fullReport: string;
   sources: ResearchSource[];
@@ -280,6 +280,9 @@ export async function executeDeepResearch(
   const depth = (String(config.depth || "standard") as ResearchDepth);
   const resultKey = String(config.resultKey || "researchResult");
   const language = String(config.language || "en");
+  const onProgress = typeof config.onProgress === "function"
+    ? (config.onProgress as (message: string) => void)
+    : undefined;
 
   if (!topic) {
     return { contextDelta: {}, success: false, error: "Forschungsthema fehlt" };
@@ -294,12 +297,19 @@ export async function executeDeepResearch(
 
   try {
     // 1. Suchqueries generieren
+    onProgress?.(`Planning research queries for "${topic}"...`);
     const queries = await generateSearchQueries(topic, depthConfig.queries);
+    onProgress?.(`Generated ${queries.length} research quer${queries.length === 1 ? "y" : "ies"}.`);
 
     // 2. Parallel suchen
     const sourcesPerQuery = Math.ceil(depthConfig.maxSources / queries.length);
     const searchResults = await Promise.all(
-      queries.map((q) => searchPerplexity(q, sourcesPerQuery).catch(() => [] as ResearchSource[]))
+      queries.map(async (q, index) => {
+        onProgress?.(`Searching source set ${index + 1}/${queries.length}: ${q}`);
+        const result = await searchPerplexity(q, sourcesPerQuery).catch(() => [] as ResearchSource[]);
+        onProgress?.(`Found ${result.length} sources for query ${index + 1}.`);
+        return result;
+      })
     );
 
     // 3. Deduplizieren nach Domain+URL
@@ -318,6 +328,7 @@ export async function executeDeepResearch(
     // Nach Relevanz sortieren und begrenzen
     allSources.sort((a, b) => b.relevanceScore - a.relevanceScore);
     const topSources = allSources.slice(0, depthConfig.maxSources);
+    onProgress?.(`Collected ${topSources.length} high-signal sources. Consolidating findings...`);
 
     if (topSources.length === 0) {
       return {
@@ -343,6 +354,7 @@ export async function executeDeepResearch(
       topSources,
       depthConfig.model
     );
+    onProgress?.("Research synthesis completed.");
 
     const result: ResearchResult = {
       ...consolidated,

@@ -1285,6 +1285,8 @@ function VisualTeamEditorInner({
   useEffect(() => { wfEdgesRef.current = wfEdges; }, [wfEdges]);
   const wfNodesRef = useRef(wfNodes);
   useEffect(() => { wfNodesRef.current = wfNodes; }, [wfNodes]);
+  // Ref for ReactFlow edges (used by nodeResults effect to avoid dependency loop)
+  const edgesRef = useRef<Edge[]>([]);
 
   // Flash save indicator
   const flashSaveStatus = useCallback(() => {
@@ -1327,6 +1329,8 @@ function VisualTeamEditorInner({
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
+  // Keep edgesRef in sync for loop-free reads
+  edgesRef.current = edges;
 
   // Undo/Redo callbacks (need setNodes/setEdges from above)
   const undo = useCallback(() => {
@@ -1404,8 +1408,21 @@ function VisualTeamEditorInner({
   }, [members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges, setNodes, setEdges]);
 
   // Update workflow nodes with execution results (including error info + downstream skipping)
+  // IMPORTANT: uses edgesRef (not edges) to avoid setEdges → edges change → re-trigger loop
+  const prevNodeResultsKeyRef = useRef("");
   useEffect(() => {
     if (!nodeResults || Object.keys(nodeResults).length === 0) return;
+
+    // Guard: only run when nodeResults actually changed (serialize status keys)
+    const key = Object.entries(nodeResults)
+      .map(([id, r]) => `${id}:${r.status}:${r.durationMs ?? ""}:${r.error ?? ""}`)
+      .sort()
+      .join("|");
+    if (key === prevNodeResultsKeyRef.current) return;
+    prevNodeResultsKeyRef.current = key;
+
+    // Read edges from ref (stable, doesn't trigger re-render dependency)
+    const currentEdges = edgesRef.current;
 
     // Collect IDs of failed nodes and find the upstream node label for skip reason
     const failedNodeIds = new Set<string>();
@@ -1424,10 +1441,9 @@ function VisualTeamEditorInner({
       const queue = [...failedNodeIds];
       while (queue.length > 0) {
         const current = queue.shift()!;
-        for (const edge of edges) {
+        for (const edge of currentEdges) {
           if (edge.source === current && !failedNodeIds.has(edge.target) && !skippedNodeIds.has(edge.target)) {
             skippedNodeIds.add(edge.target);
-            // Track which node caused the skip
             const reason = failedNodeLabels.get(current) || skipReasons.get(current);
             if (reason) skipReasons.set(edge.target, `"${reason}" failed`);
             queue.push(edge.target);
@@ -1478,7 +1494,7 @@ function VisualTeamEditorInner({
       })
     );
 
-    // Update edges with flow data
+    // Update edges with flow data (using callback form — no dependency on edges state)
     setEdges((eds) =>
       eds.map((e) => {
         const sourceResult = nodeResults[e.source];
@@ -1488,7 +1504,6 @@ function VisualTeamEditorInner({
           : sourceResult.status === "failed" ? "error"
           : "none";
 
-        // Show output data on edges from completed nodes
         const flowData = sourceResult.status === "completed" && sourceResult.output
           ? sourceResult.output
           : undefined;
@@ -1503,7 +1518,7 @@ function VisualTeamEditorInner({
         };
       })
     );
-  }, [nodeResults, edges, setNodes, setEdges]);
+  }, [nodeResults, setNodes, setEdges]);
 
   // Push initial history snapshot once nodes are rendered
   const initialHistoryPushed = useRef(false);

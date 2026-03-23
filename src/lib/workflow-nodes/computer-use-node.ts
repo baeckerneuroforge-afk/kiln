@@ -592,6 +592,8 @@ interface LoginResult {
   error?: string;
 }
 
+type ComputerUseProgressCallback = (message: string) => void;
+
 async function performLogin(
   credentialId: string,
   agentId: string,
@@ -667,6 +669,39 @@ async function performLogin(
   return { success: false, error: `Login bei ${cred.serviceName} fehlgeschlagen nach 2 Versuchen` };
 }
 
+function describeComputerUseAction(action: ClaudeAction): string {
+  switch (action.action) {
+    case "navigate":
+      return action.url
+        ? `Navigating to ${action.url}...`
+        : "Navigating to the next page...";
+    case "click":
+      return action.selector
+        ? `Interacting with ${action.selector}...`
+        : "Clicking the next element...";
+    case "type":
+      return action.text
+        ? `Typing "${action.text.slice(0, 60)}"...`
+        : "Typing into the page...";
+    case "scroll":
+      return `Scrolling ${action.direction || "down"}...`;
+    case "extract_data":
+      return action.fields?.length
+        ? `Extracting ${action.fields.join(", ")}...`
+        : "Extracting data from the page...";
+    case "click_link":
+      return action.selector
+        ? `Opening "${action.selector}"...`
+        : "Opening the next link...";
+    case "execute_code":
+      return "Processing page data...";
+    case "done":
+      return action.summary || "Task completed.";
+    default:
+      return action.reasoning || "Analyzing the page...";
+  }
+}
+
 /* ── Real Browser Execution Loop (V2.0) ── */
 
 async function executeWithRealBrowser(
@@ -679,6 +714,7 @@ async function executeWithRealBrowser(
   enableVerification: boolean = true,
   enableProceduralMemory: boolean = true,
   agentId?: string,
+  onProgress?: ComputerUseProgressCallback,
 ): Promise<{
   steps: ComputerUseSessionStep[];
   summary: string;
@@ -733,6 +769,7 @@ async function executeWithRealBrowser(
     for (let i = 0; i < maxSteps; i++) {
       const stepStart = Date.now();
       const previousUrl = currentUrl;
+      onProgress?.(`Navigating to ${currentUrl}...`);
 
       // 1. Navigieren und Content holen
       const { content, screenshot: navScreenshot } = await browserNavigate(browserSession, currentUrl);
@@ -790,6 +827,7 @@ async function executeWithRealBrowser(
       );
 
       const domain = (() => { try { return new URL(currentUrl).hostname; } catch { return currentUrl; } })();
+      onProgress?.(describeComputerUseAction(claudeAction));
 
       // 4. Aktion ausführen — mit Multi-Strategy-Executor
       switch (claudeAction.action) {
@@ -1166,6 +1204,9 @@ export async function executeComputerUse(
   const enableCodeExecution = config.enableCodeExecution === true && isCodeSandboxAvailable();
   const enableVerification = config.enableVerification !== false; // Default: true
   const enableProceduralMemory = config.enableProceduralMemory !== false; // Default: true
+  const onProgress = typeof config.onProgress === "function"
+    ? (config.onProgress as ComputerUseProgressCallback)
+    : undefined;
 
   if (!task) {
     return { contextDelta: {}, success: false, error: "Aufgabe fehlt" };
@@ -1217,10 +1258,11 @@ export async function executeComputerUse(
 
     // V2.0: Real Browser Mode
     if (useBrowserMode && !requiresLogin) {
+      onProgress?.(`Opening browser session for ${startUrl}...`);
       const result = await executeWithRealBrowser(
         task, startUrl, maxSteps, captureScreenshots,
         enableCodeExecution, String(context._executionId || ""),
-        enableVerification, enableProceduralMemory, agentId,
+        enableVerification, enableProceduralMemory, agentId, onProgress,
       );
 
       const cuSession: ComputerUseSession = {
@@ -1297,6 +1339,7 @@ export async function executeComputerUse(
 
     for (let i = 0; i < maxSteps; i++) {
       const stepStart = Date.now();
+      onProgress?.(`Fetching ${currentUrl}...`);
 
       const page = await fetchPage(currentUrl, httpSession);
       currentUrl = page.finalUrl;
@@ -1312,6 +1355,7 @@ export async function executeComputerUse(
         task, currentUrl, page.html, htmlSummary,
         steps, extractData, dataSchema, !!screenshot,
       );
+      onProgress?.(describeComputerUseAction(claudeAction));
 
       switch (claudeAction.action) {
         case "done": {

@@ -24,6 +24,7 @@ export interface DecompositionContext {
   availableAgents?: { id: string; name: string; description: string }[];
   constraints?: string[];
   maxTasks?: number;
+  model?: string;
 }
 
 /* ── Decomposer ── */
@@ -90,6 +91,7 @@ export async function decomposeGoal(
 
   const anthropic = new Anthropic({ apiKey });
   const maxTasks = Math.min(context?.maxTasks || 15, 15);
+  const model = context?.model || "claude-haiku-4-5-20251001";
 
   let userPrompt = `Ziel: ${goal}\n\nMaximale Tasks: ${maxTasks}`;
 
@@ -106,7 +108,7 @@ export async function decomposeGoal(
   userPrompt += "\n\nZerlege das Ziel in parallelisierbare Sub-Tasks.";
 
   const response = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
+    model,
     max_tokens: 2048,
     system: DECOMPOSE_SYSTEM_PROMPT,
     messages: [{ role: "user", content: userPrompt }],

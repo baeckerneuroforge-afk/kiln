@@ -316,6 +316,62 @@ export async function deductEmbeddingCredits(
   return { newBalance: Math.max(0, updated.aiCreditsBalance) };
 }
 
+/**
+ * Deduct an exact number of credits for non-model-based operations.
+ */
+export async function deductCreditsByAmount(
+  userId: string,
+  credits: number,
+  type: CreditUsageType = "TASK_RUN",
+  model: string = "custom_operation",
+  agentId?: string,
+  conversationId?: string
+): Promise<{ success: boolean; newBalance: number }> {
+  const cost = Math.max(0, Math.ceil(credits));
+
+  if (cost <= 0) {
+    const user = await ensureCreditsReset(userId);
+    return {
+      success: true,
+      newBalance: user?.aiCreditsBalance ?? 0,
+    };
+  }
+
+  const result = await prisma.user.updateMany({
+    where: { id: userId, aiCreditsBalance: { gte: cost } },
+    data: { aiCreditsBalance: { decrement: cost } },
+  });
+
+  if (result.count === 0) {
+    const user = await ensureCreditsReset(userId);
+    return {
+      success: false,
+      newBalance: user?.aiCreditsBalance ?? 0,
+    };
+  }
+
+  await prisma.aiCreditUsage.create({
+    data: {
+      userId,
+      agentId,
+      conversationId,
+      creditsUsed: cost,
+      model,
+      type,
+    },
+  });
+
+  const updated = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { aiCreditsBalance: true },
+  });
+
+  return {
+    success: true,
+    newBalance: updated?.aiCreditsBalance ?? 0,
+  };
+}
+
 // ─── Credit Top-up Packages ─────────────────────────────────
 export const CREDIT_PACKAGES = [
   { id: "credits_500", credits: 500, price: 9, label: "500 Credits", description: "€9 one-time" },
