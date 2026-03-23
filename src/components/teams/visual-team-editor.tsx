@@ -365,6 +365,8 @@ type WorkflowNodeData = {
   iconName: string;
   config: Record<string, unknown>;
   hasErrorPath?: boolean;
+  execStatus?: "completed" | "failed" | "running";
+  execDuration?: string;
   [key: string]: unknown;
 };
 
@@ -375,6 +377,16 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
   const nodeType = data.nodeType as WorkflowNodeType;
   const isLogicNode = category === "logic";
   const isTriggerNode = category === "triggers";
+  const execStatus = data.execStatus as WorkflowNodeData["execStatus"];
+
+  // Execution status ring classes
+  const statusRing = execStatus === "running"
+    ? "ring-2 ring-orange-400/60 ring-offset-1 ring-offset-[#1e1d1b]"
+    : execStatus === "completed"
+      ? "ring-2 ring-green-400/60 ring-offset-1 ring-offset-[#1e1d1b]"
+      : execStatus === "failed"
+        ? "ring-2 ring-red-400/60 ring-offset-1 ring-offset-[#1e1d1b]"
+        : "";
 
   // Config preview text
   let preview = "";
@@ -394,6 +406,8 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
       className={cn(
         "rounded-xl bg-[#2a2826] border border-[#3d3935] shadow-lg min-w-[200px] max-w-[240px] transition-all duration-150",
         selected && "border-orange-500/70 shadow-orange-500/10 shadow-xl",
+        statusRing,
+        execStatus === "running" && "animate-pulse",
       )}
     >
       {/* Input handle — left (not for triggers) */}
@@ -419,6 +433,20 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
             {data.description as string}
           </p>
         </div>
+        {/* Execution status badge */}
+        {execStatus && execStatus !== "running" && (
+          <span className={cn(
+            "text-[8px] font-medium px-1.5 py-0.5 rounded flex items-center gap-0.5 shrink-0",
+            execStatus === "completed" && "bg-green-500/15 text-green-400",
+            execStatus === "failed" && "bg-red-500/15 text-red-400",
+          )}>
+            {execStatus === "completed" && <Check className="h-2 w-2" />}
+            {execStatus === "failed" && <X className="h-2 w-2" />}
+          </span>
+        )}
+        {execStatus === "running" && (
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-orange-400" />
+        )}
       </div>
 
       {/* Config preview */}
@@ -1051,7 +1079,7 @@ function VisualTeamEditorInner({
   workflowNodes: wfNodes,
   workflowEdges: wfEdges,
   onWorkflowNodesChange,
-  onWorkflowNodeClick,
+  onWorkflowEdgesChange,
   onEdgeClick: onEdgeClickProp,
   onVariablesClick,
   onRunWorkflow,
@@ -1063,15 +1091,39 @@ function VisualTeamEditorInner({
   const reactFlowInstance = useReactFlow();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
-  // Config panel state
+  // Unified panel state — only ONE panel open at a time
+  type ActivePanel = "palette" | "config" | "none";
+  const [activePanel, setActivePanel] = useState<ActivePanel>("palette");
   const [selectedNode, setSelectedNode] = useState<{
     id: string;
     type: WorkflowNodeType;
     label: string;
     config: Record<string, unknown>;
   } | null>(null);
+
+  // Derived helpers
+  const sidebarCollapsed = activePanel !== "palette";
+
+  // Save indicator state
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const saveTimerDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Refs to avoid stale closures in callbacks
+  const wfEdgesRef = useRef(wfEdges);
+  useEffect(() => { wfEdgesRef.current = wfEdges; }, [wfEdges]);
+  const wfNodesRef = useRef(wfNodes);
+  useEffect(() => { wfNodesRef.current = wfNodes; }, [wfNodes]);
+
+  // Flash save indicator
+  const flashSaveStatus = useCallback(() => {
+    setSaveStatus("saving");
+    if (saveTimerDebounceRef.current) clearTimeout(saveTimerDebounceRef.current);
+    saveTimerDebounceRef.current = setTimeout(() => {
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    }, 400);
+  }, []);
 
   // Inject dash animation CSS
   useEffect(() => {
@@ -1082,6 +1134,8 @@ function VisualTeamEditorInner({
     style.textContent = `
       @keyframes dashmove { 0% { stroke-dashoffset: 12; } 100% { stroke-dashoffset: 0; } }
       .react-flow__edge.selected .react-flow__edge-path { stroke: #F97316 !important; }
+      .react-flow__handle { pointer-events: all !important; cursor: crosshair !important; z-index: 10 !important; }
+      .react-flow__handle:hover { transform: scale(1.3); }
     `;
     document.head.appendChild(style);
     return () => { style.remove(); };
@@ -1116,6 +1170,24 @@ function VisualTeamEditorInner({
     }
   }, [members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges, setNodes, setEdges]);
 
+  // Update workflow nodes with execution results
+  useEffect(() => {
+    if (!nodeResults || Object.keys(nodeResults).length === 0) return;
+    setNodes((nds) =>
+      nds.map((n) => {
+        const result = nodeResults[n.id];
+        if (!result || n.type !== "workflowNode") return n;
+        return {
+          ...n,
+          data: {
+            ...n.data,
+            execStatus: result.status,
+          },
+        };
+      })
+    );
+  }, [nodeResults, setNodes]);
+
   // Save positions on drag end (debounced)
   const handleNodeDragStop = useCallback(
     () => {
@@ -1131,7 +1203,43 @@ function VisualTeamEditorInner({
     [onPositionsChange, reactFlowInstance]
   );
 
-  // Handle new connections
+  // Validate connections: prevent self-loops, duplicates, trigger-to-trigger, and cycles
+  const isValidConnection = useCallback(
+    (connection: Edge | Connection) => {
+      if (!connection.source || !connection.target) return false;
+      // No self-connections
+      if (connection.source === connection.target) return false;
+
+      // No duplicate connections (same source → same target)
+      const exists = edges.some(
+        (e) => e.source === connection.source && e.target === connection.target
+      );
+      if (exists) return false;
+
+      // No connecting two trigger nodes together
+      const sourceNode = nodes.find((n) => n.id === connection.source);
+      const targetNode = nodes.find((n) => n.id === connection.target);
+      const sourceCategory = (sourceNode?.data as WorkflowNodeData)?.category;
+      const targetCategory = (targetNode?.data as WorkflowNodeData)?.category;
+      if (sourceCategory === "triggers" && targetCategory === "triggers") return false;
+
+      // Cycle detection: BFS from target's outputs — if we reach source, it's a cycle
+      const visited = new Set<string>();
+      const queue = [connection.target];
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        if (current === connection.source) return false;
+        if (visited.has(current)) continue;
+        visited.add(current);
+        edges.filter((e) => e.source === current).forEach((e) => queue.push(e.target));
+      }
+
+      return true;
+    },
+    [nodes, edges]
+  );
+
+  // Handle new connections (uses ref to avoid stale closure)
   const onConnect = useCallback(
     (connection: Connection) => {
       if (!connection.source || !connection.target) return;
@@ -1146,9 +1254,21 @@ function VisualTeamEditorInner({
         markerEnd: { type: MarkerType.ArrowClosed, color: "#4a4540", width: 14, height: 14 },
       };
       setEdges((eds) => addEdge(newEdge, eds));
+
+      // Persist workflow edges (use ref for current value)
+      if (onWorkflowEdgesChange && wfEdgesRef.current) {
+        const newWfEdge = {
+          sourceId: connection.source,
+          targetId: connection.target,
+          sourceHandle: connection.sourceHandle || undefined,
+        };
+        onWorkflowEdgesChange([...wfEdgesRef.current, newWfEdge]);
+        flashSaveStatus();
+      }
+
       onConnectionCreate?.(connection.source, connection.target);
     },
-    [setEdges, onConnectionCreate]
+    [setEdges, onConnectionCreate, onWorkflowEdgesChange, flashSaveStatus]
   );
 
   // Auto-layout
@@ -1245,11 +1365,12 @@ function VisualTeamEditorInner({
         onWorkflowNodesChange(
           wfNodes.map((n) => (n.id === nodeId ? { ...n, config: newConfig } : n))
         );
+        flashSaveStatus();
       }
       // Update local selected state
       setSelectedNode((prev) => (prev && prev.id === nodeId ? { ...prev, config: newConfig } : prev));
     },
-    [setNodes, onWorkflowNodesChange, wfNodes]
+    [setNodes, onWorkflowNodesChange, wfNodes, flashSaveStatus]
   );
 
   const handleNodeLabelChange = useCallback(
@@ -1273,17 +1394,21 @@ function VisualTeamEditorInner({
     (nodeId: string) => {
       setNodes((nds) => nds.filter((n) => n.id !== nodeId));
       setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
-      if (onWorkflowNodesChange && wfNodes) {
-        onWorkflowNodesChange(wfNodes.filter((n) => n.id !== nodeId));
+      if (onWorkflowNodesChange && wfNodesRef.current) {
+        onWorkflowNodesChange(wfNodesRef.current.filter((n) => n.id !== nodeId));
+      }
+      if (onWorkflowEdgesChange && wfEdgesRef.current) {
+        onWorkflowEdgesChange(wfEdgesRef.current.filter((e) => e.sourceId !== nodeId && e.targetId !== nodeId));
       }
       setSelectedNode(null);
+      setActivePanel("palette");
     },
-    [setNodes, setEdges, onWorkflowNodesChange, wfNodes]
+    [setNodes, setEdges, onWorkflowNodesChange, onWorkflowEdgesChange]
   );
 
   const handleClosePanel = useCallback(() => {
     setSelectedNode(null);
-    setSidebarCollapsed(false);
+    setActivePanel("palette");
   }, []);
 
   const isEmpty = members.length === 0 && (!wfNodes || wfNodes.length === 0) && nodes.length === 0;
@@ -1304,9 +1429,12 @@ function VisualTeamEditorInner({
       <NodePaletteSidebar
         collapsed={sidebarCollapsed}
         onToggle={() => {
-          const willExpand = sidebarCollapsed;
-          setSidebarCollapsed(!sidebarCollapsed);
-          if (willExpand) setSelectedNode(null);
+          if (activePanel === "palette") {
+            setActivePanel("none");
+          } else {
+            setSelectedNode(null);
+            setActivePanel("palette");
+          }
         }}
       />
 
@@ -1327,6 +1455,7 @@ function VisualTeamEditorInner({
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
         className="bg-[#1a1918]"
+        isValidConnection={isValidConnection}
         connectionLineStyle={{ stroke: "#F97316", strokeWidth: 2, strokeDasharray: "5 3" }}
         defaultEdgeOptions={{ type: "animated", animated: true }}
         onNodeClick={(_event, node) => {
@@ -1340,8 +1469,7 @@ function VisualTeamEditorInner({
               label: nd.label as string,
               config: nd.config as Record<string, unknown>,
             });
-            setSidebarCollapsed(true);
-            onWorkflowNodeClick?.(node.id, nd.nodeType, nd.config);
+            setActivePanel("config");
             return;
           }
           setSelectedNode(null);
@@ -1350,7 +1478,7 @@ function VisualTeamEditorInner({
         onPaneClick={() => {
           if (selectedNode) {
             setSelectedNode(null);
-            setSidebarCollapsed(false);
+            setActivePanel("palette");
           }
         }}
         onEdgeClick={(_event, edge) => {
@@ -1417,7 +1545,7 @@ function VisualTeamEditorInner({
               </div>
               {sidebarCollapsed && (
                 <button
-                  onClick={() => { setSidebarCollapsed(false); setSelectedNode(null); }}
+                  onClick={() => { setSelectedNode(null); setActivePanel("palette"); }}
                   className="flex items-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs font-medium text-orange-400 transition-colors hover:bg-orange-500/20"
                 >
                   <PanelLeft className="h-3.5 w-3.5" />
@@ -1441,6 +1569,17 @@ function VisualTeamEditorInner({
             )} />
             <span className="text-[11px] text-zinc-400">{execLabel}</span>
           </div>
+
+          {/* Save indicator */}
+          {saveStatus !== "idle" && (
+            <div className="flex items-center gap-1.5 rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-2.5 py-1.5 shadow-md">
+              {saveStatus === "saving" && <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />}
+              {saveStatus === "saved" && <Check className="h-3 w-3 text-green-400" />}
+              <span className={cn("text-[10px]", saveStatus === "saved" ? "text-green-400" : "text-zinc-400")}>
+                {saveStatus === "saving" ? "Saving..." : "Saved"}
+              </span>
+            </div>
+          )}
 
           {/* Run Workflow */}
           {onRunWorkflow && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -88,7 +88,7 @@ import {
   normalizeApprovalGateConfig,
   type ApprovalTimeoutAction,
 } from "@/lib/team-approval";
-import { NodeConfigPanel } from "@/components/workflows/node-config-panel";
+// NodeConfigPanel is now handled inside VisualTeamEditor
 import { DataMapper, type FieldMapping } from "@/components/workflows/data-mapper";
 import { type WorkflowNodeType } from "@/lib/workflow-node-types";
 import DebugRunner from "@/components/workflows/debug-runner";
@@ -1963,10 +1963,14 @@ function TeamDetailInner() {
   const [queueStatus, setQueueStatus] = useState<{ running: number; queued: number; maxConcurrent: number } | null>(null);
   const [savingQueue, setSavingQueue] = useState(false);
 
-  // Workflow node config panel
-  const [selectedWfNodeId, setSelectedWfNodeId] = useState<string | null>(null);
-  const [selectedWfNodeType, setSelectedWfNodeType] = useState<WorkflowNodeType | null>(null);
-  const [selectedWfNodeConfig, setSelectedWfNodeConfig] = useState<Record<string, unknown>>({});
+  // Workflow node config is now handled inside VisualTeamEditor
+
+  // Workflow execution state (canvas Run button)
+  const [wfExecStatus, setWfExecStatus] = useState<"idle" | "running" | "completed" | "failed">("idle");
+  const [wfExecDuration, setWfExecDuration] = useState<number | undefined>();
+  const [wfExecCredits, setWfExecCredits] = useState<number | undefined>();
+  const [wfNodeResults, setWfNodeResults] = useState<Record<string, { input?: unknown; output?: unknown; status?: "completed" | "failed" | "running" }>>({});
+  const wfExecPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Data mapper panel
   const [dataMapperEdgeId, setDataMapperEdgeId] = useState<string | null>(null);
@@ -2321,28 +2325,105 @@ function TeamDetailInner() {
     updateTeamConfig({ workflow: { ...wf, edges } });
   }, [team?.config, updateTeamConfig]);
 
-  const handleWorkflowNodeClick = useCallback((nodeId: string, nodeType: WorkflowNodeType, config: Record<string, unknown>) => {
-    setSelectedWfNodeId(nodeId);
-    setSelectedWfNodeType(nodeType);
-    setSelectedWfNodeConfig(config);
+  // handleWorkflowNodeClick, Save, Delete, LabelChange are now handled inside VisualTeamEditor
+
+  // Run workflow from canvas — calls execute-debug API and polls for results
+  const handleRunWorkflow = useCallback(async () => {
+    if (wfExecStatus === "running") return;
+
+    setWfExecStatus("running");
+    setWfExecDuration(undefined);
+    setWfExecCredits(undefined);
+    setWfNodeResults({});
+
+    // Mark all workflow nodes as "running" initially
+    const initialResults: Record<string, { status: "running" }> = {};
+    for (const wn of workflowNodes) {
+      initialResults[wn.id] = { status: "running" };
+    }
+    setWfNodeResults(initialResults);
+
+    const startTime = Date.now();
+
+    try {
+      const res = await fetch(`/api/teams/${teamId}/execute-debug`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goal: team?.goal || "Run Workflow" }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+
+      const { executionId } = await res.json();
+
+      // Poll for execution results
+      const poll = async () => {
+        try {
+          const execRes = await fetch(`/api/teams/${teamId}/executions/${executionId}`);
+          if (!execRes.ok) return;
+          const execData = await execRes.json();
+          const exec = execData.execution;
+          const timeline = execData.timeline as Array<{
+            nodeId: string | null;
+            nodeType: string | null;
+            latestStatus: string;
+            latestOutput: string | null;
+            latestError: string | null;
+            attempts: Array<{ input: unknown; output: string | null; structuredOutput: unknown }>;
+          }>;
+
+          // Build node results from execution logs
+          const results: Record<string, { input?: unknown; output?: unknown; status?: "completed" | "failed" | "running" }> = {};
+          for (const entry of timeline) {
+            if (!entry.nodeId) continue;
+            const lastAttempt = entry.attempts[entry.attempts.length - 1];
+            results[entry.nodeId] = {
+              status: entry.latestStatus === "COMPLETED" ? "completed"
+                : entry.latestStatus === "FAILED" ? "failed"
+                : "running",
+              input: lastAttempt?.input,
+              output: lastAttempt?.structuredOutput || lastAttempt?.output,
+            };
+          }
+          setWfNodeResults(results);
+
+          const duration = exec.durationMs || (Date.now() - startTime);
+
+          if (exec.status === "COMPLETED" || exec.status === "FAILED") {
+            // Done
+            if (wfExecPollRef.current) {
+              clearInterval(wfExecPollRef.current);
+              wfExecPollRef.current = null;
+            }
+            setWfExecStatus(exec.status === "COMPLETED" ? "completed" : "failed");
+            setWfExecDuration(duration);
+            setWfExecCredits(exec.completedTasks || 0);
+          }
+        } catch {
+          // Polling error — keep trying
+        }
+      };
+
+      // Start polling every 2 seconds
+      wfExecPollRef.current = setInterval(poll, 2000);
+      // Also poll immediately once
+      await poll();
+    } catch (err) {
+      setWfExecStatus("failed");
+      setWfExecDuration(Date.now() - startTime);
+      console.error("Workflow execution failed:", err);
+    }
+  }, [teamId, team?.goal, wfExecStatus, workflowNodes]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (wfExecPollRef.current) clearInterval(wfExecPollRef.current);
+    };
   }, []);
-
-  const handleWorkflowNodeSave = useCallback((nodeId: string, config: Record<string, unknown>) => {
-    const updated = workflowNodes.map((n) => n.id === nodeId ? { ...n, config } : n);
-    handleWorkflowNodesChange(updated);
-    setSelectedWfNodeId(null);
-  }, [workflowNodes, handleWorkflowNodesChange]);
-
-  const handleWorkflowNodeDelete = useCallback((nodeId: string) => {
-    handleWorkflowNodesChange(workflowNodes.filter((n) => n.id !== nodeId));
-    handleWorkflowEdgesChange(workflowEdges.filter((e) => e.sourceId !== nodeId && e.targetId !== nodeId));
-    setSelectedWfNodeId(null);
-  }, [workflowNodes, workflowEdges, handleWorkflowNodesChange, handleWorkflowEdgesChange]);
-
-  const handleWorkflowNodeLabelChange = useCallback((nodeId: string, label: string) => {
-    const updated = workflowNodes.map((n) => n.id === nodeId ? { ...n, label } : n);
-    handleWorkflowNodesChange(updated);
-  }, [workflowNodes, handleWorkflowNodesChange]);
 
   const handleEdgeClick = useCallback((edgeId: string, sourceNodeId: string, targetNodeId: string) => {
     setDataMapperEdgeId(edgeId);
@@ -2885,8 +2966,12 @@ function TeamDetailInner() {
                   workflowEdges={workflowEdges}
                   onWorkflowNodesChange={handleWorkflowNodesChange}
                   onWorkflowEdgesChange={handleWorkflowEdgesChange}
-                  onWorkflowNodeClick={handleWorkflowNodeClick}
                   onEdgeClick={handleEdgeClick}
+                  onRunWorkflow={handleRunWorkflow}
+                  executionStatus={wfExecStatus}
+                  executionDuration={wfExecDuration}
+                  executionCredits={wfExecCredits}
+                  nodeResults={wfNodeResults}
                 />
               </div>
             ) : (
@@ -3279,18 +3364,7 @@ function TeamDetailInner() {
         onSaved={fetchTeam}
       />
 
-      {/* ===== Workflow Node Config Panel ===== */}
-      <NodeConfigPanel
-        nodeId={selectedWfNodeId}
-        nodeType={selectedWfNodeType}
-        config={selectedWfNodeConfig}
-        teamId={teamId}
-        onSave={handleWorkflowNodeSave}
-        onDelete={handleWorkflowNodeDelete}
-        onClose={() => setSelectedWfNodeId(null)}
-        nodeLabel={workflowNodes.find((n) => n.id === selectedWfNodeId)?.label}
-        onLabelChange={handleWorkflowNodeLabelChange}
-      />
+      {/* Workflow Node Config Panel is now handled inside VisualTeamEditor */}
 
       {/* ===== Data Mapper Panel ===== */}
       {(() => {

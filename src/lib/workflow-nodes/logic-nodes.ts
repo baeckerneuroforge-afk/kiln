@@ -146,6 +146,45 @@ export function executeTransformNode(
 
 /* ── Dispatcher ── */
 
+/* ── Loop ── */
+
+export function executeLoopNode(
+  config: Record<string, unknown>,
+  context: ExpressionContext
+): LogicNodeResult {
+  const maxIterations = Math.min(Number(config.maxIterations) || 10, 100);
+  const counterVar = String(config.counterVariable || "_loopIndex");
+  const currentIndex = Number(context[counterVar] ?? 0);
+
+  // Check loop condition: iterate over array OR count-based
+  const iterateOver = config.iterateOver ? String(config.iterateOver) : undefined;
+  let shouldContinue = false;
+
+  if (iterateOver) {
+    // Array iteration: continue if index < array length
+    const arr = resolveExpressionValue(iterateOver, context);
+    const arrLength = Array.isArray(arr) ? arr.length : 0;
+    shouldContinue = currentIndex < arrLength && currentIndex < maxIterations;
+  } else {
+    // Count-based: continue if index < maxIterations
+    shouldContinue = currentIndex < maxIterations;
+  }
+
+  if (shouldContinue) {
+    // Set current item in context if iterating over array
+    const meta: Record<string, unknown> = { iteration: currentIndex, maxIterations };
+    if (iterateOver) {
+      const arr = resolveExpressionValue(iterateOver, context);
+      if (Array.isArray(arr) && currentIndex < arr.length) {
+        meta.currentItem = arr[currentIndex];
+      }
+    }
+    return { outputHandle: "true", meta };
+  }
+
+  return { outputHandle: "false", meta: { iteration: currentIndex, maxIterations, completed: true } };
+}
+
 export function executeLogicNode(
   nodeType: string,
   config: Record<string, unknown>,
@@ -160,6 +199,8 @@ export function executeLogicNode(
       return executeFilterNode(config, context);
     case "transform":
       return executeTransformNode(config, context);
+    case "loop":
+      return executeLoopNode(config, context);
     default:
       throw new Error(`Unbekannter Logic-Node-Typ: ${nodeType}`);
   }
