@@ -2637,14 +2637,17 @@ function TeamDetailInner() {
             {team.status === "ACTIVE" ? "Pause" : "Start"}
           </Button>
 
-          <Button
-            size="sm"
-            onClick={() => setShowAssignDialog(true)}
-            className="bg-orange-600 hover:bg-orange-700 text-white"
-          >
-            <Target className="h-4 w-4 mr-2" />
-            Assign Task
-          </Button>
+          {/* Hide Assign Task in visual mode — use Run Workflow in canvas toolbar instead */}
+          {hierarchyView !== "visual" && (
+            <Button
+              size="sm"
+              onClick={() => setShowAssignDialog(true)}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              <Target className="h-4 w-4 mr-2" />
+              Assign Task
+            </Button>
+          )}
 
           {/* Settings dropdown */}
           <div className="relative">

@@ -1143,72 +1143,11 @@ export async function executeWorkflow(
             variablesSnapshot: JSON.parse(JSON.stringify(context.variables || {})),
           });
 
-          // Pausiere wenn noch Nodes in der Queue sind
+          // Fire-and-forget: update debug state and continue automatically.
+          // The client polls GET /api/teams/[id]/executions/[execId] for live state.
           if (queue.length > 0 && !paused) {
-            debugState.status = "paused";
             debugState.currentNodeId = queue[0];
-            debugState.pendingAction = null;
-
-            // Warte auf User-Aktion (max 5 Minuten pro Schritt)
-            const maxWait = 5 * 60 * 1000;
-            const pollInterval = 200;
-            let waited = 0;
-
-            while (waited < maxWait) {
-              const current = debugStates.get(executionId);
-              if (!current || current.pendingAction) break;
-              await new Promise((r) => setTimeout(r, pollInterval));
-              waited += pollInterval;
-            }
-
-            const current = debugStates.get(executionId);
-            if (!current) break;
-
-            if (current.pendingAction === "abort") {
-              current.status = "aborted";
-              paused = true; // Beende die Loop
-              break;
-            } else if (current.pendingAction === "skip") {
-              // Skip: Node aus Queue entfernen (überspringe den nächsten)
-              const skippedId = queue.shift();
-              if (skippedId) {
-                const skippedNode = nodeMap.get(skippedId);
-                executedNodes.add(skippedId);
-                if (skippedNode) {
-                  debugState.steps.push({
-                    nodeId: skippedId,
-                    nodeType: skippedNode.type,
-                    nodeLabel: skippedNode.label || skippedNode.type,
-                    status: "skipped",
-                    input: {},
-                    config: skippedNode.config,
-                    output: null,
-                    error: null,
-                    durationMs: 0,
-                    tokensIn: null,
-                    tokensOut: null,
-                    cost: null,
-                    contextSnapshot: JSON.parse(JSON.stringify(context)),
-                    variablesSnapshot: JSON.parse(JSON.stringify(context.variables || {})),
-                  });
-                  await logNodeExecution(executionId, teamId, skippedNode, {
-                    nodeId: skippedId,
-                    nodeType: skippedNode.type,
-                    status: "skipped",
-                    contextDelta: {},
-                    startedAt: new Date(),
-                    completedAt: new Date(),
-                    meta: { reason: "Skipped in debug mode" },
-                  });
-                  // Queue die Nachfolger des übersprungenen Nodes
-                  queue.push(...getNormalSuccessors(skippedId, edges));
-                }
-              }
-            }
-            // "continue" → einfach weitermachen
-
-            current.status = "running";
-            current.pendingAction = null;
+            debugState.status = "running";
           }
         }
       }

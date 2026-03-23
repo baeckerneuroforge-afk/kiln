@@ -74,6 +74,8 @@ import {
   Target,
   Eye,
   Terminal,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getModelDef } from "@/lib/ai";
@@ -87,6 +89,7 @@ import {
   createWorkflowNode,
 } from "@/lib/workflow-node-types";
 import { NodeConfigPanel } from "./node-config-panel";
+import { CanvasErrorBoundary, NodeErrorBoundary } from "./canvas-error-boundary";
 
 /* ========== Types ========== */
 interface OutputSchemaField {
@@ -659,10 +662,19 @@ function AnimatedConnectionEdge({
   );
 }
 
+/* ========== Error-safe node wrappers ========== */
+function SafeWorkflowNode(props: NodeProps<Node<WorkflowNodeData>>) {
+  return (
+    <NodeErrorBoundary nodeType={String((props.data as WorkflowNodeData)?.nodeType || "unknown")}>
+      <WorkflowNodeComponent {...props} />
+    </NodeErrorBoundary>
+  );
+}
+
 /* ========== Node & Edge types ========== */
 const nodeTypes = {
   visualAgent: VisualAgentNode,
-  workflowNode: WorkflowNodeComponent,
+  workflowNode: SafeWorkflowNode,
   teamKnowledge: TeamKnowledgeNode,
   fallbackGhost: FallbackGhostNode,
 };
@@ -1109,6 +1121,34 @@ function VisualTeamEditorInner({
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const saveTimerDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Undo/Redo refs (callbacks that need setNodes/setEdges are defined after useNodesState below)
+  const MAX_HISTORY = 30;
+  const historyRef = useRef<{ nodes: Node[]; edges: Edge[] }[]>([]);
+  const historyIndexRef = useRef(-1);
+  const isUndoRedoRef = useRef(false);
+
+  const pushHistory = useCallback((snapNodes: Node[], snapEdges: Edge[]) => {
+    if (isUndoRedoRef.current) return;
+    const history = historyRef.current;
+    const idx = historyIndexRef.current;
+    historyRef.current = history.slice(0, idx + 1);
+    historyRef.current.push({
+      nodes: snapNodes.map((n) => ({ ...n, data: { ...n.data } })),
+      edges: snapEdges.map((e) => ({ ...e })),
+    });
+    if (historyRef.current.length > MAX_HISTORY) {
+      historyRef.current = historyRef.current.slice(-MAX_HISTORY);
+    }
+    historyIndexRef.current = historyRef.current.length - 1;
+  }, []);
+
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const updateUndoRedoState = useCallback(() => {
+    setCanUndo(historyIndexRef.current > 0);
+    setCanRedo(historyIndexRef.current < historyRef.current.length - 1);
+  }, []);
+
   // Refs to avoid stale closures in callbacks
   const wfEdgesRef = useRef(wfEdges);
   useEffect(() => { wfEdgesRef.current = wfEdges; }, [wfEdges]);
@@ -1134,8 +1174,11 @@ function VisualTeamEditorInner({
     style.textContent = `
       @keyframes dashmove { 0% { stroke-dashoffset: 12; } 100% { stroke-dashoffset: 0; } }
       .react-flow__edge.selected .react-flow__edge-path { stroke: #F97316 !important; }
-      .react-flow__handle { pointer-events: all !important; cursor: crosshair !important; z-index: 10 !important; }
+      .react-flow__handle { pointer-events: all !important; cursor: crosshair !important; z-index: 10 !important; transition: transform 0.15s, background-color 0.15s, opacity 0.15s; }
       .react-flow__handle:hover { transform: scale(1.3); }
+      /* Connection drag feedback: valid targets glow orange, invalid dim */
+      .connecting .react-flow__handle.connectingto { background-color: #F97316 !important; transform: scale(1.4); box-shadow: 0 0 6px #F97316; }
+      .react-flow__handle.valid { background-color: #F97316 !important; transform: scale(1.3); }
     `;
     document.head.appendChild(style);
     return () => { style.remove(); };
@@ -1154,8 +1197,67 @@ function VisualTeamEditorInner({
   const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
 
-  // Update nodes/edges when data changes
+  // Undo/Redo callbacks (need setNodes/setEdges from above)
+  const undo = useCallback(() => {
+    if (historyIndexRef.current <= 0) return;
+    isUndoRedoRef.current = true;
+    historyIndexRef.current -= 1;
+    const snapshot = historyRef.current[historyIndexRef.current];
+    setNodes(snapshot.nodes);
+    setEdges(snapshot.edges);
+    updateUndoRedoState();
+    requestAnimationFrame(() => { isUndoRedoRef.current = false; });
+  }, [setNodes, setEdges, updateUndoRedoState]);
+
+  const redo = useCallback(() => {
+    if (historyIndexRef.current >= historyRef.current.length - 1) return;
+    isUndoRedoRef.current = true;
+    historyIndexRef.current += 1;
+    const snapshot = historyRef.current[historyIndexRef.current];
+    setNodes(snapshot.nodes);
+    setEdges(snapshot.edges);
+    updateUndoRedoState();
+    requestAnimationFrame(() => { isUndoRedoRef.current = false; });
+  }, [setNodes, setEdges, updateUndoRedoState]);
+
+  // Track previous structure to avoid destructive full rebuilds
+  const prevStructureRef = useRef<{ nodeIds: string; edgeKeys: string; memberIds: string }>({ nodeIds: "", edgeKeys: "", memberIds: "" });
+
+  // Targeted update: only full-rebuild when structure changes (nodes added/removed, edges changed)
   useEffect(() => {
+    const wfNodeIds = (wfNodes || []).map((n) => n.id).sort().join(",");
+    const wfEdgeKeys = (wfEdges || []).map((e) => `${e.sourceId}-${e.targetId}`).sort().join(",");
+    const memberIds = members.map((m) => m.id).sort().join(",");
+    const prev = prevStructureRef.current;
+
+    const structureChanged =
+      wfNodeIds !== prev.nodeIds ||
+      wfEdgeKeys !== prev.edgeKeys ||
+      memberIds !== prev.memberIds;
+
+    if (!structureChanged) {
+      // Config-only change: update individual node data without rebuilding
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.type === "workflowNode") {
+            const wfNode = (wfNodes || []).find((wn) => wn.id === n.id);
+            if (wfNode) {
+              return { ...n, data: { ...n.data, label: wfNode.label, config: wfNode.config } };
+            }
+          }
+          // Update execution status for agent nodes
+          const execStep = executionSteps?.find((s) => s.memberId === n.id);
+          if (execStep && (n.data as VisualNodeData)?.executionStatus !== execStep.status) {
+            return { ...n, data: { ...n.data, executionStatus: execStep.status } };
+          }
+          return n;
+        })
+      );
+      return;
+    }
+
+    // Structure changed — full rebuild
+    prevStructureRef.current = { nodeIds: wfNodeIds, edgeKeys: wfEdgeKeys, memberIds };
     const { nodes: rawNodes, edges: rawEdges } = membersToFlowElements(
       members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges
     );
@@ -1187,6 +1289,108 @@ function VisualTeamEditorInner({
       })
     );
   }, [nodeResults, setNodes]);
+
+  // Push initial history snapshot once nodes are rendered
+  const initialHistoryPushed = useRef(false);
+  useEffect(() => {
+    if (!initialHistoryPushed.current && nodes.length > 0) {
+      pushHistory(nodes, edges);
+      updateUndoRedoState();
+      initialHistoryPushed.current = true;
+    }
+  }, [nodes, edges, pushHistory, updateUndoRedoState]);
+
+  // Auto-fit view on initial load
+  const hasFitView = useRef(false);
+  useEffect(() => {
+    if (!hasFitView.current && nodes.length > 0) {
+      hasFitView.current = true;
+      // Delay to let ReactFlow render nodes first
+      const timer = setTimeout(() => {
+        reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [nodes.length, reactFlowInstance]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const isInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement;
+      if (isInput) return;
+
+      const ctrl = e.metaKey || e.ctrlKey;
+
+      // Ctrl+Z → undo
+      if (ctrl && !e.shiftKey && e.key === "z") {
+        e.preventDefault();
+        undo();
+        return;
+      }
+      // Ctrl+Shift+Z or Ctrl+Y → redo
+      if ((ctrl && e.shiftKey && e.key === "z") || (ctrl && e.key === "y")) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+      // Ctrl+A → select all
+      if (ctrl && e.key === "a") {
+        e.preventDefault();
+        setNodes((nds) => nds.map((n) => ({ ...n, selected: true })));
+        setEdges((eds) => eds.map((e) => ({ ...e, selected: true })));
+        return;
+      }
+      // Escape → deselect all + close config panel
+      if (e.key === "Escape") {
+        setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
+        setEdges((eds) => eds.map((e) => ({ ...e, selected: false })));
+        setSelectedNode(null);
+        setActivePanel("palette");
+        return;
+      }
+      // Ctrl+D → duplicate selected nodes
+      if (ctrl && e.key === "d") {
+        e.preventDefault();
+        const selected = reactFlowInstance.getNodes().filter((n) => n.selected && n.type === "workflowNode");
+        if (selected.length === 0) return;
+        const newFlowNodes: Node[] = [];
+        const newWfNodes: typeof wfNodes extends (infer T)[] | undefined ? T[] : never[] = [];
+        selected.forEach((n) => {
+          const nd = n.data as WorkflowNodeData;
+          const newId = `wf-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+          const pos = { x: n.position.x + 50, y: n.position.y + 50 };
+          newFlowNodes.push({
+            id: newId,
+            type: "workflowNode",
+            position: pos,
+            data: { ...nd, label: `${nd.label} (copy)` },
+          });
+          newWfNodes.push({
+            id: newId,
+            type: nd.nodeType,
+            label: `${nd.label} (copy)`,
+            position: pos,
+            config: { ...(nd.config as Record<string, unknown>) },
+          });
+        });
+        setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), ...newFlowNodes]);
+        if (onWorkflowNodesChange && wfNodes) {
+          onWorkflowNodesChange([...wfNodes, ...newWfNodes]);
+        }
+        // Push to undo history
+        setTimeout(() => {
+          const allNodes = reactFlowInstance.getNodes();
+          const allEdges = reactFlowInstance.getEdges();
+          pushHistory(allNodes, allEdges);
+          updateUndoRedoState();
+        }, 50);
+        return;
+      }
+    };
+
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [undo, redo, setNodes, setEdges, reactFlowInstance, onWorkflowNodesChange, wfNodes, pushHistory, updateUndoRedoState]);
 
   // Save positions on drag end (debounced)
   const handleNodeDragStop = useCallback(
@@ -1267,8 +1471,16 @@ function VisualTeamEditorInner({
       }
 
       onConnectionCreate?.(connection.source, connection.target);
+
+      // Push to undo history (structural change)
+      setTimeout(() => {
+        const allNodes = reactFlowInstance.getNodes();
+        const allEdges = reactFlowInstance.getEdges();
+        pushHistory(allNodes, allEdges);
+        updateUndoRedoState();
+      }, 50);
     },
-    [setEdges, onConnectionCreate, onWorkflowEdgesChange, flashSaveStatus]
+    [setEdges, onConnectionCreate, onWorkflowEdgesChange, flashSaveStatus, reactFlowInstance, pushHistory, updateUndoRedoState]
   );
 
   // Auto-layout
@@ -1344,11 +1556,19 @@ function VisualTeamEditorInner({
             { id: wfNode.id, type: wfNode.type, label: wfNode.label, position, config: wfNode.config },
           ]);
         }
+
+        // Push to undo history (structural change)
+        setTimeout(() => {
+          const allN = reactFlowInstance.getNodes();
+          const allE = reactFlowInstance.getEdges();
+          pushHistory(allN, allE);
+          updateUndoRedoState();
+        }, 50);
       } catch {
         // Invalid drag data
       }
     },
-    [reactFlowInstance, setNodes, onWorkflowNodesChange, wfNodes]
+    [reactFlowInstance, setNodes, onWorkflowNodesChange, wfNodes, pushHistory, updateUndoRedoState]
   );
 
   // Config panel handlers
@@ -1402,8 +1622,16 @@ function VisualTeamEditorInner({
       }
       setSelectedNode(null);
       setActivePanel("palette");
+
+      // Push to undo history (structural change)
+      setTimeout(() => {
+        const allN = reactFlowInstance.getNodes();
+        const allE = reactFlowInstance.getEdges();
+        pushHistory(allN, allE);
+        updateUndoRedoState();
+      }, 50);
     },
-    [setNodes, setEdges, onWorkflowNodesChange, onWorkflowEdgesChange]
+    [setNodes, setEdges, onWorkflowNodesChange, onWorkflowEdgesChange, reactFlowInstance, pushHistory, updateUndoRedoState]
   );
 
   const handleClosePanel = useCallback(() => {
@@ -1424,6 +1652,7 @@ function VisualTeamEditorInner({
           : "Idle";
 
   return (
+    <CanvasErrorBoundary>
     <div className="h-full w-full relative" ref={reactFlowWrapper}>
       {/* Node Palette Sidebar */}
       <NodePaletteSidebar
@@ -1490,6 +1719,7 @@ function VisualTeamEditorInner({
             if (!e.id.startsWith("e-")) return;
             onConnectionDelete?.(e.source, e.target);
           });
+          setTimeout(() => { pushHistory(reactFlowInstance.getNodes(), reactFlowInstance.getEdges()); updateUndoRedoState(); }, 50);
         }}
         onNodesDelete={(deletedNodes) => {
           if (!onWorkflowNodesChange || !wfNodes) return;
@@ -1498,6 +1728,7 @@ function VisualTeamEditorInner({
           if (remaining.length !== wfNodes.length) {
             onWorkflowNodesChange(remaining);
           }
+          setTimeout(() => { pushHistory(reactFlowInstance.getNodes(), reactFlowInstance.getEdges()); updateUndoRedoState(); }, 50);
         }}
         snapToGrid
         snapGrid={[20, 20]}
@@ -1618,6 +1849,27 @@ function VisualTeamEditorInner({
             <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
             Auto Layout
           </Button>
+
+          {/* Undo / Redo */}
+          <div className="flex items-center rounded-lg border border-[#332f2b] bg-[#1e1d1b] shadow-md overflow-hidden">
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              title="Undo (Ctrl+Z)"
+              className="px-2 py-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-[#2a2826] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+            </button>
+            <div className="w-px h-4 bg-[#332f2b]" />
+            <button
+              onClick={redo}
+              disabled={!canRedo}
+              title="Redo (Ctrl+Shift+Z)"
+              className="px-2 py-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-[#2a2826] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <Redo2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </Panel>
 
         {/* Execution legend */}
@@ -1659,5 +1911,6 @@ function VisualTeamEditorInner({
         />
       )}
     </div>
+    </CanvasErrorBoundary>
   );
 }
