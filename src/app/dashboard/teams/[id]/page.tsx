@@ -2813,7 +2813,7 @@ function TeamDetailInner() {
                 </div>
               </div>
             )}
-            {team.members.length === 0 ? (
+            {team.members.length === 0 && hierarchyView === "list" ? (
               <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-4 py-16">
                 <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-orange-500/10">
                   <Users className="h-10 w-10 text-orange-500/50" />
@@ -2822,40 +2822,51 @@ function TeamDetailInner() {
                   <p className="text-sm font-medium text-zinc-300 mb-1">No members in this workflow yet</p>
                   <p className="text-xs text-zinc-600 max-w-sm">
                     {team.goal
-                      ? "Generate agents based on your workflow's goal using AI, or add them manually."
-                      : "Add a goal to your workflow, then generate agents or add them manually."}
+                      ? "Build your workflow visually on the canvas, generate agents from your goal, or add them manually."
+                      : "Open the visual canvas to drag & drop nodes, or add a goal to generate agents."}
                   </p>
                 </div>
-                <div className="flex gap-2">
-                  {team.goal && (
+                <div className="flex flex-col items-center gap-3">
+                  <Button
+                    size="default"
+                    onClick={() => setHierarchyView("visual")}
+                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    <LayoutGrid className="h-4 w-4 mr-2" />
+                    Open Visual Canvas
+                  </Button>
+                  <div className="flex gap-2">
+                    {team.goal && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={generateMembers}
+                        disabled={generatingMembers}
+                        className="border-zinc-700 text-zinc-300 hover:text-zinc-100"
+                      >
+                        {generatingMembers ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Generating agents...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            Generate Nodes from Goal
+                          </>
+                        )}
+                      </Button>
+                    )}
                     <Button
                       size="sm"
-                      onClick={generateMembers}
-                      disabled={generatingMembers}
-                      className="bg-orange-600 hover:bg-orange-700 text-white"
+                      variant="outline"
+                      onClick={() => setShowAddMember(true)}
+                      className="border-zinc-700 text-zinc-300 hover:text-zinc-100"
                     >
-                      {generatingMembers ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Generating agents...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Generate Nodes from Goal
-                        </>
-                      )}
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Manually
                     </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setShowAddMember(true)}
-                    className="border-zinc-700 text-zinc-300 hover:text-zinc-100"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Manually
-                  </Button>
+                  </div>
                 </div>
               </div>
             ) : hierarchyView === "visual" ? (

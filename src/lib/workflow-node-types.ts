@@ -119,6 +119,7 @@ export const WORKFLOW_CATEGORIES: {
   { id: "control", label: "Control", icon: "Shield", color: "#06B6D4" },
   { id: "integrations", label: "Integrations", icon: "Plug", color: "#22C55E" },
   { id: "ai_tools", label: "AI Tools", icon: "Sparkles", color: "#EC4899" },
+  { id: "advanced", label: "Advanced", icon: "Layers", color: "#A855F7" },
 ];
 
 /* ========== Node Definitions ========== */
