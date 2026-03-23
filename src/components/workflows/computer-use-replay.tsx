@@ -266,7 +266,7 @@ export function ComputerUseReplay({ session, open, onClose }: ComputerUseReplayP
                     }
                   </p>
                   {step && (
-                    <div className="mt-4 max-w-lg rounded-lg border border-white/[0.06] bg-[#141418] p-4">
+                    <div className="mt-4 max-w-lg rounded-lg border border-white/[0.06] bg-[#1a1918] p-4">
                       <p className="text-xs font-medium text-zinc-400 mb-1">HTML-Zusammenfassung:</p>
                       <p className="text-xs text-zinc-500">{step.htmlSummary}</p>
                     </div>

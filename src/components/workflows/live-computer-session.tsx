@@ -125,7 +125,7 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
 
   if (loading && !session) {
     return (
-      <div className="rounded-xl border border-[#2a2a3a] bg-[#1a1a24] p-6">
+      <div className="rounded-xl border border-[#332f2b] bg-[#1e1d1b] p-6">
         <div className="flex items-center gap-3 text-zinc-400">
           <Loader2 className="h-5 w-5 animate-spin" />
           <span className="text-sm">Session wird geladen...</span>
@@ -150,12 +150,12 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
   return (
     <div
       className={cn(
-        "rounded-xl border border-[#2a2a3a] bg-[#1a1a24] overflow-hidden transition-all",
+        "rounded-xl border border-[#332f2b] bg-[#1e1d1b] overflow-hidden transition-all",
         fullscreen && "fixed inset-4 z-50 rounded-2xl shadow-2xl"
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a2a3a] bg-[#141418]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#332f2b] bg-[#1a1918]">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-500/10">
             <Monitor className="h-4 w-4 text-pink-400" />
@@ -273,7 +273,7 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
       </div>
 
       {/* Action Log */}
-      <div className="border-t border-[#2a2a3a]">
+      <div className="border-t border-[#332f2b]">
         <button
           onClick={() => setShowLog(!showLog)}
           className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-zinc-400 hover:text-zinc-300 transition-colors"
@@ -302,7 +302,7 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
                   <div
                     key={i}
                     className={cn(
-                      "flex items-start gap-2 py-1.5 border-b border-[#1a1a24] last:border-0",
+                      "flex items-start gap-2 py-1.5 border-b border-[#1e1d1b] last:border-0",
                       isScreenshotSkipped && "opacity-80"
                     )}
                   >
@@ -360,7 +360,7 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
 
       {/* Reasoning Log */}
       {session.reasoningLog && session.reasoningLog.length > 0 && (
-        <div className="border-t border-[#2a2a3a]">
+        <div className="border-t border-[#332f2b]">
           <button
             onClick={() => setShowReasoning(!showReasoning)}
             className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-zinc-400 hover:text-zinc-300 transition-colors"
@@ -380,13 +380,13 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
 
       {/* Artifacts */}
       {session.artifacts && session.artifacts.length > 0 && (
-        <div className="border-t border-[#2a2a3a] px-4 py-3">
+        <div className="border-t border-[#332f2b] px-4 py-3">
           <ArtifactViewer artifacts={session.artifacts} />
         </div>
       )}
 
       {/* Stats Footer */}
-      <div className="border-t border-[#2a2a3a] px-4 py-2 bg-[#141418]">
+      <div className="border-t border-[#332f2b] px-4 py-2 bg-[#1a1918]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 text-[10px] text-zinc-600">
             <span>{session.actionCount} Aktionen</span>
@@ -445,7 +445,7 @@ export function ComputerSessionPreview({ sessionId }: { sessionId: string }) {
   }, [sessionId]);
 
   return (
-    <div className="inline-flex items-center gap-2 rounded-lg border border-[#2a2a3a] bg-[#141418] px-3 py-1.5">
+    <div className="inline-flex items-center gap-2 rounded-lg border border-[#332f2b] bg-[#1a1918] px-3 py-1.5">
       <Monitor className="h-3.5 w-3.5 text-pink-400" />
       <span className="text-[11px] text-zinc-400">
         {status === "active" ? (

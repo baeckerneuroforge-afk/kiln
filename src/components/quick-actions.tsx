@@ -54,7 +54,7 @@ export function QuickStartSection() {
           <Link
             key={card.title}
             href={card.href}
-            className="group relative flex flex-col gap-3 rounded-xl border border-[#1e1e1e] bg-[#161616] p-5 transition-all duration-150 hover:bg-[#1a1a1a] hover:border-[#2a2a2a]"
+            className="group relative flex flex-col gap-3 rounded-xl border border-[#332f2b] bg-[#242220] p-5 transition-all duration-150 hover:bg-[#2a2826] hover:border-[#3d3935]"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05] group-hover:bg-white/[0.08] transition-colors">
               <Icon className="h-5 w-5 text-gray-400 group-hover:text-gray-300 transition-colors" />

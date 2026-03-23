@@ -11,7 +11,7 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
   const [copied, setCopied] = useState(false);
 
   return (
-    <div className="relative rounded-lg border border-border bg-[#1a1a1a]">
+    <div className="relative rounded-lg border border-border bg-[#1e1d1b]">
       <div className="flex items-center justify-between border-b border-border px-4 py-2">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           {lang}

@@ -2240,7 +2240,7 @@ export default function AgentDetailPage() {
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setShowCloneModal(false)}
           />
-          <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-[#1C1917] p-6 shadow-2xl mx-4">
+          <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-[#242220] p-6 shadow-2xl mx-4">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold text-foreground">Clone Agent</h3>
               <button
@@ -2354,7 +2354,7 @@ export default function AgentDetailPage() {
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setShowPublishModal(false)}
           />
-          <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-[#1C1917] p-6 shadow-2xl mx-4">
+          <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-[#242220] p-6 shadow-2xl mx-4">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold text-foreground">Publish to Marketplace</h3>
               <button

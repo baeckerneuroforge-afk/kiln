@@ -349,7 +349,7 @@ export function ExecutionDebugConsole({
               <div className="h-[min(70vh,760px)] overflow-auto p-4">
                 {filteredSteps.length === 0 ? (
                   <div className="flex h-full flex-col items-center justify-center px-6 text-center text-zinc-500">
-                    <FileSearch className="h-8 w-8 text-zinc-700" />
+                    <FileSearch className="h-8 w-8 text-zinc-500" />
                     <p className="mt-3 text-sm text-zinc-400">
                       No steps match your search.
                     </p>

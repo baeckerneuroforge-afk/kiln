@@ -181,9 +181,9 @@ export default function DashboardPage() {
             key={mod.title}
             href={mod.href}
             className={cn(
-              "group relative overflow-hidden rounded-xl border border-[#1e1e1e] bg-[#161616] p-6",
+              "group relative overflow-hidden rounded-xl border border-[#332f2b] bg-[#242220] p-6",
               "transition-all duration-150 ease-out",
-              "hover:bg-[#1a1a1a] hover:border-[#2a2a2a]",
+              "hover:bg-[#2a2826] hover:border-[#3d3935]",
               !mod.active && "opacity-50"
             )}
           >

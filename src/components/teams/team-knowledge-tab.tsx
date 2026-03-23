@@ -273,7 +273,7 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
               placeholder="https://www.example.com/page"
-              className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-orange-500/60 outline-none"
+              className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500/60 outline-none"
             />
             <Button onClick={handleUrlSubmit} disabled={!urlInput.trim() || isUploading} size="sm" className="bg-orange-600 hover:bg-orange-700 text-white">
               {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Import"}
@@ -294,14 +294,14 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
             value={textTitle}
             onChange={(e) => setTextTitle(e.target.value)}
             placeholder="Title (e.g. Company Info, Product Specs)"
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-orange-500/60 outline-none"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500/60 outline-none"
           />
           <textarea
             value={textContent}
             onChange={(e) => setTextContent(e.target.value)}
             placeholder="Enter text content..."
             rows={6}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-orange-500/60 outline-none resize-none"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500/60 outline-none resize-none"
           />
           <Button onClick={handleTextSubmit} disabled={!textContent.trim() || isUploading} size="sm" className="bg-orange-600 hover:bg-orange-700 text-white">
             {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -328,7 +328,7 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
                   setFaqPairs(updated);
                 }}
                 placeholder="Question"
-                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-orange-500/60 outline-none"
+                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500/60 outline-none"
               />
               <textarea
                 value={pair.answer}
@@ -339,7 +339,7 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
                 }}
                 placeholder="Answer"
                 rows={2}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-orange-500/60 outline-none resize-none"
+                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500/60 outline-none resize-none"
               />
             </div>
           ))}
@@ -394,7 +394,7 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
               </div>
               <button
                 onClick={() => handleDelete(entry.id)}
-                className="rounded-md p-1.5 text-zinc-600 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                className="rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-red-500/10 hover:text-red-400"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -406,9 +406,9 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
       {/* Empty state */}
       {entries.length === 0 && !uploadMode && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 py-12">
-          <BookOpen className="mb-3 h-8 w-8 text-zinc-600" />
+          <BookOpen className="mb-3 h-8 w-8 text-zinc-500" />
           <p className="text-sm text-zinc-500">No team knowledge added yet</p>
-          <p className="text-xs text-zinc-600 mt-1">Upload documents to share knowledge across all team agents</p>
+          <p className="text-xs text-zinc-500 mt-1">Upload documents to share knowledge across all team agents</p>
         </div>
       )}
     </div>

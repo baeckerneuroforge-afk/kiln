@@ -27,7 +27,7 @@ export function ClientOnboarding({ agencyName, agencyLogo, accentColor = "#F9731
   const [step, setStep] = useState(0);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#0C0A09] p-6">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#1a1918] p-6">
       <div className="w-full max-w-md">
         {/* Agency Logo */}
         <div className="mb-8 flex items-center justify-center gap-2.5">

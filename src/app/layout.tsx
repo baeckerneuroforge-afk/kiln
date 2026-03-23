@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   description:
     "Create AI Agents, Websites & Workflows with Natural Language.",
   manifest: "/manifest.json",
-  themeColor: "#0A0A0A",
+  themeColor: "#1a1918",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

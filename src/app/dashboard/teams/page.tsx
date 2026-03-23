@@ -108,8 +108,8 @@ const QUICK_TEMPLATES = [
     icon: Briefcase,
     color: "text-orange-300/50 group-hover:text-orange-300/70",
     bg: "bg-orange-500/[0.08] group-hover:bg-orange-500/[0.12]",
-    border: "border-[#221f1c]",
-    hoverBorder: "hover:border-[#2e2924]",
+    border: "border-[#332f2b]",
+    hoverBorder: "hover:border-[#3d3935]",
   },
   {
     key: "support",
@@ -118,8 +118,8 @@ const QUICK_TEMPLATES = [
     icon: Headphones,
     color: "text-orange-300/50 group-hover:text-orange-300/70",
     bg: "bg-orange-500/[0.08] group-hover:bg-orange-500/[0.12]",
-    border: "border-[#221f1c]",
-    hoverBorder: "hover:border-[#2e2924]",
+    border: "border-[#332f2b]",
+    hoverBorder: "hover:border-[#3d3935]",
   },
   {
     key: "content",
@@ -128,8 +128,8 @@ const QUICK_TEMPLATES = [
     icon: PenTool,
     color: "text-orange-300/50 group-hover:text-orange-300/70",
     bg: "bg-orange-500/[0.08] group-hover:bg-orange-500/[0.12]",
-    border: "border-[#221f1c]",
-    hoverBorder: "hover:border-[#2e2924]",
+    border: "border-[#332f2b]",
+    hoverBorder: "hover:border-[#3d3935]",
   },
 ];
 
@@ -150,7 +150,7 @@ const TEAM_TEMPLATE_SHOWCASE = [
     icon: Briefcase,
     color: "text-gray-400",
     bg: "bg-white/[0.05]",
-    border: "border-[#1e1e1e]",
+    border: "border-[#332f2b]",
   },
   {
     id: "customer-support-tiers",
@@ -161,7 +161,7 @@ const TEAM_TEMPLATE_SHOWCASE = [
     icon: Headphones,
     color: "text-gray-400",
     bg: "bg-white/[0.05]",
-    border: "border-[#1e1e1e]",
+    border: "border-[#332f2b]",
   },
   {
     id: "content-creation-pipeline",
@@ -172,7 +172,7 @@ const TEAM_TEMPLATE_SHOWCASE = [
     icon: PenTool,
     color: "text-gray-400",
     bg: "bg-white/[0.05]",
-    border: "border-[#1e1e1e]",
+    border: "border-[#332f2b]",
   },
   {
     id: "lead-qualification-booking",
@@ -183,7 +183,7 @@ const TEAM_TEMPLATE_SHOWCASE = [
     icon: CalendarDays,
     color: "text-gray-400",
     bg: "bg-white/[0.05]",
-    border: "border-[#1e1e1e]",
+    border: "border-[#332f2b]",
   },
   {
     id: "shk-betrieb-lead-pipeline",
@@ -194,7 +194,7 @@ const TEAM_TEMPLATE_SHOWCASE = [
     icon: Hammer,
     color: "text-gray-400",
     bg: "bg-white/[0.05]",
-    border: "border-[#1e1e1e]",
+    border: "border-[#332f2b]",
     industry: "Handwerk",
   },
   {
@@ -206,7 +206,7 @@ const TEAM_TEMPLATE_SHOWCASE = [
     icon: Building2,
     color: "text-gray-400",
     bg: "bg-white/[0.05]",
-    border: "border-[#1e1e1e]",
+    border: "border-[#332f2b]",
     industry: "Immobilien",
   },
   {
@@ -218,7 +218,7 @@ const TEAM_TEMPLATE_SHOWCASE = [
     icon: GraduationCap,
     color: "text-gray-400",
     bg: "bg-white/[0.05]",
-    border: "border-[#1e1e1e]",
+    border: "border-[#332f2b]",
     industry: "Beratung",
   },
   {
@@ -230,7 +230,7 @@ const TEAM_TEMPLATE_SHOWCASE = [
     icon: CookingPot,
     color: "text-gray-400",
     bg: "bg-white/[0.05]",
-    border: "border-[#1e1e1e]",
+    border: "border-[#332f2b]",
     industry: "Handwerk",
   },
 ];
@@ -1340,7 +1340,7 @@ function CreateTeamModal({
                 {/* Auto-Generate card */}
                 <button
                   onClick={() => setMode("auto")}
-                  className="group flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-all hover:border-[#2a2a2a] hover:bg-[#1a1a1a]"
+                  className="group flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-all hover:border-[#3d3935] hover:bg-[#2a2826]"
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05] group-hover:bg-white/[0.08] transition-colors">
                     <Wand2 className="h-5 w-5 text-gray-400" />
@@ -1569,7 +1569,7 @@ function CreateTeamModal({
                 size="sm"
                 onClick={handleQuickStart}
                 disabled={submitting || !manualStep1Valid}
-                className="border-[#2a2a2a] text-gray-400 hover:bg-white/[0.05]"
+                className="border-[#3d3935] text-gray-400 hover:bg-white/[0.05]"
               >
                 {submitting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1837,7 +1837,7 @@ export default function TeamsPage() {
               <Link
                 key={template.id}
                 href={`/dashboard/teams/new?template=${template.id}`}
-                className="rounded-xl border border-[#1e1e1e] bg-[#161616] p-4 transition-all duration-150 hover:bg-[#1a1a1a] hover:border-[#2a2a2a]"
+                className="rounded-xl border border-[#332f2b] bg-[#242220] p-4 transition-all duration-150 hover:bg-[#2a2826] hover:border-[#3d3935]"
               >
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.05]">
@@ -1860,7 +1860,7 @@ export default function TeamsPage() {
                 <p className="mt-1.5 text-xs leading-5 text-gray-400">
                   {template.description}
                 </p>
-                <div className="mt-3 rounded-lg border border-[#1e1e1e] bg-[#111] px-3 py-2 text-xs font-mono text-gray-500">
+                <div className="mt-3 rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-3 py-2 text-xs font-mono text-gray-500">
                   {template.flow}
                 </div>
               </Link>
@@ -1964,7 +1964,7 @@ export default function TeamsPage() {
                 <Link
                   key={team.id}
                   href={`/dashboard/teams/${team.id}`}
-                  className="group relative flex flex-col rounded-xl border border-[#221f1c] bg-[#171513] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-all duration-150 hover:bg-[#1c1915] hover:border-[#2e2924] hover:shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
+                  className="group relative flex flex-col rounded-xl border border-[#332f2b] bg-[#242220] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-all duration-150 hover:bg-[#2a2826] hover:border-[#3d3935] hover:shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
                 >
                   {/* Header row */}
                   <div className="mb-3 flex items-start justify-between">
@@ -2036,7 +2036,7 @@ export default function TeamsPage() {
             {/* New Team card */}
             <button
               onClick={() => setShowCreate(true)}
-              className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#221f1c] bg-[#171513]/30 p-5 text-gray-400 transition-all duration-200 hover:border-orange-500/20 hover:text-gray-200 hover:bg-[#171513]/60 min-h-[220px]"
+              className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#332f2b] bg-[#242220]/30 p-5 text-gray-400 transition-all duration-200 hover:border-orange-500/20 hover:text-gray-200 hover:bg-[#242220]/60 min-h-[220px]"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/[0.06] mb-3">
                 <Plus className="h-6 w-6" />
@@ -2064,7 +2064,7 @@ export default function TeamsPage() {
                     <Link
                       key={team.id}
                       href={`/dashboard/teams/${team.id}`}
-                      className="group relative flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:border-[#2a2a2a]"
+                      className="group relative flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:border-[#3d3935]"
                     >
                       <div className="mb-3 flex items-start justify-between">
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05] transition-colors group-hover:bg-white/[0.08]">
@@ -2141,7 +2141,7 @@ export default function TeamsPage() {
 
             <div className="space-y-4 p-6">
               {/* File upload */}
-              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-background/50 px-4 py-3 text-sm text-muted-foreground transition-colors hover:border-[#2a2a2a] hover:text-foreground">
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-background/50 px-4 py-3 text-sm text-muted-foreground transition-colors hover:border-[#3d3935] hover:text-foreground">
                 <FileText className="h-4 w-4" />
                 <span>Drop or click to upload .yaml file</span>
                 <input

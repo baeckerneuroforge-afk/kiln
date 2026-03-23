@@ -5,26 +5,26 @@
 @tailwind utilities;
 
 @layer base {
-  /* KILN Design System — Dark Mode Default (Premium/Muted) */
+  /* KILN Design System — Brighter Dark Mode (n8n/Linear-inspired) */
   :root {
-    --background: 30 8% 4%; /* #0c0b0a — barely warm */
-    --foreground: 30 4% 90%; /* warm white */
-    --card: 30 10% 8.5%; /* #171513 — warm card */
-    --card-foreground: 30 4% 90%;
-    --popover: 30 10% 8.5%;
-    --popover-foreground: 30 4% 90%;
-    --primary: 24 76% 52%; /* #e07828 — warmer, less neon orange */
+    --background: 30 5% 10%; /* #1a1918 — brighter warm dark */
+    --foreground: 30 8% 94%; /* #f0ede8 — near-white warm */
+    --card: 30 5% 13.5%; /* #242220 — visible card bg */
+    --card-foreground: 30 8% 94%;
+    --popover: 30 5% 13.5%;
+    --popover-foreground: 30 8% 94%;
+    --primary: 24 76% 52%; /* #e07828 — warm orange */
     --primary-foreground: 0 0% 100%;
-    --secondary: 30 8% 11%; /* warm secondary */
-    --secondary-foreground: 30 4% 90%;
-    --muted: 30 6% 14%; /* warm muted */
-    --muted-foreground: 30 5% 46%; /* warm gray-500 */
-    --accent: 30 6% 14%;
-    --accent-foreground: 30 4% 90%;
+    --secondary: 30 5% 16%; /* #2a2826 — warm secondary */
+    --secondary-foreground: 30 8% 94%;
+    --muted: 30 4% 18%; /* #302d2b — warm muted */
+    --muted-foreground: 30 5% 56%; /* #9a9590 — readable secondary */
+    --accent: 30 4% 18%;
+    --accent-foreground: 30 8% 94%;
     --destructive: 0 50% 55%; /* #c45555 — muted red */
     --destructive-foreground: 0 0% 100%;
-    --border: 30 10% 13%; /* #221f1c — warm border */
-    --input: 30 6% 14%;
+    --border: 30 6% 19%; /* #332f2b — visible warm border */
+    --input: 30 5% 12%; /* #1e1d1b — inset input bg */
     --ring: 24 76% 52%;
     --radius: 0.5rem;
 
@@ -34,13 +34,13 @@
     --kiln-green: 145 40% 49%; /* #3d9a5f */
     --kiln-blue: 207 35% 54%; /* #5b8fb9 */
 
-    --sidebar: 30 10% 6.5%; /* warm sidebar */
-    --sidebar-foreground: 30 4% 90%;
+    --sidebar: 30 5% 11.5%; /* #1e1d1b — between bg and card */
+    --sidebar-foreground: 30 8% 94%;
     --sidebar-primary: 24 76% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 30 8% 11%;
-    --sidebar-accent-foreground: 30 4% 90%;
-    --sidebar-border: 30 10% 13%;
+    --sidebar-accent: 30 5% 16%; /* #2a2826 — hover/active */
+    --sidebar-accent-foreground: 30 8% 94%;
+    --sidebar-border: 30 6% 19%;
     --sidebar-ring: 24 76% 52%;
   }
 
@@ -114,8 +114,8 @@
   }
 
   .card-hover-glow:hover {
-    border-color: hsl(0 0% 20%);
-    box-shadow: 0 2px 12px hsl(0 0% 0% / 0.3);
+    border-color: hsl(30 5% 23%);
+    box-shadow: 0 2px 12px hsl(0 0% 0% / 0.2);
   }
 
   /* Elevated card shadow */
@@ -157,7 +157,7 @@
 
   /* Glassmorphic node */
   .glass-node {
-    background: hsl(12 6% 7% / 0.85);
+    background: hsl(30 5% 12% / 0.85);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }

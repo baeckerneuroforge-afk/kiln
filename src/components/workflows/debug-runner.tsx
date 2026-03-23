@@ -639,7 +639,7 @@ export default function DebugRunner({
   const isPaused = activeStep?.status === "paused";
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#0C0A09] text-zinc-100 font-[var(--font-dm-sans),sans-serif]">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#1a1918] text-zinc-100 font-[var(--font-dm-sans),sans-serif]">
       {/* ===== Top-Leiste ===== */}
       <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-2.5 shrink-0">
         <div className="flex items-center gap-3">

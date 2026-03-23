@@ -185,7 +185,7 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
   if (teamMembers.length === 0) {
     return (
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 text-center">
-        <Coins className="h-5 w-5 text-zinc-600 mx-auto mb-2" />
+        <Coins className="h-5 w-5 text-zinc-500 mx-auto mb-2" />
         <p className="text-sm text-zinc-500">
           Füge Team-Mitglieder hinzu, um eine Kostenschätzung zu sehen.
         </p>
@@ -215,7 +215,7 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
             </div>
             <p className="text-xl font-bold text-zinc-300">
               ~{formatCost(opusCost)}
-              <span className="text-xs font-normal text-zinc-600 ml-1">
+              <span className="text-xs font-normal text-zinc-500 ml-1">
                 /Ausführung
               </span>
             </p>
@@ -287,7 +287,7 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
               "[&::-moz-range-thumb]:cursor-pointer"
             )}
           />
-          <div className="flex justify-between text-[10px] text-zinc-600 mt-1">
+          <div className="flex justify-between text-[10px] text-zinc-500 mt-1">
             <span>50</span>
             <span>5.000</span>
           </div>
@@ -367,7 +367,7 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
           </table>
         </div>
 
-        <p className="text-[11px] text-zinc-600 mt-3">
+        <p className="text-[11px] text-zinc-500 mt-3">
           Schätzung basiert auf ~{AVG_INPUT_TOKENS.toLocaleString("de-DE")}{" "}
           Input- und ~{AVG_OUTPUT_TOKENS.toLocaleString("de-DE")}{" "}
           Output-Tokens pro Agent.

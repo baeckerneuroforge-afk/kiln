@@ -588,7 +588,7 @@ export function ExecutionDiff({ teamId, open, onClose }: ExecutionDiffProps) {
       <div
         className={cn(
           "relative z-10 w-full max-w-5xl max-h-[90vh] overflow-hidden",
-          "rounded-xl border border-zinc-800 bg-[#0C0A09] shadow-2xl",
+          "rounded-xl border border-zinc-800 bg-[#1a1918] shadow-2xl",
           "flex flex-col"
         )}
       >

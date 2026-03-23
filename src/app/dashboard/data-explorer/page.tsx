@@ -6,7 +6,7 @@ export default async function DataExplorerPage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
   return (
-    <div className="min-h-screen bg-[#0C0A09]">
+    <div className="min-h-screen bg-[#1a1918]">
       <DataExplorer />
     </div>
   );

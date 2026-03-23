@@ -113,7 +113,7 @@ function TextInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-[#2a2a3a] bg-[#1a1a24] px-3 py-2 text-sm text-zinc-200 outline-none transition-colors focus:border-orange-500/50 placeholder:text-zinc-600"
+        className="w-full rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-3 py-2 text-sm text-zinc-200 outline-none transition-colors focus:border-orange-500/50 placeholder:text-zinc-500"
       />
     </div>
   );
@@ -140,7 +140,7 @@ function TextArea({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={rows}
-        className="w-full rounded-lg border border-[#2a2a3a] bg-[#1a1a24] px-3 py-2 text-sm text-zinc-200 outline-none transition-colors focus:border-orange-500/50 placeholder:text-zinc-600 resize-y font-mono"
+        className="w-full rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-3 py-2 text-sm text-zinc-200 outline-none transition-colors focus:border-orange-500/50 placeholder:text-zinc-500 resize-y font-mono"
       />
     </div>
   );
@@ -164,7 +164,7 @@ function SelectField({
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full appearance-none rounded-lg border border-[#2a2a3a] bg-[#1a1a24] px-3 py-2 pr-8 text-sm text-zinc-200 outline-none transition-colors focus:border-orange-500/50"
+          className="w-full appearance-none rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-3 py-2 pr-8 text-sm text-zinc-200 outline-none transition-colors focus:border-orange-500/50"
         >
           {options.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -229,7 +229,7 @@ function ToggleField({
         onClick={() => onChange(!value)}
         className={cn(
           "relative h-5 w-9 rounded-full transition-colors",
-          value ? "bg-orange-500" : "bg-[#2a2a3a]"
+          value ? "bg-orange-500" : "bg-[#332f2b]"
         )}
       >
         <span
@@ -278,7 +278,7 @@ function CheckboxGroup({
                 "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors",
                 checked
                   ? "bg-orange-500/10 border border-orange-500/30 text-zinc-200"
-                  : "bg-[#1a1a24] border border-[#2a2a3a] text-zinc-400 hover:border-[#363644]"
+                  : "bg-[#1e1d1b] border border-[#332f2b] text-zinc-400 hover:border-[#3d3935]"
               )}
             >
               <div
@@ -599,7 +599,7 @@ function TriggerConfig({
           onChange={(v) => update("path", v)}
           placeholder="/my-webhook"
         />
-        <div className="rounded-lg border border-[#2a2a3a] bg-[#1a1a24] p-3">
+        <div className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3">
           <p className="text-[10px] text-zinc-500 mb-1">Webhook URL</p>
           <p className="text-xs text-zinc-300 font-mono break-all">
             {`/api/webhooks/workflow/${config.path || "..."}`}
@@ -623,7 +623,7 @@ function TriggerConfig({
           ]}
         />
       ) : (
-        <div className="rounded-lg border border-[#2a2a3a] bg-[#1a1a24] p-3">
+        <div className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3">
           <p className="text-xs text-zinc-400">Click &ldquo;Run Workflow&rdquo; or use the Test button to trigger manually.</p>
         </div>
       )}
@@ -1017,10 +1017,10 @@ export function NodeConfigPanel({
   return (
     <div
       ref={panelRef}
-      className="absolute right-0 top-0 z-30 flex h-full w-[400px] flex-col border-l border-[#2a2a3a] bg-[#141418] shadow-2xl animate-in slide-in-from-right duration-200"
+      className="absolute right-0 top-0 z-30 flex h-full w-[400px] flex-col border-l border-[#332f2b] bg-[#1a1918] shadow-2xl animate-in slide-in-from-right duration-200"
     >
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-[#2a2a3a] px-4 py-3">
+      <div className="flex items-center gap-3 border-b border-[#332f2b] px-4 py-3">
         <div
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
           style={{ backgroundColor: `${typeMeta?.color || "#F97316"}15` }}
@@ -1038,14 +1038,14 @@ export function NodeConfigPanel({
         </div>
         <button
           onClick={onClose}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-[#2a2a3a] hover:text-zinc-300"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-[#332f2b] hover:text-zinc-300"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-[#2a2a3a]">
+      <div className="flex border-b border-[#332f2b]">
         {(["config", "input", "output"] as const).map((tab) => (
           <button
             key={tab}
@@ -1076,18 +1076,18 @@ export function NodeConfigPanel({
               Data from connected upstream nodes
             </p>
             {lastRunInput ? (
-              <pre className="rounded-lg border border-[#2a2a3a] bg-[#1a1a24] p-3 text-xs text-zinc-300 font-mono overflow-auto max-h-[400px]">
+              <pre className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 text-xs text-zinc-300 font-mono overflow-auto max-h-[400px]">
                 {typeof lastRunInput === "string"
                   ? lastRunInput
                   : JSON.stringify(lastRunInput, null, 2)}
               </pre>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1a1a24] border border-[#2a2a3a] mb-3">
-                  <Zap className="h-5 w-5 text-zinc-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1e1d1b] border border-[#332f2b] mb-3">
+                  <Zap className="h-5 w-5 text-zinc-500" />
                 </div>
                 <p className="text-xs text-zinc-500">No input data yet.</p>
-                <p className="text-[10px] text-zinc-600 mt-1">Run the workflow to see input data.</p>
+                <p className="text-[10px] text-zinc-500 mt-1">Run the workflow to see input data.</p>
               </div>
             )}
           </div>
@@ -1099,18 +1099,18 @@ export function NodeConfigPanel({
               Last execution result
             </p>
             {lastRunResult ? (
-              <pre className="rounded-lg border border-[#2a2a3a] bg-[#1a1a24] p-3 text-xs text-zinc-300 font-mono overflow-auto max-h-[400px]">
+              <pre className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 text-xs text-zinc-300 font-mono overflow-auto max-h-[400px]">
                 {typeof lastRunResult === "string"
                   ? lastRunResult
                   : JSON.stringify(lastRunResult, null, 2)}
               </pre>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1a1a24] border border-[#2a2a3a] mb-3">
-                  <Play className="h-5 w-5 text-zinc-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1e1d1b] border border-[#332f2b] mb-3">
+                  <Play className="h-5 w-5 text-zinc-500" />
                 </div>
                 <p className="text-xs text-zinc-500">No output data yet.</p>
-                <p className="text-[10px] text-zinc-600 mt-1">Test this node or run the workflow.</p>
+                <p className="text-[10px] text-zinc-500 mt-1">Test this node or run the workflow.</p>
               </div>
             )}
           </div>
@@ -1118,12 +1118,12 @@ export function NodeConfigPanel({
       </div>
 
       {/* Footer Actions */}
-      <div className="flex items-center gap-2 border-t border-[#2a2a3a] px-4 py-3">
+      <div className="flex items-center gap-2 border-t border-[#332f2b] px-4 py-3">
         <Button
           size="sm"
           variant="outline"
           onClick={() => onTestNode?.(nodeId)}
-          className="flex-1 bg-[#1a1a24] border-[#363644] text-zinc-300 hover:text-zinc-100 hover:bg-[#262630] text-xs"
+          className="flex-1 bg-[#1e1d1b] border-[#3d3935] text-zinc-300 hover:text-zinc-100 hover:bg-[#2a2826] text-xs"
         >
           <Play className="h-3.5 w-3.5 mr-1.5" />
           Test Node
@@ -1134,7 +1134,7 @@ export function NodeConfigPanel({
           onClick={() => {
             if (confirm("Delete this node?")) onDelete(nodeId);
           }}
-          className="bg-[#1a1a24] border-[#363644] text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:border-red-500/30 text-xs"
+          className="bg-[#1e1d1b] border-[#3d3935] text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:border-red-500/30 text-xs"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>

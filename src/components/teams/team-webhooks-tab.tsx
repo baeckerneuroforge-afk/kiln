@@ -259,7 +259,7 @@ export function TeamWebhooksTab({ teamId }: TeamWebhooksTabProps) {
       {/* Webhook list */}
       {webhooks.length === 0 && !showCreate ? (
         <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/30 p-8 text-center">
-          <Globe className="h-8 w-8 text-zinc-600 mx-auto mb-3" />
+          <Globe className="h-8 w-8 text-zinc-500 mx-auto mb-3" />
           <p className="text-sm text-zinc-400">No webhooks configured</p>
           <p className="text-xs text-zinc-500 mt-1">
             Add a webhook to receive real-time notifications when your team executes tasks.
@@ -420,7 +420,7 @@ export function TeamWebhooksTab({ teamId }: TeamWebhooksTabProps) {
                               {d.responseTime && (
                                 <span className="text-zinc-500">{d.responseTime}ms</span>
                               )}
-                              <span className="ml-auto text-zinc-600 text-[10px]">
+                              <span className="ml-auto text-zinc-500 text-[10px]">
                                 {new Date(d.createdAt).toLocaleString("de-DE", {
                                   hour: "2-digit",
                                   minute: "2-digit",

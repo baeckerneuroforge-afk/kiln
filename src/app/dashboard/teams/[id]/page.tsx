@@ -2901,7 +2901,7 @@ function TeamDetailInner() {
                   minZoom={0.2}
                   maxZoom={1.5}
                   proOptions={{ hideAttribution: true }}
-                  className="bg-[#0C0A09]"
+                  className="bg-[#1a1918]"
                   onNodeClick={(_event, node) => {
                     setSelectedMemberId(node.id);
                   }}

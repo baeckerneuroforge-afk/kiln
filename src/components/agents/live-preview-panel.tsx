@@ -348,7 +348,7 @@ export function LivePreviewPanel({ agentId, config }: LivePreviewPanelProps) {
               className="flex-1 bg-black/50 backdrop-blur-sm"
               onClick={() => setIsMinimized(true)}
             />
-            <div className="h-[70vh] rounded-t-2xl border-t border-white/[0.08] bg-[#1C1917] flex flex-col animate-in slide-in-from-bottom duration-300">
+            <div className="h-[70vh] rounded-t-2xl border-t border-white/[0.08] bg-[#242220] flex flex-col animate-in slide-in-from-bottom duration-300">
               {/* Sheet header */}
               <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3">
                 <div className="flex items-center gap-2">

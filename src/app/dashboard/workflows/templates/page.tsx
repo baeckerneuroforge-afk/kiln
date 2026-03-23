@@ -89,7 +89,7 @@ const TEMPLATE_VISUALS: Record<
     icon: Briefcase,
     accent: "text-gray-400",
     bg: "bg-white/[0.05]",
-    border: "border-[#1e1e1e]",
+    border: "border-[#332f2b]",
   },
   "customer-support-tiers": {
     icon: Headphones,
@@ -719,7 +719,7 @@ export default function WorkflowTemplatesPage() {
   }, [templates, search, categoryFilter, industryFilter, complexityFilter]);
 
   return (
-    <div className="min-h-screen bg-[#0C0A09]">
+    <div className="min-h-screen bg-[#1a1918]">
       <div className="mx-auto max-w-7xl px-6 py-10">
         {/* Header */}
         <div className="mb-8">

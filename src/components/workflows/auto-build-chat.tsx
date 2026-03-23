@@ -211,7 +211,7 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
   return (
     <div className={cn("flex flex-col h-full", className)}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-[#2a2a3a]">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-[#332f2b]">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500/10">
           <Sparkles className="h-4.5 w-4.5 text-orange-400" />
         </div>
@@ -235,7 +235,7 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
               "max-w-[85%] rounded-2xl px-4 py-3",
               msg.role === "user"
                 ? "bg-orange-600 text-white"
-                : "bg-[#1a1a24] border border-[#2a2a3a] text-zinc-300"
+                : "bg-[#1e1d1b] border border-[#332f2b] text-zinc-300"
             )}>
               <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
 
@@ -243,7 +243,7 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
               {msg.data?.type === "built" && msg.data.workflow && (
                 <div className="mt-4 space-y-3">
                   {/* Mini Node Graph */}
-                  <div className="rounded-xl border border-[#2a2a3a] bg-[#0c0a09] p-4">
+                  <div className="rounded-xl border border-[#332f2b] bg-[#1a1918] p-4">
                     <div className="flex flex-wrap gap-2">
                       {msg.data.workflow.nodes.map((node, i) => (
                         <div key={node.id} className="flex items-center gap-1.5">
@@ -310,7 +310,7 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
                       size="sm"
                       variant="outline"
                       onClick={() => onWorkflowCreated?.(msg.data!.workflow!.workflowId)}
-                      className="text-xs h-8 border-[#2a2a3a] text-zinc-400"
+                      className="text-xs h-8 border-[#332f2b] text-zinc-400"
                     >
                       <CheckCircle2 className="mr-1 h-3 w-3" />
                       Als Draft speichern
@@ -324,7 +324,7 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
 
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-[#1a1a24] border border-[#2a2a3a] rounded-2xl px-4 py-3 flex items-center gap-2">
+            <div className="bg-[#1e1d1b] border border-[#332f2b] rounded-2xl px-4 py-3 flex items-center gap-2">
               <Loader2 className="h-4 w-4 text-orange-400 animate-spin" />
               <span className="text-sm text-zinc-500">Denke nach...</span>
             </div>
@@ -335,7 +335,7 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
       </div>
 
       {/* Input */}
-      <div className="px-5 py-4 border-t border-[#2a2a3a]">
+      <div className="px-5 py-4 border-t border-[#332f2b]">
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -344,7 +344,7 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
             placeholder="Beschreibe deinen Workflow..."
             disabled={loading}
-            className="flex-1 bg-[#141418] border border-[#2a2a3a] rounded-xl text-sm text-zinc-100 px-4 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 disabled:opacity-50"
+            className="flex-1 bg-[#1a1918] border border-[#332f2b] rounded-xl text-sm text-zinc-100 px-4 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 disabled:opacity-50"
           />
           <Button
             size="sm"

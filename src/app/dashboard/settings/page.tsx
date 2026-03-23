@@ -899,7 +899,7 @@ function SettingsContent() {
                           "flex flex-col items-center rounded-lg border p-3 text-center transition-all",
                           idx === creditInfo.creditTier
                             ? "border-kiln-orange bg-white/[0.05]"
-                            : "border-border hover:border-[#2a2a2a] hover:bg-[#1a1a1a]"
+                            : "border-border hover:border-[#3d3935] hover:bg-[#2a2826]"
                         )}
                         disabled={idx === creditInfo.creditTier}
                       >
@@ -1006,7 +1006,7 @@ function SettingsContent() {
                         key={pkg.id}
                         onClick={() => purchaseCredits(pkg.id)}
                         disabled={purchasingCredits !== null}
-                        className="flex items-center justify-between rounded-lg border border-border bg-card/50 p-3 text-left transition-all hover:border-[#2a2a2a] hover:bg-[#1a1a1a] disabled:opacity-50"
+                        className="flex items-center justify-between rounded-lg border border-border bg-card/50 p-3 text-left transition-all hover:border-[#3d3935] hover:bg-[#2a2826] disabled:opacity-50"
                       >
                         <div>
                           <p className="text-sm font-semibold text-foreground">{pkg.credits} Credits</p>
@@ -1077,13 +1077,13 @@ function SettingsContent() {
                 <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card p-1">
                   <button
                     onClick={() => setBillingAnnual(false)}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${!billingAnnual ? "bg-white text-[#0C0A09]" : "text-muted-foreground"}`}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${!billingAnnual ? "bg-white text-[#1a1918]" : "text-muted-foreground"}`}
                   >
                     Monthly
                   </button>
                   <button
                     onClick={() => setBillingAnnual(true)}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${billingAnnual ? "bg-white text-[#0C0A09]" : "text-muted-foreground"}`}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${billingAnnual ? "bg-white text-[#1a1918]" : "text-muted-foreground"}`}
                   >
                     Yearly
                     <span className="ml-1 text-[10px] text-[#22C55E]">-30%</span>
@@ -1107,7 +1107,7 @@ function SettingsContent() {
                         <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-kiln-orange px-2.5 py-0.5 text-[10px] font-semibold text-white whitespace-nowrap">Most Popular</div>
                       )}
                       {isCurrent && (
-                        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-white/[0.08] border border-[#2a2a2a] px-2.5 py-0.5 text-[10px] font-semibold text-gray-400 whitespace-nowrap">Current</div>
+                        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-white/[0.08] border border-[#3d3935] px-2.5 py-0.5 text-[10px] font-semibold text-gray-400 whitespace-nowrap">Current</div>
                       )}
                       <Icon className="mb-2 h-5 w-5 text-gray-400" />
                       <h3 className="text-sm font-semibold text-foreground">{plan.name}</h3>
@@ -1352,10 +1352,10 @@ function SettingsContent() {
               </div>
 
               {generatedKey && (
-                <div className="mb-4 rounded-lg border border-[#2a2a2a] bg-kiln-orange/5 p-4">
+                <div className="mb-4 rounded-lg border border-[#3d3935] bg-kiln-orange/5 p-4">
                   <p className="mb-2 text-xs font-semibold text-gray-400">Save this key now — it won&apos;t be shown again!</p>
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 rounded-lg border border-border bg-[#1a1a1a] px-3 py-2 font-mono text-xs text-foreground break-all">{generatedKey}</code>
+                    <code className="flex-1 rounded-lg border border-border bg-[#1e1d1b] px-3 py-2 font-mono text-xs text-foreground break-all">{generatedKey}</code>
                     <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(generatedKey); setAccessKeyCopied(true); setTimeout(() => setAccessKeyCopied(false), 2000); }}>
                       {accessKeyCopied ? <Check className="mr-1.5 h-3.5 w-3.5 text-gray-400" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
                       {accessKeyCopied ? "Copied" : "Copy"}
@@ -1541,7 +1541,7 @@ function SettingsContent() {
                           <div>
                             <label className="mb-1 block text-xs font-medium text-muted-foreground">Signing Secret</label>
                             <div className="flex items-center gap-2">
-                              <code className="flex-1 rounded-lg border border-border bg-[#1a1a1a] px-3 py-1.5 font-mono text-xs text-foreground break-all">{wh.secret}</code>
+                              <code className="flex-1 rounded-lg border border-border bg-[#1e1d1b] px-3 py-1.5 font-mono text-xs text-foreground break-all">{wh.secret}</code>
                               <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(wh.secret); setSecretCopied(wh.id); setTimeout(() => setSecretCopied(null), 2000); }}>
                                 {secretCopied === wh.id ? <Check className="h-3 w-3 text-gray-400" /> : <Copy className="h-3 w-3" />}
                               </Button>

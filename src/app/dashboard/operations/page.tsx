@@ -421,7 +421,7 @@ export default function OperationsPage() {
           <div className="mt-5 space-y-3">
             <Link
               href={data.quickLinks.createAgentHref}
-              className="flex items-center justify-between rounded-xl border border-border bg-background/40 px-4 py-3 transition-colors hover:border-[#2a2a2a] hover:bg-[#1a1a1a]"
+              className="flex items-center justify-between rounded-xl border border-border bg-background/40 px-4 py-3 transition-colors hover:border-[#3d3935] hover:bg-[#2a2826]"
             >
               <div>
                 <p className="text-sm font-medium text-foreground">Create new agent</p>
@@ -432,7 +432,7 @@ export default function OperationsPage() {
 
             <Link
               href={data.quickLinks.conversationsHref}
-              className="flex items-center justify-between rounded-xl border border-border bg-background/40 px-4 py-3 transition-colors hover:border-[#2a2a2a] hover:bg-[#1a1a1a]"
+              className="flex items-center justify-between rounded-xl border border-border bg-background/40 px-4 py-3 transition-colors hover:border-[#3d3935] hover:bg-[#2a2826]"
             >
               <div>
                 <p className="text-sm font-medium text-foreground">View all conversations</p>
@@ -573,7 +573,7 @@ export default function OperationsPage() {
                 <Link
                   key={event.id}
                   href={event.href}
-                  className="flex items-start gap-3 rounded-xl border border-border bg-background/30 px-4 py-3 transition-colors hover:border-[#1e1e1e] hover:bg-[#1a1a1a]"
+                  className="flex items-start gap-3 rounded-xl border border-border bg-background/30 px-4 py-3 transition-colors hover:border-[#332f2b] hover:bg-[#2a2826]"
                 >
                   <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-muted/60">
                     <ActivityIcon type={event.type} />

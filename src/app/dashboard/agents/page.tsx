@@ -169,7 +169,7 @@ export default function AgentsPage() {
               <Link
                 key={agent.id}
                 href={`/dashboard/agents/${agent.id}`}
-                className="group relative flex flex-col rounded-xl border border-[#221f1c] bg-[#171513] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-all duration-150 hover:bg-[#1c1915] hover:border-[#2e2924] hover:shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
+                className="group relative flex flex-col rounded-xl border border-[#332f2b] bg-[#242220] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-all duration-150 hover:bg-[#2a2826] hover:border-[#3d3935] hover:shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
               >
                 {/* Header */}
                 <div className="mb-3 flex items-start justify-between">
@@ -232,7 +232,7 @@ export default function AgentsPage() {
                 </p>
 
                 {/* Stats Row */}
-                <div className="mt-4 flex items-center gap-3 border-t border-[#221f1c] pt-3 text-xs text-gray-400">
+                <div className="mt-4 flex items-center gap-3 border-t border-[#332f2b] pt-3 text-xs text-gray-400">
                   {agent.llmModel && (() => {
                     const modelDef = getModelDef(agent.llmModel!);
                     return modelDef ? (
@@ -264,7 +264,7 @@ export default function AgentsPage() {
           {/* New Agent Card */}
           <Link
             href="/dashboard/agents/new"
-            className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#221f1c] bg-[#171513]/30 p-5 text-gray-400 transition-all duration-200 hover:border-orange-500/20 hover:text-gray-200 hover:bg-[#171513]/60 min-h-[180px]"
+            className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#332f2b] bg-[#242220]/30 p-5 text-gray-400 transition-all duration-200 hover:border-orange-500/20 hover:text-gray-200 hover:bg-[#242220]/60 min-h-[180px]"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/[0.06] mb-3">
               <Plus className="h-6 w-6" />

@@ -752,7 +752,7 @@ export function DeepResearchConfig({ config, onChange }: ConfigProps) {
               className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-colors border ${
                 (config.depth || "standard") === d
                   ? "border-pink-500/50 bg-pink-500/10 text-pink-400"
-                  : "border-[#2a2a3a] bg-[#141418] text-zinc-500 hover:text-zinc-400"
+                  : "border-[#332f2b] bg-[#1a1918] text-zinc-500 hover:text-zinc-400"
               }`}
             >
               {d === "quick" ? "Schnell" : d === "standard" ? "Standard" : "Tief"}
@@ -776,7 +776,7 @@ export function DeepResearchConfig({ config, onChange }: ConfigProps) {
               className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-colors border ${
                 (config.language || "de") === lang.value
                   ? "border-pink-500/50 bg-pink-500/10 text-pink-400"
-                  : "border-[#2a2a3a] bg-[#141418] text-zinc-500 hover:text-zinc-400"
+                  : "border-[#332f2b] bg-[#1a1918] text-zinc-500 hover:text-zinc-400"
               }`}
             >
               {lang.label}
@@ -792,7 +792,7 @@ export function DeepResearchConfig({ config, onChange }: ConfigProps) {
           placeholder="researchResult"
         />
       </div>
-      <div className="rounded-lg border border-[#2a2a3a] bg-[#141418] p-3">
+      <div className="rounded-lg border border-[#332f2b] bg-[#1a1918] p-3">
         <p className="text-[10px] text-zinc-600">
           <span className="font-medium text-zinc-500">Output:</span> summary, fullReport, sources[], confidence (0-100), queriesUsed[], totalDurationMs
         </p>
@@ -839,7 +839,7 @@ export function CodeSandboxConfig({ config, onChange }: ConfigProps) {
               className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-colors border ${
                 (config.language || "python") === lang
                   ? "border-green-500/50 bg-green-500/10 text-green-400"
-                  : "border-[#2a2a3a] bg-[#141418] text-zinc-500 hover:text-zinc-400"
+                  : "border-[#332f2b] bg-[#1a1918] text-zinc-500 hover:text-zinc-400"
               }`}
             >
               {lang === "python" ? "Python" : lang === "javascript" ? "JavaScript" : "Auto"}
@@ -864,7 +864,7 @@ export function CodeSandboxConfig({ config, onChange }: ConfigProps) {
             onChange={(e) => setNewPkg(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addPackage()}
             placeholder="pandas, matplotlib, ..."
-            className="flex-1 bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-300 px-3 py-2 outline-none focus:border-green-500/60 transition-colors placeholder:text-zinc-700"
+            className="flex-1 bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-300 px-3 py-2 outline-none focus:border-green-500/60 transition-colors placeholder:text-zinc-700"
           />
           <button
             onClick={addPackage}
@@ -906,7 +906,7 @@ export function CodeSandboxConfig({ config, onChange }: ConfigProps) {
           placeholder="codeSandboxResult"
         />
       </div>
-      <div className="rounded-lg border border-[#2a2a3a] bg-[#141418] p-3">
+      <div className="rounded-lg border border-[#332f2b] bg-[#1a1918] p-3">
         <p className="text-[10px] text-zinc-600">
           <span className="font-medium text-zinc-500">Output:</span> goal, language, iterations, finalOutput, executionLog[], artifacts[], totalDurationMs, status
         </p>

@@ -445,7 +445,7 @@ export function CustomToolsTab({ agentId }: CustomToolsTabProps) {
       {/* Add/Edit Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="mx-4 w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border border-border bg-[#0C0A09] p-6 shadow-2xl">
+          <div className="mx-4 w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border border-border bg-[#1a1918] p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold text-foreground">
                 {editingTool ? "Edit Tool" : "Add Custom Tool"}

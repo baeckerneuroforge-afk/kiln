@@ -59,7 +59,7 @@ function isPreviewable(mimeType: string): boolean {
 
 function ImagePreview({ url, fileName }: { url: string; fileName: string }) {
   return (
-    <div className="rounded-lg overflow-hidden border border-[#2a2a3a] bg-black">
+    <div className="rounded-lg overflow-hidden border border-[#332f2b] bg-black">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={url}
@@ -119,7 +119,7 @@ function TextPreview({ url, mimeType }: { url: string; mimeType: string }) {
   }
 
   return (
-    <div className="rounded-lg border border-[#2a2a3a] bg-[#0d0d12] max-h-[300px] overflow-auto">
+    <div className="rounded-lg border border-[#332f2b] bg-[#0d0d12] max-h-[300px] overflow-auto">
       <pre className="p-3 text-[11px] font-mono text-zinc-400 whitespace-pre-wrap break-words">
         {displayContent}
       </pre>
@@ -135,12 +135,12 @@ function CsvPreview({ content }: { content: string }) {
   );
 
   return (
-    <div className="rounded-lg border border-[#2a2a3a] overflow-auto max-h-[300px]">
+    <div className="rounded-lg border border-[#332f2b] overflow-auto max-h-[300px]">
       <table className="w-full text-[11px]">
         <thead>
-          <tr className="bg-[#1a1a24] sticky top-0">
+          <tr className="bg-[#1e1d1b] sticky top-0">
             {headers.map((h, i) => (
-              <th key={i} className="px-3 py-2 text-left font-medium text-zinc-400 border-b border-[#2a2a3a] whitespace-nowrap">
+              <th key={i} className="px-3 py-2 text-left font-medium text-zinc-400 border-b border-[#332f2b] whitespace-nowrap">
                 {h}
               </th>
             ))}
@@ -148,7 +148,7 @@ function CsvPreview({ content }: { content: string }) {
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} className="border-b border-[#1a1a24] hover:bg-[#141418]">
+            <tr key={i} className="border-b border-[#1e1d1b] hover:bg-[#1a1918]">
               {row.map((cell, j) => (
                 <td key={j} className="px-3 py-1.5 text-zinc-500 whitespace-nowrap">
                   {cell}
@@ -159,7 +159,7 @@ function CsvPreview({ content }: { content: string }) {
         </tbody>
       </table>
       {lines.length > 21 && (
-        <div className="px-3 py-2 text-[10px] text-zinc-600 bg-[#141418] border-t border-[#2a2a3a]">
+        <div className="px-3 py-2 text-[10px] text-zinc-600 bg-[#1a1918] border-t border-[#332f2b]">
           Zeige 20 von {lines.length - 1} Zeilen
         </div>
       )}
@@ -201,7 +201,7 @@ export function ArtifactViewer({ artifacts, className }: ArtifactViewerProps) {
             const isOpen = previewId === artifact.id;
 
             return (
-              <div key={artifact.id} className="rounded-lg border border-[#2a2a3a] bg-[#141418] overflow-hidden">
+              <div key={artifact.id} className="rounded-lg border border-[#332f2b] bg-[#1a1918] overflow-hidden">
                 <div className="flex items-center justify-between px-3 py-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <IconComp className={cn("h-4 w-4 shrink-0", color)} />
@@ -227,7 +227,7 @@ export function ArtifactViewer({ artifacts, className }: ArtifactViewerProps) {
                     <a
                       href={`/api/workflows/artifacts/${artifact.id}`}
                       download={artifact.fileName}
-                      className="flex h-6 w-6 items-center justify-center rounded text-zinc-600 hover:text-zinc-300 hover:bg-[#2a2a3a] transition-colors"
+                      className="flex h-6 w-6 items-center justify-center rounded text-zinc-600 hover:text-zinc-300 hover:bg-[#332f2b] transition-colors"
                       title="Herunterladen"
                     >
                       <Download className="h-3 w-3" />
@@ -237,7 +237,7 @@ export function ArtifactViewer({ artifacts, className }: ArtifactViewerProps) {
 
                 {/* Preview */}
                 {isOpen && (
-                  <div className="px-3 pb-3 border-t border-[#1a1a24]">
+                  <div className="px-3 pb-3 border-t border-[#1e1d1b]">
                     <div className="pt-2">
                       {artifact.mimeType.startsWith("image/") ? (
                         <ImagePreview url={artifact.url} fileName={artifact.fileName} />

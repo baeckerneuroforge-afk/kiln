@@ -252,7 +252,7 @@ export default function MarketplaceSubmitPage() {
 
       {/* Plan-Check Banner */}
       {!isPlanSufficient && (
-        <div className="mb-8 flex items-start gap-3 rounded-xl border border-[#1e1e1e] bg-kiln-orange/5 p-4">
+        <div className="mb-8 flex items-start gap-3 rounded-xl border border-[#332f2b] bg-kiln-orange/5 p-4">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" />
           <div>
             <p className="font-medium text-foreground">
@@ -485,7 +485,7 @@ export default function MarketplaceSubmitPage() {
                     type="button"
                     onClick={addScreenshot}
                     disabled={!isPlanSufficient}
-                    className="flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-[#2a2a2a] hover:text-foreground disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-[#3d3935] hover:text-foreground disabled:opacity-50"
                   >
                     <Plus className="h-4 w-4" />
                     Screenshot hinzufügen

@@ -57,9 +57,9 @@ export function ComputerUseWizard({ teamId, onCreateWorkflow, onClose }: Compute
   };
 
   return (
-    <div className="rounded-xl border border-[#2a2a3a] bg-[#1a1a24] overflow-hidden">
+    <div className="rounded-xl border border-[#332f2b] bg-[#1e1d1b] overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[#2a2a3a] bg-[#141418]">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-[#332f2b] bg-[#1a1918]">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500/10">
             <Wand2 className="h-4.5 w-4.5 text-orange-400" />
@@ -89,7 +89,7 @@ export function ComputerUseWizard({ teamId, onCreateWorkflow, onClose }: Compute
             onChange={(e) => setDescription(e.target.value)}
             placeholder="z.B. &quot;Überprüfe jeden Montag die Preise auf competitor.com und schicke mir eine E-Mail mit den Änderungen&quot;"
             rows={3}
-            className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-200 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
+            className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-200 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 analyze();
@@ -125,7 +125,7 @@ export function ComputerUseWizard({ teamId, onCreateWorkflow, onClose }: Compute
         {result && (
           <div className="space-y-4">
             {/* Task Summary */}
-            <div className="rounded-lg border border-[#2a2a3a] bg-[#141418] p-4 space-y-3">
+            <div className="rounded-lg border border-[#332f2b] bg-[#1a1918] p-4 space-y-3">
               <h4 className="text-xs font-semibold text-zinc-200">Was KILN einrichten wird:</h4>
 
               {/* Task */}
@@ -175,13 +175,13 @@ export function ComputerUseWizard({ teamId, onCreateWorkflow, onClose }: Compute
             </div>
 
             {/* Workflow Preview */}
-            <div className="rounded-lg border border-[#2a2a3a] bg-[#141418] p-4">
+            <div className="rounded-lg border border-[#332f2b] bg-[#1a1918] p-4">
               <h4 className="text-xs font-semibold text-zinc-200 mb-3">Workflow-Vorschau</h4>
               <div className="flex items-center gap-2 overflow-x-auto pb-2">
                 {result.suggestedNodes.map((node, i) => (
                   <div key={i} className="flex items-center gap-2 shrink-0">
                     {i > 0 && <ArrowRight className="h-3 w-3 text-zinc-700" />}
-                    <div className="rounded-lg border border-[#2a2a3a] bg-[#1a1a24] px-3 py-2">
+                    <div className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-3 py-2">
                       <span className="text-[10px] font-mono text-zinc-500 uppercase block">
                         {node.type.replace(/_/g, " ")}
                       </span>

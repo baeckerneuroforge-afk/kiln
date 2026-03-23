@@ -196,7 +196,7 @@ const NODE_WIDTH = 240;
 const NODE_HEIGHT = 80;
 
 /* ========== Handle Styles ========== */
-const handleBase = "!w-[10px] !h-[10px] !border-[2px] !border-[#2a2a3a] !rounded-full transition-colors";
+const handleBase = "!w-[10px] !h-[10px] !border-[2px] !border-[#332f2b] !rounded-full transition-colors";
 const handleInput = `${handleBase} !bg-[#52525b] hover:!bg-orange-400`;
 const handleOutput = `${handleBase} !bg-[#52525b] hover:!bg-orange-400`;
 
@@ -262,13 +262,13 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
   const execStatus = data.executionStatus as string | undefined;
 
   const statusClasses = execStatus === "running"
-    ? "ring-2 ring-blue-400/60 ring-offset-1 ring-offset-[#1a1a2e]"
+    ? "ring-2 ring-blue-400/60 ring-offset-1 ring-offset-[#1e1d1b]"
     : execStatus === "completed"
-      ? "ring-2 ring-green-400/60 ring-offset-1 ring-offset-[#1a1a2e]"
+      ? "ring-2 ring-green-400/60 ring-offset-1 ring-offset-[#1e1d1b]"
       : execStatus === "awaiting_approval"
-        ? "ring-2 ring-amber-300/60 ring-offset-1 ring-offset-[#1a1a2e]"
+        ? "ring-2 ring-amber-300/60 ring-offset-1 ring-offset-[#1e1d1b]"
         : execStatus === "failed"
-          ? "ring-2 ring-red-400/60 ring-offset-1 ring-offset-[#1a1a2e]"
+          ? "ring-2 ring-red-400/60 ring-offset-1 ring-offset-[#1e1d1b]"
           : "";
 
   const modelDef = data.llmModel ? getModelDef(data.llmModel as string) : null;
@@ -276,7 +276,7 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
   return (
     <div
       className={cn(
-        "rounded-xl bg-[#262630] border border-[#363644] shadow-lg min-w-[220px] max-w-[260px] transition-all duration-150",
+        "rounded-xl bg-[#2a2826] border border-[#3d3935] shadow-lg min-w-[220px] max-w-[260px] transition-all duration-150",
         selected && "border-orange-500/70 shadow-orange-500/10 shadow-xl",
         statusClasses,
         execStatus === "running" && "animate-pulse",
@@ -305,7 +305,7 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
                 execStatus === "completed" && "bg-green-500/15 text-green-400",
                 execStatus === "awaiting_approval" && "bg-amber-500/15 text-amber-300",
                 execStatus === "failed" && "bg-red-500/15 text-red-400",
-                execStatus === "skipped" && "bg-zinc-700/40 text-zinc-600",
+                execStatus === "skipped" && "bg-zinc-700/40 text-zinc-500",
               )}>
                 {execStatus === "running" && <Loader2 className="h-2 w-2 animate-spin" />}
                 {execStatus === "completed" && <Check className="h-2 w-2" />}
@@ -320,7 +320,7 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
       {/* Badges row */}
       <div className="flex items-center gap-1 px-3 pb-2.5 flex-wrap">
         {modelDef && (
-          <span className="text-[9px] bg-[#1e1e28] text-zinc-400 px-1.5 py-0.5 rounded border border-[#363644]">
+          <span className="text-[9px] bg-[#242220] text-zinc-400 px-1.5 py-0.5 rounded border border-[#3d3935]">
             {modelDef.shortLabel}
           </span>
         )}
@@ -392,7 +392,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
   return (
     <div
       className={cn(
-        "rounded-xl bg-[#262630] border border-[#363644] shadow-lg min-w-[200px] max-w-[240px] transition-all duration-150",
+        "rounded-xl bg-[#2a2826] border border-[#3d3935] shadow-lg min-w-[200px] max-w-[240px] transition-all duration-150",
         selected && "border-orange-500/70 shadow-orange-500/10 shadow-xl",
       )}
     >
@@ -424,7 +424,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
       {/* Config preview */}
       {preview && (
         <div className="px-3 pb-2.5 -mt-1">
-          <p className="text-[10px] font-mono text-zinc-500 truncate bg-[#1e1e28] rounded px-2 py-1 border border-[#363644]/50">
+          <p className="text-[10px] font-mono text-zinc-500 truncate bg-[#242220] rounded px-2 py-1 border border-[#3d3935]/50">
             {preview}
           </p>
         </div>
@@ -437,14 +437,14 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
             type="source"
             position={Position.Right}
             id="true"
-            className="!w-[10px] !h-[10px] !border-[2px] !border-[#2a2a3a] !rounded-full !bg-green-500 !-right-[5px]"
+            className="!w-[10px] !h-[10px] !border-[2px] !border-[#332f2b] !rounded-full !bg-green-500 !-right-[5px]"
             style={{ top: "35%" }}
           />
           <Handle
             type="source"
             position={Position.Right}
             id="false"
-            className="!w-[10px] !h-[10px] !border-[2px] !border-[#2a2a3a] !rounded-full !bg-red-500 !-right-[5px]"
+            className="!w-[10px] !h-[10px] !border-[2px] !border-[#332f2b] !rounded-full !bg-red-500 !-right-[5px]"
             style={{ top: "65%" }}
           />
           {/* Labels for true/false */}
@@ -464,7 +464,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
               type="source"
               position={Position.Right}
               id="error"
-              className="!w-[7px] !h-[7px] !border-[1.5px] !border-[#2a2a3a] !rounded-full !bg-red-500/60 hover:!bg-red-400 !-right-[4px]"
+              className="!w-[7px] !h-[7px] !border-[1.5px] !border-[#332f2b] !rounded-full !bg-red-500/60 hover:!bg-red-400 !-right-[4px]"
               style={{ top: "75%" }}
             />
           )}
@@ -493,11 +493,11 @@ type FallbackNodeData = {
 
 function TeamKnowledgeNode({ data }: NodeProps<Node<KnowledgeNodeData>>) {
   return (
-    <div className="rounded-xl bg-[#262630] border border-cyan-500/30 shadow-lg min-w-[180px] max-w-[200px]">
+    <div className="rounded-xl bg-[#2a2826] border border-cyan-500/30 shadow-lg min-w-[180px] max-w-[200px]">
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-[10px] !h-[10px] !border-[2px] !border-[#2a2a3a] !rounded-full !bg-cyan-500 !-right-[5px]"
+        className="!w-[10px] !h-[10px] !border-[2px] !border-[#332f2b] !rounded-full !bg-cyan-500 !-right-[5px]"
       />
       <div className="flex items-center gap-2.5 px-3 py-3">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15">
@@ -518,12 +518,12 @@ function FallbackGhostNode({ data }: NodeProps<Node<FallbackNodeData>>) {
   const model = typeof data.llmModel === "string" ? getModelDef(data.llmModel) : null;
 
   return (
-    <div className="rounded-xl border border-dashed border-orange-500/30 bg-[#262630]/80 shadow-lg min-w-[200px] max-w-[240px] opacity-90">
+    <div className="rounded-xl border border-dashed border-orange-500/30 bg-[#2a2826]/80 shadow-lg min-w-[200px] max-w-[240px] opacity-90">
       <Handle
         type="target"
         position={Position.Left}
         isConnectable={false}
-        className="!w-[10px] !h-[10px] !border-[2px] !border-[#2a2a3a] !rounded-full !bg-orange-400 !-left-[5px]"
+        className="!w-[10px] !h-[10px] !border-[2px] !border-[#332f2b] !rounded-full !bg-orange-400 !-left-[5px]"
       />
       <div className="flex items-center gap-2.5 px-3 py-3">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-500/15">
@@ -573,7 +573,7 @@ function AnimatedConnectionEdge({
         ? "#F97316"
         : selected
           ? "#F97316"
-          : "#404050";
+          : "#4a4540";
 
   return (
     <>
@@ -609,7 +609,7 @@ function AnimatedConnectionEdge({
                 ? "bg-orange-500/15 border-orange-500/40 text-orange-400"
                 : isFallback
                   ? "bg-orange-500/10 border-orange-500/20 text-orange-300"
-                  : "bg-[#262630] border-[#404050] text-zinc-400 hover:border-zinc-500 hover:text-zinc-300"
+                  : "bg-[#2a2826] border-[#4a4540] text-zinc-400 hover:border-zinc-500 hover:text-zinc-300"
             )}
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
@@ -683,7 +683,7 @@ function NodePaletteSidebar({
       <div className="absolute left-0 top-0 z-20 h-full">
         <button
           onClick={onToggle}
-          className="m-2.5 flex h-9 w-9 items-center justify-center rounded-lg border border-[#363644] bg-[#1e1e28] text-zinc-400 shadow-md transition-colors hover:bg-[#262630] hover:text-zinc-200"
+          className="m-2.5 flex h-9 w-9 items-center justify-center rounded-lg border border-[#3d3935] bg-[#242220] text-zinc-400 shadow-md transition-colors hover:bg-[#2a2826] hover:text-zinc-200"
           title="Show node palette"
         >
           <PanelLeft className="h-4 w-4" />
@@ -693,27 +693,27 @@ function NodePaletteSidebar({
   }
 
   return (
-    <div className="absolute left-0 top-0 z-20 flex h-full w-[240px] flex-col border-r border-[#2a2a3a] bg-[#1a1a24]">
+    <div className="absolute left-0 top-0 z-20 flex h-full w-[240px] flex-col border-r border-[#332f2b] bg-[#1e1d1b]">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-3 border-b border-[#2a2a3a]">
+      <div className="flex items-center justify-between px-3 py-3 border-b border-[#332f2b]">
         <span className="text-xs font-semibold text-zinc-300">Nodes</span>
         <button
           onClick={onToggle}
-          className="flex h-6 w-6 items-center justify-center rounded text-zinc-500 transition-colors hover:bg-[#2a2a3a] hover:text-zinc-300"
+          className="flex h-6 w-6 items-center justify-center rounded text-zinc-500 transition-colors hover:bg-[#332f2b] hover:text-zinc-300"
         >
           <PanelLeftClose className="h-3.5 w-3.5" />
         </button>
       </div>
 
       {/* Search */}
-      <div className="px-3 py-2 border-b border-[#2a2a3a]">
+      <div className="px-3 py-2 border-b border-[#332f2b]">
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-600" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search nodes..."
-            className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-xs text-zinc-200 pl-8 pr-3 py-1.5 outline-none focus:border-orange-500/50 placeholder:text-zinc-600 transition-colors"
+            className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-xs text-zinc-200 pl-8 pr-3 py-1.5 outline-none focus:border-orange-500/50 placeholder:text-zinc-500 transition-colors"
           />
         </div>
       </div>
@@ -737,18 +737,18 @@ function NodePaletteSidebar({
                 className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[#222230]"
               >
                 {isExpanded ? (
-                  <ChevronDown className="h-3 w-3 text-zinc-600 shrink-0" />
+                  <ChevronDown className="h-3 w-3 text-zinc-500 shrink-0" />
                 ) : (
-                  <ChevronRight className="h-3 w-3 text-zinc-600 shrink-0" />
+                  <ChevronRight className="h-3 w-3 text-zinc-500 shrink-0" />
                 )}
                 <span className="flex-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
                   {cat.label}
                 </span>
-                <span className="text-[10px] text-zinc-700">{filteredNodes.length}</span>
+                <span className="text-[10px] text-zinc-500">{filteredNodes.length}</span>
               </button>
 
               {/* Thin divider */}
-              {!isExpanded && <div className="mx-3 border-b border-[#2a2a3a]/60" />}
+              {!isExpanded && <div className="mx-3 border-b border-[#332f2b]/60" />}
 
               {isExpanded && (
                 <div className="pb-1">
@@ -761,7 +761,7 @@ function NodePaletteSidebar({
                           onDragStart={(e) => onDragStart(e, def)}
                           onMouseEnter={() => setHoveredNode(def.type)}
                           onMouseLeave={() => setHoveredNode(null)}
-                          className="flex cursor-grab items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[#2a2a3a]/80 active:cursor-grabbing active:bg-[#2a2a3a]"
+                          className="flex cursor-grab items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[#332f2b]/80 active:cursor-grabbing active:bg-[#332f2b]"
                         >
                           <div
                             className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded"
@@ -774,7 +774,7 @@ function NodePaletteSidebar({
 
                         {/* Tooltip on hover */}
                         {hoveredNode === def.type && (
-                          <div className="absolute left-full top-0 ml-2 z-50 w-48 rounded-lg border border-[#363644] bg-[#1e1e28] px-3 py-2 shadow-xl pointer-events-none">
+                          <div className="absolute left-full top-0 ml-2 z-50 w-48 rounded-lg border border-[#3d3935] bg-[#242220] px-3 py-2 shadow-xl pointer-events-none">
                             <p className="text-[11px] font-medium text-zinc-200">{def.label}</p>
                             <p className="text-[10px] text-zinc-500 mt-0.5">{def.description}</p>
                           </div>
@@ -782,7 +782,7 @@ function NodePaletteSidebar({
                       </div>
                     );
                   })}
-                  <div className="mx-3 mt-1 border-b border-[#2a2a3a]/60" />
+                  <div className="mx-3 mt-1 border-b border-[#332f2b]/60" />
                 </div>
               )}
             </div>
@@ -865,7 +865,7 @@ function membersToFlowElements(
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: isExecuting ? "#F97316" : "#404050",
+          color: isExecuting ? "#F97316" : "#4a4540",
           width: 14,
           height: 14,
         },
@@ -1022,7 +1022,7 @@ function membersToFlowElements(
           executionActive: false,
           isErrorEdge: we.sourceHandle === "error" || we.condition === "error",
         },
-        markerEnd: { type: MarkerType.ArrowClosed, color: "#404050", width: 14, height: 14 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: "#4a4540", width: 14, height: 14 },
       });
     });
   }
@@ -1143,7 +1143,7 @@ function VisualTeamEditorInner({
         type: "animated",
         animated: true,
         data: {},
-        markerEnd: { type: MarkerType.ArrowClosed, color: "#404050", width: 14, height: 14 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: "#4a4540", width: 14, height: 14 },
       };
       setEdges((eds) => addEdge(newEdge, eds));
       onConnectionCreate?.(connection.source, connection.target);
@@ -1321,7 +1321,7 @@ function VisualTeamEditorInner({
         minZoom={0.15}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
-        className="bg-[#141418]"
+        className="bg-[#1a1918]"
         connectionLineStyle={{ stroke: "#F97316", strokeWidth: 2, strokeDasharray: "5 3" }}
         defaultEdgeOptions={{ type: "animated", animated: true }}
         onNodeClick={(_event, node) => {
@@ -1368,7 +1368,7 @@ function VisualTeamEditorInner({
         {/* Dot grid background — subtle like n8n/Figma */}
         <Background
           variant={BackgroundVariant.Dots}
-          color="#2a2a3a"
+          color="#332f2b"
           gap={20}
           size={1}
         />
@@ -1377,19 +1377,19 @@ function VisualTeamEditorInner({
           nodeColor={(node) => {
             if (node.type === "workflowNode") {
               const cat = (node.data as WorkflowNodeData)?.category;
-              return workflowNodeColors[cat]?.hex || "#404050";
+              return workflowNodeColors[cat]?.hex || "#4a4540";
             }
             const role = (node.data as VisualNodeData)?.role;
-            return roleColors[role]?.hex || "#404050";
+            return roleColors[role]?.hex || "#4a4540";
           }}
           maskColor="rgba(10,10,18,0.8)"
-          className="!bg-[#1a1a24] !border-[#2a2a3a] rounded-xl"
+          className="!bg-[#1e1d1b] !border-[#332f2b] rounded-xl"
           pannable
           zoomable
         />
 
         <Controls
-          className="!bg-[#1a1a24] !border-[#2a2a3a] !rounded-xl !shadow-xl [&>button]:!bg-[#262630] [&>button]:!border-[#363644] [&>button]:!text-zinc-400 [&>button:hover]:!bg-[#2a2a3a] [&>button:hover]:!text-zinc-200"
+          className="!bg-[#1e1d1b] !border-[#332f2b] !rounded-xl !shadow-xl [&>button]:!bg-[#2a2826] [&>button]:!border-[#3d3935] [&>button]:!text-zinc-400 [&>button:hover]:!bg-[#332f2b] [&>button:hover]:!text-zinc-200"
           showInteractive={false}
         />
 
@@ -1422,7 +1422,7 @@ function VisualTeamEditorInner({
         {/* Toolbar */}
         <Panel position="top-right" className="flex items-center gap-2">
           {/* Execution status */}
-          <div className="flex items-center gap-2 rounded-lg border border-[#2a2a3a] bg-[#1a1a24] px-3 py-1.5 shadow-md">
+          <div className="flex items-center gap-2 rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-3 py-1.5 shadow-md">
             <div className={cn(
               "h-2 w-2 rounded-full",
               executionStatus === "running" && "bg-orange-400 animate-pulse",
@@ -1455,7 +1455,7 @@ function VisualTeamEditorInner({
               size="sm"
               variant="outline"
               onClick={onVariablesClick}
-              className="bg-[#1a1a24] border-[#363644] text-zinc-400 hover:text-zinc-200 hover:bg-[#262630] shadow-md text-xs"
+              className="bg-[#1e1d1b] border-[#3d3935] text-zinc-400 hover:text-zinc-200 hover:bg-[#2a2826] shadow-md text-xs"
             >
               <Variable className="h-3.5 w-3.5 mr-1.5" />
               Variables
@@ -1465,7 +1465,7 @@ function VisualTeamEditorInner({
             size="sm"
             variant="outline"
             onClick={handleAutoLayout}
-            className="bg-[#1a1a24] border-[#363644] text-zinc-400 hover:text-zinc-200 hover:bg-[#262630] shadow-md text-xs"
+            className="bg-[#1e1d1b] border-[#3d3935] text-zinc-400 hover:text-zinc-200 hover:bg-[#2a2826] shadow-md text-xs"
           >
             <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
             Auto Layout
@@ -1475,8 +1475,8 @@ function VisualTeamEditorInner({
         {/* Execution legend */}
         {executionSteps && executionSteps.length > 0 && (
           <Panel position="bottom-left" className="!mb-2 !ml-2">
-            <div className="bg-[#1a1a24] border border-[#2a2a3a] rounded-xl px-3 py-2 shadow-lg">
-              <p className="text-[9px] font-medium uppercase tracking-wider text-zinc-600 mb-1.5">Status</p>
+            <div className="bg-[#1e1d1b] border border-[#332f2b] rounded-xl px-3 py-2 shadow-lg">
+              <p className="text-[9px] font-medium uppercase tracking-wider text-zinc-500 mb-1.5">Status</p>
               <div className="flex items-center gap-3">
                 {[
                   { color: "bg-blue-400", label: "Running" },

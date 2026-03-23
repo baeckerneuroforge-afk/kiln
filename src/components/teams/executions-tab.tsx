@@ -748,7 +748,7 @@ export function TeamExecutionsTab({
             </div>
           ) : executions.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-800 bg-card/40 p-6 text-center">
-              <Clock className="mx-auto h-8 w-8 text-zinc-700" />
+              <Clock className="mx-auto h-8 w-8 text-zinc-500" />
               <p className="mt-3 text-sm font-medium text-zinc-300">No executions yet</p>
               <p className="mt-1 text-xs text-zinc-500">Run the team once to start building execution history.</p>
             </div>
@@ -1112,7 +1112,7 @@ export function TeamExecutionsTab({
                                     </div>
                                     {pAttempt && (
                                       <div className="mt-1 space-y-1">
-                                        <p className="text-[9px] text-zinc-600">
+                                        <p className="text-[9px] text-zinc-500">
                                           {formatDuration(pAttempt.startedAt && pAttempt.completedAt ? new Date(pAttempt.completedAt).getTime() - new Date(pAttempt.startedAt).getTime() : null)}
                                         </p>
                                         {pAttempt.fallbackEvent ? (

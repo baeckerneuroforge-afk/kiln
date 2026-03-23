@@ -328,7 +328,7 @@ export function VersionsTab({
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setRestoreTarget(null)}
           />
-          <div className="relative z-10 mx-4 w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#1C1917] p-6 shadow-2xl">
+          <div className="relative z-10 mx-4 w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#242220] p-6 shadow-2xl">
             <h3 className="text-lg font-semibold text-foreground">
               Roll back to v{restoreTarget.version}?
             </h3>

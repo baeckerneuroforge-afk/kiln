@@ -194,7 +194,7 @@ export function DataExplorer() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-[#0C0A09]">
+    <div className="flex h-[calc(100vh-4rem)] bg-[#1a1918]">
       {/* ── Sidebar ── */}
       <div className="flex w-64 flex-col border-r border-stone-800 bg-stone-950">
         {/* Verbindungswahl */}

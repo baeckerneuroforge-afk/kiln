@@ -45,7 +45,7 @@ function CopyButton({ text }: { text: string }) {
 
 function CodeBlock({ code, language }: { code: string; language: string }) {
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-[#0A0A0A] overflow-hidden">
+    <div className="rounded-xl border border-white/[0.06] bg-[#1a1918] overflow-hidden">
       <div className="flex items-center justify-between border-b border-white/[0.04] px-4 py-2">
         <span className="text-xs text-neutral-500">{language}</span>
         <CopyButton text={code} />
@@ -309,7 +309,7 @@ function TryItSection() {
                 })
               }
               disabled={loading}
-              className="flex items-center gap-2 rounded-lg bg-[#22C55E] px-4 py-2 text-sm font-semibold text-[#0C0A09] transition-all hover:scale-105 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg bg-[#22C55E] px-4 py-2 text-sm font-semibold text-[#1a1918] transition-all hover:scale-105 disabled:opacity-50"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -434,7 +434,7 @@ function TryItSection() {
               <span className="text-xs font-medium text-neutral-400">Response</span>
               <CopyButton text={response} />
             </div>
-            <pre className="max-h-80 overflow-auto rounded-xl border border-white/[0.06] bg-[#0A0A0A] p-4 font-mono text-xs leading-relaxed text-neutral-300">
+            <pre className="max-h-80 overflow-auto rounded-xl border border-white/[0.06] bg-[#1a1918] p-4 font-mono text-xs leading-relaxed text-neutral-300">
               {response}
             </pre>
           </div>
@@ -695,7 +695,7 @@ console.log(code.result.stdout); // 3.141592653589793`}
                       <p className="text-xs text-neutral-500">{action.desc}</p>
                     </div>
                   </div>
-                  <pre className="rounded-lg bg-[#0A0A0A] p-2 font-mono text-[11px] text-neutral-400 overflow-x-auto">
+                  <pre className="rounded-lg bg-[#1a1918] p-2 font-mono text-[11px] text-neutral-400 overflow-x-auto">
                     {action.fields}
                   </pre>
                 </div>

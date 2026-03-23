@@ -173,12 +173,12 @@ export function NodeConfigPanel({
       {/* Slide-in panel */}
       <div
         className={cn(
-          "fixed top-0 right-0 h-full w-[400px] z-30 bg-[#1a1a24] border-l border-[#2a2a3a] shadow-2xl transform transition-transform duration-200 flex flex-col",
+          "fixed top-0 right-0 h-full w-[400px] z-30 bg-[#1e1d1b] border-l border-[#332f2b] shadow-2xl transform transition-transform duration-200 flex flex-col",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#2a2a3a] shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#332f2b] shrink-0">
           <div className="flex items-center gap-3">
             {def && (
               <div
@@ -200,14 +200,14 @@ export function NodeConfigPanel({
           </div>
           <button
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-[#2a2a3a] hover:text-zinc-300"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-[#332f2b] hover:text-zinc-300"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-[#2a2a3a] shrink-0">
+        <div className="flex border-b border-[#332f2b] shrink-0">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -235,7 +235,7 @@ export function NodeConfigPanel({
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
                   placeholder={def?.label || "Node name"}
-                  className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700"
+                  className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700"
                 />
               </div>
 
@@ -290,7 +290,7 @@ export function NodeConfigPanel({
           {activeTab === "data" && (
             <div className="space-y-3">
               <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">Node Data</p>
-              <div className="rounded-lg border border-[#2a2a3a] bg-[#141418] p-3">
+              <div className="rounded-lg border border-[#332f2b] bg-[#1a1918] p-3">
                 <pre className="text-[11px] font-mono text-zinc-400 whitespace-pre-wrap break-words max-h-[400px] overflow-y-auto">
                   {JSON.stringify(config, null, 2)}
                 </pre>
@@ -309,7 +309,7 @@ export function NodeConfigPanel({
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Add notes about this node..."
                 rows={8}
-                className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-300 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
+                className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-300 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
               />
               <p className="text-[10px] text-zinc-600">
                 Notes are saved with the node configuration.
@@ -319,7 +319,7 @@ export function NodeConfigPanel({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-[#2a2a3a] px-5 py-3 flex items-center justify-between shrink-0">
+        <div className="border-t border-[#332f2b] px-5 py-3 flex items-center justify-between shrink-0">
           <button
             onClick={handleDelete}
             className="text-[11px] text-zinc-600 hover:text-red-400 transition-colors"

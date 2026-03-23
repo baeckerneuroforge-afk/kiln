@@ -196,7 +196,7 @@ export function TeamPermissionsTab({ teamId, isOwner }: TeamPermissionsTabProps)
                 value={inviteEmail}
                 onChange={(e) => { setInviteEmail(e.target.value); setInviteError(""); }}
                 placeholder="email@example.com"
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-orange-500/50 focus:outline-none"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-500 focus:border-orange-500/50 focus:outline-none"
                 onKeyDown={(e) => e.key === "Enter" && handleInvite()}
               />
             </div>
@@ -264,7 +264,7 @@ export function TeamPermissionsTab({ teamId, isOwner }: TeamPermissionsTabProps)
                     <span className={cn("rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase", STATUS_STYLES[perm.status])}>
                       {perm.status === "PENDING" ? "Ausstehend" : perm.status === "ACTIVE" ? "Aktiv" : "Widerrufen"}
                     </span>
-                    <span className="text-[10px] text-zinc-600">
+                    <span className="text-[10px] text-zinc-500">
                       {perm.status === "PENDING"
                         ? `Eingeladen ${new Date(perm.invitedAt).toLocaleDateString("de-DE")}`
                         : perm.acceptedAt

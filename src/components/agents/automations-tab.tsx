@@ -355,7 +355,7 @@ export function AutomationsTab({ agentId }: Props) {
           />
 
           {/* Modal Content */}
-          <div className="relative z-10 w-full max-w-lg rounded-2xl border border-border bg-[#1C1917] p-6 shadow-2xl mx-4">
+          <div className="relative z-10 w-full max-w-lg rounded-2xl border border-border bg-[#242220] p-6 shadow-2xl mx-4">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold text-foreground">
                 Add Automation

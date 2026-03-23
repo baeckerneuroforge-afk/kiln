@@ -438,7 +438,7 @@ export default function ConversationsPage() {
                             key={message.id}
                             className={cn(
                               "rounded-xl border px-4 py-3",
-                              message.role === "USER" && "border-[#1e1e1e] bg-kiln-orange/5",
+                              message.role === "USER" && "border-[#332f2b] bg-kiln-orange/5",
                               message.role === "ASSISTANT" && "border-border bg-card",
                               message.role === "HUMAN" && "border-emerald-500/20 bg-emerald-500/5",
                               message.role === "SYSTEM" && "border-zinc-800 bg-zinc-950/40"

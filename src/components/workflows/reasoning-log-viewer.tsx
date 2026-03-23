@@ -47,7 +47,7 @@ export function ReasoningLogViewer({ entries, summary }: ReasoningLogViewerProps
     return (
       <div className="space-y-3">
         <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">Agent Reasoning</p>
-        <div className="rounded-lg border border-[#2a2a3a] bg-[#141418] p-4 text-center">
+        <div className="rounded-lg border border-[#332f2b] bg-[#1a1918] p-4 text-center">
           <Brain className="h-5 w-5 text-zinc-600 mx-auto mb-2" />
           <p className="text-[11px] text-zinc-600">Noch keine Reasoning-Einträge...</p>
         </div>
@@ -59,7 +59,7 @@ export function ReasoningLogViewer({ entries, summary }: ReasoningLogViewerProps
     <div className="space-y-3">
       {/* Summary Bar */}
       {summary && (
-        <div className="flex items-center gap-4 text-[10px] text-zinc-500 bg-[#141418] rounded-lg px-3 py-2 border border-[#2a2a3a]">
+        <div className="flex items-center gap-4 text-[10px] text-zinc-500 bg-[#1a1918] rounded-lg px-3 py-2 border border-[#332f2b]">
           <span>{summary.totalSteps} Schritte</span>
           <span>Ø Confidence: {Math.round(summary.averageConfidence * 100)}%</span>
           {summary.lowConfidenceSteps > 0 && (
@@ -89,7 +89,7 @@ export function ReasoningLogViewer({ entries, summary }: ReasoningLogViewerProps
               "px-2 py-1 rounded text-[10px] font-medium transition-colors",
               filter === f.id
                 ? "bg-orange-500/20 text-orange-400"
-                : "text-zinc-600 hover:text-zinc-400 hover:bg-[#1a1a24]"
+                : "text-zinc-600 hover:text-zinc-400 hover:bg-[#1e1d1b]"
             )}
           >
             {f.label}
@@ -142,11 +142,11 @@ function ReasoningEntryRow({
   ) : null;
 
   return (
-    <div className="rounded-lg border border-[#2a2a3a] bg-[#141418] overflow-hidden">
+    <div className="rounded-lg border border-[#332f2b] bg-[#1a1918] overflow-hidden">
       {/* Header — immer sichtbar */}
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[#1a1a24] transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[#1e1d1b] transition-colors"
       >
         {expanded ? (
           <ChevronDown className="h-3 w-3 text-zinc-600 shrink-0" />
@@ -160,7 +160,7 @@ function ReasoningEntryRow({
         </span>
 
         {/* Confidence Bar */}
-        <div className="w-12 h-1.5 rounded-full bg-[#2a2a3a] shrink-0">
+        <div className="w-12 h-1.5 rounded-full bg-[#332f2b] shrink-0">
           <div
             className={cn("h-full rounded-full", confidenceColor)}
             style={{ width: `${entry.confidence * 100}%` }}
@@ -188,7 +188,7 @@ function ReasoningEntryRow({
 
       {/* Expanded Detail */}
       {expanded && (
-        <div className="px-3 pb-3 space-y-2 border-t border-[#2a2a3a]">
+        <div className="px-3 pb-3 space-y-2 border-t border-[#332f2b]">
           {/* Observation */}
           <div className="pt-2">
             <div className="flex items-center gap-1 text-[10px] text-zinc-600 mb-1">
@@ -259,7 +259,7 @@ function ReasoningEntryRow({
           )}
 
           {/* Meta */}
-          <div className="flex items-center gap-4 text-[9px] text-zinc-700 pt-1 border-t border-[#1a1a24]">
+          <div className="flex items-center gap-4 text-[9px] text-zinc-700 pt-1 border-t border-[#1e1d1b]">
             <span>Confidence: {Math.round(entry.confidence * 100)}%</span>
             <span>Denkzeit: {entry.thinkingDurationMs}ms</span>
             <span>{new Date(entry.timestamp).toLocaleTimeString("de-DE")}</span>

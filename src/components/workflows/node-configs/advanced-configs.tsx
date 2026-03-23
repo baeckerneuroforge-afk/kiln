@@ -38,7 +38,7 @@ function ConfigInput({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700"
+      className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700"
     />
   );
 }
@@ -56,7 +56,7 @@ function ConfigSelect({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors"
+      className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors"
     >
       {options.map((opt) => (
         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -115,7 +115,7 @@ export function GoalTriggerConfig({ config, onChange }: ConfigProps) {
           onChange={(e) => onChange({ ...config, goal: e.target.value })}
           placeholder="z.B. Recherchiere aktuelle Markttrends für E-Commerce und erstelle einen zusammenfassenden Report"
           rows={3}
-          className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
+          className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
         />
       </div>
 
@@ -149,7 +149,7 @@ export function SpawnHelperConfig({ config, onChange }: ConfigProps) {
           onChange={(e) => onChange({ ...config, task: e.target.value })}
           placeholder="z.B. Analysiere die Kundenbewertungen und extrahiere die Top-3 Probleme"
           rows={3}
-          className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
+          className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
         />
       </div>
 
@@ -202,7 +202,7 @@ export function AgentSwarmConfig({ config, onChange }: ConfigProps) {
           onChange={(e) => onChange({ ...config, goal: e.target.value })}
           placeholder="z.B. Analysiere die Wettbewerber in 5 verschiedenen Märkten parallel und konsolidiere die Ergebnisse"
           rows={3}
-          className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
+          className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
         />
       </div>
 
@@ -249,7 +249,7 @@ export function AgentSwarmConfig({ config, onChange }: ConfigProps) {
             onChange={(e) => onChange({ ...config, customMergePrompt: e.target.value })}
             placeholder="z.B. Fasse die Ergebnisse aller Agents in einem strukturierten Report zusammen..."
             rows={2}
-            className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
+            className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
           />
         </div>
       )}
@@ -297,7 +297,7 @@ export function ParallelSplitConfig({ config, onChange }: ConfigProps) {
         />
       </div>
 
-      <div className="rounded-lg border border-[#2a2a3a] bg-[#141418] p-3">
+      <div className="rounded-lg border border-[#332f2b] bg-[#1a1918] p-3">
         <p className="text-[10px] text-zinc-500">
           Verbinde die ausgehenden Edges mit verschiedenen Nodes. Alle Branches starten gleichzeitig.
           Nutze einen &quot;Parallel Merge&quot;-Node um die Ergebnisse zusammenzuführen.

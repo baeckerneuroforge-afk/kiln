@@ -189,37 +189,77 @@ export async function storeTeamChunks(
 export async function fetchUrlContent(url: string): Promise<string> {
   const { safeFetch, readResponseWithLimit } = await import("@/lib/url-validation");
 
-  const response = await safeFetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; KILN/1.0; +https://kiln.ai)",
-      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "Accept-Language": "en-US,en;q=0.5",
-    },
-    redirect: "follow",
-  });
-
-  if (!response.ok) {
-    throw new Error(`Could not fetch URL (HTTP ${response.status}). Make sure the URL is publicly accessible.`);
+  let response: Response;
+  try {
+    response = await safeFetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+        DNT: "1",
+      },
+      redirect: "follow",
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    throw new Error(`Failed to fetch URL: ${msg}`);
   }
 
-  const html = await readResponseWithLimit(response);
+  if (!response.ok) {
+    const statusText = response.statusText || "Unknown";
+    throw new Error(
+      `Could not fetch URL (HTTP ${response.status} ${statusText}). Make sure the URL is publicly accessible.`
+    );
+  }
+
+  let html: string;
+  try {
+    html = await readResponseWithLimit(response);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    throw new Error(`Failed to read response: ${msg}`);
+  }
 
   if (!html || html.length < 50) {
     throw new Error("The URL returned empty or very little content.");
   }
 
-  // Simple HTML-to-text (without external dependency)
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<nav[\s\S]*?<\/nav>/gi, "")
-    .replace(/<footer[\s\S]*?<\/footer>/gi, "")
-    .replace(/<header[\s\S]*?<\/header>/gi, "")
+  // Extract text from HTML — strip non-content elements first, then tags
+  const text = html
+    // Remove script/style/svg blocks
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, "")
+    // Remove HTML comments
+    .replace(/<!--[\s\S]*?-->/g, "")
+    // Strip all remaining tags
     .replace(/<[^>]+>/g, " ")
+    // Decode common HTML entities
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
+    // Normalize whitespace
     .replace(/\s+/g, " ")
     .trim();
+
+  if (text.length < 20) {
+    throw new Error(
+      "The URL returned a page but no meaningful text content could be extracted. The page may use JavaScript rendering."
+    );
+  }
+
+  return text;
 }

@@ -135,6 +135,8 @@ export async function safeFetch(
     const response = await fetch(url, {
       ...options,
       signal: controller.signal,
+      // Disable Next.js fetch caching for user-supplied URLs
+      cache: "no-store",
     });
 
     // Check Content-Length header
@@ -144,6 +146,14 @@ export async function safeFetch(
     }
 
     return response;
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error(`Request timed out after ${FETCH_TIMEOUT / 1000} seconds. The website may be slow or unreachable.`);
+    }
+    if (err instanceof TypeError && (err.message.includes("fetch failed") || err.message.includes("ECONNREFUSED") || err.message.includes("ENOTFOUND"))) {
+      throw new Error(`Could not connect to ${new URL(url).hostname}. The website may be down or blocking requests.`);
+    }
+    throw err;
   } finally {
     clearTimeout(timeout);
   }

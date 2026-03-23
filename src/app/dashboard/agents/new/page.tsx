@@ -337,7 +337,7 @@ export default function NewAgentPage() {
               {/* Guided Wizard — Recommended */}
               <button
                 onClick={() => setMode("WIZARD")}
-                className="relative flex flex-col items-start rounded-xl border-2 border-[#2a2a2a] bg-card p-6 text-left transition-all hover:border-kiln-orange/60 hover:bg-[#1a1a1a]"
+                className="relative flex flex-col items-start rounded-xl border-2 border-[#3d3935] bg-card p-6 text-left transition-all hover:border-kiln-orange/60 hover:bg-[#2a2826]"
               >
                 <span className="absolute -top-2.5 right-4 rounded-full bg-kiln-orange px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
                   Recommended
@@ -516,7 +516,7 @@ export default function NewAgentPage() {
                       key={t.id}
                       onClick={() => setTriggerType(t.id)}
                       className={`flex flex-col items-start rounded-lg border p-4 text-left transition-all ${
-                        triggerType === t.id ? "border-kiln-orange bg-kiln-orange/5" : "border-border hover:border-[#2a2a2a]"
+                        triggerType === t.id ? "border-kiln-orange bg-kiln-orange/5" : "border-border hover:border-[#3d3935]"
                       }`}
                     >
                       <h4 className="text-sm font-semibold text-foreground">{t.label}</h4>
@@ -568,7 +568,7 @@ export default function NewAgentPage() {
                       key={o.id}
                       onClick={() => setOutputType(o.id)}
                       className={`flex flex-col items-start rounded-lg border p-4 text-left transition-all ${
-                        outputType === o.id ? "border-kiln-orange bg-kiln-orange/5" : "border-border hover:border-[#2a2a2a]"
+                        outputType === o.id ? "border-kiln-orange bg-kiln-orange/5" : "border-border hover:border-[#3d3935]"
                       }`}
                     >
                       <h4 className="text-sm font-semibold text-foreground">{o.label}</h4>

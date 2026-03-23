@@ -65,7 +65,7 @@ function getOrCreateVisitorId(): string {
     if (ctx) {
       ctx.fillStyle = "#F97316";
       ctx.fillRect(0, 0, 16, 16);
-      ctx.fillStyle = "#0C0A09";
+      ctx.fillStyle = "#1a1918";
       ctx.font = "6px sans-serif";
       ctx.fillText("K", 2, 12);
       parts.push(canvas.toDataURL().slice(-20));
@@ -612,7 +612,7 @@ export function PublicAgentChat({
                 </div>
 
                 {normalizedSchedule.offlineAction === "collect_email" && (
-                  <div className="space-y-3 rounded-xl border border-white/10 bg-[#1C1917]/70 p-3">
+                  <div className="space-y-3 rounded-xl border border-white/10 bg-[#242220]/70 p-3">
                     {offlineSubmitted ? (
                       <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
                         Thanks. Your details were saved and tagged for follow-up.
@@ -892,7 +892,7 @@ export function PublicAgentChat({
           </button>
           </div>
         ) : (
-          <div className="rounded-xl border border-white/10 bg-[#1C1917] px-4 py-3 text-sm text-[#D6D3D1]">
+          <div className="rounded-xl border border-white/10 bg-[#242220] px-4 py-3 text-sm text-[#D6D3D1]">
             {normalizedSchedule.offlineAction === "hide_widget"
               ? "This agent is outside business hours."
               : "Chat is currently paused outside business hours."}

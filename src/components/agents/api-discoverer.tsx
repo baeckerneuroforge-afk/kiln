@@ -390,7 +390,7 @@ export function ApiDiscoverer({ agentId }: ApiDiscovererProps) {
 
               {showCode && (
                 <div className="mt-2 relative">
-                  <pre className="rounded-xl bg-[#0c0a09] border border-[#2a2a3a] p-4 overflow-x-auto text-[11px] text-zinc-400 font-mono max-h-[400px]">
+                  <pre className="rounded-xl bg-[#1a1918] border border-[#2a2a3a] p-4 overflow-x-auto text-[11px] text-zinc-400 font-mono max-h-[400px]">
                     {discovery.generatedCode}
                   </pre>
                   <Button

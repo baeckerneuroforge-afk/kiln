@@ -11,7 +11,7 @@ export default async function NodesMarketplacePage() {
   if (!userId) redirect("/sign-in");
 
   return (
-    <div className="min-h-screen bg-[#0C0A09] p-6 md:p-8">
+    <div className="min-h-screen bg-[#1a1918] p-6 md:p-8">
       <div className="mx-auto max-w-6xl space-y-6">
         {/* Header */}
         <div>

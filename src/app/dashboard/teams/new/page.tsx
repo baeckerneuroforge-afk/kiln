@@ -59,7 +59,7 @@ const TEMPLATE_VISUALS: Record<
     icon: Briefcase,
     accent: "text-gray-400",
     bg: "bg-white/[0.05]",
-    border: "border-[#1e1e1e]",
+    border: "border-[#332f2b]",
     ring: "ring-kiln-orange/30",
   },
   "customer-support-tiers": {
@@ -334,7 +334,7 @@ export default function NewTeamTemplatePage() {
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#1e1e1e] bg-white/[0.05] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-gray-400">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#332f2b] bg-white/[0.05] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-gray-400">
             <Sparkles className="h-3.5 w-3.5" />
             One-Click Workflow Templates
           </div>
@@ -462,7 +462,7 @@ export default function NewTeamTemplatePage() {
                       Tune the workflow to your business, then deploy the full workflow.
                     </p>
                   </div>
-                  <div className="rounded-full border border-[#1e1e1e] bg-white/[0.05] px-3 py-1 text-[11px] font-medium text-gray-400">
+                  <div className="rounded-full border border-[#332f2b] bg-white/[0.05] px-3 py-1 text-[11px] font-medium text-gray-400">
                     Ready to Deploy
                   </div>
                 </div>
