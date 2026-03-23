@@ -29,6 +29,8 @@ import {
   Code2,
   Database,
   Bolt,
+  Globe,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -70,6 +72,16 @@ const NAV_SECTIONS: NavSection[] = [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, minAgents: 0 },
       { name: "Agents", href: "/dashboard/agents", icon: Bot, minAgents: 0, tourId: "agents" },
       { name: "Conversations", href: "/dashboard/conversations", icon: MessageSquare, minAgents: 0 },
+    ],
+  },
+  {
+    id: "quick-use",
+    label: "Quick Use",
+    defaultOpen: true,
+    items: [
+      { name: "Computer Use", href: "/dashboard/computer-use", icon: Globe, minAgents: 0 },
+      { name: "Agent Swarm", href: "/dashboard/agent-swarm", icon: Users, minAgents: 0 },
+      { name: "Deep Research", href: "/dashboard/deep-research", icon: Search, minAgents: 0 },
     ],
   },
   {
