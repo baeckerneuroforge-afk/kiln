@@ -53,14 +53,14 @@ export default function TemplatesPage() {
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05]">
-            <Sparkles className="h-5 w-5 text-gray-400" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/[0.08]">
+            <Sparkles className="h-5 w-5 text-orange-300/50" />
           </div>
           <div>
-            <h1 className="font-serif text-3xl text-foreground">
+            <h1 className="font-serif text-2xl font-semibold text-gray-50">
               Agent Templates
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-gray-300">
               Start with a ready-made template and customize it for your
               business.
             </p>
@@ -73,23 +73,31 @@ export default function TemplatesPage() {
         {agentTemplates.map((template) => (
           <div
             key={template.id}
-            className="group flex flex-col rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/30 hover:shadow-lg"
+            className="group flex flex-col rounded-xl border border-[#221f1c] bg-[#171513] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-all hover:border-[#2e2924] hover:shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
           >
             {/* Icon + Branche */}
             <div className="mb-3 flex items-start justify-between">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-2xl">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/[0.08] text-2xl">
                 {template.icon}
               </div>
-              <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
+              <span className={(() => {
+                const b = template.branche.toLowerCase();
+                if (b.includes("immobilien")) return "rounded-full border border-blue-500/10 bg-blue-500/10 px-2.5 py-1 text-[10px] font-medium text-blue-300/70";
+                if (b.includes("coaching") || b.includes("beratung")) return "rounded-full border border-purple-500/10 bg-purple-500/10 px-2.5 py-1 text-[10px] font-medium text-purple-300/70";
+                if (b.includes("handwerk") || b.includes("sanitär")) return "rounded-full border border-orange-500/10 bg-orange-500/10 px-2.5 py-1 text-[10px] font-medium text-orange-300/70";
+                if (b.includes("gastro")) return "rounded-full border border-green-500/10 bg-green-500/10 px-2.5 py-1 text-[10px] font-medium text-green-300/70";
+                if (b.includes("fitness") || b.includes("wellness")) return "rounded-full border border-cyan-500/10 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-medium text-cyan-300/70";
+                return "rounded-full border border-orange-500/10 bg-orange-500/10 px-2.5 py-1 text-[10px] font-medium text-orange-300/70";
+              })()}>
                 {template.branche}
               </span>
             </div>
 
             {/* Name + Description */}
-            <h3 className="mb-1.5 font-semibold text-foreground">
+            <h3 className="mb-1.5 text-base font-medium text-gray-100 group-hover:text-orange-100 transition-colors">
               {template.name}
             </h3>
-            <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+            <p className="mb-4 text-sm leading-relaxed text-gray-300">
               {template.description}
             </p>
 

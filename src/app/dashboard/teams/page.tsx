@@ -106,30 +106,30 @@ const QUICK_TEMPLATES = [
     label: "Sales Workflow",
     description: "Lead gen, outreach, qualification & meeting booking",
     icon: Briefcase,
-    color: "text-gray-400",
-    bg: "bg-white/[0.05]",
-    border: "border-[#1e1e1e]",
-    hoverBorder: "hover:border-[#2a2a2a]",
+    color: "text-orange-300/50 group-hover:text-orange-300/70",
+    bg: "bg-orange-500/[0.08] group-hover:bg-orange-500/[0.12]",
+    border: "border-[#221f1c]",
+    hoverBorder: "hover:border-[#2e2924]",
   },
   {
     key: "support",
     label: "Support Workflow",
     description: "Triage, technical support, billing & onboarding",
     icon: Headphones,
-    color: "text-gray-400",
-    bg: "bg-white/[0.05]",
-    border: "border-[#1e1e1e]",
-    hoverBorder: "hover:border-[#2a2a2a]",
+    color: "text-orange-300/50 group-hover:text-orange-300/70",
+    bg: "bg-orange-500/[0.08] group-hover:bg-orange-500/[0.12]",
+    border: "border-[#221f1c]",
+    hoverBorder: "hover:border-[#2e2924]",
   },
   {
     key: "content",
     label: "Content Workflow",
     description: "Blog, social media, newsletters, SEO & analytics",
     icon: PenTool,
-    color: "text-gray-400",
-    bg: "bg-white/[0.05]",
-    border: "border-[#1e1e1e]",
-    hoverBorder: "hover:border-[#2a2a2a]",
+    color: "text-orange-300/50 group-hover:text-orange-300/70",
+    bg: "bg-orange-500/[0.08] group-hover:bg-orange-500/[0.12]",
+    border: "border-[#221f1c]",
+    hoverBorder: "hover:border-[#2e2924]",
   },
 ];
 
@@ -1793,8 +1793,8 @@ export default function TeamsPage() {
       {/* Header */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-serif text-3xl text-foreground">Workflows</h1>
-          <p className="mt-2 text-muted-foreground">
+          <h1 className="font-serif text-2xl font-semibold text-gray-50">Workflows</h1>
+          <p className="mt-1.5 text-sm text-gray-300">
             Coordinate groups of AI agents working toward shared goals.
           </p>
         </div>
@@ -1871,7 +1871,7 @@ export default function TeamsPage() {
 
       {/* Quick Templates */}
       <div className="mb-8">
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-orange-400/60">
           Quick Start Templates
         </h2>
         <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
@@ -1953,7 +1953,7 @@ export default function TeamsPage() {
       ) : (
         /* Team cards grid */
         <>
-          <h2 className="mb-3 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-orange-400/60">
             Your Workflows
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -1964,12 +1964,12 @@ export default function TeamsPage() {
                 <Link
                   key={team.id}
                   href={`/dashboard/teams/${team.id}`}
-                  className="group relative flex flex-col rounded-xl border border-[#1e1e1e] bg-[#161616] p-5 transition-all duration-150 hover:bg-[#1a1a1a] hover:border-[#2a2a2a]"
+                  className="group relative flex flex-col rounded-xl border border-[#221f1c] bg-[#171513] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-all duration-150 hover:bg-[#1c1915] hover:border-[#2e2924] hover:shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
                 >
                   {/* Header row */}
                   <div className="mb-3 flex items-start justify-between">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05] group-hover:bg-white/[0.08] transition-colors">
-                      <Users className="h-5 w-5 text-gray-400 group-hover:text-gray-300 transition-colors" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/[0.08] group-hover:bg-orange-500/[0.12] transition-colors">
+                      <Users className="h-5 w-5 text-orange-300/50 group-hover:text-orange-300/70 transition-colors" />
                     </div>
                     <div className="flex items-center gap-1.5">
                       {healthScores[team.id] && (
@@ -1980,18 +1980,18 @@ export default function TeamsPage() {
                           {healthScores[team.id].direction === "down" && <TrendingDown className="h-2.5 w-2.5" />}
                         </span>
                       )}
-                      <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                      <span className="inline-flex items-center gap-1.5 text-xs text-gray-400">
                         {team.status === "ACTIVE" ? (
-                          <><span className="h-1.5 w-1.5 rounded-full bg-green-500" /><span>Active</span></>
+                          <><span className="h-2 w-2 rounded-full bg-green-500" /><span>Active</span></>
                         ) : (
-                          <><span className="h-1.5 w-1.5 rounded-full bg-amber-500" /><span>Paused</span></>
+                          <><span className="h-2 w-2 rounded-full bg-amber-500/70" /><span>Paused</span></>
                         )}
                       </span>
                     </div>
                   </div>
 
                   {/* Name + Goal */}
-                  <h3 className="mb-1 font-medium text-gray-200 group-hover:text-gray-100 transition-colors flex items-center gap-2">
+                  <h3 className="mb-1 text-base font-medium text-gray-100 group-hover:text-orange-100 transition-colors flex items-center gap-2">
                     {team.name}
                     {team.parentTeamId && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500 border border-zinc-700/50 font-normal">
@@ -2000,7 +2000,7 @@ export default function TeamsPage() {
                       </span>
                     )}
                   </h3>
-                  <p className="mb-auto text-xs text-muted-foreground line-clamp-2 min-h-[2rem]">
+                  <p className="mb-auto text-sm text-gray-300 line-clamp-2 min-h-[2rem]">
                     {team.goal || team.description || "No goal set"}
                   </p>
 
@@ -2036,9 +2036,9 @@ export default function TeamsPage() {
             {/* New Team card */}
             <button
               onClick={() => setShowCreate(true)}
-              className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/30 p-5 text-muted-foreground transition-all duration-200 hover:border-[#2a2a2a] hover:text-foreground hover:bg-card/50 min-h-[220px]"
+              className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#221f1c] bg-[#171513]/30 p-5 text-gray-400 transition-all duration-200 hover:border-orange-500/20 hover:text-gray-200 hover:bg-[#171513]/60 min-h-[220px]"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted mb-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500/[0.06] mb-3">
                 <Plus className="h-6 w-6" />
               </div>
               <span className="text-sm font-medium">Custom Workflow</span>
@@ -2048,7 +2048,7 @@ export default function TeamsPage() {
           {/* Shared with Me */}
           {teams.some((t) => t.isOwner === false) && (
             <>
-              <h2 className="mt-8 mb-3 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              <h2 className="mt-8 mb-3 text-xs font-semibold uppercase tracking-widest text-orange-400/60">
                 Shared with Me
               </h2>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

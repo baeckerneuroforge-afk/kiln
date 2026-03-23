@@ -86,6 +86,7 @@ import {
   type WorkflowNodeDefinition,
   createWorkflowNode,
 } from "@/lib/workflow-node-types";
+import { NodeConfigPanel } from "./node-config-panel";
 
 /* ========== Types ========== */
 interface OutputSchemaField {
@@ -155,6 +156,11 @@ interface VisualTeamEditorProps {
   onWorkflowNodeClick?: (nodeId: string, nodeType: WorkflowNodeType, config: Record<string, unknown>) => void;
   onEdgeClick?: (edgeId: string, sourceNodeId: string, targetNodeId: string) => void;
   onVariablesClick?: () => void;
+  onRunWorkflow?: () => void;
+  executionStatus?: "idle" | "running" | "completed" | "failed";
+  executionDuration?: number;
+  executionCredits?: number;
+  nodeResults?: Record<string, { input?: unknown; output?: unknown; status?: "completed" | "failed" | "running" }>;
 }
 
 /* ========== Constants ========== */
@@ -1048,11 +1054,24 @@ function VisualTeamEditorInner({
   onWorkflowNodeClick,
   onEdgeClick: onEdgeClickProp,
   onVariablesClick,
+  onRunWorkflow,
+  executionStatus = "idle",
+  executionDuration,
+  executionCredits,
+  nodeResults,
 }: VisualTeamEditorProps) {
   const reactFlowInstance = useReactFlow();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Config panel state
+  const [selectedNode, setSelectedNode] = useState<{
+    id: string;
+    type: WorkflowNodeType;
+    label: string;
+    config: Record<string, unknown>;
+  } | null>(null);
 
   // Inject dash animation CSS
   useEffect(() => {
@@ -1212,7 +1231,71 @@ function VisualTeamEditorInner({
     [reactFlowInstance, setNodes, onWorkflowNodesChange, wfNodes]
   );
 
+  // Config panel handlers
+  const handleNodeConfigChange = useCallback(
+    (nodeId: string, newConfig: Record<string, unknown>) => {
+      // Update local ReactFlow node
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId ? { ...n, data: { ...n.data, config: newConfig } } : n
+        )
+      );
+      // Update workflow nodes
+      if (onWorkflowNodesChange && wfNodes) {
+        onWorkflowNodesChange(
+          wfNodes.map((n) => (n.id === nodeId ? { ...n, config: newConfig } : n))
+        );
+      }
+      // Update local selected state
+      setSelectedNode((prev) => (prev && prev.id === nodeId ? { ...prev, config: newConfig } : prev));
+    },
+    [setNodes, onWorkflowNodesChange, wfNodes]
+  );
+
+  const handleNodeLabelChange = useCallback(
+    (nodeId: string, newLabel: string) => {
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId ? { ...n, data: { ...n.data, label: newLabel } } : n
+        )
+      );
+      if (onWorkflowNodesChange && wfNodes) {
+        onWorkflowNodesChange(
+          wfNodes.map((n) => (n.id === nodeId ? { ...n, label: newLabel } : n))
+        );
+      }
+      setSelectedNode((prev) => (prev && prev.id === nodeId ? { ...prev, label: newLabel } : prev));
+    },
+    [setNodes, onWorkflowNodesChange, wfNodes]
+  );
+
+  const handleNodeDelete = useCallback(
+    (nodeId: string) => {
+      setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+      setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+      if (onWorkflowNodesChange && wfNodes) {
+        onWorkflowNodesChange(wfNodes.filter((n) => n.id !== nodeId));
+      }
+      setSelectedNode(null);
+    },
+    [setNodes, setEdges, onWorkflowNodesChange, wfNodes]
+  );
+
+  const handleClosePanel = useCallback(() => {
+    setSelectedNode(null);
+  }, []);
+
   const isEmpty = members.length === 0 && (!wfNodes || wfNodes.length === 0) && nodes.length === 0;
+
+  // Execution status label
+  const execLabel =
+    executionStatus === "running"
+      ? "Running..."
+      : executionStatus === "completed"
+        ? `Completed${executionDuration ? ` (${(executionDuration / 1000).toFixed(1)}s` : ""}${executionCredits ? `, ${executionCredits} credits)` : executionDuration ? ")" : ""}`
+        : executionStatus === "failed"
+          ? "Failed"
+          : "Idle";
 
   return (
     <div className="h-full w-full relative" ref={reactFlowWrapper}>
@@ -1245,10 +1328,21 @@ function VisualTeamEditorInner({
           if (node.id.startsWith("__fallback__")) return;
           if (node.type === "workflowNode") {
             const nd = node.data as WorkflowNodeData;
+            // Open config panel
+            setSelectedNode({
+              id: node.id,
+              type: nd.nodeType,
+              label: nd.label as string,
+              config: nd.config as Record<string, unknown>,
+            });
             onWorkflowNodeClick?.(node.id, nd.nodeType, nd.config);
             return;
           }
+          setSelectedNode(null);
           onNodeClick(node.id);
+        }}
+        onPaneClick={() => {
+          setSelectedNode(null);
         }}
         onEdgeClick={(_event, edge) => {
           onEdgeClickProp?.(edge.id, edge.source, edge.target);
@@ -1326,7 +1420,36 @@ function VisualTeamEditorInner({
         )}
 
         {/* Toolbar */}
-        <Panel position="top-right" className="flex gap-2">
+        <Panel position="top-right" className="flex items-center gap-2">
+          {/* Execution status */}
+          <div className="flex items-center gap-2 rounded-lg border border-[#2a2a3a] bg-[#1a1a24] px-3 py-1.5 shadow-md">
+            <div className={cn(
+              "h-2 w-2 rounded-full",
+              executionStatus === "running" && "bg-orange-400 animate-pulse",
+              executionStatus === "completed" && "bg-green-400",
+              executionStatus === "failed" && "bg-red-400",
+              executionStatus === "idle" && "bg-zinc-600",
+            )} />
+            <span className="text-[11px] text-zinc-400">{execLabel}</span>
+          </div>
+
+          {/* Run Workflow */}
+          {onRunWorkflow && (
+            <Button
+              size="sm"
+              onClick={onRunWorkflow}
+              disabled={executionStatus === "running"}
+              className="bg-orange-600 text-white hover:bg-orange-500 disabled:opacity-50 shadow-md text-xs"
+            >
+              {executionStatus === "running" ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Play className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              {executionStatus === "running" ? "Running..." : "Run Workflow"}
+            </Button>
+          )}
+
           {onVariablesClick && (
             <Button
               size="sm"
@@ -1371,6 +1494,22 @@ function VisualTeamEditorInner({
           </Panel>
         )}
       </ReactFlow>
+
+      {/* Node Config Panel (right side) */}
+      {selectedNode && (
+        <NodeConfigPanel
+          nodeId={selectedNode.id}
+          nodeType={selectedNode.type}
+          label={selectedNode.label}
+          config={selectedNode.config}
+          onConfigChange={handleNodeConfigChange}
+          onLabelChange={handleNodeLabelChange}
+          onDelete={handleNodeDelete}
+          onClose={handleClosePanel}
+          lastRunInput={nodeResults?.[selectedNode.id]?.input}
+          lastRunResult={nodeResults?.[selectedNode.id]?.output}
+        />
+      )}
     </div>
   );
 }

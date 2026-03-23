@@ -1,0 +1,1144 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  X,
+  Trash2,
+  Play,
+  ChevronDown,
+  Bot,
+  MessageSquare,
+  Monitor,
+  Terminal,
+  Layers,
+  Search,
+  Globe,
+  Clock,
+  Mail,
+  Hash,
+  Timer,
+  Variable,
+  ShieldCheck,
+  FileText,
+  Merge,
+  GitBranch,
+  GitFork,
+  Filter,
+  Shuffle,
+  Zap,
+  Plug,
+  Database,
+  Table,
+  TableProperties,
+  CalendarPlus,
+  CalendarSearch,
+  Radio,
+  Target,
+  Eye,
+  Pause,
+  UserPlus,
+  Tags,
+  FileSearch,
+  Sparkles,
+  Shield,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ALL_MODELS } from "@/lib/ai";
+import type { WorkflowNodeType } from "@/lib/workflow-node-types";
+
+/* ========== Types ========== */
+
+interface NodeConfigPanelProps {
+  nodeId: string;
+  nodeType: WorkflowNodeType;
+  label: string;
+  config: Record<string, unknown>;
+  onConfigChange: (nodeId: string, config: Record<string, unknown>) => void;
+  onLabelChange: (nodeId: string, label: string) => void;
+  onDelete: (nodeId: string) => void;
+  onClose: () => void;
+  onTestNode?: (nodeId: string) => void;
+  lastRunResult?: unknown;
+  lastRunInput?: unknown;
+}
+
+/* ========== Icon Map ========== */
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  Bot, MessageSquare, Monitor, Terminal, Layers, Search, Globe, Clock,
+  Mail, Hash, Timer, Variable, ShieldCheck, FileText, Merge, GitBranch,
+  GitFork, Filter, Shuffle, Zap, Plug, Database, Table, TableProperties,
+  CalendarPlus, CalendarSearch, Radio, Target, Eye, Pause, UserPlus,
+  Tags, FileSearch, Sparkles, Shield,
+};
+
+/* ========== Available Tools for AI Agent ========== */
+const AGENT_TOOLS = [
+  { id: "web_search", label: "Web Search", icon: "Search" },
+  { id: "computer_use", label: "Computer Use (Browser)", icon: "Monitor" },
+  { id: "code_execution", label: "Code Execution", icon: "Terminal" },
+  { id: "mcp_tools", label: "MCP Tools", icon: "Plug" },
+  { id: "send_email", label: "Send Email", icon: "Mail" },
+  { id: "knowledge_base", label: "Knowledge Base", icon: "Database" },
+] as const;
+
+/* ========== Config Field Components ========== */
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="block text-[11px] font-medium uppercase tracking-wider text-zinc-500 mb-1.5">
+      {children}
+    </label>
+  );
+}
+
+function TextInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value: string | number;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  type?: "text" | "number" | "url";
+}) {
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-[#2a2a3a] bg-[#1a1a24] px-3 py-2 text-sm text-zinc-200 outline-none transition-colors focus:border-orange-500/50 placeholder:text-zinc-600"
+      />
+    </div>
+  );
+}
+
+function TextArea({
+  label,
+  value,
+  onChange,
+  placeholder,
+  rows = 4,
+}: {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  rows?: number;
+}) {
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        className="w-full rounded-lg border border-[#2a2a3a] bg-[#1a1a24] px-3 py-2 text-sm text-zinc-200 outline-none transition-colors focus:border-orange-500/50 placeholder:text-zinc-600 resize-y font-mono"
+      />
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <div className="relative">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full appearance-none rounded-lg border border-[#2a2a3a] bg-[#1a1a24] px-3 py-2 pr-8 text-sm text-zinc-200 outline-none transition-colors focus:border-orange-500/50"
+        >
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+      </div>
+    </div>
+  );
+}
+
+function SliderField({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max = 1,
+  step = 0.1,
+}: {
+  label: string;
+  value: number;
+  onChange: (val: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <FieldLabel>{label}</FieldLabel>
+        <span className="text-xs text-zinc-400 font-mono">{value}</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-full accent-orange-500"
+      />
+    </div>
+  );
+}
+
+function ToggleField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (val: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-xs text-zinc-300">{label}</span>
+      <button
+        type="button"
+        onClick={() => onChange(!value)}
+        className={cn(
+          "relative h-5 w-9 rounded-full transition-colors",
+          value ? "bg-orange-500" : "bg-[#2a2a3a]"
+        )}
+      >
+        <span
+          className={cn(
+            "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform",
+            value ? "left-[18px]" : "left-0.5"
+          )}
+        />
+      </button>
+    </div>
+  );
+}
+
+function CheckboxGroup({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string;
+  options: { id: string; label: string; icon: string }[];
+  selected: string[];
+  onChange: (val: string[]) => void;
+}) {
+  const toggle = (id: string) => {
+    if (selected.includes(id)) {
+      onChange(selected.filter((s) => s !== id));
+    } else {
+      onChange([...selected, id]);
+    }
+  };
+
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <div className="space-y-1">
+        {options.map((opt) => {
+          const Icon = iconMap[opt.icon] || Zap;
+          const checked = selected.includes(opt.id);
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => toggle(opt.id)}
+              className={cn(
+                "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors",
+                checked
+                  ? "bg-orange-500/10 border border-orange-500/30 text-zinc-200"
+                  : "bg-[#1a1a24] border border-[#2a2a3a] text-zinc-400 hover:border-[#363644]"
+              )}
+            >
+              <div
+                className={cn(
+                  "flex h-4 w-4 items-center justify-center rounded border transition-colors",
+                  checked
+                    ? "bg-orange-500 border-orange-500"
+                    : "border-zinc-600 bg-transparent"
+                )}
+              >
+                {checked && (
+                  <svg className="h-2.5 w-2.5 text-white" viewBox="0 0 12 12" fill="none">
+                    <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </div>
+              <Icon className="h-3.5 w-3.5" />
+              <span className="text-xs">{opt.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ========== Model Options ========== */
+const modelOptions = ALL_MODELS.map((m) => ({
+  value: m.id,
+  label: m.label,
+}));
+
+/* ========== Config Forms by Node Type ========== */
+
+function AIAgentConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+
+  return (
+    <div className="space-y-4">
+      <TextInput
+        label="Agent Name"
+        value={(config.name as string) || "AI Agent"}
+        onChange={(v) => update("name", v)}
+        placeholder="My AI Agent"
+      />
+      <SelectField
+        label="Model"
+        value={(config.model as string) || "claude-sonnet-4-6"}
+        onChange={(v) => update("model", v)}
+        options={modelOptions}
+      />
+      <TextArea
+        label="System Prompt"
+        value={(config.systemPrompt as string) || ""}
+        onChange={(v) => update("systemPrompt", v)}
+        placeholder="You are a helpful assistant that..."
+        rows={6}
+      />
+      <CheckboxGroup
+        label="Available Tools"
+        options={[...AGENT_TOOLS]}
+        selected={(config.tools as string[]) || []}
+        onChange={(v) => update("tools", v)}
+      />
+      <SliderField
+        label="Temperature"
+        value={(config.temperature as number) ?? 0.7}
+        onChange={(v) => update("temperature", v)}
+      />
+      <TextInput
+        label="Max Tokens"
+        value={(config.maxTokens as number) || 4096}
+        onChange={(v) => update("maxTokens", parseInt(v) || 4096)}
+        type="number"
+      />
+    </div>
+  );
+}
+
+function LLMPromptConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+
+  return (
+    <div className="space-y-4">
+      <SelectField
+        label="Model"
+        value={(config.model as string) || "claude-sonnet-4-6"}
+        onChange={(v) => update("model", v)}
+        options={modelOptions}
+      />
+      <TextArea
+        label="System Prompt"
+        value={(config.systemPrompt as string) || ""}
+        onChange={(v) => update("systemPrompt", v)}
+        placeholder="You are..."
+        rows={3}
+      />
+      <TextArea
+        label="User Prompt"
+        value={(config.userPrompt as string) || ""}
+        onChange={(v) => update("userPrompt", v)}
+        placeholder="Use {{input}} to reference upstream data"
+        rows={4}
+      />
+      <SliderField
+        label="Temperature"
+        value={(config.temperature as number) ?? 0.7}
+        onChange={(v) => update("temperature", v)}
+      />
+      <TextInput
+        label="Max Tokens"
+        value={(config.maxTokens as number) || 2048}
+        onChange={(v) => update("maxTokens", parseInt(v) || 2048)}
+        type="number"
+      />
+    </div>
+  );
+}
+
+function ComputerUseConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+
+  return (
+    <div className="space-y-4">
+      <TextInput
+        label="Start URL"
+        value={(config.startUrl as string) || ""}
+        onChange={(v) => update("startUrl", v)}
+        placeholder="https://example.com"
+        type="url"
+      />
+      <TextArea
+        label="Task Description"
+        value={(config.task as string) || ""}
+        onChange={(v) => update("task", v)}
+        placeholder="Navigate to the pricing page and extract all plan details..."
+        rows={4}
+      />
+      <TextInput
+        label="Max Steps"
+        value={(config.maxSteps as number) || 10}
+        onChange={(v) => update("maxSteps", parseInt(v) || 10)}
+        type="number"
+      />
+      <ToggleField
+        label="Enable Screenshots"
+        value={(config.captureScreenshots as boolean) ?? true}
+        onChange={(v) => update("captureScreenshots", v)}
+      />
+      <SelectField
+        label="Model"
+        value={(config.model as string) || "claude-sonnet-4-6"}
+        onChange={(v) => update("model", v)}
+        options={modelOptions}
+      />
+    </div>
+  );
+}
+
+function CodeSandboxConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+
+  return (
+    <div className="space-y-4">
+      <SelectField
+        label="Language"
+        value={(config.language as string) || "python"}
+        onChange={(v) => update("language", v)}
+        options={[
+          { value: "python", label: "Python" },
+          { value: "javascript", label: "JavaScript" },
+        ]}
+      />
+      <TextArea
+        label="Task / Code"
+        value={(config.goal as string) || ""}
+        onChange={(v) => update("goal", v)}
+        placeholder="Write code to process the input data..."
+        rows={6}
+      />
+      <TextInput
+        label="Timeout (seconds)"
+        value={Math.round(((config.timeoutMs as number) || 600000) / 1000)}
+        onChange={(v) => update("timeoutMs", (parseInt(v) || 600) * 1000)}
+        type="number"
+      />
+    </div>
+  );
+}
+
+function AgentSwarmConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+
+  return (
+    <div className="space-y-4">
+      <TextArea
+        label="Goal"
+        value={(config.goal as string) || ""}
+        onChange={(v) => update("goal", v)}
+        placeholder="Describe the goal to be split across agents..."
+        rows={4}
+      />
+      <TextInput
+        label="Max Agents"
+        value={(config.maxAgents as number) || 5}
+        onChange={(v) => update("maxAgents", parseInt(v) || 5)}
+        type="number"
+      />
+      <TextInput
+        label="Max Parallel"
+        value={(config.maxParallel as number) || 3}
+        onChange={(v) => update("maxParallel", parseInt(v) || 3)}
+        type="number"
+      />
+      <SelectField
+        label="Merge Strategy"
+        value={(config.mergeStrategy as string) || "wait_all"}
+        onChange={(v) => update("mergeStrategy", v)}
+        options={[
+          { value: "synthesize", label: "Synthesize" },
+          { value: "wait_all", label: "Wait All" },
+          { value: "first_success", label: "First Success" },
+          { value: "best_quality", label: "Best Quality" },
+        ]}
+      />
+      <TextInput
+        label="Budget Limit (credits)"
+        value={(config.budgetLimit as number) || 0}
+        onChange={(v) => update("budgetLimit", parseInt(v) || 0)}
+        type="number"
+      />
+    </div>
+  );
+}
+
+function TriggerConfig({
+  config,
+  onChange,
+  nodeType,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+  nodeType: WorkflowNodeType;
+}) {
+  const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+
+  if (nodeType === "trigger_schedule") {
+    return (
+      <div className="space-y-4">
+        <TextInput
+          label="Cron Expression"
+          value={(config.cron as string) || "0 9 * * *"}
+          onChange={(v) => update("cron", v)}
+          placeholder="0 9 * * *"
+        />
+        <SelectField
+          label="Timezone"
+          value={(config.timezone as string) || "Europe/Berlin"}
+          onChange={(v) => update("timezone", v)}
+          options={[
+            { value: "Europe/Berlin", label: "Europe/Berlin" },
+            { value: "UTC", label: "UTC" },
+            { value: "America/New_York", label: "America/New York" },
+            { value: "America/Los_Angeles", label: "America/Los Angeles" },
+            { value: "Asia/Tokyo", label: "Asia/Tokyo" },
+          ]}
+        />
+      </div>
+    );
+  }
+
+  if (nodeType === "trigger_webhook") {
+    return (
+      <div className="space-y-4">
+        <SelectField
+          label="HTTP Method"
+          value={(config.method as string) || "POST"}
+          onChange={(v) => update("method", v)}
+          options={[
+            { value: "POST", label: "POST" },
+            { value: "GET", label: "GET" },
+            { value: "PUT", label: "PUT" },
+          ]}
+        />
+        <TextInput
+          label="Path"
+          value={(config.path as string) || ""}
+          onChange={(v) => update("path", v)}
+          placeholder="/my-webhook"
+        />
+        <div className="rounded-lg border border-[#2a2a3a] bg-[#1a1a24] p-3">
+          <p className="text-[10px] text-zinc-500 mb-1">Webhook URL</p>
+          <p className="text-xs text-zinc-300 font-mono break-all">
+            {`/api/webhooks/workflow/${config.path || "..."}`}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Manual / Lead / Chat triggers — minimal config
+  return (
+    <div className="space-y-4">
+      {nodeType === "trigger_lead" || nodeType === "trigger_chat" ? (
+        <SelectField
+          label="Agent Filter"
+          value={(config.agentFilter as string) || "all"}
+          onChange={(v) => update("agentFilter", v)}
+          options={[
+            { value: "all", label: "All Agents" },
+            { value: "specific", label: "Specific Agent" },
+          ]}
+        />
+      ) : (
+        <div className="rounded-lg border border-[#2a2a3a] bg-[#1a1a24] p-3">
+          <p className="text-xs text-zinc-400">Click &ldquo;Run Workflow&rdquo; or use the Test button to trigger manually.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ConditionConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+
+  return (
+    <div className="space-y-4">
+      <TextInput
+        label="Field"
+        value={(config.field as string) || ""}
+        onChange={(v) => update("field", v)}
+        placeholder="result.status"
+      />
+      <SelectField
+        label="Operator"
+        value={(config.operator as string) || "equals"}
+        onChange={(v) => update("operator", v)}
+        options={[
+          { value: "equals", label: "Equals" },
+          { value: "not_equals", label: "Not Equals" },
+          { value: "contains", label: "Contains" },
+          { value: "greater_than", label: "Greater Than" },
+          { value: "less_than", label: "Less Than" },
+          { value: "exists", label: "Exists" },
+          { value: "is_empty", label: "Is Empty" },
+        ]}
+      />
+      <TextInput
+        label="Value"
+        value={(config.value as string) || ""}
+        onChange={(v) => update("value", v)}
+        placeholder="expected value"
+      />
+    </div>
+  );
+}
+
+function HTTPRequestConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+
+  return (
+    <div className="space-y-4">
+      <SelectField
+        label="Method"
+        value={(config.method as string) || "GET"}
+        onChange={(v) => update("method", v)}
+        options={[
+          { value: "GET", label: "GET" },
+          { value: "POST", label: "POST" },
+          { value: "PUT", label: "PUT" },
+          { value: "PATCH", label: "PATCH" },
+          { value: "DELETE", label: "DELETE" },
+        ]}
+      />
+      <TextInput
+        label="URL"
+        value={(config.url as string) || ""}
+        onChange={(v) => update("url", v)}
+        placeholder="https://api.example.com/endpoint"
+        type="url"
+      />
+      <TextArea
+        label="Headers (JSON)"
+        value={typeof config.headers === "object" ? JSON.stringify(config.headers, null, 2) : "{}"}
+        onChange={(v) => {
+          try { update("headers", JSON.parse(v)); } catch { /* invalid JSON */ }
+        }}
+        placeholder='{"Authorization": "Bearer ..."}'
+        rows={3}
+      />
+      <TextArea
+        label="Body"
+        value={(config.body as string) || ""}
+        onChange={(v) => update("body", v)}
+        placeholder="Request body..."
+        rows={4}
+      />
+    </div>
+  );
+}
+
+function EmailConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+
+  return (
+    <div className="space-y-4">
+      <TextInput label="To" value={(config.to as string) || ""} onChange={(v) => update("to", v)} placeholder="recipient@example.com" />
+      <TextInput label="Subject" value={(config.subject as string) || ""} onChange={(v) => update("subject", v)} placeholder="Subject line" />
+      <TextArea label="Body" value={(config.body as string) || ""} onChange={(v) => update("body", v)} placeholder="Email body..." rows={5} />
+    </div>
+  );
+}
+
+function DelayConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+
+  return (
+    <div className="space-y-4">
+      <TextInput
+        label="Duration"
+        value={(config.duration as number) || 60}
+        onChange={(v) => update("duration", parseInt(v) || 60)}
+        type="number"
+      />
+      <SelectField
+        label="Unit"
+        value={(config.unit as string) || "seconds"}
+        onChange={(v) => update("unit", v)}
+        options={[
+          { value: "seconds", label: "Seconds" },
+          { value: "minutes", label: "Minutes" },
+          { value: "hours", label: "Hours" },
+        ]}
+      />
+    </div>
+  );
+}
+
+function LoopConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+
+  return (
+    <div className="space-y-4">
+      <TextInput
+        label="Max Iterations"
+        value={(config.maxIterations as number) || 10}
+        onChange={(v) => update("maxIterations", parseInt(v) || 10)}
+        type="number"
+      />
+      <TextArea
+        label="Continue Condition"
+        value={(config.condition as string) || ""}
+        onChange={(v) => update("condition", v)}
+        placeholder="result.hasMore === true"
+        rows={2}
+      />
+      <SelectField
+        label="Mode"
+        value={(config.mode as string) || "while"}
+        onChange={(v) => update("mode", v)}
+        options={[
+          { value: "while", label: "While (check before)" },
+          { value: "do_while", label: "Do-While (check after)" },
+          { value: "for_each", label: "For Each (iterate items)" },
+        ]}
+      />
+    </div>
+  );
+}
+
+function DeepResearchConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+
+  return (
+    <div className="space-y-4">
+      <TextArea
+        label="Research Topic"
+        value={(config.topic as string) || ""}
+        onChange={(v) => update("topic", v)}
+        placeholder="Research topic or question..."
+        rows={3}
+      />
+      <SelectField
+        label="Depth"
+        value={(config.depth as string) || "standard"}
+        onChange={(v) => update("depth", v)}
+        options={[
+          { value: "quick", label: "Quick" },
+          { value: "standard", label: "Standard" },
+          { value: "deep", label: "Deep" },
+        ]}
+      />
+    </div>
+  );
+}
+
+function SlackConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+
+  return (
+    <div className="space-y-4">
+      <TextInput label="Channel" value={(config.channel as string) || ""} onChange={(v) => update("channel", v)} placeholder="#general" />
+      <TextArea label="Message" value={(config.message as string) || ""} onChange={(v) => update("message", v)} placeholder="Notification text..." rows={3} />
+    </div>
+  );
+}
+
+function MCPToolConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+
+  return (
+    <div className="space-y-4">
+      <TextInput label="MCP Connection" value={(config.mcpConnectionId as string) || ""} onChange={(v) => update("mcpConnectionId", v)} placeholder="Connection ID" />
+      <TextInput label="Tool Name" value={(config.toolName as string) || ""} onChange={(v) => update("toolName", v)} placeholder="tool_name" />
+      <TextArea
+        label="Parameters (JSON)"
+        value={typeof config.toolParams === "object" ? JSON.stringify(config.toolParams, null, 2) : "{}"}
+        onChange={(v) => {
+          try { update("toolParams", JSON.parse(v)); } catch { /* invalid JSON */ }
+        }}
+        placeholder="{}"
+        rows={4}
+      />
+    </div>
+  );
+}
+
+/* ========== Generic/Fallback Config ========== */
+function GenericConfig({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <TextArea
+        label="Configuration (JSON)"
+        value={JSON.stringify(config, null, 2)}
+        onChange={(v) => {
+          try { onChange(JSON.parse(v)); } catch { /* invalid JSON */ }
+        }}
+        rows={10}
+      />
+    </div>
+  );
+}
+
+/* ========== Config Router ========== */
+function getConfigComponent(
+  nodeType: WorkflowNodeType,
+  config: Record<string, unknown>,
+  onChange: (config: Record<string, unknown>) => void
+) {
+  switch (nodeType) {
+    case "agent":
+      return <AIAgentConfig config={config} onChange={onChange} />;
+    case "llm_prompt":
+      return <LLMPromptConfig config={config} onChange={onChange} />;
+    case "computer_use":
+      return <ComputerUseConfig config={config} onChange={onChange} />;
+    case "code_sandbox":
+      return <CodeSandboxConfig config={config} onChange={onChange} />;
+    case "agent_swarm":
+      return <AgentSwarmConfig config={config} onChange={onChange} />;
+    case "trigger_webhook":
+    case "trigger_schedule":
+    case "trigger_lead":
+    case "trigger_chat":
+    case "trigger_manual":
+      return <TriggerConfig config={config} onChange={onChange} nodeType={nodeType} />;
+    case "if_condition":
+    case "filter":
+      return <ConditionConfig config={config} onChange={onChange} />;
+    case "http_request":
+      return <HTTPRequestConfig config={config} onChange={onChange} />;
+    case "send_email":
+    case "gmail_send":
+      return <EmailConfig config={config} onChange={onChange} />;
+    case "send_slack":
+    case "slack_send_integration":
+      return <SlackConfig config={config} onChange={onChange} />;
+    case "delay":
+      return <DelayConfig config={config} onChange={onChange} />;
+    case "loop":
+      return <LoopConfig config={config} onChange={onChange} />;
+    case "deep_research":
+      return <DeepResearchConfig config={config} onChange={onChange} />;
+    case "mcp_tool":
+      return <MCPToolConfig config={config} onChange={onChange} />;
+    default:
+      return <GenericConfig config={config} onChange={onChange} />;
+  }
+}
+
+/* ========== Node Type Labels ========== */
+const nodeTypeLabels: Partial<Record<WorkflowNodeType, { icon: string; color: string }>> = {
+  agent: { icon: "Bot", color: "#F97316" },
+  llm_prompt: { icon: "MessageSquare", color: "#F97316" },
+  trigger_webhook: { icon: "Globe", color: "#F59E0B" },
+  trigger_schedule: { icon: "Clock", color: "#F59E0B" },
+  trigger_manual: { icon: "Zap", color: "#F59E0B" },
+  trigger_lead: { icon: "UserPlus", color: "#F59E0B" },
+  trigger_chat: { icon: "MessageSquare", color: "#F59E0B" },
+  if_condition: { icon: "GitBranch", color: "#8B5CF6" },
+  switch: { icon: "GitFork", color: "#8B5CF6" },
+  filter: { icon: "Filter", color: "#8B5CF6" },
+  transform: { icon: "Shuffle", color: "#8B5CF6" },
+  loop: { icon: "GitBranch", color: "#8B5CF6" },
+  http_request: { icon: "Globe", color: "#3B82F6" },
+  send_email: { icon: "Mail", color: "#3B82F6" },
+  send_slack: { icon: "Hash", color: "#3B82F6" },
+  delay: { icon: "Timer", color: "#3B82F6" },
+  computer_use: { icon: "Monitor", color: "#EC4899" },
+  deep_research: { icon: "Search", color: "#EC4899" },
+  code_sandbox: { icon: "Terminal", color: "#22C55E" },
+  agent_swarm: { icon: "Layers", color: "#A855F7" },
+  mcp_tool: { icon: "Plug", color: "#3B82F6" },
+};
+
+/* ========== Main Panel Component ========== */
+export function NodeConfigPanel({
+  nodeId,
+  nodeType,
+  label,
+  config,
+  onConfigChange,
+  onLabelChange,
+  onDelete,
+  onClose,
+  onTestNode,
+  lastRunResult,
+  lastRunInput,
+}: NodeConfigPanelProps) {
+  const [activeTab, setActiveTab] = useState<"config" | "input" | "output">("config");
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const handleConfigChange = useCallback(
+    (newConfig: Record<string, unknown>) => {
+      onConfigChange(nodeId, newConfig);
+    },
+    [nodeId, onConfigChange]
+  );
+
+  const typeMeta = nodeTypeLabels[nodeType];
+  const TypeIcon = typeMeta ? iconMap[typeMeta.icon] || Zap : Zap;
+
+  return (
+    <div
+      ref={panelRef}
+      className="absolute right-0 top-0 z-30 flex h-full w-[400px] flex-col border-l border-[#2a2a3a] bg-[#141418] shadow-2xl animate-in slide-in-from-right duration-200"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3 border-b border-[#2a2a3a] px-4 py-3">
+        <div
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+          style={{ backgroundColor: `${typeMeta?.color || "#F97316"}15` }}
+        >
+          <TypeIcon className="h-4 w-4" style={{ color: typeMeta?.color || "#F97316" }} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <input
+            value={label}
+            onChange={(e) => onLabelChange(nodeId, e.target.value)}
+            className="w-full bg-transparent text-sm font-semibold text-zinc-100 outline-none border-none focus:ring-0 truncate"
+            spellCheck={false}
+          />
+          <p className="text-[10px] text-zinc-500 uppercase tracking-wider">{nodeType.replace(/_/g, " ")}</p>
+        </div>
+        <button
+          onClick={onClose}
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-[#2a2a3a] hover:text-zinc-300"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-[#2a2a3a]">
+        {(["config", "input", "output"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={cn(
+              "flex-1 py-2 text-xs font-medium transition-colors",
+              activeTab === tab
+                ? "text-orange-400 border-b-2 border-orange-500"
+                : "text-zinc-500 hover:text-zinc-300"
+            )}
+          >
+            {tab === "config" ? "Configuration" : tab === "input" ? "Input" : "Output"}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 scrollbar-thin">
+        {activeTab === "config" && (
+          <div className="space-y-4">
+            {getConfigComponent(nodeType, config, handleConfigChange)}
+          </div>
+        )}
+
+        {activeTab === "input" && (
+          <div className="space-y-3">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+              Data from connected upstream nodes
+            </p>
+            {lastRunInput ? (
+              <pre className="rounded-lg border border-[#2a2a3a] bg-[#1a1a24] p-3 text-xs text-zinc-300 font-mono overflow-auto max-h-[400px]">
+                {typeof lastRunInput === "string"
+                  ? lastRunInput
+                  : JSON.stringify(lastRunInput, null, 2)}
+              </pre>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1a1a24] border border-[#2a2a3a] mb-3">
+                  <Zap className="h-5 w-5 text-zinc-600" />
+                </div>
+                <p className="text-xs text-zinc-500">No input data yet.</p>
+                <p className="text-[10px] text-zinc-600 mt-1">Run the workflow to see input data.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "output" && (
+          <div className="space-y-3">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+              Last execution result
+            </p>
+            {lastRunResult ? (
+              <pre className="rounded-lg border border-[#2a2a3a] bg-[#1a1a24] p-3 text-xs text-zinc-300 font-mono overflow-auto max-h-[400px]">
+                {typeof lastRunResult === "string"
+                  ? lastRunResult
+                  : JSON.stringify(lastRunResult, null, 2)}
+              </pre>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1a1a24] border border-[#2a2a3a] mb-3">
+                  <Play className="h-5 w-5 text-zinc-600" />
+                </div>
+                <p className="text-xs text-zinc-500">No output data yet.</p>
+                <p className="text-[10px] text-zinc-600 mt-1">Test this node or run the workflow.</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer Actions */}
+      <div className="flex items-center gap-2 border-t border-[#2a2a3a] px-4 py-3">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => onTestNode?.(nodeId)}
+          className="flex-1 bg-[#1a1a24] border-[#363644] text-zinc-300 hover:text-zinc-100 hover:bg-[#262630] text-xs"
+        >
+          <Play className="h-3.5 w-3.5 mr-1.5" />
+          Test Node
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            if (confirm("Delete this node?")) onDelete(nodeId);
+          }}
+          className="bg-[#1a1a24] border-[#363644] text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:border-red-500/30 text-xs"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}

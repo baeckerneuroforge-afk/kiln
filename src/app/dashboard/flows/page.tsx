@@ -4,7 +4,7 @@ export default function FlowsPage() {
   return (
     <div className="mx-auto max-w-5xl">
       <div className="mb-8 flex items-center gap-3">
-        <h1 className="font-serif text-3xl text-foreground">Flow Engine</h1>
+        <h1 className="font-serif text-2xl font-semibold text-gray-50">Flow Engine</h1>
         <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-[11px] font-semibold text-gray-400">
           Coming Q4 2026
         </span>

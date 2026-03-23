@@ -10,6 +10,7 @@
 export type WorkflowNodeType =
   // AI Agents
   | "agent"
+  | "llm_prompt"
   // Triggers
   | "trigger_webhook"
   | "trigger_schedule"
@@ -21,6 +22,7 @@ export type WorkflowNodeType =
   | "switch"
   | "filter"
   | "transform"
+  | "loop"
   // Actions
   | "http_request"
   | "send_email"
@@ -176,11 +178,33 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "agent",
     label: "AI Agent",
-    description: "Run an existing AI agent",
+    description: "Freely configurable AI agent with tools",
     category: "agents",
     icon: "Bot",
     color: "#F97316",
-    defaultConfig: {},
+    defaultConfig: {
+      name: "AI Agent",
+      model: "claude-sonnet-4-6",
+      systemPrompt: "",
+      temperature: 0.7,
+      maxTokens: 4096,
+      tools: [],
+    },
+  },
+  {
+    type: "llm_prompt",
+    label: "LLM Prompt",
+    description: "Simple LLM call: input → prompt → output",
+    category: "agents",
+    icon: "MessageSquare",
+    color: "#F97316",
+    defaultConfig: {
+      model: "claude-sonnet-4-6",
+      systemPrompt: "",
+      userPrompt: "",
+      temperature: 0.7,
+      maxTokens: 2048,
+    },
   },
 
   // Logic
@@ -220,6 +244,15 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     icon: "Shuffle",
     color: "#8B5CF6",
     defaultConfig: { transformations: [{ outputField: "", expression: "" }] },
+  },
+  {
+    type: "loop",
+    label: "Loop",
+    description: "Repeat a branch until condition is met",
+    category: "logic",
+    icon: "GitBranch",
+    color: "#8B5CF6",
+    defaultConfig: { maxIterations: 10, condition: "", mode: "while" },
   },
 
   // Actions

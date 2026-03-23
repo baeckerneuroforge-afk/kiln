@@ -189,7 +189,7 @@ export default function MarketplaceSubmitPage() {
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-white/[0.05]">
           <Check className="h-8 w-8 text-gray-400" />
         </div>
-        <h1 className="font-serif text-3xl text-foreground">
+        <h1 className="font-serif text-2xl font-semibold text-gray-50">
           Agent eingereicht!
         </h1>
         <p className="mt-3 text-muted-foreground">

@@ -268,7 +268,7 @@ export default function OperationsPage() {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.05]">
             <Activity className="h-8 w-8 text-gray-400" />
           </div>
-          <h1 className="mt-6 font-serif text-3xl text-foreground">Operations Dashboard</h1>
+          <h1 className="mt-6 font-serif text-2xl font-semibold text-gray-50">Operations Dashboard</h1>
           <p className="mt-3 text-sm text-muted-foreground">
             Operations dashboard unlocks when you have multiple agents.
           </p>
@@ -297,7 +297,7 @@ export default function OperationsPage() {
           <p className="text-xs font-medium uppercase tracking-[0.24em] text-gray-400">
             Agent Operations
           </p>
-          <h1 className="mt-2 font-serif text-3xl text-foreground">Global command center</h1>
+          <h1 className="mt-2 font-serif text-2xl font-semibold text-gray-50">Global command center</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             Monitor conversations, leads, team runs, and weak spots across your entire agent fleet.
           </p>

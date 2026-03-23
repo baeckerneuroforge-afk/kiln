@@ -27,7 +27,7 @@ export default async function KnowledgeGraphPage() {
         <p className="text-xs font-medium uppercase tracking-[0.24em] text-gray-400">
           Knowledge Graph
         </p>
-        <h1 className="mt-2 font-serif text-3xl text-foreground">
+        <h1 className="mt-2 font-serif text-2xl font-semibold text-gray-50">
           Knowledge Graph
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">

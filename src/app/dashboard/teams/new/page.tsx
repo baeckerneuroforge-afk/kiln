@@ -338,7 +338,7 @@ export default function NewTeamTemplatePage() {
             <Sparkles className="h-3.5 w-3.5" />
             One-Click Workflow Templates
           </div>
-          <h1 className="font-serif text-3xl text-foreground">
+          <h1 className="font-serif text-2xl font-semibold text-gray-50">
             Deploy Multi-Agent Workflows in One Click
           </h1>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">

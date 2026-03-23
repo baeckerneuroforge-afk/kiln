@@ -648,7 +648,7 @@ function SettingsContent() {
   return (
     <div className="mx-auto max-w-4xl">
       <div className="mb-6">
-        <h1 className="font-serif text-3xl text-foreground">Settings</h1>
+        <h1 className="font-serif text-2xl font-semibold text-gray-50">Settings</h1>
         <p className="mt-2 text-muted-foreground">
           Manage your account, billing, and integrations.
         </p>

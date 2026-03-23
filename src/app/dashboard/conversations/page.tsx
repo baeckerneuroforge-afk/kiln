@@ -245,7 +245,7 @@ export default function ConversationsPage() {
           <p className="text-xs font-medium uppercase tracking-[0.24em] text-gray-400">
             Conversations
           </p>
-          <h1 className="mt-2 font-serif text-3xl text-foreground">All agent conversations</h1>
+          <h1 className="mt-2 font-serif text-2xl font-semibold text-gray-50">All agent conversations</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             Review every conversation across your workspace, filter by agent or status, and export filtered history.
           </p>

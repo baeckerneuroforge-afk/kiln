@@ -330,7 +330,7 @@ export default function NewAgentPage() {
         <div className="flex flex-1 items-center justify-center">
           <div className="mx-auto max-w-3xl px-6">
             <div className="mb-8 text-center">
-              <h2 className="font-serif text-3xl text-foreground">Create a new agent</h2>
+              <h2 className="font-serif text-2xl font-semibold text-gray-50">Create a new agent</h2>
               <p className="mt-2 text-sm text-muted-foreground">Choose your preferred creation method.</p>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
