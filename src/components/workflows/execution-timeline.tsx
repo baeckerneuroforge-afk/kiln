@@ -1,0 +1,403 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  X,
+  Check,
+  AlertTriangle,
+  Clock,
+  ChevronUp,
+  ChevronDown,
+  Eye,
+  Copy,
+  Wrench,
+  Terminal,
+  List,
+  GripHorizontal,
+  Filter,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+/* ========== Types ========== */
+
+export interface TimelineNodeEntry {
+  nodeId: string;
+  nodeLabel: string;
+  nodeType: string;
+  status: "completed" | "failed" | "running" | "skipped" | "pending";
+  durationMs?: number;
+  credits?: number;
+  error?: {
+    type: string;
+    message: string;
+    suggestions?: string[];
+  };
+  input?: unknown;
+  output?: unknown;
+  startedAt?: string;
+}
+
+export interface ExecutionTimelineData {
+  status: "idle" | "running" | "completed" | "failed";
+  totalDurationMs?: number;
+  totalCredits?: number;
+  entries: TimelineNodeEntry[];
+  logs?: ConsoleLogEntry[];
+}
+
+export interface ConsoleLogEntry {
+  timestamp: string;
+  level: "info" | "warn" | "error" | "success";
+  message: string;
+  nodeId?: string;
+}
+
+interface ExecutionTimelinePanelProps {
+  data: ExecutionTimelineData | null;
+  onNodeClick?: (nodeId: string) => void;
+  onNodeFix?: (nodeId: string) => void;
+  onHighlightNode?: (nodeId: string) => void;
+}
+
+/* ========== Helpers ========== */
+
+function formatDuration(ms?: number): string {
+  if (ms === undefined || ms === null) return "-";
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function statusIcon(status: string) {
+  switch (status) {
+    case "completed":
+      return <Check className="h-3 w-3 text-green-400" />;
+    case "failed":
+      return <AlertTriangle className="h-3 w-3 text-red-400" />;
+    case "running":
+      return (
+        <div className="h-3 w-3 rounded-full border-2 border-orange-400 border-t-transparent animate-spin" />
+      );
+    case "skipped":
+      return <span className="text-[10px] text-zinc-500">⊘</span>;
+    case "pending":
+      return <Clock className="h-3 w-3 text-zinc-500" />;
+    default:
+      return null;
+  }
+}
+
+function statusColor(status: string): string {
+  switch (status) {
+    case "completed": return "text-green-400";
+    case "failed": return "text-red-400";
+    case "running": return "text-orange-400";
+    case "skipped": return "text-zinc-500";
+    default: return "text-zinc-500";
+  }
+}
+
+function statusLabel(status: string): string {
+  switch (status) {
+    case "completed": return "Done";
+    case "failed": return "Error";
+    case "running": return "Running";
+    case "skipped": return "Skipped";
+    case "pending": return "Waiting";
+    default: return status;
+  }
+}
+
+const LOG_LEVEL_COLORS: Record<string, string> = {
+  info: "text-zinc-400",
+  warn: "text-amber-400",
+  error: "text-red-400",
+  success: "text-green-400",
+};
+
+/* ========== Component ========== */
+
+export function ExecutionTimelinePanel({
+  data,
+  onNodeClick,
+  onNodeFix,
+  onHighlightNode,
+}: ExecutionTimelinePanelProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<"timeline" | "console">("timeline");
+  const [panelHeight, setPanelHeight] = useState(260);
+  const [logFilters, setLogFilters] = useState({ info: true, warn: true, error: true, success: true });
+  const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
+  const consoleEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-expand on new execution
+  useEffect(() => {
+    if (data && data.status !== "idle" && data.entries.length > 0) {
+      setExpanded(true);
+    }
+  }, [data?.status, data?.entries.length]);
+
+  // Auto-scroll console
+  useEffect(() => {
+    if (activeTab === "console" && consoleEndRef.current) {
+      consoleEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [data?.logs?.length, activeTab]);
+
+  // Resize drag handlers
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragRef.current = { startY: e.clientY, startHeight: panelHeight };
+    const handleMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return;
+      const delta = dragRef.current.startY - ev.clientY;
+      const newH = Math.max(150, Math.min(500, dragRef.current.startHeight + delta));
+      setPanelHeight(newH);
+    };
+    const handleUp = () => {
+      dragRef.current = null;
+      document.removeEventListener("mousemove", handleMove);
+      document.removeEventListener("mouseup", handleUp);
+    };
+    document.addEventListener("mousemove", handleMove);
+    document.addEventListener("mouseup", handleUp);
+  }, [panelHeight]);
+
+  const handleCopyLogs = useCallback(() => {
+    if (!data?.logs) return;
+    const text = data.logs
+      .map((l) => `[${l.timestamp}] ${l.level.toUpperCase()}: ${l.message}`)
+      .join("\n");
+    navigator.clipboard.writeText(text);
+  }, [data?.logs]);
+
+  if (!data || (data.status === "idle" && data.entries.length === 0)) return null;
+
+  const succeededCount = data.entries.filter((e) => e.status === "completed").length;
+  const failedEntry = data.entries.find((e) => e.status === "failed");
+  const totalNodes = data.entries.length;
+
+  // Summary bar text
+  const summaryText =
+    data.status === "running"
+      ? `Running... (${succeededCount}/${totalNodes} nodes)`
+      : data.status === "completed"
+        ? `✓ Success (${formatDuration(data.totalDurationMs)}, ${data.totalCredits ?? 0} credits)`
+        : data.status === "failed" && failedEntry
+          ? `✗ Failed at ${failedEntry.nodeLabel} (${formatDuration(data.totalDurationMs)})`
+          : `✗ Failed (${formatDuration(data.totalDurationMs)})`;
+
+  const filteredLogs = data.logs?.filter((l) => logFilters[l.level as keyof typeof logFilters]) ?? [];
+
+  return (
+    <div
+      className="absolute bottom-0 left-0 right-0 z-20 flex flex-col border-t border-[#332f2b] bg-[#1a1918] shadow-2xl shadow-black/40 transition-all duration-200"
+      style={{ height: expanded ? panelHeight : 36 }}
+    >
+      {/* Resize handle */}
+      {expanded && (
+        <div
+          className="absolute -top-1.5 left-0 right-0 h-3 cursor-ns-resize flex items-center justify-center group"
+          onMouseDown={handleDragStart}
+        >
+          <GripHorizontal className="h-3 w-3 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
+        </div>
+      )}
+
+      {/* Collapsed summary bar */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 px-4 py-2 text-left hover:bg-[#1e1d1b] transition-colors shrink-0"
+      >
+        <div className={cn(
+          "h-2 w-2 rounded-full shrink-0",
+          data.status === "running" && "bg-orange-400 animate-pulse",
+          data.status === "completed" && "bg-green-400",
+          data.status === "failed" && "bg-red-400",
+        )} />
+        <span className="text-[11px] font-medium text-zinc-300 flex-1">
+          Last run: {summaryText}
+        </span>
+        {expanded ? (
+          <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
+        ) : (
+          <ChevronUp className="h-3.5 w-3.5 text-zinc-500" />
+        )}
+      </button>
+
+      {/* Expanded content */}
+      {expanded && (
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* Tabs */}
+          <div className="flex items-center border-b border-[#332f2b] px-4 shrink-0">
+            <button
+              onClick={() => setActiveTab("timeline")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium border-b-2 transition-colors",
+                activeTab === "timeline"
+                  ? "text-orange-400 border-orange-500"
+                  : "text-zinc-500 border-transparent hover:text-zinc-300"
+              )}
+            >
+              <List className="h-3 w-3" />
+              Timeline
+            </button>
+            <button
+              onClick={() => setActiveTab("console")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium border-b-2 transition-colors",
+                activeTab === "console"
+                  ? "text-orange-400 border-orange-500"
+                  : "text-zinc-500 border-transparent hover:text-zinc-300"
+              )}
+            >
+              <Terminal className="h-3 w-3" />
+              Console
+            </button>
+            <div className="flex-1" />
+            <button
+              onClick={() => setExpanded(false)}
+              className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors rounded"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* Timeline tab */}
+          {activeTab === "timeline" && (
+            <div className="flex-1 overflow-auto scrollbar-thin">
+              <table className="w-full text-[11px]">
+                <thead>
+                  <tr className="text-zinc-500 text-left border-b border-[#2a2826]">
+                    <th className="px-4 py-1.5 w-8 font-medium">#</th>
+                    <th className="px-2 py-1.5 font-medium">Node</th>
+                    <th className="px-2 py-1.5 w-20 font-medium">Status</th>
+                    <th className="px-2 py-1.5 w-16 font-medium text-right">Duration</th>
+                    <th className="px-2 py-1.5 w-14 font-medium text-right">Credits</th>
+                    <th className="px-4 py-1.5 w-16 font-medium text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.entries.map((entry, idx) => (
+                    <tr
+                      key={entry.nodeId}
+                      className={cn(
+                        "border-b border-[#2a2826]/50 hover:bg-[#1e1d1b] transition-colors cursor-pointer",
+                        entry.status === "failed" && "bg-red-500/[0.03]",
+                      )}
+                      onClick={() => onHighlightNode?.(entry.nodeId)}
+                    >
+                      <td className="px-4 py-2 text-zinc-500 font-mono">{idx + 1}</td>
+                      <td className="px-2 py-2">
+                        <div className="flex items-center gap-2">
+                          {statusIcon(entry.status)}
+                          <span className="text-zinc-200 font-medium truncate max-w-[180px]">
+                            {entry.nodeLabel}
+                          </span>
+                        </div>
+                        {/* Inline error for failed nodes */}
+                        {entry.status === "failed" && entry.error && (
+                          <div className="mt-1 ml-5">
+                            <p className="text-[10px] text-red-400/80 truncate max-w-[250px]">
+                              {entry.error.message}
+                            </p>
+                          </div>
+                        )}
+                      </td>
+                      <td className={cn("px-2 py-2 font-medium", statusColor(entry.status))}>
+                        {statusLabel(entry.status)}
+                      </td>
+                      <td className="px-2 py-2 text-right text-zinc-400 font-mono">
+                        {formatDuration(entry.durationMs)}
+                      </td>
+                      <td className="px-2 py-2 text-right text-zinc-400 font-mono">
+                        {entry.credits ?? 0}
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <div className="flex items-center gap-1 justify-end">
+                          {(entry.status === "completed" || entry.status === "failed") && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onNodeClick?.(entry.nodeId); }}
+                              className="p-1 rounded text-zinc-500 hover:text-zinc-200 hover:bg-[#2a2826] transition-colors"
+                              title="View output"
+                            >
+                              <Eye className="h-3 w-3" />
+                            </button>
+                          )}
+                          {entry.status === "failed" && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onNodeFix?.(entry.nodeId); }}
+                              className="p-1 rounded text-red-400/70 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                              title="Fix this node"
+                            >
+                              <Wrench className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Summary row */}
+              {data.entries.length > 0 && (
+                <div className="flex items-center gap-4 px-4 py-2 border-t border-[#332f2b] text-[10px] text-zinc-500">
+                  <span>Total: {formatDuration(data.totalDurationMs)}</span>
+                  <span>{data.totalCredits ?? 0} credits</span>
+                  <span>{succeededCount} of {totalNodes} nodes succeeded</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Console tab */}
+          {activeTab === "console" && (
+            <div className="flex-1 flex flex-col min-h-0">
+              {/* Console toolbar */}
+              <div className="flex items-center gap-2 px-4 py-1 border-b border-[#2a2826] shrink-0">
+                <Filter className="h-3 w-3 text-zinc-500" />
+                {(["error", "warn", "info", "success"] as const).map((level) => (
+                  <button
+                    key={level}
+                    onClick={() => setLogFilters((f) => ({ ...f, [level]: !f[level] }))}
+                    className={cn(
+                      "text-[9px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded transition-colors",
+                      logFilters[level]
+                        ? cn("border", level === "error" ? "bg-red-500/10 text-red-400 border-red-500/20" : level === "warn" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : level === "success" ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-zinc-500/10 text-zinc-400 border-zinc-500/20")
+                        : "text-zinc-600 hover:text-zinc-400"
+                    )}
+                  >
+                    {level}
+                  </button>
+                ))}
+                <div className="flex-1" />
+                <button
+                  onClick={handleCopyLogs}
+                  className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                >
+                  <Copy className="h-3 w-3" />
+                  Copy All
+                </button>
+              </div>
+
+              {/* Console output */}
+              <div className="flex-1 overflow-auto bg-[#131211] font-mono text-[11px] p-3 space-y-0.5 scrollbar-thin">
+                {filteredLogs.length === 0 ? (
+                  <p className="text-zinc-600 italic">No logs yet. Run the workflow to see execution logs.</p>
+                ) : (
+                  filteredLogs.map((log, i) => (
+                    <div key={i} className="flex gap-2 leading-relaxed">
+                      <span className="text-zinc-600 shrink-0 select-none">[{log.timestamp}]</span>
+                      <span className={LOG_LEVEL_COLORS[log.level] || "text-zinc-400"}>{log.message}</span>
+                    </div>
+                  ))
+                )}
+                <div ref={consoleEndRef} />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

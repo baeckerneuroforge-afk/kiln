@@ -77,6 +77,7 @@ import {
   Undo2,
   Redo2,
   Plus,
+  Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getModelDef } from "@/lib/ai";
@@ -93,6 +94,7 @@ import { NodeConfigPanel } from "./node-config-panel";
 import { CanvasErrorBoundary, NodeErrorBoundary } from "./canvas-error-boundary";
 import { getNodeIcon } from "@/components/workflows/node-icons";
 import { NodeSearch } from "@/components/workflows/node-search";
+import { ExecutionTimelinePanel, type ExecutionTimelineData, type TimelineNodeEntry } from "@/components/workflows/execution-timeline";
 
 /* ========== Types ========== */
 interface OutputSchemaField {
@@ -166,7 +168,8 @@ interface VisualTeamEditorProps {
   executionStatus?: "idle" | "running" | "completed" | "failed";
   executionDuration?: number;
   executionCredits?: number;
-  nodeResults?: Record<string, { input?: unknown; output?: unknown; status?: "completed" | "failed" | "running" }>;
+  nodeResults?: Record<string, { input?: unknown; output?: unknown; status?: "completed" | "failed" | "running"; durationMs?: number; credits?: number; error?: string; nodeLabel?: string; nodeType?: string }>;
+  executionLogs?: Array<{ timestamp: string; level: "info" | "warn" | "error" | "success"; message: string; nodeId?: string }>;
 }
 
 /* ========== Constants ========== */
@@ -371,9 +374,11 @@ type WorkflowNodeData = {
   iconName: string;
   config: Record<string, unknown>;
   hasErrorPath?: boolean;
-  execStatus?: "completed" | "failed" | "running" | "skipped";
+  execStatus?: "completed" | "failed" | "running" | "skipped" | "pending";
   execError?: string;
-  execDuration?: string;
+  execDurationMs?: number;
+  execCredits?: number;
+  skippedReason?: string;
   [key: string]: unknown;
 };
 
@@ -385,17 +390,25 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
   const isLogicNode = category === "logic";
   const isTriggerNode = category === "triggers";
   const execStatus = data.execStatus as WorkflowNodeData["execStatus"];
+  const durationMs = data.execDurationMs as number | undefined;
+
+  // Format duration for badge
+  const durationLabel = durationMs !== undefined
+    ? durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(1)}s`
+    : "";
 
   // Execution status ring classes
   const statusRing = execStatus === "running"
     ? "ring-2 ring-orange-400/60 ring-offset-1 ring-offset-[#1e1d1b]"
     : execStatus === "completed"
-      ? "ring-2 ring-green-400/60 ring-offset-1 ring-offset-[#1e1d1b]"
+      ? "ring-2 ring-green-400/40 ring-offset-1 ring-offset-[#1e1d1b]"
       : execStatus === "failed"
         ? "ring-2 ring-red-400/60 ring-offset-1 ring-offset-[#1e1d1b]"
         : execStatus === "skipped"
-          ? "ring-1 ring-zinc-600/40 ring-offset-1 ring-offset-[#1e1d1b] opacity-60"
-          : "";
+          ? "ring-1 ring-dashed ring-zinc-600/40 ring-offset-1 ring-offset-[#1e1d1b] opacity-60"
+          : execStatus === "pending"
+            ? "ring-1 ring-zinc-600/30 ring-offset-1 ring-offset-[#1e1d1b]"
+            : "";
 
   // Config preview text
   let preview = "";
@@ -413,12 +426,35 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
   return (
     <div
       className={cn(
-        "rounded-xl bg-[#2a2826] border border-[#3d3935] shadow-lg min-w-[200px] max-w-[240px] transition-all duration-150",
+        "relative rounded-xl bg-[#2a2826] border border-[#3d3935] shadow-lg min-w-[200px] max-w-[240px] transition-all duration-150",
         selected && "border-orange-500/70 shadow-orange-500/10 shadow-xl",
         statusRing,
         execStatus === "running" && "animate-pulse",
+        execStatus === "completed" && "shadow-green-500/5",
+        execStatus === "failed" && "shadow-red-500/10",
       )}
     >
+      {/* Execution status badge — top-right corner */}
+      {execStatus && execStatus !== "pending" && (
+        <div className={cn(
+          "absolute -top-2 -right-2 flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-bold shadow-md border z-10",
+          execStatus === "completed" && "bg-green-500/15 text-green-400 border-green-500/30 backdrop-blur-sm",
+          execStatus === "failed" && "bg-red-500/15 text-red-400 border-red-500/30 backdrop-blur-sm",
+          execStatus === "running" && "bg-orange-500/15 text-orange-400 border-orange-500/30 backdrop-blur-sm",
+          execStatus === "skipped" && "bg-zinc-700/50 text-zinc-400 border-zinc-600/30 backdrop-blur-sm",
+        )}>
+          {execStatus === "completed" && <><Check className="h-2.5 w-2.5" /> {durationLabel}</>}
+          {execStatus === "failed" && <><X className="h-2.5 w-2.5" /> Error</>}
+          {execStatus === "running" && <><Loader2 className="h-2.5 w-2.5 animate-spin" /> Running</>}
+          {execStatus === "skipped" && <>⊘ Skip</>}
+        </div>
+      )}
+      {execStatus === "pending" && (
+        <div className="absolute -top-2 -right-2 flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-medium bg-zinc-800/80 text-zinc-500 border border-zinc-700/30 backdrop-blur-sm shadow-md z-10">
+          ⏳ Waiting
+        </div>
+      )}
+
       {/* Input handle — left (not for triggers) */}
       {!isTriggerNode && (
         <Handle
@@ -442,27 +478,22 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
             {data.description as string}
           </p>
         </div>
-        {/* Execution status badge */}
-        {execStatus && execStatus !== "running" && (
-          <span className={cn(
-            "text-[8px] font-medium px-1.5 py-0.5 rounded flex items-center gap-0.5 shrink-0",
-            execStatus === "completed" && "bg-green-500/15 text-green-400",
-            execStatus === "failed" && "bg-red-500/15 text-red-400",
-          )}>
-            {execStatus === "completed" && <Check className="h-2 w-2" />}
-            {execStatus === "failed" && <X className="h-2 w-2" />}
-          </span>
-        )}
-        {execStatus === "running" && (
-          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-orange-400" />
-        )}
       </div>
 
-      {/* Config preview */}
-      {preview && !data.execError && (
+      {/* Config preview (only when idle or pending) */}
+      {preview && !execStatus && (
         <div className="px-3 pb-2.5 -mt-1">
           <p className="text-[10px] font-mono text-zinc-500 truncate bg-[#242220] rounded px-2 py-1 border border-[#3d3935]/50">
             {preview}
+          </p>
+        </div>
+      )}
+
+      {/* Success summary — brief output preview */}
+      {execStatus === "completed" && durationLabel && (
+        <div className="px-3 pb-2.5 -mt-1">
+          <p className="text-[10px] text-green-400/70 truncate bg-green-500/5 rounded px-2 py-1 border border-green-500/10">
+            ✓ {durationLabel}{data.execCredits ? `, ${data.execCredits} cr` : ""}
           </p>
         </div>
       )}
@@ -471,7 +502,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
       {execStatus === "failed" && data.execError && (
         <div className="px-3 pb-2.5 -mt-1" title={data.execError as string}>
           <p className="text-[10px] text-red-400 truncate bg-red-500/5 rounded px-2 py-1 border border-red-500/15">
-            ✕ {(data.execError as string).slice(0, 60)}{(data.execError as string).length > 60 ? "…" : ""}
+            ✕ {(data.execError as string).slice(0, 50)}{(data.execError as string).length > 50 ? "…" : ""}
           </p>
         </div>
       )}
@@ -480,7 +511,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
       {execStatus === "skipped" && (
         <div className="px-3 pb-2.5 -mt-1">
           <p className="text-[10px] text-zinc-500 italic truncate bg-[#242220] rounded px-2 py-1 border border-[#3d3935]/50">
-            Skipped — upstream node failed
+            {data.skippedReason ? `Skipped — ${data.skippedReason}` : "Skipped — upstream node failed"}
           </p>
         </div>
       )}
@@ -615,20 +646,35 @@ function AnimatedConnectionEdge({
     targetPosition,
     curvature: 0.25,
   });
+  const [dataPopupOpen, setDataPopupOpen] = useState(false);
 
   const isExecuting = data?.executionActive as boolean;
   const isFallback = data?.isFallback as boolean;
   const isErrorEdge = data?.isErrorEdge as boolean;
+  const flowData = data?.flowData as unknown;
+  const flowStatus = data?.flowStatus as "success" | "error" | "none" | undefined;
 
+  // Edge color based on execution flow
   const strokeColor = isErrorEdge
     ? "#EF4444"
     : isFallback
       ? "#FB923C"
       : isExecuting
         ? "#F97316"
-        : selected
-          ? "#F97316"
-          : "#4a4540";
+        : flowStatus === "success"
+          ? "#22C55E"
+          : flowStatus === "error"
+            ? "#EF4444"
+            : selected
+              ? "#F97316"
+              : "#4a4540";
+
+  // Data preview for the midpoint badge
+  const dataPreview = flowData
+    ? typeof flowData === "string"
+      ? flowData.slice(0, 30)
+      : JSON.stringify(flowData).slice(0, 30)
+    : null;
 
   return (
     <>
@@ -641,18 +687,73 @@ function AnimatedConnectionEdge({
         />
       )}
 
+      {/* Glow for successful data flow */}
+      {flowStatus === "success" && !isExecuting && (
+        <BaseEdge
+          id={`${id}-flow-glow`}
+          path={edgePath}
+          style={{ stroke: "#22C55E", strokeWidth: 4, filter: "blur(3px)", opacity: 0.15 }}
+        />
+      )}
+
       {/* Main edge */}
       <BaseEdge
         id={id}
         path={edgePath}
         style={{
           stroke: strokeColor,
-          strokeWidth: selected ? 2.5 : isExecuting ? 2.5 : 1.5,
+          strokeWidth: selected ? 2.5 : isExecuting ? 2.5 : flowStatus ? 2 : 1.5,
           strokeDasharray: isErrorEdge ? "6 4" : isFallback ? "5 5" : isExecuting ? "8 4" : undefined,
           animation: isExecuting ? "dashmove 0.5s linear infinite" : undefined,
         }}
         markerEnd={MarkerType.ArrowClosed}
       />
+
+      {/* Data flow badge at edge midpoint */}
+      {flowData && dataPreview && !isExecuting && (
+        <EdgeLabelRenderer>
+          <div
+            className="absolute pointer-events-auto"
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + 16}px)` }}
+          >
+            <button
+              onClick={(e) => { e.stopPropagation(); setDataPopupOpen(!dataPopupOpen); }}
+              className={cn(
+                "rounded border px-1.5 py-0.5 text-[8px] font-mono transition-all truncate max-w-[120px] block",
+                flowStatus === "success"
+                  ? "bg-green-500/10 border-green-500/20 text-green-400/80 hover:text-green-300 hover:border-green-500/40"
+                  : flowStatus === "error"
+                    ? "bg-red-500/10 border-red-500/20 text-red-400/80 hover:text-red-300"
+                    : "bg-[#2a2826] border-[#4a4540] text-zinc-500 hover:text-zinc-300"
+              )}
+            >
+              {dataPreview}{dataPreview.length >= 30 ? "…" : ""}
+            </button>
+
+            {/* Expanded data popup */}
+            {dataPopupOpen && (
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-[280px] rounded-lg border border-[#3d3935] bg-[#1e1d1b] shadow-2xl shadow-black/50 z-50 overflow-hidden">
+                <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#332f2b]">
+                  <span className="text-[9px] font-medium uppercase tracking-wider text-zinc-500">Data Flow</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(typeof flowData === "string" ? flowData : JSON.stringify(flowData, null, 2));
+                    }}
+                    className="text-[9px] text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-0.5"
+                  >
+                    <Copy className="h-2.5 w-2.5" />
+                    Copy
+                  </button>
+                </div>
+                <pre className="p-2.5 text-[10px] text-zinc-300 font-mono overflow-auto max-h-[180px] scrollbar-thin">
+                  {typeof flowData === "string" ? flowData : JSON.stringify(flowData, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        </EdgeLabelRenderer>
+      )}
 
       {/* Condition label pill */}
       {data?.label && (
@@ -1124,6 +1225,7 @@ function VisualTeamEditorInner({
   executionDuration,
   executionCredits,
   nodeResults,
+  executionLogs,
 }: VisualTeamEditorProps) {
   const reactFlowInstance = useReactFlow();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1305,14 +1407,19 @@ function VisualTeamEditorInner({
   useEffect(() => {
     if (!nodeResults || Object.keys(nodeResults).length === 0) return;
 
-    // Collect IDs of failed nodes
+    // Collect IDs of failed nodes and find the upstream node label for skip reason
     const failedNodeIds = new Set<string>();
+    const failedNodeLabels = new Map<string, string>();
     for (const [id, result] of Object.entries(nodeResults)) {
-      if (result.status === "failed") failedNodeIds.add(id);
+      if (result.status === "failed") {
+        failedNodeIds.add(id);
+        failedNodeLabels.set(id, result.nodeLabel || id);
+      }
     }
 
     // Find all nodes downstream of any failed node via BFS on edges
     const skippedNodeIds = new Set<string>();
+    const skipReasons = new Map<string, string>();
     if (failedNodeIds.size > 0) {
       const queue = [...failedNodeIds];
       while (queue.length > 0) {
@@ -1320,32 +1427,42 @@ function VisualTeamEditorInner({
         for (const edge of edges) {
           if (edge.source === current && !failedNodeIds.has(edge.target) && !skippedNodeIds.has(edge.target)) {
             skippedNodeIds.add(edge.target);
+            // Track which node caused the skip
+            const reason = failedNodeLabels.get(current) || skipReasons.get(current);
+            if (reason) skipReasons.set(edge.target, `"${reason}" failed`);
             queue.push(edge.target);
           }
         }
       }
     }
 
+    // Update nodes with enriched execution data
     setNodes((nds) =>
       nds.map((n) => {
         if (n.type !== "workflowNode") return n;
 
-        // Mark downstream nodes as skipped
         if (skippedNodeIds.has(n.id)) {
           return {
             ...n,
-            data: { ...n.data, execStatus: "skipped" as const },
+            data: {
+              ...n.data,
+              execStatus: "skipped" as const,
+              skippedReason: skipReasons.get(n.id),
+            },
           };
         }
 
         const result = nodeResults[n.id];
         if (!result) return n;
 
-        // Fehler-Details aus Output extrahieren für fehlgeschlagene Nodes
+        // Extract error from result.error or from output
         let execError: string | undefined;
-        if (result.status === "failed" && result.output) {
-          const out = result.output as Record<string, unknown>;
-          execError = (out.message as string) || (out.error as string) || String(result.output);
+        if (result.status === "failed") {
+          execError = result.error || undefined;
+          if (!execError && result.output) {
+            const out = result.output as Record<string, unknown>;
+            execError = (out.message as string) || (out.error as string) || String(result.output);
+          }
         }
 
         return {
@@ -1353,12 +1470,40 @@ function VisualTeamEditorInner({
           data: {
             ...n.data,
             execStatus: result.status,
+            execDurationMs: result.durationMs,
+            execCredits: result.credits,
             ...(execError ? { execError } : {}),
           },
         };
       })
     );
-  }, [nodeResults, edges, setNodes]);
+
+    // Update edges with flow data
+    setEdges((eds) =>
+      eds.map((e) => {
+        const sourceResult = nodeResults[e.source];
+        if (!sourceResult || sourceResult.status === "running") return e;
+
+        const flowStatus = sourceResult.status === "completed" ? "success"
+          : sourceResult.status === "failed" ? "error"
+          : "none";
+
+        // Show output data on edges from completed nodes
+        const flowData = sourceResult.status === "completed" && sourceResult.output
+          ? sourceResult.output
+          : undefined;
+
+        return {
+          ...e,
+          data: {
+            ...e.data,
+            flowStatus,
+            flowData,
+          },
+        };
+      })
+    );
+  }, [nodeResults, edges, setNodes, setEdges]);
 
   // Push initial history snapshot once nodes are rendered
   const initialHistoryPushed = useRef(false);
@@ -1788,6 +1933,36 @@ function VisualTeamEditorInner({
           ? "Failed"
           : "Idle";
 
+  // Build timeline data for the execution panel
+  const timelineData = useMemo<ExecutionTimelineData | null>(() => {
+    if (!nodeResults || Object.keys(nodeResults).length === 0) {
+      return null;
+    }
+
+    const entries: TimelineNodeEntry[] = [];
+    for (const [nId, result] of Object.entries(nodeResults)) {
+      entries.push({
+        nodeId: nId,
+        nodeLabel: result.nodeLabel || wfNodes?.find((n) => n.id === nId)?.label || nId,
+        nodeType: result.nodeType || wfNodes?.find((n) => n.id === nId)?.type || "unknown",
+        status: (result.status || "pending") as TimelineNodeEntry["status"],
+        durationMs: result.durationMs,
+        credits: result.credits,
+        error: result.error ? { type: "runtime_error", message: result.error } : undefined,
+        input: result.input,
+        output: result.output,
+      });
+    }
+
+    return {
+      status: executionStatus ?? "idle",
+      totalDurationMs: executionDuration,
+      totalCredits: executionCredits,
+      entries,
+      logs: executionLogs,
+    };
+  }, [nodeResults, executionStatus, executionDuration, executionCredits, executionLogs, wfNodes]);
+
   return (
     <CanvasErrorBoundary>
     <div className="h-full w-full relative" ref={reactFlowWrapper}>
@@ -2067,21 +2242,59 @@ function VisualTeamEditorInner({
       />
 
       {/* Node Config Panel (right side) */}
-      {selectedNode && (
-        <NodeConfigPanel
-          nodeId={selectedNode.id}
-          nodeType={selectedNode.type}
-          label={selectedNode.label}
-          config={selectedNode.config}
-          onConfigChange={handleNodeConfigChange}
-          onLabelChange={handleNodeLabelChange}
-          onDelete={handleNodeDelete}
-          onClose={handleClosePanel}
-          teamId={teamId}
-          lastRunInput={nodeResults?.[selectedNode.id]?.input}
-          lastRunResult={nodeResults?.[selectedNode.id]?.output}
-        />
-      )}
+      {selectedNode && (() => {
+        const nr = nodeResults?.[selectedNode.id];
+        const hasUpstream = edges.some((e) => e.target === selectedNode.id || nodes.some((n) => n.type === "workflowNode" && edges.some((ed) => ed.source === n.id && ed.target === selectedNode.id)));
+        const isTrigger = wfNodes?.some((n) => n.id === selectedNode.id && (n.type as string).startsWith("trigger"));
+        return (
+          <NodeConfigPanel
+            nodeId={selectedNode.id}
+            nodeType={selectedNode.type}
+            label={selectedNode.label}
+            config={selectedNode.config}
+            onConfigChange={handleNodeConfigChange}
+            onLabelChange={handleNodeLabelChange}
+            onDelete={handleNodeDelete}
+            onClose={handleClosePanel}
+            teamId={teamId}
+            lastRunInput={nr?.input}
+            lastRunResult={nr?.output}
+            lastRunError={nr?.error}
+            lastRunDurationMs={nr?.durationMs}
+            lastRunCredits={nr?.credits}
+            lastRunStatus={nr?.status}
+            hasUpstreamConnection={hasUpstream}
+            isTriggerNode={isTrigger}
+          />
+        );
+      })()}
+
+      {/* Execution Timeline Panel (bottom) */}
+      <ExecutionTimelinePanel
+        data={timelineData}
+        onNodeClick={(nId) => {
+          // Open the node's config panel and switch to Output tab
+          const wfNode = wfNodes?.find((n) => n.id === nId);
+          if (wfNode) {
+            setSelectedNode({ id: wfNode.id, type: wfNode.type, label: wfNode.label, config: wfNode.config });
+            setActivePanel("config");
+          }
+        }}
+        onNodeFix={(nId) => {
+          const wfNode = wfNodes?.find((n) => n.id === nId);
+          if (wfNode) {
+            setSelectedNode({ id: wfNode.id, type: wfNode.type, label: wfNode.label, config: wfNode.config });
+            setActivePanel("config");
+          }
+        }}
+        onHighlightNode={(nId) => {
+          // Scroll to and briefly highlight the node
+          const rfNode = reactFlowInstance.getNode(nId);
+          if (rfNode) {
+            reactFlowInstance.fitView({ nodes: [rfNode], padding: 0.5, duration: 300 });
+          }
+        }}
+      />
     </div>
     </CanvasErrorBoundary>
   );

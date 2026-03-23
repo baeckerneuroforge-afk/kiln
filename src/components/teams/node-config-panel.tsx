@@ -48,6 +48,11 @@ import {
   Lightbulb,
   ChevronRight,
   RotateCw,
+  ExternalLink,
+  Check,
+  ArrowRight,
+  History,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -56,13 +61,25 @@ import type { WorkflowNodeType } from "@/lib/workflow-node-types";
 
 /* ========== Types ========== */
 
+interface FixAction {
+  type: "set_field" | "navigate" | "open_palette";
+  field?: string;
+  value?: unknown;
+  url?: string;
+}
+
+interface Suggestion {
+  text: string;
+  action?: FixAction;
+}
+
 interface StructuredError {
   type: "api_error" | "config_error" | "auth_error" | "timeout" | "credit_error" | "runtime_error" | "connection_error";
   message: string;
   details?: string;
   nodeType: string;
   field?: string;
-  suggestions: string[];
+  suggestions: (string | Suggestion)[];
 }
 
 interface ValidationError {
@@ -78,6 +95,14 @@ interface TestNodeResult {
   durationMs: number;
   creditsUsed: number;
   dryRun?: boolean;
+  timestamp?: string;
+}
+
+interface TestHistoryEntry {
+  result: TestNodeResult | null;
+  error: StructuredError | null;
+  timestamp: string;
+  status: "success" | "error";
 }
 
 const ERROR_TYPE_LABELS: Record<string, { label: string; color: string; bgColor: string; borderColor: string }> = {
@@ -103,6 +128,12 @@ interface NodeConfigPanelProps {
   teamId?: string;
   lastRunResult?: unknown;
   lastRunInput?: unknown;
+  lastRunError?: string;
+  lastRunDurationMs?: number;
+  lastRunCredits?: number;
+  lastRunStatus?: "completed" | "failed" | "running" | "skipped";
+  hasUpstreamConnection?: boolean;
+  isTriggerNode?: boolean;
 }
 
 /* ========== Icon Map ========== */
@@ -1790,6 +1821,12 @@ export function NodeConfigPanel({
   teamId,
   lastRunResult,
   lastRunInput,
+  lastRunError,
+  lastRunDurationMs,
+  lastRunCredits,
+  lastRunStatus,
+  hasUpstreamConnection,
+  isTriggerNode,
 }: NodeConfigPanelProps) {
   const [activeTab, setActiveTab] = useState<"config" | "input" | "output">("config");
   const panelRef = useRef<HTMLDivElement>(null);
@@ -1799,6 +1836,8 @@ export function NodeConfigPanel({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [errorCopied, setErrorCopied] = useState(false);
+  const [testHistory, setTestHistory] = useState<TestHistoryEntry[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(0); // 0 = latest
 
   // Close on Escape
   useEffect(() => {
@@ -1820,6 +1859,42 @@ export function NodeConfigPanel({
     [nodeId, onConfigChange, fieldErrors]
   );
 
+  // Auto-fix action handler
+  const handleFixAction = useCallback((action: FixAction) => {
+    if (action.type === "set_field" && action.field) {
+      onConfigChange(nodeId, { ...config, [action.field]: action.value });
+      setActiveTab("config");
+      setFieldErrors({});
+    } else if (action.type === "navigate" && action.url) {
+      window.open(action.url, "_blank");
+    }
+    // open_palette handled by parent via callback
+  }, [nodeId, config, onConfigChange]);
+
+  // Get suggestion text regardless of type
+  const getSuggestionText = (s: string | Suggestion): string =>
+    typeof s === "string" ? s : s.text;
+  const getSuggestionAction = (s: string | Suggestion): FixAction | undefined =>
+    typeof s === "string" ? undefined : s.action;
+
+  // Build auto-fix suggestions from error type
+  const buildAutoFixes = useCallback((err: StructuredError): Suggestion[] => {
+    const fixes: Suggestion[] = [];
+    if (err.type === "config_error" && (nodeType === "agent" || nodeType === "llm_prompt")) {
+      fixes.push({ text: "Add default prompt", action: { type: "set_field", field: "systemPrompt", value: "You are a helpful AI assistant." } });
+    }
+    if (err.type === "auth_error") {
+      fixes.push({ text: "Open Settings", action: { type: "navigate", url: "/dashboard/settings#api-keys" } });
+    }
+    if (err.type === "credit_error") {
+      fixes.push({ text: "Top up credits", action: { type: "navigate", url: "/dashboard/settings#billing" } });
+    }
+    if (err.message?.toLowerCase().includes("model") && err.type === "config_error") {
+      fixes.push({ text: "Switch to Sonnet 4.6", action: { type: "set_field", field: "model", value: "claude-sonnet-4-6" } });
+    }
+    return fixes;
+  }, [nodeType]);
+
   // Test node execution
   const handleTestNode = useCallback(async () => {
     if (!teamId) {
@@ -1833,6 +1908,9 @@ export function NodeConfigPanel({
     setFieldErrors({});
     setDetailsExpanded(false);
     setErrorCopied(false);
+    setHistoryIndex(0);
+
+    const timestamp = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
     try {
       const testInput: Record<string, unknown> = {};
@@ -1851,25 +1929,34 @@ export function NodeConfigPanel({
         }),
       });
 
-      const data = await resp.json() as TestNodeResult & { error?: StructuredError };
+      const respData = await resp.json() as TestNodeResult & { error?: StructuredError };
 
-      if (data.success) {
-        setTestResult(data);
+      if (respData.success) {
+        setTestResult(respData);
+        // Add to history
+        setTestHistory((prev) => [{ result: respData, error: null, timestamp, status: "success" as const }, ...prev].slice(0, 3));
         setActiveTab("output");
         return;
       }
 
       // Handle structured error
-      const structuredErr = data.error;
+      const structuredErr = respData.error;
       if (structuredErr) {
+        // Merge auto-fix actions into suggestions
+        const autoFixes = buildAutoFixes(structuredErr);
+        if (autoFixes.length > 0) {
+          structuredErr.suggestions = [...structuredErr.suggestions, ...autoFixes];
+        }
+
         setTestError(structuredErr);
+        // Add to history
+        setTestHistory((prev) => [{ result: respData, error: structuredErr, timestamp, status: "error" as const }, ...prev].slice(0, 3));
 
         // Set field-level errors from validation or error.field
-        if (data.validationErrors && data.validationErrors.length > 0) {
+        if (respData.validationErrors && respData.validationErrors.length > 0) {
           const fe: Record<string, string> = {};
-          data.validationErrors.forEach((ve: ValidationError) => { fe[ve.field] = ve.message; });
+          respData.validationErrors.forEach((ve: ValidationError) => { fe[ve.field] = ve.message; });
           setFieldErrors(fe);
-          // Switch to config tab to show field errors
           setActiveTab("config");
           return;
         }
@@ -1878,20 +1965,22 @@ export function NodeConfigPanel({
         }
       }
 
-      setTestResult(data);
+      setTestResult(respData);
       setActiveTab("output");
     } catch (err) {
-      setTestError({
+      const connErr: StructuredError = {
         type: "connection_error",
         message: err instanceof Error ? err.message : "Test request failed",
         nodeType,
         suggestions: ["Check your internet connection", "Try again in a moment"],
-      });
+      };
+      setTestError(connErr);
+      setTestHistory((prev) => [{ result: null, error: connErr, timestamp, status: "error" as const }, ...prev].slice(0, 3));
       setActiveTab("output");
     } finally {
       setTesting(false);
     }
-  }, [teamId, nodeId, nodeType, config, lastRunInput, onTestNode]);
+  }, [teamId, nodeId, nodeType, config, lastRunInput, onTestNode, buildAutoFixes]);
 
   const handleCopyError = useCallback(() => {
     if (!testError) return;
@@ -1987,22 +2076,72 @@ export function NodeConfigPanel({
 
         {activeTab === "input" && (
           <div className="space-y-3">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-              Data from connected upstream nodes
-            </p>
-            {lastRunInput ? (
-              <pre className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 text-xs text-zinc-300 font-mono overflow-auto max-h-[400px]">
-                {typeof lastRunInput === "string"
-                  ? lastRunInput
-                  : JSON.stringify(lastRunInput, null, 2)}
-              </pre>
-            ) : (
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                Input Data
+              </p>
+              {lastRunInput !== undefined && lastRunInput !== null && (
+                <button
+                  onClick={() => navigator.clipboard.writeText(typeof lastRunInput === "string" ? lastRunInput : JSON.stringify(lastRunInput, null, 2))}
+                  className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                >
+                  <Copy className="h-3 w-3" />
+                  Copy Input
+                </button>
+              )}
+            </div>
+
+            {isTriggerNode && !lastRunInput && (
+              <div className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-4 text-center">
+                <p className="text-xs text-zinc-400">No input — this is a starting node</p>
+                <p className="text-[10px] text-zinc-500 mt-1">Trigger nodes receive external events or manual activation.</p>
+              </div>
+            )}
+
+            {!isTriggerNode && !hasUpstreamConnection && !lastRunInput && (
+              <div className="rounded-lg border border-amber-500/15 bg-amber-500/5 p-4 text-center">
+                <AlertTriangle className="h-5 w-5 text-amber-400/60 mx-auto mb-2" />
+                <p className="text-xs text-amber-300/80">This node has no input connection</p>
+                <p className="text-[10px] text-zinc-500 mt-1">Connect an upstream node to provide input data.</p>
+              </div>
+            )}
+
+            {!isTriggerNode && hasUpstreamConnection && !lastRunInput && (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1e1d1b] border border-[#332f2b] mb-3">
                   <Zap className="h-5 w-5 text-zinc-500" />
                 </div>
-                <p className="text-xs text-zinc-500">No input data yet.</p>
-                <p className="text-[10px] text-zinc-500 mt-1">Run the workflow to see input data.</p>
+                <p className="text-xs text-zinc-500">Run the workflow to see input data.</p>
+              </div>
+            )}
+
+            {lastRunInput !== undefined && lastRunInput !== null && (
+              <div className="space-y-2">
+                {/* Field breakdown */}
+                {typeof lastRunInput === "object" && lastRunInput !== null && !Array.isArray(lastRunInput) && (
+                  <div className="space-y-1">
+                    {Object.entries(lastRunInput as Record<string, unknown>).map(([key, val]) => (
+                      <div key={key} className="flex items-start gap-2 rounded-md border border-[#332f2b]/50 bg-[#1e1d1b] px-2.5 py-1.5">
+                        <span className="text-[10px] font-mono font-medium text-orange-400/80 shrink-0">{key}</span>
+                        <span className="text-[9px] text-zinc-600 shrink-0">({typeof val})</span>
+                        <span className="text-[10px] text-zinc-300 font-mono truncate flex-1">
+                          {typeof val === "string" ? val : JSON.stringify(val)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Raw JSON (collapsed for objects, shown for primitives) */}
+                <details className="group">
+                  <summary className="text-[10px] text-zinc-500 cursor-pointer hover:text-zinc-300 transition-colors flex items-center gap-1">
+                    <ChevronRight className="h-3 w-3 group-open:rotate-90 transition-transform" />
+                    Raw JSON
+                  </summary>
+                  <pre className="mt-1.5 rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 text-[10px] text-zinc-300 font-mono overflow-auto max-h-[300px]">
+                    {typeof lastRunInput === "string" ? lastRunInput : JSON.stringify(lastRunInput, null, 2)}
+                  </pre>
+                </details>
               </div>
             )}
           </div>
@@ -2010,12 +2149,99 @@ export function NodeConfigPanel({
 
         {activeTab === "output" && (
           <div className="space-y-3">
-            {/* ── Structured Error Analysis ── */}
+            {/* ── Execution comparison banner ── */}
+            {testHistory.length > 1 && (
+              <div className="flex items-center gap-1 rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-1">
+                <History className="h-3 w-3 text-zinc-500 ml-1.5 shrink-0" />
+                {testHistory.map((entry, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setHistoryIndex(idx);
+                      if (idx > 0) {
+                        setTestResult(entry.result);
+                        setTestError(entry.error);
+                      }
+                    }}
+                    className={cn(
+                      "flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium transition-colors",
+                      historyIndex === idx
+                        ? "bg-[#2a2826] text-zinc-200"
+                        : "text-zinc-500 hover:text-zinc-300"
+                    )}
+                  >
+                    <span className={cn(
+                      "h-1.5 w-1.5 rounded-full shrink-0",
+                      entry.status === "success" ? "bg-green-400" : "bg-red-400"
+                    )} />
+                    {idx === 0 ? "Latest" : idx === 1 ? "Previous" : "First"}
+                    <span className="text-zinc-600">({entry.timestamp})</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Previous → Current comparison */}
+            {testHistory.length > 1 && historyIndex === 0 && testHistory[1] && (
+              <div className="flex items-center gap-2 rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-3 py-2">
+                <span className={cn("text-[10px] font-medium", testHistory[1].status === "success" ? "text-green-400" : "text-red-400")}>
+                  {testHistory[1].status === "success" ? "✓ Success" : "✗ Error"}
+                </span>
+                <ArrowRight className="h-3 w-3 text-zinc-500" />
+                <span className={cn("text-[10px] font-medium", testHistory[0].status === "success" ? "text-green-400" : "text-red-400")}>
+                  {testHistory[0].status === "success" ? "✓ Success" : "✗ Error"}
+                </span>
+                {testHistory[1].status === "error" && testHistory[0].status === "success" && (
+                  <span className="text-[9px] bg-green-500/10 text-green-400 border border-green-500/20 rounded px-1.5 py-0.5 ml-auto font-medium">Fixed!</span>
+                )}
+              </div>
+            )}
+
+            {/* ── Section 1: Result Metadata ── */}
+            {(testResult || lastRunStatus) && (
+              <div className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Status badge */}
+                  {(testResult?.success || lastRunStatus === "completed") && (
+                    <span className="text-[9px] font-medium uppercase tracking-wider rounded px-1.5 py-0.5 bg-green-500/10 text-green-400 border border-green-500/20 flex items-center gap-0.5">
+                      <Check className="h-2.5 w-2.5" /> Success
+                    </span>
+                  )}
+                  {(testError || lastRunStatus === "failed") && !testResult?.success && (
+                    <span className="text-[9px] font-medium uppercase tracking-wider rounded px-1.5 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 flex items-center gap-0.5">
+                      <X className="h-2.5 w-2.5" /> Error
+                    </span>
+                  )}
+                  {lastRunStatus === "skipped" && !testResult && !testError && (
+                    <span className="text-[9px] font-medium uppercase tracking-wider rounded px-1.5 py-0.5 bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+                      ⊘ Skipped
+                    </span>
+                  )}
+                  {testResult?.dryRun && (
+                    <span className="text-[9px] font-medium uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded px-1.5 py-0.5">
+                      Dry Run
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 text-[10px] text-zinc-500">
+                  {(testResult?.durationMs ?? lastRunDurationMs) !== undefined && (
+                    <span>⏱ {testResult?.durationMs ?? lastRunDurationMs}ms</span>
+                  )}
+                  {((testResult?.creditsUsed ?? lastRunCredits) ?? 0) > 0 && (
+                    <span>💎 {testResult?.creditsUsed ?? lastRunCredits} credits</span>
+                  )}
+                  {testHistory.length > 0 && testHistory[0].timestamp && (
+                    <span>🕐 {testHistory[0].timestamp}</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── Section 3: Error Analysis ── */}
             {testError && (() => {
               const errStyle = ERROR_TYPE_LABELS[testError.type] || ERROR_TYPE_LABELS.runtime_error;
               return (
                 <div className={cn("rounded-lg border p-4 space-y-3", errStyle.borderColor, errStyle.bgColor)}>
-                  {/* Header: icon + type badge */}
                   <div className="flex items-start gap-2.5">
                     <AlertTriangle className={cn("h-4.5 w-4.5 shrink-0 mt-0.5", errStyle.color)} />
                     <div className="flex-1 min-w-0">
@@ -2028,7 +2254,6 @@ export function NodeConfigPanel({
                     </div>
                   </div>
 
-                  {/* Details (collapsible) */}
                   {testError.details && (
                     <div>
                       <button
@@ -2046,25 +2271,36 @@ export function NodeConfigPanel({
                     </div>
                   )}
 
-                  {/* Suggestions */}
+                  {/* Suggestions with Fix buttons */}
                   {testError.suggestions.length > 0 && (
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-1.5">
                         <Lightbulb className="h-3 w-3 text-amber-400" />
                         <span className="text-[10px] font-medium uppercase tracking-wider text-amber-400">Suggestions</span>
                       </div>
-                      <ul className="space-y-1 pl-1">
-                        {testError.suggestions.map((s, i) => (
-                          <li key={i} className="flex items-start gap-1.5 text-xs text-zinc-400">
-                            <span className="text-zinc-600 mt-0.5 shrink-0">•</span>
-                            <span>{s}</span>
-                          </li>
-                        ))}
+                      <ul className="space-y-1.5 pl-1">
+                        {testError.suggestions.map((s, i) => {
+                          const action = getSuggestionAction(s);
+                          return (
+                            <li key={i} className="flex items-center gap-1.5 text-xs text-zinc-400">
+                              <span className="text-zinc-600 shrink-0">•</span>
+                              <span className="flex-1">{getSuggestionText(s)}</span>
+                              {action && (
+                                <button
+                                  onClick={() => handleFixAction(action)}
+                                  className="flex items-center gap-0.5 rounded border border-orange-500/30 bg-orange-500/10 px-1.5 py-0.5 text-[9px] font-medium text-orange-400 hover:bg-orange-500/20 transition-colors shrink-0"
+                                >
+                                  {action.type === "navigate" ? <ExternalLink className="h-2.5 w-2.5" /> : <Wrench className="h-2.5 w-2.5" />}
+                                  Fix
+                                </button>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   )}
 
-                  {/* Actions */}
                   <div className="flex items-center gap-2 pt-1">
                     <button
                       onClick={handleCopyError}
@@ -2086,46 +2322,132 @@ export function NodeConfigPanel({
               );
             })()}
 
-            {/* ── Successful test result ── */}
-            {testResult && testResult.success && (
-              <>
-                <div className="flex items-center gap-3">
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                    Test Result
-                  </p>
-                  <div className="flex items-center gap-2 ml-auto">
-                    {testResult.dryRun && (
-                      <span className="text-[9px] font-medium uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded px-1.5 py-0.5">
-                        Dry Run
-                      </span>
-                    )}
-                    <span className="text-[9px] font-medium uppercase tracking-wider rounded px-1.5 py-0.5 bg-green-500/10 text-green-400 border border-green-500/20">
-                      Success
-                    </span>
+            {/* ── Section 2: Output Data ── */}
+            {testResult && testResult.success && testResult.output && (() => {
+              const out = testResult.output;
+              // Detect AI response text (agent/llm nodes)
+              const aiResponse = (out.response as string) || (out.text as string) || (out.content as string) || (out.message as string);
+              // Detect HTTP response
+              const httpStatus = out.statusCode as number | undefined;
+              // Detect dry-run preview
+              const wouldSend = out.wouldSend as Record<string, unknown> | undefined;
+              const wouldWrite = out.wouldWrite as Record<string, unknown> | undefined;
+
+              return (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Output Data</p>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(JSON.stringify(out, null, 2))}
+                      className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                    >
+                      <Copy className="h-3 w-3" /> Copy Output
+                    </button>
                   </div>
+
+                  {/* AI Response — prominent display */}
+                  {aiResponse && (
+                    <div className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500 mb-2">AI Response</p>
+                      <p className="text-xs text-zinc-200 leading-relaxed whitespace-pre-wrap">{aiResponse}</p>
+                    </div>
+                  )}
+
+                  {/* HTTP Response */}
+                  {httpStatus && (
+                    <div className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          "text-[10px] font-mono font-bold",
+                          httpStatus < 400 ? "text-green-400" : "text-red-400"
+                        )}>
+                          {httpStatus}
+                        </span>
+                        {out.headers !== undefined && out.headers !== null && (
+                          <details className="text-[10px] text-zinc-500">
+                            <summary className="cursor-pointer hover:text-zinc-300">Headers</summary>
+                            <pre className="mt-1 text-[9px] text-zinc-400 font-mono">{JSON.stringify(out.headers, null, 2)}</pre>
+                          </details>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dry run preview */}
+                  {(wouldSend || wouldWrite) && testResult.dryRun && (
+                    <div className="rounded-lg border border-amber-500/15 bg-amber-500/5 p-3 space-y-1.5">
+                      <p className="text-[10px] font-medium text-amber-400">Preview (not sent)</p>
+                      {wouldSend && Object.entries(wouldSend).map(([k, v]) => (
+                        <div key={k} className="flex gap-2 text-[10px]">
+                          <span className="text-amber-400/70 font-medium shrink-0">{k}:</span>
+                          <span className="text-zinc-300 font-mono truncate">{String(v)}</span>
+                        </div>
+                      ))}
+                      {wouldWrite && Object.entries(wouldWrite).map(([k, v]) => (
+                        <div key={k} className="flex gap-2 text-[10px]">
+                          <span className="text-amber-400/70 font-medium shrink-0">{k}:</span>
+                          <span className="text-zinc-300 font-mono truncate">{String(v)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Raw JSON — collapsed by default if AI response is shown */}
+                  <details open={!aiResponse && !httpStatus && !wouldSend}>
+                    <summary className="text-[10px] text-zinc-500 cursor-pointer hover:text-zinc-300 transition-colors flex items-center gap-1">
+                      <ChevronRight className="h-3 w-3 group-open:rotate-90" />
+                      Raw JSON
+                    </summary>
+                    <pre className="mt-1.5 rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 text-[10px] text-zinc-300 font-mono overflow-auto max-h-[300px]">
+                      {JSON.stringify(out, null, 2)}
+                    </pre>
+                  </details>
                 </div>
-                <div className="flex items-center gap-3 text-[10px] text-zinc-500">
-                  <span>⏱ {testResult.durationMs}ms</span>
-                  {testResult.creditsUsed > 0 && <span>💎 {testResult.creditsUsed} credit{testResult.creditsUsed !== 1 ? "s" : ""}</span>}
-                </div>
-                <pre className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 text-xs text-zinc-300 font-mono overflow-auto max-h-[400px]">
-                  {JSON.stringify(testResult.output, null, 2)}
-                </pre>
-              </>
-            )}
+              );
+            })()}
 
             {/* ── Last workflow run result (when no test has been run) ── */}
             {!testResult && !testError && (
               <>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-                  Last execution result
-                </p>
                 {lastRunResult ? (
-                  <pre className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 text-xs text-zinc-300 font-mono overflow-auto max-h-[400px]">
-                    {typeof lastRunResult === "string"
-                      ? lastRunResult
-                      : JSON.stringify(lastRunResult, null, 2)}
-                  </pre>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                        Last Workflow Run
+                      </p>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(typeof lastRunResult === "string" ? lastRunResult : JSON.stringify(lastRunResult, null, 2))}
+                        className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                      >
+                        <Copy className="h-3 w-3" /> Copy
+                      </button>
+                    </div>
+
+                    {/* Show error from last run if available */}
+                    {lastRunError && (
+                      <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <AlertTriangle className="h-3 w-3 text-red-400" />
+                          <span className="text-[10px] font-medium text-red-400">Error</span>
+                        </div>
+                        <p className="text-xs text-zinc-300">{lastRunError}</p>
+                      </div>
+                    )}
+
+                    <pre className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 text-xs text-zinc-300 font-mono overflow-auto max-h-[400px]">
+                      {typeof lastRunResult === "string"
+                        ? lastRunResult
+                        : JSON.stringify(lastRunResult, null, 2)}
+                    </pre>
+                  </div>
+                ) : lastRunStatus === "skipped" ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-800/50 border border-zinc-700/30 mb-3">
+                      <span className="text-lg text-zinc-500">⊘</span>
+                    </div>
+                    <p className="text-xs text-zinc-400">This node was skipped</p>
+                    <p className="text-[10px] text-zinc-500 mt-1">An upstream node failed before this node could run.</p>
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1e1d1b] border border-[#332f2b] mb-3">

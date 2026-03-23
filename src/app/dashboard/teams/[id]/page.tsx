@@ -1969,8 +1969,9 @@ function TeamDetailInner() {
   const [wfExecStatus, setWfExecStatus] = useState<"idle" | "running" | "completed" | "failed">("idle");
   const [wfExecDuration, setWfExecDuration] = useState<number | undefined>();
   const [wfExecCredits, setWfExecCredits] = useState<number | undefined>();
-  const [wfNodeResults, setWfNodeResults] = useState<Record<string, { input?: unknown; output?: unknown; status?: "completed" | "failed" | "running" }>>({});
+  const [wfNodeResults, setWfNodeResults] = useState<Record<string, { input?: unknown; output?: unknown; status?: "completed" | "failed" | "running"; durationMs?: number; credits?: number; error?: string; nodeLabel?: string; nodeType?: string }>>({});
   const wfExecPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [wfExecLogs, setWfExecLogs] = useState<Array<{ timestamp: string; level: "info" | "warn" | "error" | "success"; message: string; nodeId?: string }>>([]);
 
   // Data mapper panel
   const [dataMapperEdgeId, setDataMapperEdgeId] = useState<string | null>(null);
@@ -2335,13 +2336,21 @@ function TeamDetailInner() {
     setWfExecDuration(undefined);
     setWfExecCredits(undefined);
     setWfNodeResults({});
+    setWfExecLogs([]);
 
-    // Mark all workflow nodes as "running" initially
-    const initialResults: Record<string, { status: "running" }> = {};
+    const ts = () => new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit", fractionalSecondDigits: 3 });
+
+    // Mark all workflow nodes as "pending" initially (not running — they haven't started)
+    const nodeMap = new Map(workflowNodes.map((n) => [n.id, n]));
+    const initialResults: Record<string, { status: "running"; nodeLabel?: string; nodeType?: string }> = {};
     for (const wn of workflowNodes) {
-      initialResults[wn.id] = { status: "running" };
+      initialResults[wn.id] = { status: "running", nodeLabel: wn.label, nodeType: wn.type };
     }
     setWfNodeResults(initialResults);
+
+    const logs: Array<{ timestamp: string; level: "info" | "warn" | "error" | "success"; message: string; nodeId?: string }> = [];
+    logs.push({ timestamp: ts(), level: "info", message: "Starting workflow execution..." });
+    setWfExecLogs([...logs]);
 
     const startTime = Date.now();
 
@@ -2358,6 +2367,11 @@ function TeamDetailInner() {
       }
 
       const { executionId } = await res.json();
+      logs.push({ timestamp: ts(), level: "info", message: `Execution started (ID: ${executionId.slice(0, 8)}...)` });
+      setWfExecLogs([...logs]);
+
+      // Track previously seen statuses for log diff
+      const prevStatuses: Record<string, string> = {};
 
       // Poll for execution results
       const poll = async () => {
@@ -2369,51 +2383,96 @@ function TeamDetailInner() {
           const timeline = execData.timeline as Array<{
             nodeId: string | null;
             nodeType: string | null;
+            taskTitle: string;
             latestStatus: string;
             latestOutput: string | null;
             latestError: string | null;
-            attempts: Array<{ input: unknown; output: string | null; structuredOutput: unknown }>;
+            attempts: Array<{ input: unknown; output: string | null; structuredOutput: unknown; durationMs: number | null; startedAt: string | null; completedAt: string | null }>;
           }>;
 
-          // Build node results from execution logs
-          const results: Record<string, { input?: unknown; output?: unknown; status?: "completed" | "failed" | "running" }> = {};
+          // Build enhanced node results from execution logs
+          const results: Record<string, { input?: unknown; output?: unknown; status?: "completed" | "failed" | "running"; durationMs?: number; credits?: number; error?: string; nodeLabel?: string; nodeType?: string }> = {};
+          let totalCredits = 0;
+
           for (const entry of timeline) {
             if (!entry.nodeId) continue;
             const lastAttempt = entry.attempts[entry.attempts.length - 1];
+            const nodeLabel = entry.taskTitle || nodeMap.get(entry.nodeId)?.label || entry.nodeId;
+            const status: "completed" | "failed" | "running" = entry.latestStatus === "COMPLETED" ? "completed"
+              : entry.latestStatus === "FAILED" ? "failed"
+              : "running";
+            const durationMs = lastAttempt?.durationMs ?? undefined;
+
             results[entry.nodeId] = {
-              status: entry.latestStatus === "COMPLETED" ? "completed"
-                : entry.latestStatus === "FAILED" ? "failed"
-                : "running",
+              status,
               input: lastAttempt?.input,
               output: lastAttempt?.structuredOutput || lastAttempt?.output,
+              durationMs: durationMs ?? undefined,
+              credits: status === "completed" ? 1 : 0,
+              error: entry.latestError || undefined,
+              nodeLabel,
+              nodeType: entry.nodeType || undefined,
             };
+
+            if (status === "completed") totalCredits++;
+
+            // Generate logs for status changes
+            const prevStatus = prevStatuses[entry.nodeId];
+            if (prevStatus !== status) {
+              if (status === "running" && !prevStatus) {
+                logs.push({ timestamp: ts(), level: "info", message: `Node "${nodeLabel}" → executing (type: ${entry.nodeType})`, nodeId: entry.nodeId });
+              } else if (status === "completed") {
+                logs.push({ timestamp: ts(), level: "success", message: `Node "${nodeLabel}" → completed (${durationMs ? `${durationMs}ms` : "?"})`, nodeId: entry.nodeId });
+              } else if (status === "failed") {
+                logs.push({ timestamp: ts(), level: "error", message: `Node "${nodeLabel}" → FAILED: ${entry.latestError || "Unknown error"}`, nodeId: entry.nodeId });
+              }
+              prevStatuses[entry.nodeId] = status;
+            }
           }
+
+          // Keep pending nodes that haven't appeared yet
+          for (const wn of workflowNodes) {
+            if (!results[wn.id]) {
+              results[wn.id] = { status: "running", nodeLabel: wn.label, nodeType: wn.type };
+            }
+          }
+
           setWfNodeResults(results);
+          setWfExecLogs([...logs]);
 
           const duration = exec.durationMs || (Date.now() - startTime);
 
           if (exec.status === "COMPLETED" || exec.status === "FAILED") {
-            // Done
             if (wfExecPollRef.current) {
               clearInterval(wfExecPollRef.current);
               wfExecPollRef.current = null;
             }
             setWfExecStatus(exec.status === "COMPLETED" ? "completed" : "failed");
             setWfExecDuration(duration);
-            setWfExecCredits(exec.completedTasks || 0);
+            setWfExecCredits(totalCredits);
+
+            const completedCount = Object.values(results).filter((r) => r.status === "completed").length;
+            logs.push({
+              timestamp: ts(),
+              level: exec.status === "COMPLETED" ? "success" : "error",
+              message: `Workflow execution ${exec.status === "COMPLETED" ? "completed" : "failed"}. ${completedCount} of ${Object.keys(results).length} nodes completed.`,
+            });
+            setWfExecLogs([...logs]);
           }
         } catch {
           // Polling error — keep trying
         }
       };
 
-      // Start polling every 2 seconds
-      wfExecPollRef.current = setInterval(poll, 2000);
+      // Start polling every 1 second for real-time updates
+      wfExecPollRef.current = setInterval(poll, 1000);
       // Also poll immediately once
       await poll();
     } catch (err) {
       setWfExecStatus("failed");
       setWfExecDuration(Date.now() - startTime);
+      logs.push({ timestamp: ts(), level: "error", message: `Workflow execution failed: ${err instanceof Error ? err.message : String(err)}` });
+      setWfExecLogs([...logs]);
       console.error("Workflow execution failed:", err);
     }
   }, [teamId, team?.goal, wfExecStatus, workflowNodes]);
@@ -2975,6 +3034,7 @@ function TeamDetailInner() {
                   executionDuration={wfExecDuration}
                   executionCredits={wfExecCredits}
                   nodeResults={wfNodeResults}
+                  executionLogs={wfExecLogs}
                 />
               </div>
             ) : (
