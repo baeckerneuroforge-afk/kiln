@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Monitor, Play, Pause, Square, RefreshCw, ChevronDown,
   ChevronRight, Clock, CheckCircle2, XCircle, Loader2,
-  Eye, Maximize2, Minimize2,
+  Eye, Maximize2, Minimize2, Terminal as TerminalIcon, Camera,
+  Coins,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,12 @@ interface SessionAction {
   durationMs: number;
   success: boolean;
   error?: string;
+  /** Welche Methode verwendet wurde (z.B. "element_finder:css", "vision") */
+  methodUsed?: string;
+  /** Ob ein Screenshot für diese Aktion nötig war */
+  screenshotTaken?: boolean;
+  /** Credits die diese Aktion gekostet hat */
+  creditsCost?: number;
 }
 
 interface SessionState {
@@ -31,6 +38,14 @@ interface SessionState {
   actionCount: number;
   artifacts?: Array<{ id: string; fileName: string; mimeType: string; url: string }>;
   reasoningLog?: ReasoningEntry[];
+  /** Screenshot-Strategie Stats */
+  screenshotStats?: {
+    taken: number;
+    skipped: number;
+    savedPercent: number;
+  };
+  /** Gesamt-Credits dieser Session */
+  totalCredits?: number;
 }
 
 interface LiveComputerSessionProps {
@@ -162,6 +177,15 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
               <Button
                 size="sm"
                 variant="ghost"
+                onClick={() => handleAction("screenshot")}
+                className="h-7 w-7 p-0 text-zinc-500 hover:text-blue-400"
+                title="Screenshot anfordern"
+              >
+                <Camera className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
                 onClick={() => handleAction("pause")}
                 className="h-7 w-7 p-0 text-zinc-500 hover:text-yellow-400"
                 title="Pause"
@@ -265,35 +289,70 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
             {session.actionLog.length === 0 ? (
               <p className="text-[11px] text-zinc-600 py-2">Noch keine Aktionen...</p>
             ) : (
-              session.actionLog.map((action, i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-2 py-1.5 border-b border-[#1a1a24] last:border-0"
-                >
-                  <div className="mt-0.5">
-                    {action.success ? (
-                      <CheckCircle2 className="h-3 w-3 text-green-500" />
-                    ) : (
-                      <XCircle className="h-3 w-3 text-red-400" />
+              session.actionLog.map((action, i) => {
+                const isDomAction = action.methodUsed &&
+                  (action.methodUsed.includes("element_finder") ||
+                   action.methodUsed.includes("css") ||
+                   action.methodUsed.includes("dom") ||
+                   action.methodUsed.includes("semantic") ||
+                   action.methodUsed.includes("xpath"));
+                const isScreenshotSkipped = action.screenshotTaken === false;
+
+                return (
+                  <div
+                    key={i}
+                    className={cn(
+                      "flex items-start gap-2 py-1.5 border-b border-[#1a1a24] last:border-0",
+                      isScreenshotSkipped && "opacity-80"
                     )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono font-medium text-zinc-400 uppercase">
-                        {action.type}
-                      </span>
-                      <span className="text-[10px] text-zinc-600 flex items-center gap-1">
-                        <Clock className="h-2.5 w-2.5" />
-                        {action.durationMs}ms
-                      </span>
+                  >
+                    <div className="mt-0.5">
+                      {action.success ? (
+                        isDomAction ? (
+                          <TerminalIcon className="h-3 w-3 text-teal-400" />
+                        ) : (
+                          <CheckCircle2 className="h-3 w-3 text-green-500" />
+                        )
+                      ) : (
+                        <XCircle className="h-3 w-3 text-red-400" />
+                      )}
                     </div>
-                    <p className="text-[11px] text-zinc-500 truncate">{action.detail}</p>
-                    {action.error && (
-                      <p className="text-[10px] text-red-400 mt-0.5">{action.error}</p>
-                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono font-medium text-zinc-400 uppercase">
+                          {action.type}
+                        </span>
+                        {action.methodUsed && (
+                          <span className={cn(
+                            "text-[9px] px-1.5 py-0.5 rounded-full font-mono",
+                            isDomAction
+                              ? "bg-teal-500/10 text-teal-400"
+                              : "bg-purple-500/10 text-purple-400"
+                          )}>
+                            {isDomAction ? "DOM" : "Vision"}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-zinc-600 flex items-center gap-1">
+                          <Clock className="h-2.5 w-2.5" />
+                          {action.durationMs}ms
+                        </span>
+                        {action.creditsCost !== undefined && (
+                          <span className="text-[9px] text-zinc-600">
+                            {action.creditsCost === 0 ? "0 credits" : `${action.creditsCost} cr`}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-zinc-500 truncate">{action.detail}</p>
+                      {isScreenshotSkipped && (
+                        <p className="text-[9px] text-zinc-600 mt-0.5 italic">Screenshot übersprungen</p>
+                      )}
+                      {action.error && (
+                        <p className="text-[10px] text-red-400 mt-0.5">{action.error}</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
@@ -327,14 +386,34 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
       )}
 
       {/* Stats Footer */}
-      <div className="border-t border-[#2a2a3a] px-4 py-2 flex items-center justify-between bg-[#141418]">
-        <div className="flex items-center gap-4 text-[10px] text-zinc-600">
-          <span>{session.actionCount} Aktionen</span>
-          <span>{session.screenshotCount} Screenshots</span>
+      <div className="border-t border-[#2a2a3a] px-4 py-2 bg-[#141418]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4 text-[10px] text-zinc-600">
+            <span>{session.actionCount} Aktionen</span>
+            <span>{session.screenshotCount} Screenshots</span>
+            {session.screenshotStats && session.screenshotStats.skipped > 0 && (
+              <span className="text-teal-500">
+                {session.screenshotStats.skipped} übersprungen ({session.screenshotStats.savedPercent}% gespart)
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] text-zinc-700 font-mono">
+            {new Date(session.createdAt).toLocaleTimeString("de-DE")}
+          </span>
         </div>
-        <span className="text-[10px] text-zinc-700 font-mono">
-          {new Date(session.createdAt).toLocaleTimeString("de-DE")}
-        </span>
+        {session.totalCredits !== undefined && session.screenshotStats && session.screenshotStats.skipped > 0 && (
+          <div className="mt-1 flex items-center gap-1.5 text-[9px] text-zinc-600">
+            <Coins className="h-2.5 w-2.5" />
+            <span>
+              {session.totalCredits} Credits
+              {session.screenshotStats.savedPercent > 0 && (
+                <span className="text-teal-500 ml-1">
+                  (~{Math.round(session.totalCredits * (session.screenshotStats.savedPercent / (100 - session.screenshotStats.savedPercent)))} gespart vs Vollmodus)
+                </span>
+              )}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

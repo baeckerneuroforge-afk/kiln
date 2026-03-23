@@ -10,10 +10,13 @@ export interface ProcedureStep {
   step: number;
   action: string;
   selector?: string;
+  selectorType?: "css" | "xpath" | "semantic" | "vision";
+  fallbackSelector?: string;
   target?: string;
   fields?: string[];
   waitMs?: number;
   notes?: string;
+  confidence?: number;
 }
 
 export type ProcedureSource = "manual" | "auto_extracted" | "watch_learn";
@@ -129,6 +132,9 @@ export function extractProcedureFromSteps(
     actionDetail: string;
     url: string;
     extractedData?: Record<string, unknown> | null;
+    methodUsed?: string;
+    selectorUsed?: string;
+    confidence?: number;
   }>,
 ): ProcedureStep[] {
   return steps
@@ -140,10 +146,34 @@ export function extractProcedureFromSteps(
         notes: s.actionDetail.split(" — ")[0] || undefined,
       };
 
-      // Selector aus actionDetail extrahieren
-      const selectorMatch = s.actionDetail.match(/["']([^"']+)["']/);
-      if (selectorMatch && (s.action === "click" || s.action === "type" || s.action === "click_link")) {
-        step.selector = selectorMatch[1];
+      // Selector aus ActionExecutor-Ergebnis (bevorzugt)
+      if (s.selectorUsed) {
+        step.selector = s.selectorUsed;
+        // Bestimme selectorType aus methodUsed
+        if (s.methodUsed?.includes("css")) {
+          step.selectorType = "css";
+        } else if (s.methodUsed?.includes("xpath")) {
+          step.selectorType = "xpath";
+        } else if (s.methodUsed?.includes("semantic") || s.methodUsed?.includes("element_finder")) {
+          step.selectorType = "semantic";
+        } else if (s.methodUsed?.includes("vision")) {
+          step.selectorType = "vision";
+        }
+        step.confidence = s.confidence;
+      } else {
+        // Fallback: Selector aus actionDetail extrahieren (legacy)
+        const selectorMatch = s.actionDetail.match(/["']([^"']+)["']/);
+        if (selectorMatch && (s.action === "click" || s.action === "type" || s.action === "click_link")) {
+          step.selector = selectorMatch[1];
+        }
+      }
+
+      // Fallback-Selector: XPath aus actionDetail wenn CSS als primary
+      if (step.selectorType === "css") {
+        const xpathMatch = s.actionDetail.match(/xpath:\s*([^\s,]+)/i);
+        if (xpathMatch) {
+          step.fallbackSelector = xpathMatch[1];
+        }
       }
 
       // Target-URL bei Navigation
@@ -229,10 +259,15 @@ export function procedureToPromptHint(procedure: StoredProcedure): string {
   const steps = procedure.procedure
     .map((s) => {
       let desc = `${s.step}. ${s.action}`;
-      if (s.selector) desc += ` auf "${s.selector}"`;
+      if (s.selector) {
+        desc += ` auf "${s.selector}"`;
+        if (s.selectorType) desc += ` (${s.selectorType})`;
+        if (s.fallbackSelector) desc += ` [fallback: ${s.fallbackSelector}]`;
+      }
       if (s.target) desc += ` → ${s.target}`;
       if (s.fields) desc += ` (Felder: ${s.fields.join(", ")})`;
       if (s.notes) desc += ` — ${s.notes}`;
+      if (s.confidence && s.confidence < 0.8) desc += ` ⚠ niedrige Konfidenz`;
       return desc;
     })
     .join("\n");
@@ -240,7 +275,11 @@ export function procedureToPromptHint(procedure: StoredProcedure): string {
   const sourceLabel = procedure.source === "watch_learn" ? "Watch & Learn" : procedure.source === "manual" ? "Manuell" : "Auto-erkannt";
   const confidenceLabel = procedure.confidence < 0.8 ? " (niedrige Konfidenz — prüfe jeden Schritt)" : "";
 
-  return `\n\nBEKANNTE PROZEDUR für ${procedure.domain} (${sourceLabel}, Erfolgsrate: ${Math.round(procedure.successRate * 100)}%, ${procedure.timesUsed}× verwendet${confidenceLabel}):\n${steps}\n\nVersuche diese Schritte zuerst. Weiche nur ab wenn nötig.`;
+  const selectorHint = procedure.procedure.some(s => s.selector && s.selectorType !== "vision")
+    ? "\n\nGESPEICHERTE SELEKTOREN: Versuche die angegebenen CSS/XPath-Selektoren DIREKT — überspringe ElementFinder wenn der gespeicherte Selector funktioniert."
+    : "";
+
+  return `\n\nBEKANNTE PROZEDUR für ${procedure.domain} (${sourceLabel}, Erfolgsrate: ${Math.round(procedure.successRate * 100)}%, ${procedure.timesUsed}× verwendet${confidenceLabel}):\n${steps}${selectorHint}\n\nVersuche diese Schritte zuerst. Weiche nur ab wenn nötig.`;
 }
 
 /**

@@ -19,9 +19,6 @@ import {
   isBrowserServiceAvailable,
   createBrowserSession,
   navigateTo as browserNavigate,
-  clickElement,
-  typeText,
-  scrollPage,
   takeBrowserScreenshot,
   closeBrowserSession,
 } from "@/lib/browser-service";
@@ -47,6 +44,12 @@ import {
 } from "@/lib/sandbox/procedural-memory";
 import { routeAction } from "@/lib/mcp/hybrid-router";
 import { executeMCPTool } from "@/lib/mcp/mcp-tool-bridge";
+import { ElementFinder } from "@/lib/browser/element-finder";
+import { ScreenshotStrategy } from "@/lib/browser/screenshot-strategy";
+import { ActionExecutor } from "@/lib/browser/action-executor";
+import { DomVerifier } from "@/lib/browser/dom-verifier";
+import { PageCache } from "@/lib/browser/page-cache";
+import { ReliabilityMetrics } from "@/lib/browser/reliability-metrics";
 
 const COMPUTER_USE_MODEL = "claude-sonnet-4-20250514";
 const VISION_MODEL = "claude-sonnet-4-20250514";
@@ -684,6 +687,7 @@ async function executeWithRealBrowser(
   sessionId: string;
   reasoningLog?: unknown[];
   verificationLog?: unknown[];
+  reliabilityStats?: Record<string, unknown>;
 }> {
   const browserSession = createBrowserSession();
   const steps: ComputerUseSessionStep[] = [];
@@ -692,14 +696,19 @@ async function executeWithRealBrowser(
   let finalExtractedData: Record<string, unknown> | null = null;
   let completionReason: ComputerUseSession["completionReason"] = "max_steps";
 
-  // Reasoning Logger + Step Verifier (werden in zukünftigen Erweiterungen genutzt)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // Reasoning Logger + Step Verifier
   const reasoningLogger = new ReasoningLogger();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const stepVerifier = new StepVerifier(enableVerification && captureScreenshots);
 
+  // Reliability V2: neue Systeme initialisieren
+  const elementFinder = new ElementFinder();
+  const screenshotStrategy = new ScreenshotStrategy();
+  const actionExecutor = new ActionExecutor(elementFinder);
+  const domVerifier = new DomVerifier();
+  const pageCache = new PageCache();
+  const metrics = new ReliabilityMetrics();
+
   // Procedural Memory: bekannte Prozedur als Prompt-Hint
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let proceduralHint = "";
   if (enableProceduralMemory && agentId) {
     try {
@@ -712,20 +721,43 @@ async function executeWithRealBrowser(
     }
   }
 
+  // Page Cache: bekannte Struktur als Prompt-Hint
+  const cachedStructure = pageCache.getCachedStructure(startUrl);
+  if (cachedStructure) {
+    proceduralHint += pageCache.structureToPromptHint(cachedStructure);
+  }
+
+  let lastContent = ""; // HTML-Content für DOM-basierte Operationen
+
   try {
     for (let i = 0; i < maxSteps; i++) {
       const stepStart = Date.now();
+      const previousUrl = currentUrl;
 
-      // 1. Navigieren und Screenshot nehmen
+      // 1. Navigieren und Content holen
       const { content, screenshot: navScreenshot } = await browserNavigate(browserSession, currentUrl);
       const htmlSummary = extractHtmlSummary(content);
+      lastContent = content;
 
+      // 2. Screenshot-Strategie: nur wenn nötig
       let screenshot = navScreenshot;
       if (!screenshot && captureScreenshots) {
-        screenshot = await takeBrowserScreenshot(browserSession, currentUrl);
+        const ssDecision = i === 0
+          ? { shouldCapture: true, reason: "Initial" }
+          : screenshotStrategy.shouldTakeScreenshot(
+              steps[steps.length - 1]?.action || "navigate",
+              undefined,
+            );
+
+        if (ssDecision.shouldCapture) {
+          screenshot = await takeBrowserScreenshot(browserSession, currentUrl);
+          metrics.recordScreenshotTaken();
+        } else {
+          metrics.recordScreenshotSkipped();
+        }
       }
 
-      // 2. Claude Vision fragen (wenn Screenshot vorhanden) oder Text-basiert
+      // 3. Claude Vision oder Text-basiert fragen
       let claudeAction: ClaudeAction;
       const thinkStart = Date.now();
 
@@ -757,9 +789,9 @@ async function executeWithRealBrowser(
         screenshot ? `step_${i}` : undefined,
       );
 
-      // 3. Aktion ausführen
-      const beforeScreenshot = screenshot;
+      const domain = (() => { try { return new URL(currentUrl).hostname; } catch { return currentUrl; } })();
 
+      // 4. Aktion ausführen — mit Multi-Strategy-Executor
       switch (claudeAction.action) {
         case "done": {
           steps.push({
@@ -789,6 +821,15 @@ async function executeWithRealBrowser(
             }
           }
 
+          // DOM-Verification: prüfe ob Navigation erfolgreich war
+          const navVerify = await domVerifier.verifyNavigation(browserSession, currentUrl);
+          if (navVerify.conclusive && !navVerify.verified) {
+            metrics.record({ domain, actionType: "navigate", strategy: "direct", success: false, durationMs: Date.now() - stepStart, creditsCost: 0 });
+          } else {
+            metrics.record({ domain, actionType: "navigate", strategy: "direct", success: true, durationMs: Date.now() - stepStart, creditsCost: 0 });
+            metrics.recordDomVerification();
+          }
+
           steps.push({
             stepIndex: i,
             url: currentUrl,
@@ -799,40 +840,57 @@ async function executeWithRealBrowser(
             extractedData: null,
             timestamp: new Date().toISOString(),
             durationMs: Date.now() - stepStart,
+            verified: navVerify.verified,
           });
           continue;
         }
 
         case "click": {
           if (claudeAction.selector) {
-            const result = await clickElement(browserSession, currentUrl, claudeAction.selector);
+            // Multi-Strategy Click via ActionExecutor
+            const clickResult = await actionExecutor.executeClick(
+              browserSession, currentUrl, claudeAction.selector, lastContent,
+            );
 
-            // Enhanced Verification via StepVerifier
-            let verified = true;
-            if (stepVerifier.shouldVerify("click") && beforeScreenshot && captureScreenshots) {
-              const afterScreenshot = await takeBrowserScreenshot(browserSession, result.newUrl || currentUrl);
-              if (afterScreenshot && beforeScreenshot) {
-                const verResult = await stepVerifier.verify(
-                  i, "click",
-                  `Clicked "${claudeAction.selector}" — ${claudeAction.reasoning}`,
-                  beforeScreenshot, afterScreenshot,
-                );
-                verified = verResult.success;
-                reasoningLogger.addVerificationResult(i, {
-                  success: verResult.success,
-                  confidence: verResult.confidence,
-                  issue: verResult.issue,
-                });
+            // DOM-Verification statt Vision
+            let verified = clickResult.success;
+            if (clickResult.success && enableVerification) {
+              const domCheck = await domVerifier.verifyClick(browserSession, clickResult.newUrl || currentUrl, previousUrl);
+              if (domCheck.conclusive) {
+                verified = domCheck.verified;
+                metrics.recordDomVerification();
+              } else if (stepVerifier.shouldVerify("click") && screenshot && captureScreenshots) {
+                // Fallback: Vision-Verification nur wenn DOM inconclusive
+                const afterScreenshot = await takeBrowserScreenshot(browserSession, clickResult.newUrl || currentUrl);
+                if (afterScreenshot && screenshot) {
+                  const verResult = await stepVerifier.verify(
+                    i, "click",
+                    `Clicked "${claudeAction.selector}" — ${claudeAction.reasoning}`,
+                    screenshot, afterScreenshot,
+                  );
+                  verified = verResult.success;
+                  metrics.recordVisionVerification();
+                  reasoningLogger.addVerificationResult(i, {
+                    success: verResult.success,
+                    confidence: verResult.confidence,
+                    issue: verResult.issue,
+                  });
+                }
               }
             }
 
-            if (result.newUrl) currentUrl = result.newUrl;
+            if (clickResult.newUrl) currentUrl = clickResult.newUrl;
+
+            metrics.record({
+              domain, actionType: "click", strategy: clickResult.methodUsed,
+              success: verified, durationMs: clickResult.timeMs, creditsCost: 0,
+            });
 
             steps.push({
               stepIndex: i,
               url: currentUrl,
               action: "click",
-              actionDetail: `Click: "${claudeAction.selector}" — ${claudeAction.reasoning}`,
+              actionDetail: `Click: "${claudeAction.selector}" [${clickResult.methodUsed}] — ${claudeAction.reasoning}`,
               htmlSummary,
               screenshot,
               extractedData: null,
@@ -841,9 +899,8 @@ async function executeWithRealBrowser(
               verified,
             });
 
-            // Bei fehlgeschlagener Verification: retry mit anderem Ansatz
             if (!verified && i < maxSteps - 1) {
-              continue; // Nächste Iteration mit neuem Screenshot
+              continue;
             }
           }
           continue;
@@ -851,30 +908,55 @@ async function executeWithRealBrowser(
 
         case "type": {
           if (claudeAction.selector && claudeAction.text) {
-            await typeText(browserSession, currentUrl, claudeAction.selector, claudeAction.text);
+            // Multi-Strategy Type via ActionExecutor
+            const typeResult = await actionExecutor.executeType(
+              browserSession, currentUrl, claudeAction.selector, claudeAction.text, lastContent,
+            );
+
+            // DOM-Verification: Wert prüfen
+            let verified = typeResult.success;
+            if (typeResult.success && enableVerification) {
+              const typeCheck = await domVerifier.verifyType(
+                browserSession, currentUrl, claudeAction.selector, claudeAction.text,
+              );
+              if (typeCheck.conclusive) {
+                verified = typeCheck.verified;
+                metrics.recordDomVerification();
+              }
+            }
+
+            metrics.record({
+              domain, actionType: "type", strategy: typeResult.methodUsed,
+              success: verified, durationMs: typeResult.timeMs, creditsCost: 0,
+            });
 
             steps.push({
               stepIndex: i,
               url: currentUrl,
               action: "type",
-              actionDetail: `Type: "${claudeAction.text}" in ${claudeAction.selector} — ${claudeAction.reasoning}`,
+              actionDetail: `Type: "${claudeAction.text}" in ${claudeAction.selector} [${typeResult.methodUsed}] — ${claudeAction.reasoning}`,
               htmlSummary,
               screenshot,
               extractedData: null,
               timestamp: new Date().toISOString(),
               durationMs: Date.now() - stepStart,
+              verified,
             });
           }
           continue;
         }
 
         case "scroll": {
-          await scrollPage(
-            browserSession,
-            currentUrl,
+          const scrollResult = await actionExecutor.executeScroll(
+            browserSession, currentUrl,
             claudeAction.direction || "down",
-            claudeAction.pixels || 500
+            claudeAction.pixels || 500,
           );
+
+          metrics.record({
+            domain, actionType: "scroll", strategy: "browserless",
+            success: scrollResult.success, durationMs: scrollResult.timeMs, creditsCost: 0,
+          });
 
           steps.push({
             stepIndex: i,
@@ -912,15 +994,36 @@ async function executeWithRealBrowser(
         }
 
         case "extract_data": {
-          const extracted = claudeAction.fields
-            ? extractDataFromHtml(content, claudeAction.fields)
-            : {};
+          // Multi-Strategy Extraktion via ActionExecutor
+          const extractResult = await actionExecutor.executeExtract(
+            browserSession, currentUrl, claudeAction.fields || [], lastContent,
+          );
+
+          const extracted = (extractResult.result as Record<string, unknown>) || {};
+
+          // DOM-Plausibilitätsprüfung
+          if (claudeAction.fields) {
+            const dataCheck = domVerifier.verifyDataExtraction(extracted, claudeAction.fields);
+            metrics.recordDomVerification();
+            if (!dataCheck.verified) {
+              // Bei Plausibilitätsproblemen: in actionDetail vermerken
+              const issues = (dataCheck.details.issues as string[]) || [];
+              if (issues.length > 0) {
+                console.warn(`[ComputerUse] Data extraction issues: ${issues.join(", ")}`);
+              }
+            }
+          }
+
+          metrics.record({
+            domain, actionType: "extract", strategy: extractResult.methodUsed,
+            success: extractResult.success, durationMs: extractResult.timeMs, creditsCost: 0,
+          });
 
           steps.push({
             stepIndex: i,
             url: currentUrl,
             action: "extract_data",
-            actionDetail: `Extrahiere: ${(claudeAction.fields || []).join(", ")} — ${claudeAction.reasoning}`,
+            actionDetail: `Extrahiere: ${(claudeAction.fields || []).join(", ")} [${extractResult.methodUsed}] — ${claudeAction.reasoning}`,
             htmlSummary,
             screenshot,
             extractedData: extracted,
@@ -1010,7 +1113,18 @@ async function executeWithRealBrowser(
         completionReason === "done",
       ).catch(() => {});
     }
+
+    // Reliability Metrics: non-blocking persistieren
+    if (agentId && executionId) {
+      metrics.persistMetrics(agentId, executionId).catch(() => {});
+    }
   }
+
+  // Reliability-Statistiken für Meta
+  const sessionStats = metrics.getSessionStats();
+  const efStats = elementFinder.getStats();
+  const ssStats = screenshotStrategy.getStats();
+  const dvStats = domVerifier.getStats();
 
   return {
     steps,
@@ -1020,6 +1134,15 @@ async function executeWithRealBrowser(
     sessionId: browserSession.id,
     reasoningLog: reasoningLogger.toJSON(),
     verificationLog: stepVerifier.getLog(),
+    reliabilityStats: {
+      screenshotsSkipped: ssStats.skipped,
+      screenshotsTaken: ssStats.taken,
+      domVerifications: dvStats.domVerified,
+      visionVerifications: sessionStats.visionVerifications,
+      elementFinderStats: efStats,
+      creditsSaved: sessionStats.creditsSaved,
+      actionExecutorStats: actionExecutor.getStats(),
+    },
   };
 }
 
@@ -1133,6 +1256,7 @@ export async function executeComputerUse(
           sessionId: result.sessionId,
           reasoningEntries: Array.isArray(result.reasoningLog) ? result.reasoningLog.length : 0,
           verificationEntries: Array.isArray(result.verificationLog) ? result.verificationLog.length : 0,
+          reliabilityStats: result.reliabilityStats,
         },
       };
     }

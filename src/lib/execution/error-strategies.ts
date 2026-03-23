@@ -29,12 +29,16 @@ export interface RecoveryResult {
   finalAction: string;
 }
 
+/* ── Retry Cooldown ── */
+
+const RETRY_COOLDOWNS = [2000, 5000, 15000]; // Exponentiell: 2s, 5s, 15s
+
 /* ── Strategy Definitions ── */
 
 const STRATEGIES: Record<ErrorType, RecoveryStep[]> = {
   WEBSITE_TIMEOUT: [
-    { action: "retry_longer_timeout", description: "Retry with 30s timeout", waitMs: 1000 },
-    { action: "try_cached", description: "Try cached/archived version" },
+    { action: "retry_longer_timeout", description: "Retry with 30s timeout", waitMs: RETRY_COOLDOWNS[0] },
+    { action: "try_cached", description: "Try cached/archived version", waitMs: RETRY_COOLDOWNS[1] },
     { action: "skip_note_failure", description: "Skip site and note failure in results" },
   ],
 
@@ -123,9 +127,41 @@ export function detectErrorType(error: string): ErrorType {
   return "UNKNOWN";
 }
 
+/* ── Site Health Tracking ── */
+
+const UNHEALTHY_THRESHOLD = 3; // Fehler pro Domain bevor sie als unhealthy markiert wird
+
+/* ── Headless Detection Countermeasures ── */
+
+const USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+];
+
+const VIEWPORT_SIZES = [
+  { width: 1920, height: 1080 },
+  { width: 1366, height: 768 },
+  { width: 1536, height: 864 },
+  { width: 1440, height: 900 },
+];
+
 /* ── ErrorStrategyLibrary Class ── */
 
 export class ErrorStrategyLibrary {
+  private domainFailures = new Map<string, number>();
+  private unhealthyDomains = new Set<string>();
+  private userAgentIndex: number;
+  private viewportIndex: number;
+
+  constructor() {
+    // Zufällige Startindizes für Rotation
+    this.userAgentIndex = Math.floor(Math.random() * USER_AGENTS.length);
+    this.viewportIndex = Math.floor(Math.random() * VIEWPORT_SIZES.length);
+  }
+
   /**
    * Gibt die Recovery-Schritte für einen Fehlertyp zurück.
    */
@@ -134,14 +170,21 @@ export class ErrorStrategyLibrary {
   }
 
   /**
-   * Führt Recovery-Schritte durch bis einer funktioniert.
    * Gibt den Recovery-Schritt zurück der als nächstes versucht werden soll.
-   * Der Caller ist verantwortlich für die tatsächliche Ausführung.
+   * Wendet Retry-Cooldown an (exponentielle Wartezeit).
    */
   getNextRecoveryStep(errorType: ErrorType, attemptIndex: number): RecoveryStep | null {
     const steps = this.getStrategy(errorType);
     if (attemptIndex >= steps.length) return null;
-    return steps[attemptIndex];
+
+    const step = { ...steps[attemptIndex] };
+
+    // Cooldown anwenden wenn nicht schon spezifiziert
+    if (!step.waitMs && attemptIndex < RETRY_COOLDOWNS.length) {
+      step.waitMs = RETRY_COOLDOWNS[attemptIndex];
+    }
+
+    return step;
   }
 
   /**
@@ -153,11 +196,94 @@ export class ErrorStrategyLibrary {
   }
 
   /**
-   * Gibt eine menschenlesbare Beschreibung der Strategie zurück
-   * (für Logging und Reasoning-Einträge).
+   * Gibt eine menschenlesbare Beschreibung der Strategie zurück.
    */
   describeStrategy(errorType: ErrorType): string {
     const steps = this.getStrategy(errorType);
     return `[${errorType}] ${steps.length} recovery steps: ${steps.map((s) => s.action).join(" → ")}`;
+  }
+
+  /* ── Site Health ── */
+
+  /**
+   * Registriert einen Fehler für eine Domain.
+   * Markiert Domains als "unhealthy" nach UNHEALTHY_THRESHOLD Fehlern.
+   */
+  recordDomainFailure(domain: string): void {
+    const count = (this.domainFailures.get(domain) || 0) + 1;
+    this.domainFailures.set(domain, count);
+    if (count >= UNHEALTHY_THRESHOLD) {
+      this.unhealthyDomains.add(domain);
+    }
+  }
+
+  /** Registriert einen Erfolg für eine Domain */
+  recordDomainSuccess(domain: string): void {
+    // Erfolg reduziert den Fehlerzähler
+    const count = this.domainFailures.get(domain) || 0;
+    if (count > 0) {
+      this.domainFailures.set(domain, count - 1);
+    }
+  }
+
+  /**
+   * Prüft ob eine Domain als "unhealthy" markiert ist.
+   * Unhealthy Domains sollten übersprungen werden.
+   */
+  isDomainUnhealthy(domain: string): boolean {
+    return this.unhealthyDomains.has(domain);
+  }
+
+  /** Extrahiert die Domain aus einer URL */
+  extractDomain(url: string): string {
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return url;
+    }
+  }
+
+  /** Gibt alle unhealthy Domains zurück */
+  getUnhealthyDomains(): string[] {
+    return Array.from(this.unhealthyDomains);
+  }
+
+  /* ── Headless Detection Countermeasures ── */
+
+  /**
+   * Gibt einen rotierenden User-Agent zurück.
+   */
+  getNextUserAgent(): string {
+    const ua = USER_AGENTS[this.userAgentIndex % USER_AGENTS.length];
+    this.userAgentIndex++;
+    return ua;
+  }
+
+  /**
+   * Gibt eine realistische Viewport-Größe zurück.
+   */
+  getNextViewport(): { width: number; height: number } {
+    const vp = VIEWPORT_SIZES[this.viewportIndex % VIEWPORT_SIZES.length];
+    this.viewportIndex++;
+    return vp;
+  }
+
+  /**
+   * Gibt realistische Browser-Headers zurück.
+   */
+  getRealisticHeaders(): Record<string, string> {
+    return {
+      "User-Agent": this.getNextUserAgent(),
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9,de;q=0.8",
+      "Accept-Encoding": "gzip, deflate, br",
+      "DNT": "1",
+      "Connection": "keep-alive",
+      "Upgrade-Insecure-Requests": "1",
+      "Sec-Fetch-Dest": "document",
+      "Sec-Fetch-Mode": "navigate",
+      "Sec-Fetch-Site": "none",
+      "Sec-Fetch-User": "?1",
+    };
   }
 }

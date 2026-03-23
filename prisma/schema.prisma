@@ -1454,6 +1454,23 @@ model AutoTopUpConfig {
   @@index([userId])
 }
 
+// Action Metric — Strategie-Erfolgsraten für Computer Use
+model ActionMetric {
+  id            String   @id @default(cuid())
+  domain        String
+  actionType    String
+  strategy      String
+  success       Boolean
+  durationMs    Int
+  creditsCost   Float    @default(0)
+  agentId       String
+  executionId   String
+  createdAt     DateTime @default(now())
+
+  @@index([domain, actionType])
+  @@index([agentId])
+}
+
 // Cost Record — Per-Call Kostenerfassung
 model CostRecord {
   id             String   @id @default(cuid())

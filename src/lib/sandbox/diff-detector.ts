@@ -21,10 +21,24 @@ export interface DiffChange {
   };
 }
 
+export interface DOMDiffResult {
+  textChanges: string[];
+  priceChanges: Array<{ before: string; after: string; context: string }>;
+  linkChanges: Array<{ type: "added" | "removed"; href: string; text: string }>;
+  structuralChanges: string[];
+  hasSignificantChanges: boolean;
+}
+
+export type DiffMethod = "auto" | "vision_only" | "dom_only";
+
 export interface DiffResult {
   hasChanges: boolean;
   changes: DiffChange[];
   summary: string;
+  /** Welche Methode verwendet wurde */
+  methodUsed?: "dom" | "vision" | "dom+vision";
+  /** Credits die gespart wurden */
+  creditsSaved?: number;
 }
 
 export interface SnapshotData {
@@ -258,7 +272,158 @@ export class DiffDetector {
     return result;
   }
 
+  /**
+   * DOM-basierter Diff — kostet 0 Credits (kein LLM-Aufruf).
+   * Analysiert HTML-Textänderungen, Preise, Links und Struktur.
+   */
+  detectDOMChanges(currentHtml: string, previousHtml: string): DOMDiffResult {
+    const currentText = this.extractTextContent(currentHtml);
+    const previousText = this.extractTextContent(previousHtml);
+
+    // Text-Diff
+    const textChanges = this.quickTextDiff(currentText, previousText);
+
+    // Preis-Diff: Finde Zahlen mit Währungssymbolen
+    const priceRegex = /(?:€|EUR|\$|USD|£|GBP)\s*[\d.,]+|[\d.,]+\s*(?:€|EUR|\$|USD|£|GBP)/gi;
+    const currentPrices = currentText.match(priceRegex) || [];
+    const previousPrices = previousText.match(priceRegex) || [];
+    const priceChanges: DOMDiffResult["priceChanges"] = [];
+
+    // Vergleiche Preise positionsweise
+    const maxPrices = Math.max(currentPrices.length, previousPrices.length);
+    for (let i = 0; i < Math.min(maxPrices, 20); i++) {
+      const curr = currentPrices[i] || "";
+      const prev = previousPrices[i] || "";
+      if (curr !== prev && (curr || prev)) {
+        priceChanges.push({ before: prev, after: curr, context: `Position ${i + 1}` });
+      }
+    }
+
+    // Link-Diff
+    const currentLinks = this.extractLinks(currentHtml);
+    const previousLinks = this.extractLinks(previousHtml);
+    const linkChanges: DOMDiffResult["linkChanges"] = [];
+
+    const prevLinkSet = new Set(previousLinks.map(l => l.href));
+    const currLinkSet = new Set(currentLinks.map(l => l.href));
+
+    for (const link of currentLinks) {
+      if (!prevLinkSet.has(link.href)) {
+        linkChanges.push({ type: "added", ...link });
+      }
+    }
+    for (const link of previousLinks) {
+      if (!currLinkSet.has(link.href)) {
+        linkChanges.push({ type: "removed", ...link });
+      }
+    }
+
+    // Struktur-Diff
+    const structuralChanges: string[] = [];
+    const currentHeadings = (currentHtml.match(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/gi) || []).length;
+    const previousHeadings = (previousHtml.match(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/gi) || []).length;
+    if (currentHeadings !== previousHeadings) {
+      structuralChanges.push(`Headings: ${previousHeadings} → ${currentHeadings}`);
+    }
+
+    const currentForms = (currentHtml.match(/<form/gi) || []).length;
+    const previousForms = (previousHtml.match(/<form/gi) || []).length;
+    if (currentForms !== previousForms) {
+      structuralChanges.push(`Forms: ${previousForms} → ${currentForms}`);
+    }
+
+    const hasSignificantChanges = priceChanges.length > 0 ||
+      linkChanges.length > 5 ||
+      structuralChanges.length > 0 ||
+      textChanges.length > 0;
+
+    return { textChanges, priceChanges, linkChanges, structuralChanges, hasSignificantChanges };
+  }
+
+  /**
+   * Erweiterter Diff-Flow mit konfigurierbarer Methode.
+   * "auto": DOM zuerst (0 Credits), Vision nur bei Änderungen
+   * "vision_only": immer Screenshot-basiert
+   * "dom_only": nur DOM-Diff (immer 0 Credits)
+   */
+  async detectChangesWithMethod(
+    current: SnapshotData,
+    previous: SnapshotData,
+    sensitivity: string = "important_only",
+    method: DiffMethod = "auto",
+  ): Promise<DiffResult> {
+    // Quick check: Hash identisch → keine Änderungen
+    if (current.htmlContentHash === previous.htmlContentHash) {
+      return { hasChanges: false, changes: [], summary: "No changes detected.", methodUsed: "dom", creditsSaved: 5 };
+    }
+
+    // Step 1: DOM-Diff (immer, kostet 0 Credits)
+    if (method !== "vision_only") {
+      const domDiff = this.detectDOMChanges(current.htmlContent, previous.htmlContent);
+
+      // dom_only: DOM-Ergebnisse direkt konvertieren
+      if (method === "dom_only" || !domDiff.hasSignificantChanges) {
+        const changes: DiffChange[] = [];
+
+        for (const pc of domDiff.priceChanges) {
+          changes.push({
+            changeType: "price_change",
+            description: `Preis geändert: ${pc.before || "N/A"} → ${pc.after || "N/A"} (${pc.context})`,
+            importance: "high",
+            details: { before: pc.before, after: pc.after },
+          });
+        }
+
+        for (const tc of domDiff.textChanges) {
+          changes.push({
+            changeType: "content_update",
+            description: tc,
+            importance: "medium",
+            details: {},
+          });
+        }
+
+        const filtered = this.filterBySensitivity(changes, sensitivity);
+        const summary = filtered.length > 0
+          ? `${filtered.length} change(s) detected via DOM analysis: ${filtered.map(c => c.description).join("; ").slice(0, 300)}`
+          : "No significant changes detected (DOM analysis).";
+
+        return {
+          hasChanges: filtered.length > 0,
+          changes: filtered,
+          summary,
+          methodUsed: "dom",
+          creditsSaved: 5, // Geschätzte Credits die Vision kosten würde
+        };
+      }
+    }
+
+    // Step 2: Vision-basierte Analyse (nur bei "auto" mit signifikanten Änderungen oder "vision_only")
+    const visionResult = await this.detectChanges(current, previous, sensitivity);
+    return {
+      ...visionResult,
+      methodUsed: method === "vision_only" ? "vision" : "dom+vision",
+      creditsSaved: 0,
+    };
+  }
+
   /* ── Private Helpers ── */
+
+  /**
+   * Extrahiert Links aus HTML
+   */
+  private extractLinks(html: string): Array<{ href: string; text: string }> {
+    const links: Array<{ href: string; text: string }> = [];
+    const regex = /<a\s[^>]*href=["']([^"'#][^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+    let match;
+    while ((match = regex.exec(html)) !== null && links.length < 100) {
+      links.push({
+        href: match[1],
+        text: match[2].replace(/<[^>]+>/g, "").trim().slice(0, 100),
+      });
+    }
+    return links;
+  }
 
   /**
    * Extrahiert reinen Text aus HTML

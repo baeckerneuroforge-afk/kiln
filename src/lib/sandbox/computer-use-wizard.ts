@@ -8,6 +8,9 @@ export interface WizardInput {
   teamId?: string;
 }
 
+export type PreferredStrategy = "html_first" | "vision_first" | "auto";
+export type DiffMethodHint = "auto" | "vision_only" | "dom_only";
+
 export interface WizardOutput {
   task: string;
   urls: string[];
@@ -20,6 +23,10 @@ export interface WizardOutput {
   enableProceduralMemory: boolean;
   suggestedNodes: SuggestedNode[];
   reasoning: string;
+  /** Bevorzugte Strategie für Element-Targeting */
+  preferredStrategy: PreferredStrategy;
+  /** Bevorzugte Diff-Methode für Monitoring-Tasks */
+  diffMethod?: DiffMethodHint;
 }
 
 export interface SuggestedNode {
@@ -104,8 +111,30 @@ Beachte:
       reasoning?: string;
     };
 
+    // Bestimme die optimale Strategie basierend auf dem Task
+    const desc = input.description.toLowerCase();
+    let preferredStrategy: PreferredStrategy = "auto";
+    let diffMethod: DiffMethodHint | undefined;
+
+    // Visuelle Tasks → Vision first
+    if (desc.includes("screenshot") || desc.includes("layout") || desc.includes("visual") || desc.includes("design")) {
+      preferredStrategy = "vision_first";
+    }
+    // Daten-Extraktion → HTML first (günstiger)
+    else if (desc.includes("extract") || desc.includes("scrape") || desc.includes("preis") || desc.includes("price") || desc.includes("data")) {
+      preferredStrategy = "html_first";
+    }
+
+    // Monitoring-Tasks: DOM-Diff bevorzugen
+    if (desc.includes("monitor") || desc.includes("überwach") || desc.includes("check") || desc.includes("track")) {
+      diffMethod = "auto"; // DOM first, Vision bei Änderungen
+    }
+    if (desc.includes("visual") && (desc.includes("monitor") || desc.includes("check"))) {
+      diffMethod = "vision_only"; // Visuelle Überwachung braucht Vision
+    }
+
     // Workflow-Nodes generieren
-    const suggestedNodes = generateSuggestedNodes(parsed);
+    const suggestedNodes = generateSuggestedNodes(parsed, preferredStrategy, diffMethod);
 
     return {
       task: parsed.task || input.description,
@@ -119,6 +148,8 @@ Beachte:
       enableProceduralMemory: parsed.enableProceduralMemory !== false,
       suggestedNodes,
       reasoning: parsed.reasoning || "",
+      preferredStrategy,
+      diffMethod,
     };
   } catch {
     return null;
@@ -130,6 +161,8 @@ Beachte:
  */
 function generateSuggestedNodes(
   plan: Record<string, unknown>,
+  preferredStrategy: PreferredStrategy = "auto",
+  diffMethod?: DiffMethodHint,
 ): SuggestedNode[] {
   const nodes: SuggestedNode[] = [];
   let x = 100;
@@ -174,6 +207,8 @@ function generateSuggestedNodes(
         extractData: extractFields.length > 0,
         maxSteps: 15,
         browserMode: "real",
+        preferredStrategy,
+        diffMethod: diffMethod || "auto",
       },
       position: { x, y },
     });

@@ -73,21 +73,30 @@ export function estimateStepCost(
 /**
  * Schätzt die Kosten für eine Computer Use Session.
  * Basiert auf geschätzter Anzahl Schritte.
+ * Mit Smart Element Targeting werden ~60% der Steps DOM-basiert (0 Credits).
  */
 export function estimateComputerUseCost(
   model: string = "claude-sonnet-4-20250514",
   estimatedSteps: number = 10,
   enableVerification: boolean = true,
+  useSmartTargeting: boolean = true,
 ): CostEstimate {
   const steps: StepEstimate[] = [];
 
-  // Initiale Analyse
+  // Initiale Analyse (immer Vision-basiert)
   steps.push(estimateStepCost(model, "computer_analyze"));
 
-  // Pro Schritt: Aktion + ggf. Verification
+  // Mit Smart Element Targeting: ~60% der Steps brauchen kein Vision
+  // (DOM-basierte Clicks/Types/Scrolls → 0 extra Credits)
+  const visionStepRatio = useSmartTargeting ? 0.4 : 1.0;
+
   for (let i = 0; i < estimatedSteps; i++) {
-    steps.push(estimateStepCost(model, "computer_action"));
-    if (enableVerification) {
+    if (i / estimatedSteps < visionStepRatio) {
+      // Dieser Step braucht Vision (Navigation, unbekannte Elemente)
+      steps.push(estimateStepCost(model, "computer_action"));
+    }
+    // DOM-basierte Steps: nur Verification wenn aktiviert
+    if (enableVerification && i / estimatedSteps < visionStepRatio) {
       steps.push(estimateStepCost("claude-haiku-4-5-20251001", "verification"));
     }
   }
@@ -114,16 +123,23 @@ export function estimateCodeSandboxCost(
 
 /**
  * Schätzt die Kosten für einen Agent Swarm Lauf.
+ * Mit Smart Element Targeting werden Computer Use Steps günstiger.
  */
 export function estimateSwarmCost(
   models: string[],
   estimatedCallsPerAgent: number = 3,
+  hasComputerUse: boolean = false,
 ): CostEstimate {
   const steps: StepEstimate[] = [];
 
   for (const model of models) {
-    for (let i = 0; i < estimatedCallsPerAgent; i++) {
-      steps.push(estimateStepCost(model, "chat"));
+    // Bei Computer Use: ~40% der Calls brauchen Vision
+    const effectiveCalls = hasComputerUse
+      ? Math.ceil(estimatedCallsPerAgent * 0.6)
+      : estimatedCallsPerAgent;
+
+    for (let i = 0; i < effectiveCalls; i++) {
+      steps.push(estimateStepCost(model, hasComputerUse ? "computer_action" : "chat"));
     }
   }
 

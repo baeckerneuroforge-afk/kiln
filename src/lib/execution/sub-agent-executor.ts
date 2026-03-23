@@ -18,6 +18,11 @@ import {
   type ModelRoutingContext,
 } from "@/lib/smart-model-router";
 import { ReasoningLogger } from "@/lib/sandbox/reasoning-logger";
+import { ElementFinder } from "@/lib/browser/element-finder";
+import { ActionExecutor } from "@/lib/browser/action-executor";
+// DomVerifier wird indirekt via ActionExecutor/ElementFinder genutzt
+import { ScreenshotStrategy } from "@/lib/browser/screenshot-strategy";
+import { PageCache, type PageStructure } from "@/lib/browser/page-cache";
 
 /* ── Types ── */
 
@@ -338,7 +343,45 @@ async function executeSubAgentTool(
           .replace(/\s+/g, " ")
           .trim()
           .slice(0, 8000);
-        return JSON.stringify({ success: true, url, content: text });
+
+        // PageCache: cache page structure for faster repeat visits
+        let cachedStructure: PageStructure | undefined;
+        try {
+          const pageCache = new PageCache();
+          cachedStructure = pageCache.getCachedStructure(url) || undefined;
+          if (!cachedStructure) {
+            // Einfache Struktur-Extraktion für Cache
+            const forms = (html.match(/<form[^>]*>/gi) || []).length;
+            const buttons = (html.match(/<button[^>]*>([\s\S]*?)<\/button>/gi) || [])
+              .slice(0, 10)
+              .map(b => b.replace(/<[^>]+>/g, "").trim());
+            if (forms > 0 || buttons.length > 0) {
+              const structure: PageStructure = {
+                forms: [],
+                buttons: buttons.map(b => ({ selector: "", text: b })),
+                links: [],
+                tables: (html.match(/<table/gi) || []).length,
+                prices: [],
+                navigation: [],
+              };
+              pageCache.cachePage(url, structure);
+            }
+          }
+        } catch {
+          // PageCache ist optional
+        }
+
+        const result: Record<string, unknown> = { success: true, url, content: text };
+        if (cachedStructure) {
+          result.pageStructure = {
+            forms: cachedStructure.forms.length,
+            buttons: cachedStructure.buttons.map(b => b.text).slice(0, 5),
+            tables: cachedStructure.tables,
+            hasSearch: !!cachedStructure.searchField,
+            hasLogin: !!cachedStructure.loginForm,
+          };
+        }
+        return JSON.stringify(result);
       } catch (err) {
         return JSON.stringify({ success: false, error: err instanceof Error ? err.message : "Browse failed" });
       }
@@ -349,24 +392,120 @@ async function executeSubAgentTool(
         const { takeScreenshot } = await import("@/lib/screenshot-service");
         const url = toolInput.url ? String(toolInput.url) : undefined;
         if (!url) return JSON.stringify({ success: false, error: "URL required for screenshot" });
+
+        // Prüfe ob Screenshot nötig ist (ScreenshotStrategy)
+        const strategy = new ScreenshotStrategy();
+        const decision = strategy.shouldTakeScreenshot("navigate");
+
         const screenshot = await takeScreenshot(url);
-        return JSON.stringify({ success: true, screenshot: screenshot ? "screenshot_captured" : "screenshot_unavailable" });
+        return JSON.stringify({
+          success: true,
+          screenshot: screenshot ? "screenshot_captured" : "screenshot_unavailable",
+          strategyReason: decision.reason,
+        });
       } catch (err) {
         return JSON.stringify({ success: false, error: err instanceof Error ? err.message : "Screenshot failed" });
       }
     }
 
-    case "click_element":
-    case "type_text":
+    case "click_element": {
+      try {
+        // Sub-agents verwenden browse_url + DOM-basierte Clicks
+        // Erstelle temporäre Session-Emulation via Browserless
+        const selector = String(toolInput.selector || "");
+        const { isBrowserServiceAvailable, createBrowserSession, closeBrowserSession } = await import("@/lib/browser-service");
+
+        if (!isBrowserServiceAvailable()) {
+          return JSON.stringify({
+            success: false,
+            error: "Browser service not available. Use browse_url for content extraction.",
+          });
+        }
+
+        const session = await createBrowserSession();
+        try {
+          const elementFinder = new ElementFinder();
+          const actionExecutor = new ActionExecutor(elementFinder);
+          const result = await actionExecutor.executeClick(session, "", selector);
+          return JSON.stringify({
+            success: result.success,
+            method: result.methodUsed,
+            alternativesTried: result.alternativesTried,
+            error: result.error,
+          });
+        } finally {
+          closeBrowserSession(session.id);
+        }
+      } catch (err) {
+        return JSON.stringify({
+          success: false,
+          error: err instanceof Error ? err.message : "Click failed",
+          note: "Use browse_url for navigation in sub-agent context.",
+        });
+      }
+    }
+
+    case "type_text": {
+      try {
+        const selector = String(toolInput.selector || "");
+        const text = String(toolInput.text || "");
+        const { isBrowserServiceAvailable, createBrowserSession, closeBrowserSession } = await import("@/lib/browser-service");
+
+        if (!isBrowserServiceAvailable()) {
+          return JSON.stringify({
+            success: false,
+            error: "Browser service not available.",
+          });
+        }
+
+        const session = await createBrowserSession();
+        try {
+          const elementFinder = new ElementFinder();
+          const actionExecutor = new ActionExecutor(elementFinder);
+          const result = await actionExecutor.executeType(session, "", selector, text);
+          return JSON.stringify({
+            success: result.success,
+            method: result.methodUsed,
+            error: result.error,
+          });
+        } finally {
+          closeBrowserSession(session.id);
+        }
+      } catch (err) {
+        return JSON.stringify({
+          success: false,
+          error: err instanceof Error ? err.message : "Type failed",
+        });
+      }
+    }
+
     case "scroll_page": {
-      // Diese Browser-Aktionen benötigen eine aktive Browser-Session
-      // Fallback: Beschreibe die Aktion, da Sub-Agents keine persistente Session haben
-      return JSON.stringify({
-        success: true,
-        note: `Browser action '${toolName}' noted. Use browse_url for navigation in sub-agent context.`,
-        action: toolName,
-        input: toolInput,
-      });
+      try {
+        const direction = String(toolInput.direction || "down") as "up" | "down";
+        const pixels = Number(toolInput.pixels) || 500;
+        const { isBrowserServiceAvailable, createBrowserSession, closeBrowserSession } = await import("@/lib/browser-service");
+
+        if (!isBrowserServiceAvailable()) {
+          return JSON.stringify({ success: true, note: "Scroll noted (no browser session)." });
+        }
+
+        const session = await createBrowserSession();
+        try {
+          const actionExecutor = new ActionExecutor();
+          const result = await actionExecutor.executeScroll(session, "", direction, pixels);
+          return JSON.stringify({
+            success: result.success,
+            method: result.methodUsed,
+          });
+        } finally {
+          closeBrowserSession(session.id);
+        }
+      } catch (err) {
+        return JSON.stringify({
+          success: false,
+          error: err instanceof Error ? err.message : "Scroll failed",
+        });
+      }
     }
 
     case "execute_python":

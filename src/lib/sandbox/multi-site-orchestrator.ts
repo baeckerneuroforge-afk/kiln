@@ -11,6 +11,7 @@ import {
   type SubTaskResult,
 } from "@/lib/execution/parallel-executor";
 import { saveArtifact } from "@/lib/sandbox/artifact-manager";
+import { PageCache, type PageStructure } from "@/lib/browser/page-cache";
 
 /* ── Types ── */
 
@@ -47,6 +48,8 @@ const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 /* ── Main Class ── */
 
 export class MultiSiteOrchestrator {
+  private pageCache = new PageCache();
+
   /**
    * Führt die gleiche Aufgabe auf mehreren Websites parallel aus
    */
@@ -235,6 +238,29 @@ export class MultiSiteOrchestrator {
         .trim()
         .slice(0, 15000);
 
+      // PageCache: Seiten-Struktur cachen für schnellere Wiederholungen
+      let structureHint = "";
+      try {
+        const cached = this.pageCache.getCachedStructure(url);
+        if (cached) {
+          structureHint = `\n\nKnown page structure: ${cached.tables} tables, ${cached.forms.length} forms, ${cached.buttons.length} buttons.`;
+          if (cached.searchField) structureHint += ` Search field: ${cached.searchField}.`;
+        } else {
+          // Einfache Struktur-Extraktion und Caching
+          const tables = (html.match(/<table/gi) || []).length;
+          const forms = (html.match(/<form[^>]*>/gi) || []).map(() => ({ selector: "", fields: [] as string[] }));
+          const buttons = (html.match(/<button[^>]*>([\s\S]*?)<\/button>/gi) || [])
+            .slice(0, 10)
+            .map(b => ({ selector: "", text: b.replace(/<[^>]+>/g, "").trim() }));
+          const structure: PageStructure = {
+            forms, buttons, links: [], tables, prices: [], navigation: [],
+          };
+          this.pageCache.cachePage(url, structure);
+        }
+      } catch {
+        // PageCache ist optional
+      }
+
       // LLM-Extraktion
       const extractResponse = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -249,7 +275,7 @@ export class MultiSiteOrchestrator {
           system: "You extract structured data from website content. Return ONLY valid JSON.",
           messages: [{
             role: "user",
-            content: `Website: ${url}\n\nTask: ${task}\n\nPage content:\n${textContent}\n\nExtract the requested information as a JSON object.`,
+            content: `Website: ${url}\n\nTask: ${task}${structureHint}\n\nPage content:\n${textContent}\n\nExtract the requested information as a JSON object.`,
           }],
         }),
         signal: AbortSignal.timeout(timeoutMs - (Date.now() - startTime)),
