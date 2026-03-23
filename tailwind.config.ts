@@ -53,10 +53,10 @@ const config: Config = {
           ring: "hsl(var(--sidebar-ring))",
         },
         kiln: {
-          orange: "#F97316",
-          ember: "#DC2626",
-          green: "#22C55E",
-          blue: "#3B82F6",
+          orange: "#e07828",
+          ember: "#c45555",
+          green: "#3d9a5f",
+          blue: "#5b8fb9",
         },
       },
       fontFamily: {

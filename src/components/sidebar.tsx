@@ -7,204 +7,116 @@ import {
   Activity,
   Bot,
   Building2,
-  Globe,
   Zap,
   LayoutDashboard,
   Settings,
-  Bolt,
   X,
   Sparkles,
   LogOut,
   ChevronUp,
+  ChevronRight,
   Network,
   Plug,
   Store,
   ChevronsLeft,
   ChevronsRight,
-  MessageCircle,
   MessageSquare,
   HelpCircle,
   Radio,
   FlaskConical,
-  Brain,
-  Image,
   Waypoints,
   Users,
   Code2,
   Database,
+  Bolt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 import { WhatsNewBell } from "@/components/whats-new";
 import { useEffect, useRef, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 
 const SIDEBAR_COLLAPSED_KEY = "kiln-sidebar-collapsed";
+const SIDEBAR_SECTIONS_KEY = "kiln-sidebar-sections";
 
-const allModules = [
+/* ── Types ── */
+
+interface NavItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  minAgents: number;
+  requiresPro?: boolean;
+  requiresBusiness?: boolean;
+  tourId?: string;
+}
+
+interface NavSection {
+  id: string;
+  label: string | null; // null = no header (always visible)
+  defaultOpen: boolean;
+  items: NavItem[];
+}
+
+/* ── Navigation Structure ── */
+
+const NAV_SECTIONS: NavSection[] = [
   {
-    name: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-    color: "text-muted-foreground",
-    activeColor: "text-kiln-orange",
-    minAgents: 0,
+    id: "core",
+    label: null,
+    defaultOpen: true,
+    items: [
+      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, minAgents: 0 },
+      { name: "Agents", href: "/dashboard/agents", icon: Bot, minAgents: 0, tourId: "agents" },
+      { name: "Conversations", href: "/dashboard/conversations", icon: MessageSquare, minAgents: 0 },
+    ],
   },
   {
-    name: "AI Agent Studio",
-    href: "/dashboard/agents",
-    icon: Bot,
-    color: "text-muted-foreground",
-    activeColor: "text-kiln-orange",
-    badge: null as string | null,
-    minAgents: 0,
-    tourId: "agents",
+    id: "build",
+    label: "Build",
+    defaultOpen: true,
+    items: [
+      { name: "Workflows", href: "/dashboard/teams", icon: Zap, minAgents: 0, requiresPro: true, tourId: "workflows" },
+      { name: "Orchestration", href: "/dashboard/orchestration", icon: Network, minAgents: 2 },
+      { name: "Knowledge", href: "/dashboard/knowledge", icon: Waypoints, minAgents: 1 },
+      { name: "Integrations", href: "/dashboard/integrations", icon: Plug, minAgents: 1, tourId: "integrations" },
+    ],
   },
   {
-    name: "Conversations",
-    href: "/dashboard/conversations",
-    icon: MessageSquare,
-    color: "text-muted-foreground",
-    activeColor: "text-kiln-orange",
-    minAgents: 0,
+    id: "monitor",
+    label: "Monitor",
+    defaultOpen: false,
+    items: [
+      { name: "Analytics", href: "/dashboard/intelligence", icon: Activity, minAgents: 1 },
+      { name: "Monitoring", href: "/dashboard/teams/monitor", icon: Radio, minAgents: 0, requiresPro: true },
+      { name: "A/B Tests", href: "/dashboard/teams/ab-tests", icon: FlaskConical, minAgents: 0, requiresPro: true },
+    ],
   },
   {
-    name: "Image Gallery",
-    href: "/dashboard/image-gallery",
-    icon: Image,
-    color: "text-muted-foreground",
-    activeColor: "text-kiln-orange",
-    minAgents: 1,
+    id: "extend",
+    label: "Extend",
+    defaultOpen: false,
+    items: [
+      { name: "Marketplace", href: "/marketplace", icon: Store, minAgents: 0 },
+      { name: "Nodes SDK", href: "/dashboard/nodes-marketplace", icon: Bolt, minAgents: 1 },
+      { name: "Developers", href: "/developers", icon: Code2, minAgents: 0 },
+      { name: "Shared Agents", href: "/dashboard/shared", icon: Users, minAgents: 1 },
+    ],
   },
   {
-    name: "Operations",
-    href: "/dashboard/operations",
-    icon: Activity,
-    color: "text-muted-foreground",
-    activeColor: "text-kiln-orange",
-    minAgents: 0,
-  },
-  {
-    name: "Business Intelligence",
-    href: "/dashboard/intelligence",
-    icon: Brain,
-    color: "text-muted-foreground",
-    activeColor: "text-purple-400",
-    minAgents: 1,
-  },
-  {
-    name: "Orchestration",
-    href: "/dashboard/orchestration",
-    icon: Network,
-    color: "text-muted-foreground",
-    activeColor: "text-kiln-orange",
-    minAgents: 2, // Show after 2+ agents
-  },
-  {
-    name: "Workflows",
-    href: "/dashboard/teams",
-    icon: Zap,
-    color: "text-muted-foreground",
-    activeColor: "text-kiln-orange",
-    minAgents: 5, // Show after 5+ agents or Pro+
-    requiresPro: true,
-    tourId: "workflows",
-  },
-  {
-    name: "Workflow Monitor",
-    href: "/dashboard/teams/monitor",
-    icon: Radio,
-    color: "text-muted-foreground",
-    activeColor: "text-kiln-orange",
-    minAgents: 5,
-    requiresPro: true,
-  },
-  {
-    name: "A/B Tests",
-    href: "/dashboard/teams/ab-tests",
-    icon: FlaskConical,
-    color: "text-muted-foreground",
-    activeColor: "text-kiln-orange",
-    minAgents: 5,
-    requiresPro: true,
-  },
-  {
-    name: "Marketplace",
-    href: "/marketplace",
-    icon: Store,
-    color: "text-muted-foreground",
-    activeColor: "text-kiln-orange",
-    badge: "NEW" as string | null,
-    minAgents: 0,
-  },
-  {
-    name: "Integrations",
-    href: "/dashboard/integrations",
-    icon: Plug,
-    color: "text-muted-foreground",
-    activeColor: "text-kiln-blue",
-    minAgents: 1,
-    tourId: "integrations",
-  },
-  {
-    name: "Knowledge Graph",
-    href: "/dashboard/knowledge",
-    icon: Waypoints,
-    color: "text-muted-foreground",
-    activeColor: "text-teal-400",
-    minAgents: 1,
-  },
-  {
-    name: "Shared Agents",
-    href: "/dashboard/shared",
-    icon: Users,
-    color: "text-muted-foreground",
-    activeColor: "text-kiln-blue",
-    minAgents: 1,
-  },
-  {
-    name: "Data Explorer",
-    href: "/dashboard/data-explorer",
-    icon: Database,
-    color: "text-muted-foreground",
-    activeColor: "text-cyan-400",
-    minAgents: 1,
-  },
-  {
-    name: "Nodes SDK",
-    href: "/dashboard/nodes-marketplace",
-    icon: Bolt,
-    color: "text-muted-foreground",
-    activeColor: "text-purple-400",
-    minAgents: 1,
-  },
-  {
-    name: "Clients",
-    href: "/dashboard/clients",
-    icon: Building2,
-    color: "text-muted-foreground",
-    activeColor: "text-purple-400",
-    minAgents: 1,
-    requiresBusiness: true,
-  },
-  {
-    name: "Developers",
-    href: "/developers",
-    icon: Code2,
-    color: "text-muted-foreground",
-    activeColor: "text-emerald-400",
-    minAgents: 0,
-  },
-  {
-    name: "Site Builder",
-    href: "/dashboard/sites",
-    icon: Globe,
-    color: "text-muted-foreground",
-    activeColor: "text-kiln-blue",
-    badge: "Q3 2026" as string | null,
-    minAgents: 0,
+    id: "manage",
+    label: "Manage",
+    defaultOpen: false,
+    items: [
+      { name: "Clients", href: "/dashboard/clients", icon: Building2, minAgents: 1, requiresBusiness: true },
+      { name: "Data Explorer", href: "/dashboard/data-explorer", icon: Database, minAgents: 1 },
+      { name: "Settings", href: "/dashboard/settings", icon: Settings, minAgents: 0 },
+    ],
   },
 ];
+
+/* ── Helpers ── */
 
 const planBadgeStyles: Record<string, string> = {
   FREE: "bg-muted text-muted-foreground",
@@ -225,6 +137,8 @@ function NavTooltip({ children, label, show }: { children: React.ReactNode; labe
   );
 }
 
+/* ── Sidebar Component ── */
+
 export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const { advancedMode, setAdvancedMode } = useAdvancedMode();
@@ -236,11 +150,27 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
   const menuRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
 
-  // Load collapsed state from localStorage
+  // Section expand/collapse state
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+    const defaults: Record<string, boolean> = {};
+    for (const s of NAV_SECTIONS) {
+      if (s.label) defaults[s.id] = s.defaultOpen;
+    }
+    return defaults;
+  });
+
+  // Load persisted state
   useEffect(() => {
     try {
       const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
       if (stored === "true") setCollapsed(true);
+      const sections = localStorage.getItem(SIDEBAR_SECTIONS_KEY);
+      if (sections) {
+        const parsed = JSON.parse(sections);
+        if (typeof parsed === "object" && parsed !== null) {
+          setOpenSections((prev) => ({ ...prev, ...parsed }));
+        }
+      }
     } catch { /* SSR / privacy */ }
   }, []);
 
@@ -250,13 +180,20 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
     try { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next)); } catch { /* */ }
   }
 
+  function toggleSection(id: string) {
+    setOpenSections((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      try { localStorage.setItem(SIDEBAR_SECTIONS_KEY, JSON.stringify(next)); } catch { /* */ }
+      return next;
+    });
+  }
+
   useEffect(() => {
     fetch("/api/stripe/plan")
       .then((res) => res.json())
       .then((data) => setPlan(data.plan || "FREE"))
       .catch(() => {});
 
-    // Load agent count for progressive sidebar reveal
     fetch("/api/agents")
       .then((res) => res.json())
       .then((data) => {
@@ -283,8 +220,39 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
     user?.firstName || user?.username || user?.emailAddresses?.[0]?.emailAddress?.split("@")[0] || "User";
   const displayEmail = user?.emailAddresses?.[0]?.emailAddress || "";
 
-  // On mobile, always show expanded
-  const isCollapsed = collapsed; // only applies on lg+
+  const isCollapsed = collapsed;
+
+  // Check if an item should be visible based on plan/agent gates
+  function isItemVisible(item: NavItem): boolean {
+    if (item.requiresBusiness) {
+      const isBusiness = ["AGENCY", "ENTERPRISE", "ADMIN"].includes(plan);
+      if (!isBusiness) return false;
+    }
+    if (agentCount < item.minAgents) {
+      if (item.requiresPro) {
+        const isPro = ["PRO", "AGENCY", "ENTERPRISE", "ADMIN"].includes(plan);
+        if (isPro) return true;
+      }
+      return false;
+    }
+    return true;
+  }
+
+  function isActive(href: string): boolean {
+    return pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+  }
+
+  // Auto-expand section if it contains active item
+  useEffect(() => {
+    for (const section of NAV_SECTIONS) {
+      if (!section.label) continue;
+      const hasActive = section.items.some((item) => isActive(item.href));
+      if (hasActive && !openSections[section.id]) {
+        setOpenSections((prev) => ({ ...prev, [section.id]: true }));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   return (
     <>
@@ -300,27 +268,24 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r border-border bg-sidebar transition-all duration-200 lg:static lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
-          // Mobile always w-64, desktop depends on collapsed
-          "w-64",
+          "w-60",
           isCollapsed && "lg:w-[60px]",
         )}
       >
-        {/* Header: Logo + Collapse toggle + Close (mobile) */}
+        {/* Header */}
         <div className="flex items-center justify-between px-4 pt-5 pb-2">
           <Link href="/dashboard" className="flex items-center gap-2.5" onClick={onClose}>
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-kiln-orange to-kiln-ember shadow-lg shadow-kiln-orange/20">
-              <span className="font-serif text-lg font-bold text-white">K</span>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-kiln-orange to-kiln-ember shadow-lg shadow-kiln-orange/20">
+              <span className="font-serif text-base font-bold text-white">K</span>
             </div>
-            <span className={cn("font-serif text-xl text-foreground transition-opacity duration-200", isCollapsed && "lg:hidden")}>
+            <span className={cn("font-serif text-lg text-foreground transition-opacity duration-200", isCollapsed && "lg:hidden")}>
               KILN
             </span>
           </Link>
           <div className="flex items-center gap-1">
-            {/* What's New bell */}
             <div className={cn(isCollapsed && "lg:hidden")}>
               <WhatsNewBell />
             </div>
-            {/* Collapse toggle — desktop only */}
             <button
               onClick={toggleCollapsed}
               className="hidden h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:flex"
@@ -328,7 +293,6 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
             >
               {isCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
             </button>
-            {/* Close button — mobile only */}
             <button
               onClick={onClose}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:hidden"
@@ -338,98 +302,84 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
           </div>
         </div>
 
-        <Separator className={cn("my-3", isCollapsed ? "lg:mx-2" : "mx-4")} />
+        <Separator className={cn("my-2", isCollapsed ? "lg:mx-2" : "mx-3")} />
 
         {/* Navigation */}
-        <nav className={cn("flex flex-1 flex-col gap-0.5 overflow-y-auto", isCollapsed ? "lg:px-1.5" : "px-3")}>
-          {allModules
-            .filter((item) => {
-              // Business+ only modules (e.g. Multi-Tenant Dashboard)
-              if ('requiresBusiness' in item && item.requiresBusiness) {
-                const isBusiness = ["AGENCY", "ENTERPRISE", "ADMIN"].includes(plan);
-                if (!isBusiness) return false;
-              }
-              // Progressive reveal: hide modules until user has enough agents
-              if (agentCount < item.minAgents) {
-                // Agent Teams also unlocks on Pro+
-                if ('requiresPro' in item && item.requiresPro) {
-                  const isPro = ["PRO", "AGENCY", "ENTERPRISE", "ADMIN"].includes(plan);
-                  if (isPro) return true;
-                }
-                return false;
-              }
-              return true;
-            })
-            .map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/dashboard" && pathname.startsWith(item.href));
+        <nav className={cn("flex flex-1 flex-col overflow-y-auto scrollbar-thin", isCollapsed ? "lg:px-1.5" : "px-2")}>
+          {NAV_SECTIONS.map((section) => {
+            const visibleItems = section.items.filter(isItemVisible);
+            if (visibleItems.length === 0) return null;
+
+            const isSectionOpen = section.label === null || openSections[section.id] !== false;
 
             return (
-              <NavTooltip key={item.href} label={item.name} show={isCollapsed}>
-                {/* Separator before future modules */}
-                {item.href === "/dashboard/sites" && (
-                  <Separator className={cn("my-2", isCollapsed ? "lg:mx-0" : "")} />
+              <div key={section.id} className={section.label ? "mt-3" : ""}>
+                {/* Section header */}
+                {section.label && !isCollapsed && (
+                  <button
+                    onClick={() => toggleSection(section.id)}
+                    className="flex w-full items-center gap-1 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-zinc-500 transition-colors hover:text-zinc-400"
+                  >
+                    <ChevronRight
+                      className={cn(
+                        "h-3 w-3 shrink-0 transition-transform duration-150",
+                        isSectionOpen && "rotate-90"
+                      )}
+                    />
+                    {section.label}
+                  </button>
                 )}
-                <Link
-                  href={item.href}
-                  onClick={onClose}
-                  {...('tourId' in item && item.tourId ? { "data-tour": item.tourId } : {})}
-                  className={cn(
-                    "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
-                    isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2.5",
-                    isActive
-                      ? "bg-sidebar-accent/80 backdrop-blur-sm text-foreground"
-                      : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
-                  )}
-                >
-                  {/* Active indicator */}
-                  {isActive && (
-                    <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-kiln-orange to-kiln-ember" />
-                  )}
-                  <item.icon
-                    className={cn(
-                      "h-[18px] w-[18px] shrink-0 transition-colors",
-                      isActive ? item.activeColor : "text-muted-foreground group-hover:text-foreground"
-                    )}
-                  />
-                  <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>{item.name}</span>
-                  {item.badge && (
-                    <span className={cn(
-                      "ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium",
-                      item.badge === "NEW" ? "bg-kiln-orange/15 text-kiln-orange" : "bg-muted text-muted-foreground",
-                      isCollapsed && "lg:hidden"
-                    )}>
-                      {item.badge}
-                    </span>
-                  )}
-                </Link>
-              </NavTooltip>
+
+                {/* Section header (collapsed) — thin divider */}
+                {section.label && isCollapsed && (
+                  <Separator className="lg:mx-0 my-2" />
+                )}
+
+                {/* Items */}
+                {isSectionOpen && (
+                  <div className="flex flex-col gap-px">
+                    {visibleItems.map((item) => {
+                      const active = isActive(item.href);
+                      return (
+                        <NavTooltip key={item.href} label={item.name} show={isCollapsed}>
+                          <Link
+                            href={item.href}
+                            onClick={onClose}
+                            {...(item.tourId ? { "data-tour": item.tourId } : {})}
+                            className={cn(
+                              "group relative flex items-center rounded-md text-[13px] font-medium transition-all duration-150",
+                              isCollapsed ? "lg:justify-center lg:px-0 lg:py-2 px-2.5 py-2 gap-2.5" : "gap-2.5 px-2.5 py-[7px]",
+                              active
+                                ? "bg-white/[0.06] text-foreground"
+                                : "text-zinc-400 hover:bg-white/[0.03] hover:text-zinc-200"
+                            )}
+                          >
+                            {active && (
+                              <div className="absolute left-0 top-1/2 h-4 w-[2.5px] -translate-y-1/2 rounded-full bg-gradient-to-b from-kiln-orange to-kiln-ember" />
+                            )}
+                            <item.icon
+                              className={cn(
+                                "h-[16px] w-[16px] shrink-0 transition-colors",
+                                active ? "text-kiln-orange" : "text-zinc-500 group-hover:text-zinc-300"
+                              )}
+                            />
+                            <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>
+                              {item.name}
+                            </span>
+                          </Link>
+                        </NavTooltip>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>
 
         {/* Bottom Section */}
-        <div className={cn("flex flex-col gap-1 pb-2 border-t border-white/[0.06] pt-2", isCollapsed ? "lg:px-1.5" : "px-3")}>
-          {/* Community */}
-          <NavTooltip label="Community" show={isCollapsed}>
-            <a
-              href="https://discord.gg/kiln"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={onClose}
-              className={cn(
-                "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
-                isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2.5",
-                "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
-              )}
-            >
-              <MessageCircle className="h-[18px] w-[18px] shrink-0" />
-              <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>Community</span>
-            </a>
-          </NavTooltip>
-
-          {/* Help Center */}
+        <div className={cn("flex flex-col gap-px border-t border-white/[0.06] pt-2 pb-2", isCollapsed ? "lg:px-1.5" : "px-2")}>
+          {/* Help */}
           <NavTooltip label="Help" show={isCollapsed}>
             <Link
               href="/help"
@@ -437,69 +387,17 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               onClick={onClose}
               data-tour="help"
               className={cn(
-                "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
-                isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2.5",
-                "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
+                "group relative flex items-center rounded-md text-[13px] font-medium transition-all duration-150",
+                isCollapsed ? "lg:justify-center lg:px-0 lg:py-2 px-2.5 py-2 gap-2.5" : "gap-2.5 px-2.5 py-[7px]",
+                "text-zinc-400 hover:bg-white/[0.03] hover:text-zinc-200"
               )}
             >
-              <HelpCircle className="h-[18px] w-[18px] shrink-0" />
+              <HelpCircle className="h-[16px] w-[16px] shrink-0 text-zinc-500" />
               <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>Help</span>
             </Link>
           </NavTooltip>
 
-          {/* Settings */}
-          <NavTooltip label="Settings" show={isCollapsed}>
-            <Link
-              href="/dashboard/settings"
-              onClick={onClose}
-              className={cn(
-                "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200",
-                isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2.5",
-                pathname.startsWith("/dashboard/settings")
-                  ? "bg-sidebar-accent/80 backdrop-blur-sm text-foreground"
-                  : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
-              )}
-            >
-              {pathname.startsWith("/dashboard/settings") && (
-                <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-kiln-orange to-kiln-ember" />
-              )}
-              <Settings className="h-[18px] w-[18px] shrink-0" />
-              <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>Settings</span>
-            </Link>
-          </NavTooltip>
-
-          {/* Advanced Mode Toggle */}
-          <NavTooltip label="Advanced Mode" show={isCollapsed}>
-            <button
-              onClick={() => setAdvancedMode(!advancedMode)}
-              className={cn(
-                "flex items-center rounded-lg text-sm font-medium transition-all duration-200 w-full",
-                isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2.5",
-                advancedMode
-                  ? "bg-purple-500/10 text-purple-400"
-                  : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
-              )}
-            >
-              <Bolt className={cn("h-[18px] w-[18px] shrink-0", advancedMode && "text-purple-400")} />
-              <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>Advanced</span>
-              <div
-                className={cn(
-                  "ml-auto relative h-5 w-9 rounded-full transition-colors duration-200",
-                  advancedMode ? "bg-purple-500" : "bg-muted",
-                  isCollapsed && "lg:hidden"
-                )}
-              >
-                <div
-                  className={cn(
-                    "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
-                    advancedMode ? "translate-x-4" : "translate-x-0.5"
-                  )}
-                />
-              </div>
-            </button>
-          </NavTooltip>
-
-          <Separator className={cn("my-2", isCollapsed && "lg:mx-0")} />
+          <Separator className={cn("my-1.5", isCollapsed && "lg:mx-0")} />
 
           {/* User Profile */}
           <div className="relative" ref={menuRef}>
@@ -507,8 +405,8 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className={cn(
-                  "flex w-full items-center rounded-lg transition-colors hover:bg-white/[0.04]",
-                  isCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-3 gap-3" : "gap-3 px-3 py-3"
+                  "flex w-full items-center rounded-md transition-colors hover:bg-white/[0.03]",
+                  isCollapsed ? "lg:justify-center lg:px-0 lg:py-2 px-2.5 py-2 gap-2.5" : "gap-2.5 px-2.5 py-2"
                 )}
               >
                 <div className="relative shrink-0">
@@ -517,30 +415,30 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                     <img
                       src={user.imageUrl}
                       alt={displayName}
-                      className="h-8 w-8 rounded-full object-cover ring-1 ring-border"
+                      className="h-7 w-7 rounded-full object-cover ring-1 ring-border"
                     />
                   ) : (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-semibold text-foreground ring-1 ring-border">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground ring-1 ring-border">
                       {displayName.charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-sidebar bg-kiln-green" />
+                  <div className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border-[1.5px] border-sidebar bg-kiln-green" />
                 </div>
                 <div className={cn("flex-1 min-w-0 text-left transition-opacity duration-200", isCollapsed && "lg:hidden")}>
-                  <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
+                  <p className="truncate text-[13px] font-medium text-foreground">{displayName}</p>
                   <span
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                      "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-semibold",
                       planBadgeStyles[plan] || planBadgeStyles.FREE
                     )}
                   >
-                    {plan === "ADMIN" && <Sparkles className="h-2.5 w-2.5" />}
+                    {plan === "ADMIN" && <Sparkles className="h-2 w-2" />}
                     {plan}
                   </span>
                 </div>
                 <ChevronUp
                   className={cn(
-                    "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
+                    "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
                     showUserMenu ? "rotate-0" : "rotate-180",
                     isCollapsed && "lg:hidden"
                   )}
@@ -582,6 +480,28 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                     <Settings className="h-4 w-4" />
                     Settings
                   </Link>
+                  {/* Advanced Mode toggle */}
+                  <button
+                    onClick={() => setAdvancedMode(!advancedMode)}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <Bolt className={cn("h-4 w-4", advancedMode && "text-purple-400")} />
+                    <span className="flex-1 text-left">Advanced</span>
+                    <div
+                      className={cn(
+                        "relative h-4 w-7 rounded-full transition-colors duration-200",
+                        advancedMode ? "bg-purple-500" : "bg-muted"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-200",
+                          advancedMode ? "translate-x-3" : "translate-x-0.5"
+                        )}
+                      />
+                    </div>
+                  </button>
+                  <Separator className="my-1" />
                   <button
                     onClick={() => {
                       setShowUserMenu(false);

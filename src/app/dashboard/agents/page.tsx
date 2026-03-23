@@ -176,26 +176,26 @@ export default function AgentsPage() {
                   <div className="flex items-center gap-3">
                     <div className={cn(
                       "flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
-                      agent.agentMode === "TASK" ? "bg-kiln-orange/10 group-hover:bg-kiln-orange/15" : "bg-blue-500/10 group-hover:bg-blue-500/15"
+                      agent.agentMode === "TASK" ? "bg-kiln-orange/8 group-hover:bg-kiln-orange/12" : "bg-kiln-blue/8 group-hover:bg-kiln-blue/12"
                     )}>
                       {agent.agentMode === "TASK" ? (
                         <Zap className="h-5 w-5 text-kiln-orange" />
                       ) : (
-                        <MessageSquare className="h-5 w-5 text-blue-500" />
+                        <MessageSquare className="h-5 w-5 text-kiln-blue" />
                       )}
                     </div>
                     <div className="flex flex-col gap-1">
                       <span className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold w-fit",
-                        agent.agentMode === "TASK" ? "bg-kiln-orange/10 text-kiln-orange" : "bg-blue-500/10 text-blue-500"
+                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide w-fit",
+                        agent.agentMode === "TASK" ? "bg-kiln-orange/8 text-kiln-orange" : "bg-kiln-blue/8 text-kiln-blue"
                       )}>
                         {agent.agentMode === "TASK" ? <><Zap className="h-2.5 w-2.5" />Task</> : <><MessageSquare className="h-2.5 w-2.5" />Chat</>}
                       </span>
                       <div className="flex items-center gap-1.5">
                         {agent.agentType === "INTERNAL" ? (
                           <>
-                            <div className="h-2 w-2 rounded-full bg-purple-400" />
-                            <span className="text-[11px] font-medium text-purple-400">Internal</span>
+                            <div className="h-2 w-2 rounded-full bg-[#7c6f9b]" />
+                            <span className="text-[11px] font-medium text-[#7c6f9b]">Internal</span>
                           </>
                         ) : (
                           <>
@@ -218,12 +218,12 @@ export default function AgentsPage() {
 
                 {/* Name + Description */}
                 <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-semibold text-foreground group-hover:text-kiln-orange transition-colors truncate">
+                  <h3 className="font-semibold text-foreground group-hover:text-foreground/80 transition-colors truncate">
                     {agent.name}
                   </h3>
                   <AgentStatusBadge agentId={agent.id} />
                   {agent.agentTeamMembers?.[0]?.team && (
-                    <span className="shrink-0 rounded-full bg-purple-500/10 px-2 py-0.5 text-[9px] font-medium text-purple-400">
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[9px] font-medium text-muted-foreground">
                       Team: {agent.agentTeamMembers[0].team.name}
                     </span>
                   )}
@@ -265,7 +265,7 @@ export default function AgentsPage() {
           {/* New Agent Card */}
           <Link
             href="/dashboard/agents/new"
-            className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/30 p-5 text-muted-foreground transition-all duration-200 hover:border-kiln-orange/30 hover:text-foreground hover:bg-card/50 min-h-[180px]"
+            className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/30 p-5 text-muted-foreground transition-all duration-200 hover:border-muted-foreground/30 hover:text-foreground hover:bg-card/50 min-h-[180px]"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted mb-3">
               <Plus className="h-6 w-6" />
