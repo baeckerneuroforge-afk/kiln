@@ -71,8 +71,8 @@ export class SwarmEventStream {
     this.emit("swarm.started", { totalAgents, goal });
   }
 
-  agentStarted(agentId: string, task: string, model: string): void {
-    this.emit("agent.started", { agentId, task, model });
+  agentStarted(agentId: string, task: string, model: string, tools?: string[]): void {
+    this.emit("agent.started", { agentId, task, model, tools });
   }
 
   agentToolCalled(agentId: string, tool: string, args: Record<string, unknown>): void {

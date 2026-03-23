@@ -12,12 +12,132 @@ import {
   writeQuickUseDone,
   writeQuickUseEvent,
 } from "@/lib/quick-use/server";
-import type { QuickUseResult } from "@/lib/quick-use/types";
+import type { QuickUseFileAttachment, QuickUseResult } from "@/lib/quick-use/types";
+import { processFiles, buildFileContext } from "@/lib/quick-use/file-processor";
 import { executeAgentSwarm } from "@/lib/workflow-nodes/agent-swarm-node";
 
 export const dynamic = "force-dynamic";
 
-const DECOMPOSITION_MODEL = "claude-sonnet-4-6";
+const DECOMPOSITION_MODEL_BROWSER = "claude-sonnet-4-6";
+const DECOMPOSITION_MODEL_TEXT = "claude-haiku-4-5-20251001";
+const DOMAIN_REGEX = /https?:\/\/|(?:^|\s)[a-z0-9-]+(?:\.[a-z0-9-]+)+/i;
+
+function detectRequiredTools(message: string, hasFiles: boolean): Array<"computer_use" | "code_sandbox" | "mcp" | "deep_research" | "web_search"> {
+  const lower = message.toLowerCase();
+  const tools = new Set<"computer_use" | "code_sandbox" | "mcp" | "deep_research" | "web_search">(["web_search"]);
+
+  const hasUrls = DOMAIN_REGEX.test(message);
+  const browserKeywords = [
+    "website",
+    "browse",
+    "check price on",
+    "price on",
+    "visit",
+    "go to",
+    "open",
+    "screenshot",
+    "fill form",
+    "login",
+    "navigate",
+    "scrape",
+    "check on",
+  ];
+  const hasBrowserIntent = browserKeywords.some((keyword) => lower.includes(keyword));
+  const compareOnSitesPattern = /compare[\s\S]{0,80}\bon\b[\s\S]{0,120}(?:,| and )/i.test(lower);
+  const checkSitePattern = /check[\s\S]{0,80}\b(?:on|at)\b[\s\S]{0,120}/i.test(lower);
+  const fileOnlyIntent = hasFiles
+    && !hasUrls
+    && /(pdf|pdfs|csv|spreadsheet|file|files|document|documents)/i.test(lower)
+    && !hasBrowserIntent;
+
+  if (!fileOnlyIntent && (hasUrls || hasBrowserIntent || compareOnSitesPattern || checkSitePattern)) {
+    tools.add("computer_use");
+  }
+
+  const codeKeywords = [
+    "excel",
+    "spreadsheet",
+    "chart",
+    "graph",
+    "calculate",
+    "csv",
+    "data",
+    "table",
+    "analyze data",
+    "compare data",
+    "report",
+    "pdf",
+    "generate a pdf",
+    "make an excel",
+  ];
+  const hasCodeIntent = codeKeywords.some((keyword) => lower.includes(keyword));
+  const fileAnalysisIntent = hasFiles
+    && /(analy[sz]e|compare|summari[sz]e|extract|review|report|table|chart|graph|calculate)/i.test(lower);
+
+  if (hasCodeIntent || fileAnalysisIntent) {
+    tools.add("code_sandbox");
+  }
+
+  const mcpKeywords = ["slack", "email", "gmail", "calendar", "notion", "sheets"];
+  if (mcpKeywords.some((keyword) => lower.includes(keyword))) {
+    tools.add("mcp");
+  }
+
+  const researchKeywords = ["research", "find out", "latest", "current", "news", "market", "regulation", "trends"];
+  if (researchKeywords.some((keyword) => lower.includes(keyword))) {
+    tools.add("deep_research");
+  }
+
+  if (hasFiles && !hasUrls) {
+    tools.delete("computer_use");
+  }
+
+  return Array.from(tools);
+}
+
+function buildToolDetectionConstraints(
+  detectedTools: string[],
+  hasFiles: boolean,
+  hasUrls: boolean
+): string[] {
+  const constraints: string[] = [];
+
+  if (!detectedTools.includes("computer_use")) {
+    constraints.push("Do not assign computer_use unless direct website interaction is explicitly required.");
+  }
+
+  if (hasFiles && !hasUrls) {
+    constraints.push("The request appears file-centric. Prefer code_sandbox and text tools over browser work.");
+  }
+
+  if (detectedTools.includes("computer_use")) {
+    constraints.push("When decomposing site comparisons, prefer one independent browse task per site.");
+  }
+
+  if (detectedTools.includes("code_sandbox")) {
+    constraints.push("Include file generation or data-processing tasks when useful for the final output.");
+  }
+
+  return constraints;
+}
+
+function estimateDetectedSwarmCredits(agentCount: number, detectedTools: string[], decompositionCredits: number): {
+  totalCredits: number;
+  perAgentCredits: number;
+  summary: string;
+} {
+  const hasComputerUse = detectedTools.includes("computer_use");
+  const perAgentCredits = hasComputerUse ? 20 : 5;
+  const codePremium = detectedTools.includes("code_sandbox") ? 5 : 0;
+  const totalCredits = Math.max(1, (agentCount * perAgentCredits) + codePremium + decompositionCredits);
+  const summary = `Estimated cost: ~${totalCredits} credits for ${agentCount} agent${agentCount === 1 ? "" : "s"} ${hasComputerUse ? "with browser" : "text only"}.`;
+
+  return {
+    totalCredits,
+    perAgentCredits,
+    summary,
+  };
+}
 
 function summarizeSwarmEvent(event: SwarmEvent): string | null {
   switch (event.type) {
@@ -70,25 +190,54 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: access.upgradeMessage }, { status: 403 });
   }
 
-  const body = await request.json().catch(() => null) as { message?: string; userId?: string } | null;
+  const body = await request.json().catch(() => null) as {
+    message?: string;
+    userId?: string;
+    hasFiles?: boolean;
+    files?: QuickUseFileAttachment[];
+  } | null;
   const message = body?.message?.trim();
+  const fileAttachments = Array.isArray(body?.files) ? body.files : [];
+  const hasFiles = fileAttachments.length > 0 || Boolean(body?.hasFiles);
 
   if (!message) {
     return Response.json({ error: "Message is required" }, { status: 400 });
   }
 
-  const decomposition = await decomposeGoal(message, {
+  // Process uploaded files to extract content
+  let fileContext = "";
+  if (fileAttachments.length > 0) {
+    const processed = await processFiles(fileAttachments);
+    fileContext = buildFileContext(processed);
+  }
+
+  const detectedTools = detectRequiredTools(message, hasFiles);
+  const hasUrls = DOMAIN_REGEX.test(message);
+  const decompositionModel = detectedTools.includes("computer_use")
+    ? DECOMPOSITION_MODEL_BROWSER
+    : DECOMPOSITION_MODEL_TEXT;
+
+  const goalWithFiles = fileContext
+    ? `${message}\n\n${fileContext}`
+    : message;
+
+  const decomposition = await decomposeGoal(goalWithFiles, {
     maxTasks: 8,
-    model: DECOMPOSITION_MODEL,
-    availableTools: ["computer_use", "code_sandbox", "mcp", "deep_research", "web_search"],
+    model: decompositionModel,
+    availableTools: detectedTools,
+    constraints: buildToolDetectionConstraints(detectedTools, hasFiles, hasUrls),
   });
 
-  const decompositionCreditCost = getCreditCost(DECOMPOSITION_MODEL);
-  const hasComputerUse = decomposition.tasks.some((task) => task.tools?.includes("computer_use"));
+  const decompositionCreditCost = getCreditCost(decompositionModel);
+  const hasComputerUse = decomposition.tasks.some((task) => task.tools?.includes("computer_use"))
+    || detectedTools.includes("computer_use");
 
   // Model selection: computer_use tasks need Sonnet (Vision), text-only can use Haiku
   const modelPlan = decomposition.tasks.map((task) => {
     if (task.tools?.includes("computer_use")) return "claude-sonnet-4-6"; // Vision required
+    if (!hasComputerUse && task.suggestedModelTier !== "powerful" && task.modelPreference !== "deep_reasoning") {
+      return "claude-haiku-4-5-20251001";
+    }
     if (task.suggestedModelTier === "fast") return "claude-haiku-4-5-20251001";
     return "claude-sonnet-4-6";
   });
@@ -96,7 +245,15 @@ export async function POST(request: NextRequest) {
   // Budget: 15 calls per agent for computer_use tasks, 8 for LLM-only
   const callsPerAgent = hasComputerUse ? 15 : 8;
   const baseEstimate = estimateSwarmCost(modelPlan, callsPerAgent, hasComputerUse);
-  const estimatedCredits = baseEstimate.totalCredits + decompositionCreditCost;
+  const roughEstimate = estimateDetectedSwarmCredits(
+    Math.max(1, decomposition.tasks.length),
+    detectedTools,
+    decompositionCreditCost
+  );
+  const estimatedCredits = Math.max(
+    baseEstimate.totalCredits + decompositionCreditCost,
+    roughEstimate.totalCredits
+  );
   const affordability = await canAffordExecution(
     userId,
     { ...baseEstimate, totalCredits: estimatedCredits }
@@ -167,10 +324,15 @@ export async function POST(request: NextRequest) {
           message: `Prepared ${decomposition.tasks.length} subtask${decomposition.tasks.length === 1 ? "" : "s"} for the swarm.`,
         });
 
+        safeWrite({
+          type: "progress",
+          message: roughEstimate.summary,
+        });
+
         const resultKey = "quickSwarmResult";
         const result = await executeAgentSwarm(
           {
-            goal: message,
+            goal: goalWithFiles,
             maxAgents: Math.max(2, decomposition.tasks.length),
             maxParallel: Math.max(2, Math.min(4, decomposition.tasks.length)),
             mergeStrategy: "synthesize",
@@ -201,7 +363,12 @@ export async function POST(request: NextRequest) {
           result: buildSwarmResult(
             message,
             result.contextDelta[resultKey],
-            swarmMeta || {}
+            {
+              ...(swarmMeta || {}),
+              detectedTools,
+              decompositionModel,
+              roughPerAgentCredits: roughEstimate.perAgentCredits,
+            }
           ),
           credits: {
             estimatedCredits,

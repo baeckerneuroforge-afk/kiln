@@ -10,7 +10,8 @@ import {
   writeQuickUseDone,
   writeQuickUseEvent,
 } from "@/lib/quick-use/server";
-import type { QuickUseResult, QuickUseSource } from "@/lib/quick-use/types";
+import type { QuickUseFileAttachment, QuickUseResult, QuickUseSource } from "@/lib/quick-use/types";
+import { processFiles, buildFileContext } from "@/lib/quick-use/file-processor";
 import {
   executeDeepResearch,
   type ResearchDepth,

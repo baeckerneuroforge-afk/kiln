@@ -13,7 +13,8 @@ import {
   writeQuickUseDone,
   writeQuickUseEvent,
 } from "@/lib/quick-use/server";
-import type { QuickUseResult } from "@/lib/quick-use/types";
+import type { QuickUseFileAttachment, QuickUseResult } from "@/lib/quick-use/types";
+import { processFiles, buildFileContext } from "@/lib/quick-use/file-processor";
 import { executeComputerUse } from "@/lib/workflow-nodes/computer-use-node";
 
 export const dynamic = "force-dynamic";
@@ -159,14 +160,27 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: access.upgradeMessage }, { status: 403 });
   }
 
-  const body = await request.json().catch(() => null) as { message?: string; userId?: string } | null;
+  const body = await request.json().catch(() => null) as {
+    message?: string;
+    userId?: string;
+    files?: QuickUseFileAttachment[];
+  } | null;
   const message = body?.message?.trim();
+  const fileAttachments = Array.isArray(body?.files) ? body.files : [];
 
   if (!message) {
     return Response.json({ error: "Message is required" }, { status: 400 });
   }
 
-  const extracted = await extractComputerUseRequest(message);
+  // Process uploaded files and append context to task
+  let taskWithFiles = message;
+  if (fileAttachments.length > 0) {
+    const processed = await processFiles(fileAttachments);
+    const fileContext = buildFileContext(processed);
+    taskWithFiles = `${message}\n\n${fileContext}`;
+  }
+
+  const extracted = await extractComputerUseRequest(taskWithFiles);
 
   if (!extracted.url) {
     return Response.json(

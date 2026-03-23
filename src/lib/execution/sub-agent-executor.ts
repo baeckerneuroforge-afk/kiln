@@ -713,7 +713,7 @@ export class SubAgentExecutor {
     const routingDecision = selectOptimalModel(routingContext);
     const model = routingDecision.primary.model;
 
-    eventStream.agentStarted(this.config.id, this.config.description, model);
+    eventStream.agentStarted(this.config.id, this.config.description, model, this.config.tools);
 
     // Step 2: Build tool definitions
     const enableSpawn = !!this.spawnHandler;

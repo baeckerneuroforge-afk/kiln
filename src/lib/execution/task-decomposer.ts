@@ -138,6 +138,10 @@ export async function decomposeGoal(
   }
 
   // Validate and normalize
+  const allowedTools = context?.availableTools?.filter((tool): tool is SubAgentTool =>
+    VALID_TOOLS.includes(tool as SubAgentTool)
+  );
+
   parsed.tasks = parsed.tasks.slice(0, maxTasks).map((task, i) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const raw = task as any;
@@ -148,7 +152,7 @@ export async function decomposeGoal(
       config: task.config || {},
       estimatedComplexity: validateComplexity(task.estimatedComplexity),
       suggestedModelTier: validateTier(task.suggestedModelTier),
-      tools: validateTools(raw.tools_needed || raw.tools),
+      tools: validateTools(raw.tools_needed || raw.tools, allowedTools),
       modelPreference: validateModelPreference(raw.model_preference || raw.modelPreference),
       outputFormat: validateOutputFormat(raw.output_format || raw.outputFormat),
     };
@@ -192,9 +196,26 @@ function validateTier(t: unknown): ModelTier {
 
 const VALID_TOOLS: SubAgentTool[] = ["computer_use", "code_sandbox", "mcp", "deep_research", "web_search"];
 
-function validateTools(tools: unknown): SubAgentTool[] | undefined {
-  if (!Array.isArray(tools)) return undefined;
-  return tools.filter((t): t is SubAgentTool => VALID_TOOLS.includes(t as SubAgentTool));
+function validateTools(tools: unknown, allowedTools?: SubAgentTool[]): SubAgentTool[] | undefined {
+  const allowed = allowedTools && allowedTools.length > 0
+    ? new Set(allowedTools)
+    : new Set(VALID_TOOLS);
+
+  const normalized = Array.isArray(tools)
+    ? tools.filter((t): t is SubAgentTool =>
+        VALID_TOOLS.includes(t as SubAgentTool) && allowed.has(t as SubAgentTool)
+      )
+    : [];
+
+  if (normalized.length > 0) {
+    return normalized;
+  }
+
+  if (allowed.has("web_search")) {
+    return ["web_search"];
+  }
+
+  return allowed.size > 0 ? [Array.from(allowed)[0]] : undefined;
 }
 
 const VALID_PREFERENCES: ModelPreference[] = ["fast_extraction", "research", "code_generation", "deep_reasoning", "creative"];

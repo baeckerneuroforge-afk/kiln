@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -9,11 +9,16 @@ import {
   Coins,
   Download,
   ExternalLink,
+  FileSpreadsheet,
+  FileText,
+  FileType2,
   Loader2,
+  Paperclip,
   RefreshCcw,
   Save,
   Sparkles,
   User,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,9 +28,16 @@ import { MarkdownMessage } from "@/components/agents/markdown-message";
 import { cn } from "@/lib/utils";
 import type {
   QuickUseCreditInfo,
+  QuickUseFileAttachment,
+  QuickUseGeneratedFile,
   QuickUseResult,
   QuickUseStreamEvent,
   QuickUseType,
+} from "@/lib/quick-use/types";
+import {
+  ALLOWED_EXTENSIONS,
+  MAX_FILE_SIZE,
+  MAX_FILES_PER_MESSAGE,
 } from "@/lib/quick-use/types";
 
 interface QuickUseChatProps {
@@ -45,11 +57,22 @@ interface AgentStatusCard {
   model?: string;
 }
 
+/** Pending file before upload (client-side only) */
+interface PendingFile {
+  id: string;
+  file: File;
+  name: string;
+  size: number;
+  uploading: boolean;
+  error?: string;
+}
+
 type ChatEntry =
   | {
       id: string;
       kind: "user";
       content: string;
+      files?: { name: string; size: number }[];
     }
   | {
       id: string;
@@ -95,6 +118,22 @@ function escapeHtml(text: string): string {
     .replaceAll("'", "&#039;");
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getFileExtension(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot).toLowerCase() : "";
+}
+
+function isAllowedFile(file: File): boolean {
+  const ext = getFileExtension(file.name);
+  return (ALLOWED_EXTENSIONS as readonly string[]).includes(ext);
+}
+
 function exportResearchAsPdf(result: QuickUseResult) {
   const report = result.markdown || result.summary;
   const sources = (result.sources || [])
@@ -128,6 +167,42 @@ function exportResearchAsPdf(result: QuickUseResult) {
   popup.focus();
   setTimeout(() => popup.print(), 200);
 }
+
+/* ── File icon helper ── */
+
+function GeneratedFileIcon({ kind }: { kind: QuickUseGeneratedFile["kind"] }) {
+  switch (kind) {
+    case "xlsx":
+      return <FileSpreadsheet className="h-5 w-5 text-emerald-400" />;
+    case "pdf":
+      return <FileText className="h-5 w-5 text-red-400" />;
+    case "docx":
+      return <FileType2 className="h-5 w-5 text-blue-400" />;
+    case "csv":
+      return <FileSpreadsheet className="h-5 w-5 text-zinc-400" />;
+  }
+}
+
+function GeneratedFileCard({ file }: { file: QuickUseGeneratedFile }) {
+  return (
+    <a
+      href={file.url}
+      download={file.name}
+      className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.03] p-3 transition-colors hover:border-white/14 hover:bg-white/[0.06]"
+    >
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/6 bg-white/[0.04]">
+        <GeneratedFileIcon kind={file.kind} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-white">{file.name}</p>
+        <p className="text-xs text-zinc-400">{file.kind.toUpperCase()} &middot; {formatFileSize(file.size)}</p>
+      </div>
+      <Download className="h-4 w-4 shrink-0 text-zinc-400" />
+    </a>
+  );
+}
+
+/* ── UI Components ── */
 
 function MessageBubble({ children, icon, className }: {
   children: React.ReactNode;
@@ -229,6 +304,20 @@ function ResultCard({
             <pre className="overflow-x-auto whitespace-pre-wrap text-xs leading-6 text-zinc-300">
               {stringifyData(result.data)}
             </pre>
+          </div>
+        ) : null}
+
+        {/* Generated Files */}
+        {result.generatedFiles?.length ? (
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
+              Generated Files
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {result.generatedFiles.map((file) => (
+                <GeneratedFileCard key={`${file.name}-${file.url}`} file={file} />
+              ))}
+            </div>
           </div>
         ) : null}
 
@@ -334,6 +423,53 @@ function ResultCard({
   );
 }
 
+/* ── File Pills (attached files above input) ── */
+
+function FilePills({
+  files,
+  onRemove,
+}: {
+  files: PendingFile[];
+  onRemove: (id: string) => void;
+}) {
+  if (files.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-2 px-1 pb-2">
+      {files.map((f) => (
+        <div
+          key={f.id}
+          className={cn(
+            "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs",
+            f.error
+              ? "border-red-500/30 bg-red-500/10 text-red-300"
+              : f.uploading
+                ? "border-orange-500/30 bg-orange-500/10 text-orange-300"
+                : "border-[#3a322d] bg-[#201a17] text-zinc-300"
+          )}
+        >
+          <Paperclip className="h-3 w-3 shrink-0" />
+          <span className="max-w-[140px] truncate">{f.name}</span>
+          <span className="text-zinc-500">{formatFileSize(f.size)}</span>
+          {f.uploading ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <button
+              type="button"
+              onClick={() => onRemove(f.id)}
+              className="rounded-full p-0.5 text-zinc-400 transition-colors hover:text-white"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Main Component ── */
+
 export function QuickUseChat({
   title,
   subtitle,
@@ -352,8 +488,11 @@ export function QuickUseChat({
   const [isStreaming, setIsStreaming] = useState(false);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
   const [activeResultId, setActiveResultId] = useState<string | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const orderedAgentStatuses = Object.values(agentStatuses).sort((a, b) => a.id.localeCompare(b.id));
 
@@ -377,11 +516,119 @@ export function QuickUseChat({
     setIsStreaming(false);
     setSavingState("idle");
     setActiveResultId(null);
+    setPendingFiles([]);
+    setIsDragOver(false);
   }
 
   function appendMessage(entry: ChatEntry) {
     setMessages((current) => [...current, entry]);
   }
+
+  /* ── File handling ── */
+
+  const addFiles = useCallback((fileList: FileList | File[]) => {
+    const newFiles: PendingFile[] = [];
+
+    for (const file of Array.from(fileList)) {
+      if (!isAllowedFile(file)) {
+        newFiles.push({
+          id: createId(),
+          file,
+          name: file.name,
+          size: file.size,
+          uploading: false,
+          error: "Unsupported file type",
+        });
+        continue;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        newFiles.push({
+          id: createId(),
+          file,
+          name: file.name,
+          size: file.size,
+          uploading: false,
+          error: "File exceeds 10 MB",
+        });
+        continue;
+      }
+      newFiles.push({
+        id: createId(),
+        file,
+        name: file.name,
+        size: file.size,
+        uploading: false,
+      });
+    }
+
+    setPendingFiles((current) => {
+      const combined = [...current, ...newFiles];
+      return combined.slice(-MAX_FILES_PER_MESSAGE);
+    });
+  }, []);
+
+  function removePendingFile(id: string) {
+    setPendingFiles((current) => current.filter((f) => f.id !== id));
+  }
+
+  async function uploadPendingFiles(): Promise<QuickUseFileAttachment[]> {
+    const valid = pendingFiles.filter((f) => !f.error);
+    if (valid.length === 0) return [];
+
+    setPendingFiles((current) =>
+      current.map((f) => (f.error ? f : { ...f, uploading: true }))
+    );
+
+    const formData = new FormData();
+    for (const pf of valid) {
+      formData.append("files", pf.file);
+    }
+
+    const response = await fetch("/api/quick-use/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: "Upload failed" })) as { error?: string };
+      throw new Error(err.error || "Upload failed");
+    }
+
+    const data = (await response.json()) as {
+      attachments: QuickUseFileAttachment[];
+      errors?: string[];
+    };
+
+    return data.attachments;
+  }
+
+  /* ── Drag and Drop ── */
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
+      if (e.dataTransfer.files.length > 0) {
+        addFiles(e.dataTransfer.files);
+      }
+    },
+    [addFiles]
+  );
+
+  /* ── Research save ── */
 
   async function saveResearchResult(result: QuickUseResult, entryId: string) {
     try {
@@ -399,7 +646,7 @@ export function QuickUseChat({
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: "Save failed" }));
+        const error = await response.json().catch(() => ({ error: "Save failed" })) as { error?: string };
         throw new Error(error.error || "Save failed");
       }
 
@@ -419,6 +666,8 @@ export function QuickUseChat({
       setSavingState("idle");
     }
   }
+
+  /* ── Swarm events ── */
 
   function handleSwarmEvent(event: Extract<QuickUseStreamEvent, { type: "swarm_event" }>["event"]) {
     switch (event.type) {
@@ -456,7 +705,7 @@ export function QuickUseChat({
             ...(current[id] || {
               id,
               task: id,
-              status: "running",
+              status: "running" as const,
             }),
             detail: `Using ${String(event.data.tool || "tool")}`,
           },
@@ -471,7 +720,7 @@ export function QuickUseChat({
             ...(current[id] || {
               id,
               task: id,
-              status: "completed",
+              status: "completed" as const,
             }),
             status: "completed",
             detail: String(event.data.resultSummary || "Completed"),
@@ -487,7 +736,7 @@ export function QuickUseChat({
             ...(current[id] || {
               id,
               task: id,
-              status: "failed",
+              status: "failed" as const,
             }),
             status: "failed",
             detail: String(event.data.error || "Failed"),
@@ -507,32 +756,54 @@ export function QuickUseChat({
     }
   }
 
+  /* ── Send ── */
+
   async function handleSend(override?: string) {
     const message = (override ?? input).trim();
     if (!message || isStreaming) return;
 
+    const hasFiles = pendingFiles.some((f) => !f.error);
+
     setInput("");
-    setActiveProgress("Starting execution...");
+    setActiveProgress(hasFiles ? "Uploading files..." : "Starting execution...");
     setAgentStatuses({});
     setFindings([]);
     setEstimatedCredits(undefined);
     setSavingState("idle");
     setActiveResultId(null);
-    appendMessage({ id: createId(), kind: "user", content: message });
+
+    const userFiles = pendingFiles
+      .filter((f) => !f.error)
+      .map((f) => ({ name: f.name, size: f.size }));
+
+    appendMessage({
+      id: createId(),
+      kind: "user",
+      content: message,
+      ...(userFiles.length > 0 ? { files: userFiles } : {}),
+    });
     setIsStreaming(true);
 
     try {
+      let fileAttachments: QuickUseFileAttachment[] = [];
+      if (hasFiles) {
+        fileAttachments = await uploadPendingFiles();
+        setPendingFiles([]);
+        setActiveProgress("Starting execution...");
+      }
+
       const response = await fetch(apiEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message,
           userId,
+          ...(fileAttachments.length > 0 ? { files: fileAttachments } : {}),
         }),
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: "Request failed" }));
+        const error = await response.json().catch(() => ({ error: "Request failed" })) as { error?: string };
         throw new Error(error.error || "Request failed");
       }
 
@@ -612,12 +883,32 @@ export function QuickUseChat({
       });
     } finally {
       setIsStreaming(false);
+      setPendingFiles([]);
     }
   }
 
   return (
-    <div className="relative mx-auto flex min-h-[78vh] max-w-6xl overflow-hidden rounded-[30px] border border-[#332f2b] bg-[#171311] shadow-[0_28px_90px_rgba(0,0,0,0.36)]">
+    <div
+      className={cn(
+        "relative mx-auto flex min-h-[78vh] max-w-6xl overflow-hidden rounded-[30px] border bg-[#171311] shadow-[0_28px_90px_rgba(0,0,0,0.36)]",
+        isDragOver ? "border-orange-500/50" : "border-[#332f2b]"
+      )}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.18),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(120,53,15,0.22),transparent_28%)]" />
+
+      {/* Drag overlay */}
+      {isDragOver ? (
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-orange-500/30 bg-[#1a1613] p-8">
+            <Paperclip className="h-8 w-8 text-orange-400" />
+            <p className="text-lg font-medium text-white">Drop files here</p>
+            <p className="text-sm text-zinc-400">PDF, DOCX, XLSX, CSV, TXT, JSON, PNG, JPG</p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="relative flex flex-1 flex-col">
         <div className="border-b border-[#2f2925] px-5 py-5 sm:px-6">
@@ -642,8 +933,8 @@ export function QuickUseChat({
         <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">
           {type === "agent-swarm" ? <AgentStatusGrid statuses={orderedAgentStatuses} /> : null}
 
-        {findings.length > 0 ? (
-          <div className="mb-5 rounded-2xl border border-[#332f2b] bg-[#120f0d]/80 p-4">
+          {findings.length > 0 ? (
+            <div className="mb-5 rounded-2xl border border-[#332f2b] bg-[#120f0d]/80 p-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
                 Progressive Findings
               </p>
@@ -666,8 +957,23 @@ export function QuickUseChat({
                 return (
                   <div key={message.id} className="flex justify-end">
                     <div className="flex max-w-2xl items-start gap-3">
-                      <div className="rounded-[24px] bg-[linear-gradient(135deg,#f97316,#ea580c)] px-5 py-4 text-sm leading-relaxed text-white shadow-[0_18px_42px_rgba(249,115,22,0.24)]">
-                        {message.content}
+                      <div className="space-y-2">
+                        <div className="rounded-[24px] bg-[linear-gradient(135deg,#f97316,#ea580c)] px-5 py-4 text-sm leading-relaxed text-white shadow-[0_18px_42px_rgba(249,115,22,0.24)]">
+                          {message.content}
+                        </div>
+                        {message.files?.length ? (
+                          <div className="flex flex-wrap justify-end gap-1.5">
+                            {message.files.map((f) => (
+                              <span
+                                key={f.name}
+                                className="inline-flex items-center gap-1 rounded-full border border-orange-400/20 bg-orange-500/10 px-2.5 py-1 text-[11px] text-orange-200"
+                              >
+                                <Paperclip className="h-2.5 w-2.5" />
+                                {f.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                       <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-orange-400/20 bg-orange-500/10 text-orange-200">
                         <User className="h-4 w-4" />
@@ -759,6 +1065,7 @@ export function QuickUseChat({
           <div ref={scrollRef} />
         </div>
 
+        {/* Input area */}
         <div className="border-t border-[#2f2925] bg-[#130f0d]/95 px-4 py-4 backdrop-blur-sm sm:px-6">
           {messages.length === 0 ? (
             <div className="mb-4">
@@ -781,6 +1088,9 @@ export function QuickUseChat({
           ) : null}
 
           <div className="rounded-[26px] border border-[#332f2b] bg-[#1a1613] p-3 shadow-[0_-12px_35px_rgba(0,0,0,0.18)]">
+            {/* File pills */}
+            <FilePills files={pendingFiles} onRemove={removePendingFile} />
+
             <Textarea
               ref={textareaRef}
               value={input}
@@ -796,17 +1106,43 @@ export function QuickUseChat({
             />
 
             <div className="mt-3 flex items-center justify-between gap-3">
-              <p className="text-xs text-[#776b63]">
-                {type === "agent-swarm"
-                  ? "Complex tasks are split across multiple agents."
-                  : type === "deep-research"
-                    ? "Research results stream in as sources are processed."
-                    : "Direct browser execution with live step updates."}
-              </p>
+              <div className="flex items-center gap-2">
+                {/* Attach file button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isStreaming}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#3a322d] bg-[#201a17] text-zinc-400 transition-colors hover:border-orange-500/30 hover:text-orange-300 disabled:opacity-40"
+                  title="Attach files (PDF, DOCX, XLSX, CSV, TXT, JSON, PNG, JPG)"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept={ALLOWED_EXTENSIONS.join(",")}
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files) {
+                      addFiles(e.target.files);
+                      e.target.value = "";
+                    }
+                  }}
+                />
+
+                <p className="text-xs text-[#776b63]">
+                  {type === "agent-swarm"
+                    ? "Complex tasks are split across multiple agents."
+                    : type === "deep-research"
+                      ? "Research results stream in as sources are processed."
+                      : "Direct browser execution with live step updates."}
+                </p>
+              </div>
 
               <Button
                 onClick={() => handleSend()}
-                disabled={!input.trim() || isStreaming}
+                disabled={(!input.trim() && pendingFiles.length === 0) || isStreaming}
                 className="h-11 rounded-2xl bg-[linear-gradient(135deg,#f97316,#ea580c)] px-4 text-white hover:opacity-95"
               >
                 {isStreaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
