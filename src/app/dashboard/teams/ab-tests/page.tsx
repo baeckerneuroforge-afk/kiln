@@ -81,8 +81,8 @@ const metricLabels: Record<string, { label: string; icon: typeof BarChart3 }> = 
 };
 
 const statusColors: Record<string, { bg: string; text: string }> = {
-  RUNNING: { bg: "bg-green-500/20", text: "text-green-400" },
-  PAUSED: { bg: "bg-amber-500/20", text: "text-amber-400" },
+  RUNNING: { bg: "bg-green-500/20", text: "text-gray-400" },
+  PAUSED: { bg: "bg-amber-500/20", text: "text-gray-400" },
   COMPLETED: { bg: "bg-zinc-500/20", text: "text-zinc-400" },
 };
 
@@ -314,7 +314,7 @@ export default function ABTestsPage() {
                       {test.status === "PAUSED" && (
                         <button
                           onClick={(e) => { e.stopPropagation(); updateStatus(test.id, "RUNNING"); }}
-                          className="text-[10px] px-2 py-0.5 rounded-md bg-green-500/10 text-green-400 hover:bg-green-500/20"
+                          className="text-[10px] px-2 py-0.5 rounded-md bg-white/[0.05] text-gray-400 hover:bg-green-500/20"
                         >
                           <Play className="h-2.5 w-2.5 inline mr-0.5" /> Resume
                         </button>
@@ -544,14 +544,14 @@ export default function ABTestsPage() {
                         <div key={result.id} className="flex items-center gap-3 text-[11px] px-2 py-1.5 rounded-lg hover:bg-zinc-800/50">
                           <span className={cn(
                             "px-1.5 py-0.5 rounded font-mono",
-                            result.team === "A" ? "bg-blue-500/20 text-blue-400" : "bg-purple-500/20 text-purple-400"
+                            result.team === "A" ? "bg-blue-500/20 text-gray-400" : "bg-purple-500/20 text-gray-400"
                           )}>
                             {result.team}
                           </span>
                           <span className={cn(
-                            result.status === "COMPLETED" ? "text-green-400" :
-                            result.status === "FAILED" ? "text-red-400" :
-                            result.status === "RUNNING" ? "text-amber-400" : "text-zinc-400"
+                            result.status === "COMPLETED" ? "text-gray-400" :
+                            result.status === "FAILED" ? "text-gray-400" :
+                            result.status === "RUNNING" ? "text-gray-400" : "text-zinc-400"
                           )}>
                             {result.status}
                           </span>

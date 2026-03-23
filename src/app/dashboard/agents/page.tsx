@@ -40,9 +40,9 @@ interface AgentWithCount {
 }
 
 const statusConfig = {
-  DRAFT: { label: "Draft", dot: "bg-muted-foreground", className: "bg-muted text-muted-foreground" },
-  LIVE: { label: "Live", dot: "bg-kiln-green", className: "bg-kiln-green/10 text-kiln-green" },
-  PAUSED: { label: "Paused", dot: "bg-kiln-orange", className: "bg-kiln-orange/10 text-kiln-orange" },
+  DRAFT: { label: "Draft", dot: "bg-amber-500", className: "text-gray-500" },
+  LIVE: { label: "Live", dot: "bg-green-500", className: "text-gray-500" },
+  PAUSED: { label: "Paused", dot: "bg-gray-500", className: "text-gray-500" },
 };
 
 function timeAgo(dateStr: string): string {
@@ -126,10 +126,10 @@ export default function AgentsPage() {
       {agents.length > 0 && (
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="font-serif text-3xl text-foreground">
+            <h1 className="font-serif text-3xl text-gray-100">
               AI Agent Studio
             </h1>
-            <p className="mt-2 text-muted-foreground">
+            <p className="mt-2 text-gray-400">
               Create and manage your AI Agents.
             </p>
           </div>
@@ -169,26 +169,20 @@ export default function AgentsPage() {
               <Link
                 key={agent.id}
                 href={`/dashboard/agents/${agent.id}`}
-                className="group relative flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 card-hover-glow"
+                className="group relative flex flex-col rounded-xl border border-[#1e1e1e] bg-[#161616] p-5 transition-all duration-150 hover:bg-[#1a1a1a] hover:border-[#2a2a2a]"
               >
                 {/* Header */}
                 <div className="mb-3 flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
-                      agent.agentMode === "TASK" ? "bg-kiln-orange/8 group-hover:bg-kiln-orange/12" : "bg-kiln-blue/8 group-hover:bg-kiln-blue/12"
-                    )}>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05] group-hover:bg-white/[0.08] transition-colors">
                       {agent.agentMode === "TASK" ? (
-                        <Zap className="h-5 w-5 text-kiln-orange" />
+                        <Zap className="h-5 w-5 text-gray-400 group-hover:text-gray-300 transition-colors" />
                       ) : (
-                        <MessageSquare className="h-5 w-5 text-kiln-blue" />
+                        <MessageSquare className="h-5 w-5 text-gray-400 group-hover:text-gray-300 transition-colors" />
                       )}
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide w-fit",
-                        agent.agentMode === "TASK" ? "bg-kiln-orange/8 text-kiln-orange" : "bg-kiln-blue/8 text-kiln-blue"
-                      )}>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium tracking-wide w-fit text-gray-400">
                         {agent.agentMode === "TASK" ? <><Zap className="h-2.5 w-2.5" />Task</> : <><MessageSquare className="h-2.5 w-2.5" />Chat</>}
                       </span>
                       <div className="flex items-center gap-1.5">
@@ -199,8 +193,8 @@ export default function AgentsPage() {
                           </>
                         ) : (
                           <>
-                            <div className={cn("h-2 w-2 rounded-full", status.dot)} />
-                            <span className="text-[11px] font-medium text-muted-foreground">
+                            <div className={cn("h-1.5 w-1.5 rounded-full", status.dot)} />
+                            <span className="text-[11px] font-medium text-gray-500">
                               {status.label}
                             </span>
                           </>
@@ -218,7 +212,7 @@ export default function AgentsPage() {
 
                 {/* Name + Description */}
                 <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-semibold text-foreground group-hover:text-foreground/80 transition-colors truncate">
+                  <h3 className="font-medium text-gray-200 group-hover:text-gray-100 transition-colors truncate">
                     {agent.name}
                   </h3>
                   <AgentStatusBadge agentId={agent.id} />
@@ -228,12 +222,12 @@ export default function AgentsPage() {
                     </span>
                   )}
                 </div>
-                <p className="mb-auto text-sm text-muted-foreground line-clamp-2 min-h-[2.5rem] leading-relaxed">
+                <p className="mb-auto text-sm text-gray-400 line-clamp-2 min-h-[2.5rem] leading-relaxed">
                   {agent.description || agent.welcomeMessage || "No description"}
                 </p>
 
                 {/* Stats Row */}
-                <div className="mt-4 flex items-center gap-3 border-t border-border pt-3 text-xs text-muted-foreground">
+                <div className="mt-4 flex items-center gap-3 border-t border-[#1e1e1e] pt-3 text-xs text-gray-500">
                   {agent.llmModel && (() => {
                     const modelDef = getModelDef(agent.llmModel!);
                     return modelDef ? (

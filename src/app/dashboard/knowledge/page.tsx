@@ -24,7 +24,7 @@ export default async function KnowledgeGraphPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <div>
-        <p className="text-xs font-medium uppercase tracking-[0.24em] text-kiln-orange">
+        <p className="text-xs font-medium uppercase tracking-[0.24em] text-gray-400">
           Knowledge Graph
         </p>
         <h1 className="mt-2 font-serif text-3xl text-foreground">

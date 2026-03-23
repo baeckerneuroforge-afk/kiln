@@ -30,27 +30,18 @@ const quickStartCards = [
     description: "Build an AI agent for your website in minutes",
     href: "/dashboard/agents/new",
     icon: Bot,
-    accent: "text-orange-500",
-    accentBg: "bg-orange-500/10",
-    accentBorder: "group-hover:border-orange-500/30",
   },
   {
     title: "Deploy a Workflow",
     description: "Choose from pre-built workflow templates",
     href: "/dashboard/workflows/templates",
     icon: Sparkles,
-    accent: "text-violet-500",
-    accentBg: "bg-violet-500/10",
-    accentBorder: "group-hover:border-violet-500/30",
   },
   {
     title: "Connect Integration",
     description: "Connect your tools and services",
     href: "/dashboard/integrations",
     icon: Plug,
-    accent: "text-blue-500",
-    accentBg: "bg-blue-500/10",
-    accentBorder: "group-hover:border-blue-500/30",
   },
 ] as const;
 
@@ -63,19 +54,10 @@ export function QuickStartSection() {
           <Link
             key={card.title}
             href={card.href}
-            className={cn(
-              "group relative flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-5",
-              "transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-700 hover:shadow-lg",
-              card.accentBorder
-            )}
+            className="group relative flex flex-col gap-3 rounded-xl border border-[#1e1e1e] bg-[#161616] p-5 transition-all duration-150 hover:bg-[#1a1a1a] hover:border-[#2a2a2a]"
           >
-            <div
-              className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-lg",
-                card.accentBg
-              )}
-            >
-              <Icon className={cn("h-5 w-5", card.accent)} />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05] group-hover:bg-white/[0.08] transition-colors">
+              <Icon className="h-5 w-5 text-gray-400 group-hover:text-gray-300 transition-colors" />
             </div>
 
             <div className="flex items-center justify-between">

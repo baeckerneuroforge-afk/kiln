@@ -18,7 +18,7 @@ export default function AgentDetailError({
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center justify-center py-24 text-center">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.05]">
         <AlertTriangle className="h-6 w-6 text-red-500" />
       </div>
       <h2 className="mb-2 text-lg font-semibold text-foreground">

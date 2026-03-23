@@ -115,9 +115,9 @@ function statusClassName(status: ConversationRow["status"]) {
     case "ACTIVE":
       return "bg-blue-500/15 text-blue-300";
     case "HANDOFF_REQUESTED":
-      return "bg-amber-500/15 text-amber-300";
+      return "bg-amber-500/15 text-gray-400";
     case "HANDOFF_RESPONDED":
-      return "bg-emerald-500/15 text-emerald-300";
+      return "bg-emerald-500/15 text-gray-400";
     case "COMPLETED":
     default:
       return "bg-zinc-500/15 text-zinc-300";
@@ -242,7 +242,7 @@ export default function ConversationsPage() {
     <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.24em] text-kiln-orange">
+          <p className="text-xs font-medium uppercase tracking-[0.24em] text-gray-400">
             Conversations
           </p>
           <h1 className="mt-2 font-serif text-3xl text-foreground">All agent conversations</h1>
@@ -438,7 +438,7 @@ export default function ConversationsPage() {
                             key={message.id}
                             className={cn(
                               "rounded-xl border px-4 py-3",
-                              message.role === "USER" && "border-kiln-orange/20 bg-kiln-orange/5",
+                              message.role === "USER" && "border-[#1e1e1e] bg-kiln-orange/5",
                               message.role === "ASSISTANT" && "border-border bg-card",
                               message.role === "HUMAN" && "border-emerald-500/20 bg-emerald-500/5",
                               message.role === "SYSTEM" && "border-zinc-800 bg-zinc-950/40"
@@ -470,7 +470,7 @@ export default function ConversationsPage() {
                             {/* Extracted Document Data */}
                             {message.extractedData && (
                               <div className="mt-2 rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
-                                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-blue-400">
+                                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
                                   Extracted: {message.extractedData.documentType}
                                 </p>
                                 <div className="grid grid-cols-2 gap-1">

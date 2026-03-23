@@ -191,27 +191,27 @@ interface Team {
 /* ========== Role color config ========== */
 const roleColors: Record<string, { bg: string; text: string; border: string; hex: string }> = {
   HEAD: { bg: "bg-orange-500/20", text: "text-orange-400", border: "border-orange-500/40", hex: "#F97316" },
-  COORDINATOR: { bg: "bg-blue-500/20", text: "text-blue-400", border: "border-blue-500/40", hex: "#3B82F6" },
-  EXECUTOR: { bg: "bg-green-500/20", text: "text-green-400", border: "border-green-500/40", hex: "#22C55E" },
-  REPORTER: { bg: "bg-purple-500/20", text: "text-purple-400", border: "border-purple-500/40", hex: "#A855F7" },
-  APPROVAL_GATE: { bg: "bg-amber-500/20", text: "text-amber-300", border: "border-amber-500/40", hex: "#F59E0B" },
+  COORDINATOR: { bg: "bg-blue-500/20", text: "text-gray-400", border: "border-blue-500/40", hex: "#3B82F6" },
+  EXECUTOR: { bg: "bg-green-500/20", text: "text-gray-400", border: "border-green-500/40", hex: "#22C55E" },
+  REPORTER: { bg: "bg-purple-500/20", text: "text-gray-400", border: "border-purple-500/40", hex: "#A855F7" },
+  APPROVAL_GATE: { bg: "bg-amber-500/20", text: "text-gray-400", border: "border-amber-500/40", hex: "#F59E0B" },
 };
 
 const priorityColors: Record<string, { bg: string; text: string }> = {
   LOW: { bg: "bg-zinc-700/60", text: "text-zinc-400" },
-  MEDIUM: { bg: "bg-blue-500/20", text: "text-blue-400" },
+  MEDIUM: { bg: "bg-blue-500/20", text: "text-gray-400" },
   HIGH: { bg: "bg-orange-500/20", text: "text-orange-400" },
-  URGENT: { bg: "bg-red-500/20", text: "text-red-400" },
+  URGENT: { bg: "bg-red-500/20", text: "text-gray-400" },
 };
 
 const statusColumns = ["PENDING", "RUNNING", "AWAITING_APPROVAL", "COMPLETED", "FAILED", "REJECTED", "SKIPPED"] as const;
 const statusLabels: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   PENDING: { label: "Pending", icon: <Clock className="h-4 w-4" />, color: "text-zinc-400" },
-  RUNNING: { label: "Running", icon: <Loader2 className="h-4 w-4 animate-spin" />, color: "text-blue-400" },
-  IN_PROGRESS: { label: "Running", icon: <Loader2 className="h-4 w-4 animate-spin" />, color: "text-blue-400" },
-  AWAITING_APPROVAL: { label: "Awaiting approval", icon: <AlertCircle className="h-4 w-4" />, color: "text-amber-300" },
-  COMPLETED: { label: "Completed", icon: <CheckCircle2 className="h-4 w-4" />, color: "text-green-400" },
-  FAILED: { label: "Failed", icon: <AlertTriangle className="h-4 w-4" />, color: "text-red-400" },
+  RUNNING: { label: "Running", icon: <Loader2 className="h-4 w-4 animate-spin" />, color: "text-gray-400" },
+  IN_PROGRESS: { label: "Running", icon: <Loader2 className="h-4 w-4 animate-spin" />, color: "text-gray-400" },
+  AWAITING_APPROVAL: { label: "Awaiting approval", icon: <AlertCircle className="h-4 w-4" />, color: "text-gray-400" },
+  COMPLETED: { label: "Completed", icon: <CheckCircle2 className="h-4 w-4" />, color: "text-gray-400" },
+  FAILED: { label: "Failed", icon: <AlertTriangle className="h-4 w-4" />, color: "text-gray-400" },
   REJECTED: { label: "Rejected", icon: <X className="h-4 w-4" />, color: "text-red-300" },
   SKIPPED: { label: "Skipped", icon: <Info className="h-4 w-4" />, color: "text-zinc-500" },
 };
@@ -299,11 +299,11 @@ function TeamMemberNode({ data }: NodeProps<Node<TeamMemberNodeData>>) {
             className={cn(
               "inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full",
               data.agentMode === "APPROVAL"
-                ? "bg-amber-500/15 text-amber-300"
+                ? "bg-amber-500/15 text-gray-400"
                 :
               data.agentMode === "CHAT"
-                ? "bg-blue-500/15 text-blue-400"
-                : "bg-green-500/15 text-green-400"
+                ? "bg-blue-500/15 text-gray-400"
+                : "bg-green-500/15 text-gray-400"
             )}
           >
             {data.agentMode === "APPROVAL" ? (
@@ -327,14 +327,14 @@ function TeamMemberNode({ data }: NodeProps<Node<TeamMemberNodeData>>) {
           </span>
         )}
         {data.hasOutputSchema && (
-          <span className="inline-flex items-center text-[9px] bg-violet-500/10 text-violet-400 px-1.5 py-0.5 rounded-full">
+          <span className="inline-flex items-center text-[9px] bg-white/[0.05] text-gray-400 px-1.5 py-0.5 rounded-full">
             JSON
           </span>
         )}
         {typeof data.sharedContextCount === "number" && data.sharedContextCount > 0 && (
           <span
             title={(data.sharedContextPreview || []).join(", ")}
-            className="inline-flex items-center gap-1 text-[9px] bg-amber-500/10 text-amber-300 px-1.5 py-0.5 rounded-full"
+            className="inline-flex items-center gap-1 text-[9px] bg-white/[0.05] text-gray-400 px-1.5 py-0.5 rounded-full"
           >
             <Database className="h-2.5 w-2.5" />
             {data.sharedContextCount}
@@ -865,11 +865,11 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                       className={cn(
                         "inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full",
                         agentMode === "APPROVAL"
-                          ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                          ? "bg-amber-500/15 text-gray-400 border border-amber-500/30"
                           :
                         agentMode === "CHAT"
-                          ? "bg-blue-500/15 text-blue-400 border border-blue-500/30"
-                          : "bg-green-500/15 text-green-400 border border-green-500/30"
+                          ? "bg-blue-500/15 text-gray-400 border border-blue-500/30"
+                          : "bg-green-500/15 text-gray-400 border border-green-500/30"
                       )}
                     >
                       {agentMode === "APPROVAL" ? (
@@ -1106,7 +1106,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                         <button
                           type="button"
                           onClick={() => setSchemaFields((prev) => prev.filter((_, idx) => idx !== i))}
-                          className="text-zinc-600 hover:text-red-400 mt-1"
+                          className="text-zinc-600 hover:text-gray-400 mt-1"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -1144,8 +1144,8 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
 
                   {agentActions.length > 6 && (
                     <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-1.5 mt-1">
-                      <AlertCircle className="h-3 w-3 text-amber-400 shrink-0" />
-                      <p className="text-[10px] text-amber-400">
+                      <AlertCircle className="h-3 w-3 text-gray-400 shrink-0" />
+                      <p className="text-[10px] text-gray-400">
                         {agentActions.length} tools active — consider reducing for better reliability
                       </p>
                     </div>
@@ -1259,7 +1259,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                             className={cn(
                               "flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
                               triggerTeamMode === "sync"
-                                ? "border-blue-500/40 bg-blue-500/10 text-blue-400"
+                                ? "border-blue-500/40 bg-white/[0.05] text-gray-400"
                                 : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
                             )}
                           >
@@ -1540,7 +1540,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
               variant="ghost"
               size="sm"
               onClick={() => setConfirmRemove(true)}
-              className="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10"
+              className="w-full text-gray-400 hover:text-red-300 hover:bg-white/[0.05]"
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Remove Node
@@ -1848,7 +1848,7 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
           )}
 
           {error && (
-            <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+            <p className="text-xs text-gray-400 bg-white/[0.05] border border-red-500/20 rounded-lg px-3 py-2">
               {error}
             </p>
           )}
@@ -2504,7 +2504,7 @@ function TeamDetailInner() {
             className={cn(
               "text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full",
               team.status === "ACTIVE"
-                ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                ? "bg-green-500/20 text-gray-400 border border-green-500/30"
                 : "bg-zinc-700/60 text-zinc-400 border border-zinc-600/30"
             )}
           >
@@ -2512,7 +2512,7 @@ function TeamDetailInner() {
           </span>
 
           {team.schedulePreview?.description ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-300">
+            <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-white/[0.05] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-300">
               <CalendarDays className="h-3 w-3" />
               {team.schedulePreview.description}
             </span>
@@ -2524,9 +2524,9 @@ function TeamDetailInner() {
               onClick={() => setShowHealthBreakdown(!showHealthBreakdown)}
               className={cn(
                 "flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all hover:scale-105",
-                healthScore.color === "green" && "bg-green-500/15 text-green-400 border-green-500/30",
-                healthScore.color === "yellow" && "bg-amber-500/15 text-amber-400 border-amber-500/30",
-                healthScore.color === "red" && "bg-red-500/15 text-red-400 border-red-500/30"
+                healthScore.color === "green" && "bg-green-500/15 text-gray-400 border-green-500/30",
+                healthScore.color === "yellow" && "bg-amber-500/15 text-gray-400 border-amber-500/30",
+                healthScore.color === "red" && "bg-red-500/15 text-gray-400 border-red-500/30"
               )}
             >
               <Heart className="h-3 w-3" />
@@ -2631,7 +2631,7 @@ function TeamDetailInner() {
                       setShowSettings(false);
                       deleteTeam();
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2"
+                    className="w-full px-4 py-2 text-left text-sm text-gray-400 hover:bg-white/[0.05] flex items-center gap-2"
                   >
                     <Trash2 className="h-4 w-4" /> Delete Workflow
                   </button>
@@ -2665,9 +2665,9 @@ function TeamDetailInner() {
                   </div>
                   <div className={cn(
                     "text-lg font-bold",
-                    catColor === "green" && "text-green-400",
-                    catColor === "amber" && "text-amber-400",
-                    catColor === "red" && "text-red-400"
+                    catColor === "green" && "text-gray-400",
+                    catColor === "amber" && "text-gray-400",
+                    catColor === "red" && "text-gray-400"
                   )}>{cat.score}</div>
                   <div className="mt-1.5 h-1 rounded-full bg-zinc-800 overflow-hidden">
                     <div
@@ -2687,7 +2687,7 @@ function TeamDetailInner() {
           </div>
           {healthScore.weakestLink && (
             <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 mb-2">
-              <p className="text-[11px] text-red-400">
+              <p className="text-[11px] text-gray-400">
                 <AlertTriangle className="h-3 w-3 inline mr-1" />
                 <strong>Schwachstelle:</strong> {healthScore.weakestLink.suggestion}
               </p>
@@ -2776,7 +2776,7 @@ function TeamDetailInner() {
             {/* Chat mode warning banner */}
             {chatModeWarning && (
               <div className="mx-4 mt-3 flex items-center gap-3 rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-2.5 shrink-0">
-                <Info className="h-4 w-4 text-blue-400 shrink-0" />
+                <Info className="h-4 w-4 text-gray-400 shrink-0" />
                 <p className="flex-1 text-xs text-zinc-300">
                   Some agents in this workflow are set to Chat mode. For autonomous task execution, convert them to Task Agents.
                 </p>
@@ -2785,7 +2785,7 @@ function TeamDetailInner() {
                   variant="outline"
                   onClick={convertToTask}
                   disabled={convertingToTask}
-                  className="shrink-0 border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 h-7 text-[11px]"
+                  className="shrink-0 border-blue-500/30 text-gray-400 hover:bg-white/[0.05] hover:text-blue-300 h-7 text-[11px]"
                 >
                   {convertingToTask ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Zap className="h-3 w-3 mr-1" />}
                   Convert All to Task
@@ -2794,8 +2794,8 @@ function TeamDetailInner() {
             )}
             {Object.keys(sharedContextPreview).length > 0 && (
               <div className="mx-4 mt-3 flex items-start gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 shrink-0">
-                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/10">
-                  <Database className="h-4 w-4 text-amber-300" />
+                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.05]">
+                  <Database className="h-4 w-4 text-gray-400" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-medium uppercase tracking-[0.14em] text-amber-200/80">
@@ -3082,9 +3082,9 @@ function TeamDetailInner() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl">
               {[
                 { label: "Total Tasks", value: analytics.total, icon: <Target className="h-5 w-5 text-orange-400" /> },
-                { label: "Completed Tasks", value: analytics.completed, icon: <CheckCircle2 className="h-5 w-5 text-green-400" /> },
-                { label: "Avg Completion Time", value: analytics.avgTime, icon: <Clock className="h-5 w-5 text-blue-400" /> },
-                { label: "Active Nodes", value: analytics.activeMembers, icon: <Users className="h-5 w-5 text-purple-400" /> },
+                { label: "Completed Tasks", value: analytics.completed, icon: <CheckCircle2 className="h-5 w-5 text-gray-400" /> },
+                { label: "Avg Completion Time", value: analytics.avgTime, icon: <Clock className="h-5 w-5 text-gray-400" /> },
+                { label: "Active Nodes", value: analytics.activeMembers, icon: <Users className="h-5 w-5 text-gray-400" /> },
               ].map((stat) => (
                 <div
                   key={stat.label}
@@ -3379,7 +3379,7 @@ function TeamDetailInner() {
                 variant="outline"
                 onClick={executeDebug}
                 disabled={debugRunning || assigning || !assignGoal.trim()}
-                className="border-violet-500/30 text-violet-400 hover:bg-violet-500/10 min-w-[100px]"
+                className="border-violet-500/30 text-gray-400 hover:bg-white/[0.05] min-w-[100px]"
               >
                 {debugRunning ? (
                   <div className="flex items-center gap-2">

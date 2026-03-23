@@ -87,50 +87,50 @@ const TEMPLATE_VISUALS: Record<
 > = {
   "sales-pipeline": {
     icon: Briefcase,
-    accent: "text-kiln-orange",
-    bg: "bg-kiln-orange/10",
-    border: "border-kiln-orange/25",
+    accent: "text-gray-400",
+    bg: "bg-white/[0.05]",
+    border: "border-[#1e1e1e]",
   },
   "customer-support-tiers": {
     icon: Headphones,
-    accent: "text-blue-400",
-    bg: "bg-blue-500/10",
+    accent: "text-gray-400",
+    bg: "bg-white/[0.05]",
     border: "border-blue-500/25",
   },
   "content-creation-pipeline": {
     icon: PenTool,
-    accent: "text-emerald-400",
-    bg: "bg-emerald-500/10",
+    accent: "text-gray-400",
+    bg: "bg-white/[0.05]",
     border: "border-emerald-500/25",
   },
   "lead-qualification-booking": {
     icon: CalendarDays,
-    accent: "text-violet-400",
-    bg: "bg-violet-500/10",
+    accent: "text-gray-400",
+    bg: "bg-white/[0.05]",
     border: "border-violet-500/25",
   },
   "shk-betrieb-lead-pipeline": {
     icon: Wrench,
-    accent: "text-amber-400",
-    bg: "bg-amber-500/10",
+    accent: "text-gray-400",
+    bg: "bg-white/[0.05]",
     border: "border-amber-500/25",
   },
   "immobilienmakler-pipeline": {
     icon: Building2,
-    accent: "text-sky-400",
-    bg: "bg-sky-500/10",
+    accent: "text-gray-400",
+    bg: "bg-white/[0.05]",
     border: "border-sky-500/25",
   },
   "coach-erstgespraech-pipeline": {
     icon: GraduationCap,
-    accent: "text-pink-400",
-    bg: "bg-pink-500/10",
+    accent: "text-gray-400",
+    bg: "bg-white/[0.05]",
     border: "border-pink-500/25",
   },
   "kuechenstudio-pipeline": {
     icon: CookingPot,
-    accent: "text-rose-400",
-    bg: "bg-rose-500/10",
+    accent: "text-gray-400",
+    bg: "bg-white/[0.05]",
     border: "border-rose-500/25",
   },
 };
@@ -417,7 +417,7 @@ function PreviewModal({
                     ) : (
                       <ChevronRight className="h-4 w-4 shrink-0 text-zinc-500" />
                     )}
-                    <Bot className="h-4 w-4 shrink-0 text-kiln-orange" />
+                    <Bot className="h-4 w-4 shrink-0 text-gray-400" />
                     <span className="font-medium text-white">{agent.name}</span>
                     <span className="ml-auto rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
                       {agent.role}
@@ -487,7 +487,7 @@ function PreviewModal({
                     className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3"
                   >
                     {v.isSecret ? (
-                      <Lock className="h-4 w-4 shrink-0 text-amber-400" />
+                      <Lock className="h-4 w-4 shrink-0 text-gray-400" />
                     ) : (
                       <Variable className="h-4 w-4 shrink-0 text-zinc-500" />
                     )}
@@ -549,7 +549,7 @@ function FilterChip({
       className={cn(
         "rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
         active
-          ? "border-kiln-orange/50 bg-kiln-orange/15 text-kiln-orange"
+          ? "border-kiln-orange/50 bg-white/[0.08] text-gray-400"
           : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-300"
       )}
     >

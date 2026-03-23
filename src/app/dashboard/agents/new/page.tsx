@@ -337,19 +337,19 @@ export default function NewAgentPage() {
               {/* Guided Wizard — Recommended */}
               <button
                 onClick={() => setMode("WIZARD")}
-                className="relative flex flex-col items-start rounded-xl border-2 border-kiln-orange/30 bg-card p-6 text-left transition-all hover:border-kiln-orange/60 hover:bg-kiln-orange/5"
+                className="relative flex flex-col items-start rounded-xl border-2 border-[#2a2a2a] bg-card p-6 text-left transition-all hover:border-kiln-orange/60 hover:bg-[#1a1a1a]"
               >
                 <span className="absolute -top-2.5 right-4 rounded-full bg-kiln-orange px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
                   Recommended
                 </span>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-kiln-orange/10 mb-4">
-                  <Sparkles className="h-6 w-6 text-kiln-orange" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.05] mb-4">
+                  <Sparkles className="h-6 w-6 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground">Guided Builder</h3>
                 <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                   Step-by-step wizard. Choose a goal, add business info, customize style. Auto-generates an optimized agent.
                 </p>
-                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-kiln-orange">
+                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-gray-400">
                   Start Wizard <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
                 </div>
               </button>
@@ -359,14 +359,14 @@ export default function NewAgentPage() {
                 onClick={() => setMode("CHAT")}
                 className="flex flex-col items-start rounded-xl border border-border bg-card p-6 text-left transition-all hover:border-blue-500/30 hover:bg-blue-500/5"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 mb-4">
-                  <Code2 className="h-6 w-6 text-blue-500" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.05] mb-4">
+                  <Code2 className="h-6 w-6 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground">Quick Create</h3>
                 <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                   Describe your agent in natural language. AI generates the config. For experienced users who know what they want.
                 </p>
-                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-blue-500">
+                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-gray-400">
                   Open Builder <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
                 </div>
               </button>
@@ -376,14 +376,14 @@ export default function NewAgentPage() {
                 onClick={() => setMode("TASK")}
                 className="flex flex-col items-start rounded-xl border border-border bg-card p-6 text-left transition-all hover:border-violet-500/30 hover:bg-violet-500/5"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/10 mb-4">
-                  <Zap className="h-6 w-6 text-violet-500" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.05] mb-4">
+                  <Zap className="h-6 w-6 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground">Task Agent</h3>
                 <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                   Autonomous agent that executes tasks in the background. Set triggers, define instructions, configure outputs.
                 </p>
-                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-violet-500">
+                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-gray-400">
                   Create Task Agent <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
                 </div>
               </button>
@@ -424,8 +424,8 @@ export default function NewAgentPage() {
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-kiln-orange/10">
-              <Zap className="h-4 w-4 text-kiln-orange" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.05]">
+              <Zap className="h-4 w-4 text-gray-400" />
             </div>
             <div>
               <h1 className="text-sm font-semibold text-foreground">New Task Agent</h1>
@@ -451,7 +451,7 @@ export default function NewAgentPage() {
                 onClick={() => i <= stepIdx && setTaskStep(s.id)}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
                   i === stepIdx ? "bg-kiln-orange text-white" :
-                  i < stepIdx ? "bg-kiln-orange/10 text-kiln-orange cursor-pointer" :
+                  i < stepIdx ? "bg-white/[0.05] text-gray-400 cursor-pointer" :
                   "bg-muted text-muted-foreground"
                 }`}
               >
@@ -516,7 +516,7 @@ export default function NewAgentPage() {
                       key={t.id}
                       onClick={() => setTriggerType(t.id)}
                       className={`flex flex-col items-start rounded-lg border p-4 text-left transition-all ${
-                        triggerType === t.id ? "border-kiln-orange bg-kiln-orange/5" : "border-border hover:border-kiln-orange/30"
+                        triggerType === t.id ? "border-kiln-orange bg-kiln-orange/5" : "border-border hover:border-[#2a2a2a]"
                       }`}
                     >
                       <h4 className="text-sm font-semibold text-foreground">{t.label}</h4>
@@ -568,7 +568,7 @@ export default function NewAgentPage() {
                       key={o.id}
                       onClick={() => setOutputType(o.id)}
                       className={`flex flex-col items-start rounded-lg border p-4 text-left transition-all ${
-                        outputType === o.id ? "border-kiln-orange bg-kiln-orange/5" : "border-border hover:border-kiln-orange/30"
+                        outputType === o.id ? "border-kiln-orange bg-kiln-orange/5" : "border-border hover:border-[#2a2a2a]"
                       }`}
                     >
                       <h4 className="text-sm font-semibold text-foreground">{o.label}</h4>

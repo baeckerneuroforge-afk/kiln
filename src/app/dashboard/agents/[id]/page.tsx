@@ -773,8 +773,8 @@ export default function AgentDetailPage() {
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
-            <Bot className="h-5 w-5 text-blue-500" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05]">
+            <Bot className="h-5 w-5 text-gray-400" />
           </div>
           <div>
             <h1 className="font-serif text-2xl text-foreground">{agent.name}</h1>
@@ -784,7 +784,7 @@ export default function AgentDetailPage() {
                 v{agent.currentVersion || 1} · Last edited {formatRelativeTime(agent.updatedAt)}
               </span>
               {agent.clonedFromName && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-400">
+                <span className="inline-flex items-center gap-1 rounded-full border border-purple-500/20 bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium text-gray-400">
                   <GitFork className="h-2.5 w-2.5" />
                   Cloned from {agent.clonedFromName}
                 </span>
@@ -870,7 +870,7 @@ export default function AgentDetailPage() {
           </Button>
           <div className="relative">
             {savedVersion && (
-              <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-400 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <span className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-semibold text-gray-400 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 Saved as v{savedVersion}
               </span>
             )}
@@ -899,7 +899,7 @@ export default function AgentDetailPage() {
                 : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
             )}
           >
-            <tab.icon className={cn("h-4 w-4", activeTab === tab.id && "text-kiln-orange")} />
+            <tab.icon className={cn("h-4 w-4", activeTab === tab.id && "text-gray-400")} />
             <span className="hidden sm:inline">{tab.label}</span>
           </button>
         ))}
@@ -914,11 +914,11 @@ export default function AgentDetailPage() {
                 className={cn(
                   "relative flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
                   activeTab === tab.id
-                    ? "bg-white/[0.08] text-purple-400 shadow-sm"
+                    ? "bg-white/[0.08] text-gray-400 shadow-sm"
                     : "text-muted-foreground hover:bg-white/[0.04] hover:text-purple-300"
                 )}
               >
-                <tab.icon className={cn("h-4 w-4", activeTab === tab.id && "text-purple-400")} />
+                <tab.icon className={cn("h-4 w-4", activeTab === tab.id && "text-gray-400")} />
                 <span className="hidden sm:inline">{tab.label}</span>
               </button>
             ))}
@@ -929,8 +929,8 @@ export default function AgentDetailPage() {
       {/* Unlock Advanced — shown when Advanced Mode is off */}
       {!advancedMode && activeTab !== "embed" && (
         <div className="mb-6 flex items-center gap-3 rounded-xl border border-dashed border-purple-500/20 bg-purple-500/5 p-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10 shrink-0">
-            <Bolt className="h-4 w-4 text-purple-400" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05] shrink-0">
+            <Bolt className="h-4 w-4 text-gray-400" />
           </div>
           <div className="flex-1">
             <p className="text-sm font-medium text-foreground">Unlock Advanced Features</p>
@@ -985,9 +985,9 @@ export default function AgentDetailPage() {
                     return md?.badge ? (
                       <span className={cn(
                         "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
-                        md.badge === "Most Capable" && "bg-purple-500/15 text-purple-400",
-                        md.badge === "Best Value" && "bg-green-500/15 text-green-400",
-                        md.badge === "Fastest" && "bg-blue-500/15 text-blue-400",
+                        md.badge === "Most Capable" && "bg-purple-500/15 text-gray-400",
+                        md.badge === "Best Value" && "bg-green-500/15 text-gray-400",
+                        md.badge === "Fastest" && "bg-blue-500/15 text-gray-400",
                         md.badge === "Best for Research" && "bg-orange-500/15 text-orange-400",
                       )}>{md.badge}</span>
                     ) : null;
@@ -1039,9 +1039,9 @@ export default function AgentDetailPage() {
                       <span>Speed: <span className="text-foreground">{dots(md.speed, 3)}</span></span>
                       <span>Quality: <span className="text-foreground">{dots(md.quality, 3)}</span></span>
                       <span>Cost: <span className="text-foreground">{dots(md.cost, 3)}</span></span>
-                      <span className="text-kiln-orange font-medium">{getCreditCost(md.id)} credits/msg</span>
-                      {md.supportsTools && <span className="text-green-400">Tools ✓</span>}
-                      {!md.supportsTools && <span className="text-amber-400">No tools</span>}
+                      <span className="text-gray-400 font-medium">{getCreditCost(md.id)} credits/msg</span>
+                      {md.supportsTools && <span className="text-gray-400">Tools ✓</span>}
+                      {!md.supportsTools && <span className="text-gray-400">No tools</span>}
                     </div>
                   );
                 })()}
@@ -1053,12 +1053,12 @@ export default function AgentDetailPage() {
                   return (
                     <>
                       {md.requiresByok && (
-                        <p className="text-[10px] text-amber-400">
+                        <p className="text-[10px] text-gray-400">
                           Requires your own {PROVIDERS[md.provider].label} API key. Add it in Settings → API Keys.
                         </p>
                       )}
                       {!md.supportsTools && agent?.actions.some((a) => a.enabled) && (
-                        <p className="text-[10px] text-red-400">
+                        <p className="text-[10px] text-gray-400">
                           ⚠ Actions and tool use require Anthropic or OpenAI models. Your enabled actions won&apos;t work with this model.
                         </p>
                       )}
@@ -1081,7 +1081,7 @@ export default function AgentDetailPage() {
                       size="sm"
                       variant="outline"
                       onClick={() => setShowPromptEditor(true)}
-                      className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 hover:text-purple-300"
+                      className="border-purple-500/30 text-gray-400 hover:bg-white/[0.05] hover:text-purple-300"
                     >
                       <Code2 className="mr-1.5 h-3.5 w-3.5" />
                       Advanced Editor
@@ -1229,8 +1229,8 @@ export default function AgentDetailPage() {
               <div className="rounded-xl border border-border bg-card/50 p-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10">
-                      <Brain className="h-4 w-4 text-purple-400" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+                      <Brain className="h-4 w-4 text-gray-400" />
                     </div>
                     <div>
                       <h3 className="text-sm font-semibold text-foreground">
@@ -1263,8 +1263,8 @@ export default function AgentDetailPage() {
               <div className="rounded-xl border border-border bg-card/50 p-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10">
-                      <Users className="h-4 w-4 text-purple-400" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+                      <Users className="h-4 w-4 text-gray-400" />
                     </div>
                     <div>
                       <h3 className="text-sm font-semibold text-foreground">
@@ -1297,8 +1297,8 @@ export default function AgentDetailPage() {
               <div className="rounded-xl border border-border bg-card/50 p-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10">
-                      <ImageIcon className="h-4 w-4 text-blue-400" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+                      <ImageIcon className="h-4 w-4 text-gray-400" />
                     </div>
                     <div>
                       <h3 className="text-sm font-semibold text-foreground">
@@ -1346,8 +1346,8 @@ export default function AgentDetailPage() {
               <div className="rounded-xl border border-border bg-card/50 p-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10">
-                      <Shield className="h-4 w-4 text-emerald-400" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+                      <Shield className="h-4 w-4 text-gray-400" />
                     </div>
                     <div>
                       <h3 className="text-sm font-semibold text-foreground">
@@ -1374,9 +1374,9 @@ export default function AgentDetailPage() {
                   </button>
                 </div>
                 {!showAiDisclaimer && (
-                  <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-500/10 p-3">
-                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
-                    <p className="text-xs text-amber-400">
+                  <div className="mt-3 flex items-start gap-2 rounded-lg bg-white/[0.05] p-3">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
+                    <p className="text-xs text-gray-400">
                       The EU AI Act requires transparency about AI-powered interactions.
                     </p>
                   </div>
@@ -1387,8 +1387,8 @@ export default function AgentDetailPage() {
               <div className="rounded-xl border border-border bg-card/50 p-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10">
-                      <Lock className="h-4 w-4 text-purple-400" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+                      <Lock className="h-4 w-4 text-gray-400" />
                     </div>
                     <div>
                       <h3 className="text-sm font-semibold text-foreground">
@@ -1416,10 +1416,10 @@ export default function AgentDetailPage() {
                 </div>
                 {agentType === "INTERNAL" && (
                   <div className="mt-4">
-                    <div className="mb-3 flex items-start gap-2 rounded-lg bg-purple-500/10 p-3">
-                      <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-purple-400" />
+                    <div className="mb-3 flex items-start gap-2 rounded-lg bg-white/[0.05] p-3">
+                      <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
                       <div className="text-xs text-purple-300">
-                        <p className="font-medium text-purple-400 mb-1">Use cases</p>
+                        <p className="font-medium text-gray-400 mb-1">Use cases</p>
                         <ul className="space-y-0.5 text-muted-foreground">
                           <li>• Employee onboarding bot</li>
                           <li>• Internal wiki assistant</li>
@@ -1429,7 +1429,7 @@ export default function AgentDetailPage() {
                     </div>
                     <div className="border-t border-border pt-3">
                       <div className="flex items-center gap-2 mb-2">
-                        <Users className="h-4 w-4 text-purple-400" />
+                        <Users className="h-4 w-4 text-gray-400" />
                         <h4 className="text-xs font-semibold text-foreground">Team Access</h4>
                       </div>
                       <TeamAccess agentId={agent.id} />
@@ -1484,8 +1484,8 @@ export default function AgentDetailPage() {
               {advancedMode && (userPlan === "PRO" || userPlan === "AGENCY" || userPlan === "ADMIN") && (
                 <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10">
-                      <Link2 className="h-4 w-4 text-blue-400" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+                      <Link2 className="h-4 w-4 text-gray-400" />
                     </div>
                     <div>
                       <h3 className="text-sm font-semibold text-foreground">
@@ -1532,8 +1532,8 @@ export default function AgentDetailPage() {
                       <div className={cn(
                         "mt-2 flex items-center gap-2 rounded-lg px-3 py-2 text-xs",
                         domainVerified
-                          ? "border border-green-500/30 bg-green-500/10 text-green-400"
-                          : "border border-red-500/30 bg-red-500/10 text-red-400"
+                          ? "border border-green-500/30 bg-white/[0.05] text-gray-400"
+                          : "border border-red-500/30 bg-white/[0.05] text-gray-400"
                       )}>
                         {domainVerified ? (
                           <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
@@ -1558,13 +1558,13 @@ export default function AgentDetailPage() {
                       <li className="ml-7">
                         <div className="rounded-lg border border-border bg-card px-3 py-2 font-mono text-[11px]">
                           <div><span className="text-muted-foreground">Name:</span> <span className="text-foreground">{customDomain.trim() ? customDomain.trim().split(".")[0] : "bot"}</span></div>
-                          <div><span className="text-muted-foreground">Target:</span> <span className="text-kiln-orange">kilnbase.com</span></div>
+                          <div><span className="text-muted-foreground">Target:</span> <span className="text-gray-400">kilnbase.com</span></div>
                           <div><span className="text-muted-foreground">TTL:</span> <span className="text-foreground">Auto</span></div>
                         </div>
                       </li>
                       <li className="flex gap-2">
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-foreground">2</span>
-                        <span>Add <code className="rounded bg-muted px-1 py-0.5 text-foreground">{customDomain.trim() || "bot.your-domain.com"}</code> as a custom domain in your <a href="https://vercel.com/docs/projects/domains" target="_blank" rel="noopener noreferrer" className="text-kiln-orange underline">Vercel project settings</a>.</span>
+                        <span>Add <code className="rounded bg-muted px-1 py-0.5 text-foreground">{customDomain.trim() || "bot.your-domain.com"}</code> as a custom domain in your <a href="https://vercel.com/docs/projects/domains" target="_blank" rel="noopener noreferrer" className="text-gray-400 underline">Vercel project settings</a>.</span>
                       </li>
                       <li className="flex gap-2">
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-foreground">3</span>
@@ -1611,7 +1611,7 @@ export default function AgentDetailPage() {
             <div className="space-y-4">
               <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-4">
                 <h3 className="mb-1 text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Bug className="h-4 w-4 text-purple-400" />
+                  <Bug className="h-4 w-4 text-gray-400" />
                   Debug Mode Active
                 </h3>
                 <p className="text-xs text-muted-foreground">
@@ -1906,7 +1906,7 @@ export default function AgentDetailPage() {
                           type="checkbox"
                           checked={widgetAutoTheme}
                           onChange={(event) => setWidgetAutoTheme(event.target.checked)}
-                          className="h-3.5 w-3.5 rounded border-border bg-card text-kiln-orange"
+                          className="h-3.5 w-3.5 rounded border-border bg-card text-gray-400"
                         />
                         Auto-theme from host site
                       </label>
@@ -1915,7 +1915,7 @@ export default function AgentDetailPage() {
                           type="checkbox"
                           checked={widgetSoundEnabled}
                           onChange={(event) => setWidgetSoundEnabled(event.target.checked)}
-                          className="h-3.5 w-3.5 rounded border-border bg-card text-kiln-orange"
+                          className="h-3.5 w-3.5 rounded border-border bg-card text-gray-400"
                         />
                         Play response sound
                       </label>
@@ -1966,7 +1966,7 @@ export default function AgentDetailPage() {
                       type="checkbox"
                       checked={proactiveEnabled}
                       onChange={(event) => setProactiveEnabled(event.target.checked)}
-                      className="h-3.5 w-3.5 rounded border-border bg-card text-kiln-orange"
+                      className="h-3.5 w-3.5 rounded border-border bg-card text-gray-400"
                     />
                     Enable proactive messages
                   </label>
@@ -2105,7 +2105,7 @@ export default function AgentDetailPage() {
                   <label className="block text-sm font-medium text-foreground">
                     Chat Bubble Widget
                   </label>
-                  <span className="rounded-full bg-kiln-green/10 px-2 py-0.5 text-[10px] font-semibold text-kiln-green">
+                  <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] font-semibold text-gray-400">
                     Recommended
                   </span>
                 </div>
@@ -2125,7 +2125,7 @@ export default function AgentDetailPage() {
                     onClick={copyWidgetCode}
                   >
                     {copiedWidget ? (
-                      <Check className="mr-1.5 h-3 w-3 text-kiln-green" />
+                      <Check className="mr-1.5 h-3 w-3 text-gray-400" />
                     ) : (
                       <Copy className="mr-1.5 h-3 w-3" />
                     )}
@@ -2135,12 +2135,12 @@ export default function AgentDetailPage() {
                 <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3">
                   <p className="mb-2 text-xs font-medium text-foreground">Optional attributes:</p>
                   <div className="space-y-1 font-mono text-[11px] text-muted-foreground">
-                    <p><span className="text-kiln-orange">data-position</span>=&quot;bottom-left&quot; — Place bubble on the left</p>
-                    <p><span className="text-kiln-orange">data-greeting</span>=&quot;Hi! Need help?&quot; — Override the default proactive message</p>
-                    <p><span className="text-kiln-orange">data-auto-theme</span>=&quot;true&quot; — Detect the host website accent color automatically</p>
-                    <p><span className="text-kiln-orange">data-sound</span>=&quot;true&quot; — Play a subtle response ping when the tab is unfocused</p>
-                    <p><span className="text-kiln-orange">data-proactive-delay</span>=&quot;15&quot; — Delay before the proactive popup appears</p>
-                    <p><span className="text-kiln-orange">data-proactive-rules</span>=&apos;[&#123;&quot;match&quot;:&quot;pricing&quot;,&quot;message&quot;:&quot;Looking at pricing?&quot;&#125;]&apos; — Custom URL pattern rules</p>
+                    <p><span className="text-gray-400">data-position</span>=&quot;bottom-left&quot; — Place bubble on the left</p>
+                    <p><span className="text-gray-400">data-greeting</span>=&quot;Hi! Need help?&quot; — Override the default proactive message</p>
+                    <p><span className="text-gray-400">data-auto-theme</span>=&quot;true&quot; — Detect the host website accent color automatically</p>
+                    <p><span className="text-gray-400">data-sound</span>=&quot;true&quot; — Play a subtle response ping when the tab is unfocused</p>
+                    <p><span className="text-gray-400">data-proactive-delay</span>=&quot;15&quot; — Delay before the proactive popup appears</p>
+                    <p><span className="text-gray-400">data-proactive-rules</span>=&apos;[&#123;&quot;match&quot;:&quot;pricing&quot;,&quot;message&quot;:&quot;Looking at pricing?&quot;&#125;]&apos; — Custom URL pattern rules</p>
                   </div>
                 </div>
               </div>
@@ -2177,7 +2177,7 @@ export default function AgentDetailPage() {
                     onClick={copyEmbedCode}
                   >
                     {copiedIframe ? (
-                      <Check className="mr-1.5 h-3 w-3 text-kiln-green" />
+                      <Check className="mr-1.5 h-3 w-3 text-gray-400" />
                     ) : (
                       <Copy className="mr-1.5 h-3 w-3" />
                     )}
@@ -2502,8 +2502,8 @@ function A2AProtocolSection({
     <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10">
-            <Radio className="h-4 w-4 text-purple-400" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+            <Radio className="h-4 w-4 text-gray-400" />
           </div>
           <div>
             <h3 className="text-sm font-semibold text-foreground">A2A Protocol V1.0</h3>
@@ -2542,7 +2542,7 @@ function A2AProtocolSection({
                 <p className="text-[10px] text-muted-foreground">Agents</p>
               </div>
               <div className="rounded-lg bg-muted/30 px-3 py-2 text-center">
-                <p className="text-lg font-bold text-purple-400 tabular-nums">{stats.totalCreditsEarned}</p>
+                <p className="text-lg font-bold text-gray-400 tabular-nums">{stats.totalCreditsEarned}</p>
                 <p className="text-[10px] text-muted-foreground">Credits</p>
               </div>
             </div>
@@ -2574,7 +2574,7 @@ function A2AProtocolSection({
             <button
               onClick={regenerateKey}
               disabled={regenerating}
-              className="text-[10px] text-red-400 hover:text-red-300 mt-1"
+              className="text-[10px] text-gray-400 hover:text-red-300 mt-1"
             >
               {regenerating ? "Generiere..." : "Key regenerieren →"}
             </button>
@@ -2630,7 +2630,7 @@ function A2AProtocolSection({
           <a
             href="/a2a/directory"
             target="_blank"
-            className="block text-[10px] text-purple-400 hover:text-purple-300"
+            className="block text-[10px] text-gray-400 hover:text-purple-300"
           >
             Im A2A Directory anzeigen →
           </a>
@@ -2707,8 +2707,8 @@ function SavedLoginsSection({ agentId }: { agentId: string }) {
     <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10">
-            <Lock className="h-4 w-4 text-amber-400" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+            <Lock className="h-4 w-4 text-gray-400" />
           </div>
           <div>
             <h3 className="text-sm font-semibold text-foreground">Saved Logins</h3>
@@ -2790,7 +2790,7 @@ function SavedLoginsSection({ agentId }: { agentId: string }) {
               </div>
               <button
                 onClick={() => handleDelete(c.id)}
-                className="ml-2 text-muted-foreground hover:text-red-400 transition-colors"
+                className="ml-2 text-muted-foreground hover:text-gray-400 transition-colors"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>

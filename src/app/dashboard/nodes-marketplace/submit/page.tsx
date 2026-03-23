@@ -187,7 +187,7 @@ export default function SubmitNodePage() {
             placeholder="// Dein Node-Code hier..."
           />
           {testResult && (
-            <p className={`text-xs ${testResult.includes("OK") ? "text-green-400" : "text-red-400"}`}>
+            <p className={`text-xs ${testResult.includes("OK") ? "text-gray-400" : "text-gray-400"}`}>
               {testResult}
             </p>
           )}
@@ -207,8 +207,8 @@ export default function SubmitNodePage() {
           <div
             className={`p-3 rounded-lg border text-sm ${
               result.success
-                ? "bg-green-500/10 border-green-500/30 text-green-400"
-                : "bg-red-500/10 border-red-500/30 text-red-400"
+                ? "bg-white/[0.05] border-green-500/30 text-gray-400"
+                : "bg-white/[0.05] border-red-500/30 text-gray-400"
             }`}
           >
             {result.message}

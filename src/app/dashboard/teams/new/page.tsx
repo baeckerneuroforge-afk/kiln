@@ -57,57 +57,57 @@ const TEMPLATE_VISUALS: Record<
 > = {
   "sales-pipeline": {
     icon: Briefcase,
-    accent: "text-kiln-orange",
-    bg: "bg-kiln-orange/10",
-    border: "border-kiln-orange/25",
+    accent: "text-gray-400",
+    bg: "bg-white/[0.05]",
+    border: "border-[#1e1e1e]",
     ring: "ring-kiln-orange/30",
   },
   "customer-support-tiers": {
     icon: Headphones,
-    accent: "text-blue-400",
-    bg: "bg-blue-500/10",
+    accent: "text-gray-400",
+    bg: "bg-white/[0.05]",
     border: "border-blue-500/25",
     ring: "ring-blue-500/30",
   },
   "content-creation-pipeline": {
     icon: PenTool,
-    accent: "text-emerald-400",
-    bg: "bg-emerald-500/10",
+    accent: "text-gray-400",
+    bg: "bg-white/[0.05]",
     border: "border-emerald-500/25",
     ring: "ring-emerald-500/30",
   },
   "lead-qualification-booking": {
     icon: CalendarDays,
-    accent: "text-violet-400",
-    bg: "bg-violet-500/10",
+    accent: "text-gray-400",
+    bg: "bg-white/[0.05]",
     border: "border-violet-500/25",
     ring: "ring-violet-500/30",
   },
   "shk-betrieb-lead-pipeline": {
     icon: Wrench,
-    accent: "text-amber-400",
-    bg: "bg-amber-500/10",
+    accent: "text-gray-400",
+    bg: "bg-white/[0.05]",
     border: "border-amber-500/25",
     ring: "ring-amber-500/30",
   },
   "immobilienmakler-pipeline": {
     icon: Building2,
-    accent: "text-sky-400",
-    bg: "bg-sky-500/10",
+    accent: "text-gray-400",
+    bg: "bg-white/[0.05]",
     border: "border-sky-500/25",
     ring: "ring-sky-500/30",
   },
   "coach-erstgespraech-pipeline": {
     icon: GraduationCap,
-    accent: "text-pink-400",
-    bg: "bg-pink-500/10",
+    accent: "text-gray-400",
+    bg: "bg-white/[0.05]",
     border: "border-pink-500/25",
     ring: "ring-pink-500/30",
   },
   "kuechenstudio-pipeline": {
     icon: CookingPot,
-    accent: "text-rose-400",
-    bg: "bg-rose-500/10",
+    accent: "text-gray-400",
+    bg: "bg-white/[0.05]",
     border: "border-rose-500/25",
     ring: "ring-rose-500/30",
   },
@@ -334,7 +334,7 @@ export default function NewTeamTemplatePage() {
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-kiln-orange/20 bg-kiln-orange/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-kiln-orange">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#1e1e1e] bg-white/[0.05] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-gray-400">
             <Sparkles className="h-3.5 w-3.5" />
             One-Click Workflow Templates
           </div>
@@ -380,7 +380,7 @@ export default function NewTeamTemplatePage() {
                   className={cn(
                     "rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
                     industryFilter === filter.key
-                      ? "border-kiln-orange/40 bg-kiln-orange/10 text-kiln-orange"
+                      ? "border-kiln-orange/40 bg-white/[0.05] text-gray-400"
                       : "border-border bg-background/50 text-muted-foreground hover:border-foreground/15 hover:text-foreground"
                   )}
                 >
@@ -462,7 +462,7 @@ export default function NewTeamTemplatePage() {
                       Tune the workflow to your business, then deploy the full workflow.
                     </p>
                   </div>
-                  <div className="rounded-full border border-kiln-orange/20 bg-kiln-orange/10 px-3 py-1 text-[11px] font-medium text-kiln-orange">
+                  <div className="rounded-full border border-[#1e1e1e] bg-white/[0.05] px-3 py-1 text-[11px] font-medium text-gray-400">
                     Ready to Deploy
                   </div>
                 </div>
@@ -564,7 +564,7 @@ export default function NewTeamTemplatePage() {
                           {resolvedIndustry ? ` · ${resolvedIndustry}` : ""}
                         </p>
                       </div>
-                      <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
+                      <div className="rounded-full border border-emerald-500/20 bg-white/[0.05] px-3 py-1 text-xs font-medium text-gray-400">
                         {selectedTemplate.agentCount} agents ready
                       </div>
                     </div>
@@ -582,7 +582,7 @@ export default function NewTeamTemplatePage() {
 
                   <div className="rounded-2xl border border-border bg-muted/20 p-4">
                     <div className="flex items-start gap-3">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 text-kiln-green" />
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 text-gray-400" />
                       <div>
                         <p className="text-sm font-medium text-foreground">
                           What gets created
@@ -621,7 +621,7 @@ export default function NewTeamTemplatePage() {
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-border bg-card/40 p-10 text-center">
-                <Sparkles className="mx-auto h-8 w-8 text-kiln-orange" />
+                <Sparkles className="mx-auto h-8 w-8 text-gray-400" />
                 <h2 className="mt-4 text-lg font-semibold text-foreground">
                   Choose a template to continue
                 </h2>

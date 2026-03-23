@@ -655,9 +655,9 @@ function SettingsContent() {
       </div>
 
       {showSuccess && (
-        <div className="mb-6 flex items-center gap-3 rounded-xl border border-green-500/30 bg-green-500/10 p-4">
-          <CheckCircle2 className="h-5 w-5 text-green-500" />
-          <p className="text-sm font-medium text-green-400">
+        <div className="mb-6 flex items-center gap-3 rounded-xl border border-green-500/30 bg-white/[0.05] p-4">
+          <CheckCircle2 className="h-5 w-5 text-gray-400" />
+          <p className="text-sm font-medium text-gray-400">
             Upgrade successful! Your plan has been updated.
           </p>
         </div>
@@ -674,14 +674,14 @@ function SettingsContent() {
               activeTab === tab.id
                 ? "bg-white/[0.08] text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04]",
-              tab.id === "danger" && activeTab === tab.id && "text-red-400",
-              tab.id === "danger" && activeTab !== tab.id && "text-muted-foreground hover:text-red-400"
+              tab.id === "danger" && activeTab === tab.id && "text-gray-400",
+              tab.id === "danger" && activeTab !== tab.id && "text-muted-foreground hover:text-gray-400"
             )}
           >
             <tab.icon className={cn(
               "h-4 w-4",
-              activeTab === tab.id && tab.id !== "danger" && "text-kiln-orange",
-              activeTab === tab.id && tab.id === "danger" && "text-red-400",
+              activeTab === tab.id && tab.id !== "danger" && "text-gray-400",
+              activeTab === tab.id && tab.id === "danger" && "text-gray-400",
             )} />
             <span className="hidden sm:inline">{tab.label}</span>
           </button>
@@ -711,7 +711,7 @@ function SettingsContent() {
                 <p className="text-sm text-muted-foreground">{displayEmail}</p>
                 <span className={cn(
                   "mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                  isAdminUser ? "bg-purple-500/15 text-purple-400" : "bg-kiln-orange/15 text-kiln-orange"
+                  isAdminUser ? "bg-purple-500/15 text-gray-400" : "bg-white/[0.08] text-gray-400"
                 )}>
                   {isAdminUser ? "Admin" : currentPlan} Plan
                 </span>
@@ -748,7 +748,7 @@ function SettingsContent() {
                 <h2 className="text-lg font-semibold text-foreground">Current Plan</h2>
                 <div className="mt-2 flex items-center gap-3">
                   <span className={`rounded-full px-3 py-1 text-sm font-semibold ${
-                    isAdminUser ? "bg-purple-500/10 text-purple-400" : "bg-kiln-orange/10 text-kiln-orange"
+                    isAdminUser ? "bg-white/[0.05] text-gray-400" : "bg-white/[0.05] text-gray-400"
                   }`}>
                     {isAdminUser ? "Admin" : currentPlan}
                   </span>
@@ -803,15 +803,15 @@ function SettingsContent() {
 
             {/* Cancellation Banner */}
             {userPlan?.cancelAtPeriodEnd && userPlan.cancelAt && (
-              <div className="mt-4 flex items-center justify-between rounded-lg border border-amber-500/20 bg-amber-500/10 p-4">
+              <div className="mt-4 flex items-center justify-between rounded-lg border border-amber-500/20 bg-white/[0.05] p-4">
                 <div className="flex items-center gap-3">
-                  <Clock className="h-4 w-4 text-amber-400" />
+                  <Clock className="h-4 w-4 text-gray-400" />
                   <div>
-                    <p className="text-sm font-medium text-amber-300">
+                    <p className="text-sm font-medium text-gray-400">
                       Your plan will be cancelled on{" "}
                       {new Date(userPlan.cancelAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
                     </p>
-                    <p className="text-xs text-amber-400/70">You can reactivate anytime before this date.</p>
+                    <p className="text-xs text-gray-400/70">You can reactivate anytime before this date.</p>
                   </div>
                 </div>
                 <Button size="sm" onClick={handleReactivate} disabled={reactivating} className="bg-amber-500 text-white hover:bg-amber-600">
@@ -826,9 +826,9 @@ function SettingsContent() {
               userPlan.agentCount >= userPlan.limits.agents ||
               (userPlan.limits.chatsPerMonth < 999999 && userPlan.chatCount >= userPlan.limits.chatsPerMonth * 0.8)
             ) && (
-              <div className="mt-4 flex items-center gap-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-4">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-                <p className="text-xs text-amber-400">You&apos;re approaching your plan limits. Consider upgrading.</p>
+              <div className="mt-4 flex items-center gap-3 rounded-lg border border-amber-500/20 bg-white/[0.05] p-4">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-gray-400" />
+                <p className="text-xs text-gray-400">You&apos;re approaching your plan limits. Consider upgrading.</p>
               </div>
             )}
           </div>
@@ -837,15 +837,15 @@ function SettingsContent() {
           {creditInfo && (
             <div className="rounded-xl border border-border bg-card p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10">
-                  <Zap className="h-5 w-5 text-kiln-orange" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05]">
+                  <Zap className="h-5 w-5 text-gray-400" />
                 </div>
                 <div className="flex-1">
                   <h2 className="text-lg font-semibold text-foreground">AI Credits</h2>
                   <p className="text-xs text-muted-foreground">Credits consumed per AI response. BYOK keys bypass credit usage.</p>
                 </div>
                 {creditInfo.byokActive && (
-                  <span className="rounded-full bg-green-500/10 border border-green-500/20 px-3 py-1 text-xs font-semibold text-green-400">BYOK: Unlimited</span>
+                  <span className="rounded-full bg-white/[0.05] border border-green-500/20 px-3 py-1 text-xs font-semibold text-gray-400">BYOK: Unlimited</span>
                 )}
               </div>
 
@@ -856,8 +856,8 @@ function SettingsContent() {
                     <span className="text-muted-foreground">Credits remaining</span>
                     <span className={cn("font-semibold",
                       creditInfo.isAdmin ? "text-foreground" :
-                      creditInfo.balance / creditInfo.totalCredits <= 0.05 ? "text-red-400" :
-                      creditInfo.balance / creditInfo.totalCredits <= 0.2 ? "text-amber-400" :
+                      creditInfo.balance / creditInfo.totalCredits <= 0.05 ? "text-gray-400" :
+                      creditInfo.balance / creditInfo.totalCredits <= 0.2 ? "text-gray-400" :
                       creditInfo.balance / creditInfo.totalCredits <= 0.5 ? "text-yellow-400" : "text-foreground"
                     )}>
                       {creditInfo.isAdmin ? "∞" : `${creditInfo.balance.toLocaleString()} / ${creditInfo.totalCredits.toLocaleString()}`}
@@ -898,18 +898,18 @@ function SettingsContent() {
                         className={cn(
                           "flex flex-col items-center rounded-lg border p-3 text-center transition-all",
                           idx === creditInfo.creditTier
-                            ? "border-kiln-orange bg-kiln-orange/10"
-                            : "border-border hover:border-kiln-orange/30 hover:bg-kiln-orange/5"
+                            ? "border-kiln-orange bg-white/[0.05]"
+                            : "border-border hover:border-[#2a2a2a] hover:bg-[#1a1a1a]"
                         )}
                         disabled={idx === creditInfo.creditTier}
                       >
                         <span className="text-lg font-bold text-foreground">{tier.credits.toLocaleString()}</span>
                         <span className="text-xs text-muted-foreground">credits/month</span>
-                        <span className="mt-1 text-sm font-semibold text-kiln-orange">
+                        <span className="mt-1 text-sm font-semibold text-gray-400">
                           {tier.monthlyPrice > 0 ? `€${tier.monthlyPrice}/mo` : "Free"}
                         </span>
                         {idx === creditInfo.creditTier && (
-                          <span className="mt-1 rounded-full bg-kiln-orange/20 px-2 py-0.5 text-[10px] font-semibold text-kiln-orange">Current</span>
+                          <span className="mt-1 rounded-full bg-white/[0.08] px-2 py-0.5 text-[10px] font-semibold text-gray-400">Current</span>
                         )}
                       </button>
                     ))}
@@ -919,9 +919,9 @@ function SettingsContent() {
 
               {/* Low credit warnings */}
               {!creditInfo.isAdmin && creditInfo.balance <= 0 && (
-                <div className="mb-4 flex items-center gap-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-red-400" />
-                  <p className="flex-1 text-xs text-red-400">Your AI credits are exhausted. Agents cannot respond.</p>
+                <div className="mb-4 flex items-center gap-3 rounded-lg border border-red-500/20 bg-white/[0.05] p-3">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-gray-400" />
+                  <p className="flex-1 text-xs text-gray-400">Your AI credits are exhausted. Agents cannot respond.</p>
                   <div className="flex gap-2">
                     <Button size="sm" className="h-7 text-xs" onClick={() => purchaseCredits("credits_500")}>Buy Credits</Button>
                     <Link href="/dashboard/settings?tab=api-keys"><Button size="sm" variant="outline" className="h-7 text-xs">Add API Key</Button></Link>
@@ -929,16 +929,16 @@ function SettingsContent() {
                 </div>
               )}
               {!creditInfo.isAdmin && creditInfo.balance > 0 && creditInfo.balance / creditInfo.totalCredits <= 0.05 && (
-                <div className="mb-4 flex items-center gap-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-red-400" />
-                  <p className="flex-1 text-xs text-red-400">Critical: Only {creditInfo.balance} credits remaining.</p>
+                <div className="mb-4 flex items-center gap-3 rounded-lg border border-red-500/20 bg-white/[0.05] p-3">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-gray-400" />
+                  <p className="flex-1 text-xs text-gray-400">Critical: Only {creditInfo.balance} credits remaining.</p>
                   <Button size="sm" className="h-7 text-xs" onClick={() => purchaseCredits("credits_500")}>Buy Credits</Button>
                 </div>
               )}
               {!creditInfo.isAdmin && creditInfo.balance > 0 && creditInfo.balance / creditInfo.totalCredits > 0.05 && creditInfo.balance / creditInfo.totalCredits <= 0.2 && (
-                <div className="mb-4 flex items-center gap-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400" />
-                  <p className="flex-1 text-xs text-amber-400">{creditInfo.balance} credits remaining this month.</p>
+                <div className="mb-4 flex items-center gap-3 rounded-lg border border-amber-500/20 bg-white/[0.05] p-3">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-gray-400" />
+                  <p className="flex-1 text-xs text-gray-400">{creditInfo.balance} credits remaining this month.</p>
                 </div>
               )}
 
@@ -1006,14 +1006,14 @@ function SettingsContent() {
                         key={pkg.id}
                         onClick={() => purchaseCredits(pkg.id)}
                         disabled={purchasingCredits !== null}
-                        className="flex items-center justify-between rounded-lg border border-border bg-card/50 p-3 text-left transition-all hover:border-kiln-orange/30 hover:bg-kiln-orange/5 disabled:opacity-50"
+                        className="flex items-center justify-between rounded-lg border border-border bg-card/50 p-3 text-left transition-all hover:border-[#2a2a2a] hover:bg-[#1a1a1a] disabled:opacity-50"
                       >
                         <div>
                           <p className="text-sm font-semibold text-foreground">{pkg.credits} Credits</p>
                           <p className="text-xs text-muted-foreground">One-time purchase</p>
                         </div>
-                        <span className="text-sm font-bold text-kiln-orange">{pkg.price}</span>
-                        {purchasingCredits === pkg.id && <Loader2 className="ml-2 h-3.5 w-3.5 animate-spin text-kiln-orange" />}
+                        <span className="text-sm font-bold text-gray-400">{pkg.price}</span>
+                        {purchasingCredits === pkg.id && <Loader2 className="ml-2 h-3.5 w-3.5 animate-spin text-gray-400" />}
                       </button>
                     ))}
                   </div>
@@ -1026,8 +1026,8 @@ function SettingsContent() {
           {!isAdminUser && currentPlan !== "FREE" && (
             <div className="rounded-xl border border-border bg-card p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10">
-                  <Receipt className="h-5 w-5 text-kiln-orange" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05]">
+                  <Receipt className="h-5 w-5 text-gray-400" />
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">Invoice History</h2>
@@ -1052,7 +1052,7 @@ function SettingsContent() {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                          inv.status === "paid" ? "bg-green-500/10 text-green-400" : inv.status === "open" ? "bg-amber-500/10 text-amber-400" : "bg-muted text-muted-foreground"
+                          inv.status === "paid" ? "bg-white/[0.05] text-gray-400" : inv.status === "open" ? "bg-white/[0.05] text-gray-400" : "bg-muted text-muted-foreground"
                         }`}>
                           {inv.status || "unknown"}
                         </span>
@@ -1107,9 +1107,9 @@ function SettingsContent() {
                         <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-kiln-orange px-2.5 py-0.5 text-[10px] font-semibold text-white whitespace-nowrap">Most Popular</div>
                       )}
                       {isCurrent && (
-                        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-kiln-orange/20 border border-kiln-orange/30 px-2.5 py-0.5 text-[10px] font-semibold text-kiln-orange whitespace-nowrap">Current</div>
+                        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-white/[0.08] border border-[#2a2a2a] px-2.5 py-0.5 text-[10px] font-semibold text-gray-400 whitespace-nowrap">Current</div>
                       )}
-                      <Icon className="mb-2 h-5 w-5 text-kiln-orange" />
+                      <Icon className="mb-2 h-5 w-5 text-gray-400" />
                       <h3 className="text-sm font-semibold text-foreground">{plan.name}</h3>
                       <div className="mt-1 flex items-baseline gap-0.5">
                         <span className="text-xl font-bold text-foreground">{plan.isCustom ? "Custom" : displayPrice}</span>
@@ -1124,7 +1124,7 @@ function SettingsContent() {
                       <ul className="mt-3 flex-1 space-y-1.5">
                         {plan.features.map((feature) => (
                           <li key={feature} className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                            <Check className="mt-0.5 h-3 w-3 shrink-0 text-kiln-orange" />
+                            <Check className="mt-0.5 h-3 w-3 shrink-0 text-gray-400" />
                             {feature}
                           </li>
                         ))}
@@ -1163,8 +1163,8 @@ function SettingsContent() {
           {(["PRO", "AGENCY", "ENTERPRISE"].includes(currentPlan) || isAdminUser) ? (
             <div className="rounded-xl border border-border bg-card p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10">
-                  <Key className="h-5 w-5 text-purple-400" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05]">
+                  <Key className="h-5 w-5 text-gray-400" />
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">LLM API Keys</h2>
@@ -1174,14 +1174,14 @@ function SettingsContent() {
 
               {/* BYOK = Unlimited banner */}
               {apiKeys.length > 0 && (
-                <div className="mb-4 flex items-center gap-3 rounded-lg border border-green-500/20 bg-green-500/10 p-3">
-                  <Sparkles className="h-4 w-4 shrink-0 text-green-400" />
-                  <p className="text-xs text-green-400">Using your own API key? Enjoy unlimited conversations — no credits consumed.</p>
+                <div className="mb-4 flex items-center gap-3 rounded-lg border border-green-500/20 bg-white/[0.05] p-3">
+                  <Sparkles className="h-4 w-4 shrink-0 text-gray-400" />
+                  <p className="text-xs text-gray-400">Using your own API key? Enjoy unlimited conversations — no credits consumed.</p>
                 </div>
               )}
 
-              {keyError && <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">{keyError}</div>}
-              {keySuccess && <div className="mb-4 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs text-green-400">{keySuccess}</div>}
+              {keyError && <div className="mb-4 rounded-lg border border-red-500/30 bg-white/[0.05] px-3 py-2 text-xs text-gray-400">{keyError}</div>}
+              {keySuccess && <div className="mb-4 rounded-lg border border-green-500/30 bg-white/[0.05] px-3 py-2 text-xs text-gray-400">{keySuccess}</div>}
 
               <div className="space-y-5">
                 {/* Anthropic Key */}
@@ -1190,7 +1190,7 @@ function SettingsContent() {
                   {apiKeys.find((k) => k.provider === "anthropic") ? (
                     <div className="flex items-center gap-2">
                       <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm text-muted-foreground">{apiKeys.find((k) => k.provider === "anthropic")?.keyHint}</div>
-                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("anthropic")} disabled={deletingKey === "anthropic"} className="text-red-400 hover:bg-red-500/10 hover:text-red-400">
+                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("anthropic")} disabled={deletingKey === "anthropic"} className="text-gray-400 hover:bg-white/[0.05] hover:text-gray-400">
                         {deletingKey === "anthropic" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
                         Remove
                       </Button>
@@ -1209,7 +1209,7 @@ function SettingsContent() {
                       </Button>
                     </div>
                   )}
-                  {apiKeys.find((k) => k.provider === "anthropic") && <p className="mt-1.5 text-xs text-green-400">Using your own Anthropic key — unlimited conversations for Claude models.</p>}
+                  {apiKeys.find((k) => k.provider === "anthropic") && <p className="mt-1.5 text-xs text-gray-400">Using your own Anthropic key — unlimited conversations for Claude models.</p>}
                 </div>
                 {/* OpenAI Key */}
                 <div>
@@ -1217,7 +1217,7 @@ function SettingsContent() {
                   {apiKeys.find((k) => k.provider === "openai") ? (
                     <div className="flex items-center gap-2">
                       <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm text-muted-foreground">{apiKeys.find((k) => k.provider === "openai")?.keyHint}</div>
-                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("openai")} disabled={deletingKey === "openai"} className="text-red-400 hover:bg-red-500/10 hover:text-red-400">
+                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("openai")} disabled={deletingKey === "openai"} className="text-gray-400 hover:bg-white/[0.05] hover:text-gray-400">
                         {deletingKey === "openai" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
                         Remove
                       </Button>
@@ -1236,7 +1236,7 @@ function SettingsContent() {
                       </Button>
                     </div>
                   )}
-                  {apiKeys.find((k) => k.provider === "openai") && <p className="mt-1.5 text-xs text-green-400">Using your own OpenAI key — unlimited conversations for GPT models.</p>}
+                  {apiKeys.find((k) => k.provider === "openai") && <p className="mt-1.5 text-xs text-gray-400">Using your own OpenAI key — unlimited conversations for GPT models.</p>}
                 </div>
                 {/* Perplexity Key */}
                 <div>
@@ -1244,7 +1244,7 @@ function SettingsContent() {
                   {apiKeys.find((k) => k.provider === "perplexity") ? (
                     <div className="flex items-center gap-2">
                       <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm text-muted-foreground">{apiKeys.find((k) => k.provider === "perplexity")?.keyHint}</div>
-                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("perplexity")} disabled={deletingKey === "perplexity"} className="text-red-400 hover:bg-red-500/10 hover:text-red-400">
+                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("perplexity")} disabled={deletingKey === "perplexity"} className="text-gray-400 hover:bg-white/[0.05] hover:text-gray-400">
                         {deletingKey === "perplexity" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
                         Remove
                       </Button>
@@ -1263,7 +1263,7 @@ function SettingsContent() {
                       </Button>
                     </div>
                   )}
-                  {apiKeys.find((k) => k.provider === "perplexity") && <p className="mt-1.5 text-xs text-green-400">Using your own Perplexity key — unlimited conversations for Sonar models.</p>}
+                  {apiKeys.find((k) => k.provider === "perplexity") && <p className="mt-1.5 text-xs text-gray-400">Using your own Perplexity key — unlimited conversations for Sonar models.</p>}
                 </div>
                 {/* Google AI Key */}
                 <div>
@@ -1271,7 +1271,7 @@ function SettingsContent() {
                   {apiKeys.find((k) => k.provider === "google") ? (
                     <div className="flex items-center gap-2">
                       <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm text-muted-foreground">{apiKeys.find((k) => k.provider === "google")?.keyHint}</div>
-                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("google")} disabled={deletingKey === "google"} className="text-red-400 hover:bg-red-500/10 hover:text-red-400">
+                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("google")} disabled={deletingKey === "google"} className="text-gray-400 hover:bg-white/[0.05] hover:text-gray-400">
                         {deletingKey === "google" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
                         Remove
                       </Button>
@@ -1290,7 +1290,7 @@ function SettingsContent() {
                       </Button>
                     </div>
                   )}
-                  {apiKeys.find((k) => k.provider === "google") && <p className="mt-1.5 text-xs text-green-400">Using your own Google AI key — unlimited conversations for Gemini models.</p>}
+                  {apiKeys.find((k) => k.provider === "google") && <p className="mt-1.5 text-xs text-gray-400">Using your own Google AI key — unlimited conversations for Gemini models.</p>}
                 </div>
                 {/* Groq Key */}
                 <div>
@@ -1298,7 +1298,7 @@ function SettingsContent() {
                   {apiKeys.find((k) => k.provider === "groq") ? (
                     <div className="flex items-center gap-2">
                       <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm text-muted-foreground">{apiKeys.find((k) => k.provider === "groq")?.keyHint}</div>
-                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("groq")} disabled={deletingKey === "groq"} className="text-red-400 hover:bg-red-500/10 hover:text-red-400">
+                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("groq")} disabled={deletingKey === "groq"} className="text-gray-400 hover:bg-white/[0.05] hover:text-gray-400">
                         {deletingKey === "groq" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
                         Remove
                       </Button>
@@ -1317,7 +1317,7 @@ function SettingsContent() {
                       </Button>
                     </div>
                   )}
-                  {apiKeys.find((k) => k.provider === "groq") && <p className="mt-1.5 text-xs text-green-400">Using your own Groq key — unlimited conversations for Llama & Mixtral models.</p>}
+                  {apiKeys.find((k) => k.provider === "groq") && <p className="mt-1.5 text-xs text-gray-400">Using your own Groq key — unlimited conversations for Llama & Mixtral models.</p>}
                 </div>
               </div>
               <div className="mt-4 rounded-lg border border-dashed border-border bg-card/30 p-3">
@@ -1338,8 +1338,8 @@ function SettingsContent() {
             <div className="rounded-xl border border-border bg-card p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10">
-                    <Terminal className="h-5 w-5 text-kiln-orange" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05]">
+                    <Terminal className="h-5 w-5 text-gray-400" />
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-foreground">API Access</h2>
@@ -1352,12 +1352,12 @@ function SettingsContent() {
               </div>
 
               {generatedKey && (
-                <div className="mb-4 rounded-lg border border-kiln-orange/30 bg-kiln-orange/5 p-4">
-                  <p className="mb-2 text-xs font-semibold text-kiln-orange">Save this key now — it won&apos;t be shown again!</p>
+                <div className="mb-4 rounded-lg border border-[#2a2a2a] bg-kiln-orange/5 p-4">
+                  <p className="mb-2 text-xs font-semibold text-gray-400">Save this key now — it won&apos;t be shown again!</p>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 rounded-lg border border-border bg-[#1a1a1a] px-3 py-2 font-mono text-xs text-foreground break-all">{generatedKey}</code>
                     <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(generatedKey); setAccessKeyCopied(true); setTimeout(() => setAccessKeyCopied(false), 2000); }}>
-                      {accessKeyCopied ? <Check className="mr-1.5 h-3.5 w-3.5 text-green-500" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
+                      {accessKeyCopied ? <Check className="mr-1.5 h-3.5 w-3.5 text-gray-400" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
                       {accessKeyCopied ? "Copied" : "Copy"}
                     </Button>
                   </div>
@@ -1365,7 +1365,7 @@ function SettingsContent() {
               )}
 
               {accessKeyError && (
-                <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                <div className="mb-4 rounded-lg border border-red-500/30 bg-white/[0.05] px-3 py-2 text-xs text-gray-400">
                   {accessKeyError}
                 </div>
               )}
@@ -1394,7 +1394,7 @@ function SettingsContent() {
                         <label key={scope.id} className={cn("flex items-start gap-3 rounded-lg border px-3 py-2 text-sm transition-colors", checked ? "border-kiln-orange/40 bg-kiln-orange/5" : "border-border bg-card")}>
                           <input
                             type="checkbox"
-                            className="mt-0.5 h-4 w-4 rounded border-border bg-card text-kiln-orange focus:ring-kiln-orange"
+                            className="mt-0.5 h-4 w-4 rounded border-border bg-card text-gray-400 focus:ring-kiln-orange"
                             checked={checked}
                             onChange={() => toggleAccessScope(scope.id)}
                           />
@@ -1419,7 +1419,7 @@ function SettingsContent() {
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-sm font-medium text-foreground">{key.name}</p>
                             {isApiAccessKeyExpiringSoon(key.expiresAt) && (
-                              <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                              <span className="rounded-full border border-amber-500/40 bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium text-gray-400">
                                 Expiring soon
                               </span>
                             )}
@@ -1448,7 +1448,7 @@ function SettingsContent() {
                           </div>
                         </div>
                       </div>
-                      <Button size="sm" variant="ghost" onClick={() => deleteAccessKey(key.id)} disabled={deletingAccessKey === key.id} className="text-red-400 hover:bg-red-500/10 hover:text-red-400">
+                      <Button size="sm" variant="ghost" onClick={() => deleteAccessKey(key.id)} disabled={deletingAccessKey === key.id} className="text-gray-400 hover:bg-white/[0.05] hover:text-gray-400">
                         {deletingAccessKey === key.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                       </Button>
                     </div>
@@ -1472,8 +1472,8 @@ function SettingsContent() {
           {(["PRO", "AGENCY", "ENTERPRISE"].includes(currentPlan) || isAdminUser) ? (
             <div className="rounded-xl border border-border bg-card p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
-                  <Webhook className="h-5 w-5 text-blue-400" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05]">
+                  <Webhook className="h-5 w-5 text-gray-400" />
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">Webhooks</h2>
@@ -1481,7 +1481,7 @@ function SettingsContent() {
                 </div>
               </div>
 
-              {webhookError && <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">{webhookError}</div>}
+              {webhookError && <div className="mb-4 rounded-lg border border-red-500/30 bg-white/[0.05] px-3 py-2 text-xs text-gray-400">{webhookError}</div>}
 
               {/* Add Webhook Form */}
               <div className="mb-5 space-y-3 rounded-lg border border-dashed border-border bg-card/30 p-4">
@@ -1493,7 +1493,7 @@ function SettingsContent() {
                   <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Events</label>
                   <div className="flex flex-wrap gap-2">
                     {WEBHOOK_EVENT_OPTIONS.map((opt) => (
-                      <button key={opt.value} type="button" onClick={() => toggleWebhookEvent(opt.value)} className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${webhookEvents.includes(opt.value) ? "border-blue-500/50 bg-blue-500/10 text-blue-400" : "border-border bg-muted/20 text-muted-foreground hover:border-border hover:text-foreground"}`}>
+                      <button key={opt.value} type="button" onClick={() => toggleWebhookEvent(opt.value)} className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${webhookEvents.includes(opt.value) ? "border-blue-500/50 bg-white/[0.05] text-gray-400" : "border-border bg-muted/20 text-muted-foreground hover:border-border hover:text-foreground"}`}>
                         {opt.label}
                       </button>
                     ))}
@@ -1513,13 +1513,13 @@ function SettingsContent() {
                       <div className="flex items-center justify-between px-4 py-3">
                         <div className="flex items-center gap-3 min-w-0">
                           <button type="button" onClick={() => toggleWebhook(wh.id, !wh.active)} className="flex-shrink-0" title={wh.active ? "Disable" : "Enable"}>
-                            {wh.active ? <Power className="h-4 w-4 text-green-500" /> : <PowerOff className="h-4 w-4 text-muted-foreground" />}
+                            {wh.active ? <Power className="h-4 w-4 text-gray-400" /> : <PowerOff className="h-4 w-4 text-muted-foreground" />}
                           </button>
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium text-foreground font-mono">{wh.url}</p>
                             <div className="flex flex-wrap gap-1 mt-1">
                               {(wh.events as string[]).map((ev) => (
-                                <span key={ev} className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-400">{ev}</span>
+                                <span key={ev} className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-gray-400">{ev}</span>
                               ))}
                             </div>
                           </div>
@@ -1531,7 +1531,7 @@ function SettingsContent() {
                           <Button size="sm" variant="ghost" onClick={() => setExpandedWebhook(expandedWebhook === wh.id ? null : wh.id)} title="Show details">
                             {expandedWebhook === wh.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => deleteWebhook(wh.id)} disabled={deletingWebhook === wh.id} className="text-red-400 hover:bg-red-500/10 hover:text-red-400">
+                          <Button size="sm" variant="ghost" onClick={() => deleteWebhook(wh.id)} disabled={deletingWebhook === wh.id} className="text-gray-400 hover:bg-white/[0.05] hover:text-gray-400">
                             {deletingWebhook === wh.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                           </Button>
                         </div>
@@ -1543,7 +1543,7 @@ function SettingsContent() {
                             <div className="flex items-center gap-2">
                               <code className="flex-1 rounded-lg border border-border bg-[#1a1a1a] px-3 py-1.5 font-mono text-xs text-foreground break-all">{wh.secret}</code>
                               <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(wh.secret); setSecretCopied(wh.id); setTimeout(() => setSecretCopied(null), 2000); }}>
-                                {secretCopied === wh.id ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                                {secretCopied === wh.id ? <Check className="h-3 w-3 text-gray-400" /> : <Copy className="h-3 w-3" />}
                               </Button>
                             </div>
                           </div>
@@ -1553,11 +1553,11 @@ function SettingsContent() {
                               <div className="space-y-1 max-h-48 overflow-y-auto">
                                 {wh.deliveries.map((del) => (
                                   <div key={del.id} className="flex items-center gap-3 rounded-md bg-muted/30 px-3 py-2 text-xs">
-                                    {del.success ? <CheckCircle className="h-3.5 w-3.5 flex-shrink-0 text-green-500" /> : <XCircle className="h-3.5 w-3.5 flex-shrink-0 text-red-400" />}
+                                    {del.success ? <CheckCircle className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" /> : <XCircle className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />}
                                     <span className="font-mono text-muted-foreground">{del.event}</span>
-                                    <span className={`font-mono ${del.success ? "text-green-400" : "text-red-400"}`}>{del.statusCode || "ERR"}</span>
+                                    <span className={`font-mono ${del.success ? "text-gray-400" : "text-gray-400"}`}>{del.statusCode || "ERR"}</span>
                                     {del.responseTime != null && <span className="flex items-center gap-0.5 text-muted-foreground"><Clock className="h-3 w-3" />{del.responseTime}ms</span>}
-                                    {del.error && <span className="truncate text-red-400" title={del.error}>{del.error}</span>}
+                                    {del.error && <span className="truncate text-gray-400" title={del.error}>{del.error}</span>}
                                     <span className="ml-auto text-muted-foreground">{new Date(del.createdAt).toLocaleString()}</span>
                                   </div>
                                 ))}
@@ -1598,8 +1598,8 @@ function SettingsContent() {
           {referralCode ? (
             <div className="rounded-xl border border-border bg-card p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10">
-                  <Gift className="h-5 w-5 text-kiln-orange" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05]">
+                  <Gift className="h-5 w-5 text-gray-400" />
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">Referral Program</h2>
@@ -1611,9 +1611,9 @@ function SettingsContent() {
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Your Referral Code</label>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm font-bold text-kiln-orange">{referralCode}</div>
+                    <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm font-bold text-gray-400">{referralCode}</div>
                     <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(referralCode); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
-                      {copied ? <Check className="mr-1.5 h-3.5 w-3.5 text-green-500" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
+                      {copied ? <Check className="mr-1.5 h-3.5 w-3.5 text-gray-400" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
                       {copied ? "Copied" : "Copy"}
                     </Button>
                   </div>
@@ -1625,7 +1625,7 @@ function SettingsContent() {
                       {typeof window !== "undefined" ? `${window.location.origin}/sign-up?ref=${referralCode}` : `/sign-up?ref=${referralCode}`}
                     </div>
                     <Button size="sm" variant="outline" onClick={() => { const link = `${window.location.origin}/sign-up?ref=${referralCode}`; navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
-                      {copied ? <Check className="mr-1.5 h-3.5 w-3.5 text-green-500" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
+                      {copied ? <Check className="mr-1.5 h-3.5 w-3.5 text-gray-400" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
                       {copied ? "Copied" : "Copy"}
                     </Button>
                   </div>
@@ -1642,7 +1642,7 @@ function SettingsContent() {
                 </div>
                 <div className="rounded-lg border border-border bg-muted/20 p-4">
                   <div className="flex items-center gap-2">
-                    <Trophy className="h-4 w-4 text-kiln-orange" />
+                    <Trophy className="h-4 w-4 text-gray-400" />
                     <span className="text-xs text-muted-foreground">Credits Earned</span>
                   </div>
                   <p className="mt-1 text-2xl font-bold text-foreground">
@@ -1698,7 +1698,7 @@ function SettingsContent() {
                         {t.category}
                       </span>
                       {t.price > 0 && (
-                        <span className="shrink-0 rounded-full bg-kiln-orange/10 px-2 py-0.5 text-[10px] font-medium text-kiln-orange">
+                        <span className="shrink-0 rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium text-gray-400">
                           €{t.price}
                         </span>
                       )}
@@ -1720,7 +1720,7 @@ function SettingsContent() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="shrink-0 ml-4 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                    className="shrink-0 ml-4 border-red-500/30 text-gray-400 hover:bg-white/[0.05] hover:text-red-300"
                     disabled={deletingTemplate === t.id}
                     onClick={async () => {
                       if (!confirm("Remove this template from the marketplace?")) return;
@@ -1766,7 +1766,7 @@ function SettingsContent() {
               </div>
               <Button
                 variant="outline"
-                className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                className="border-red-500/30 text-gray-400 hover:bg-white/[0.05] hover:text-red-300"
                 onClick={() => setShowDeleteModal(true)}
               >
                 <Trash2 className="mr-1.5 h-3.5 w-3.5" />
@@ -1782,15 +1782,15 @@ function SettingsContent() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl mx-4">
             <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10">
-                <AlertTriangle className="h-5 w-5 text-red-400" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.05]">
+                <AlertTriangle className="h-5 w-5 text-gray-400" />
               </div>
               <h3 className="text-lg font-semibold text-foreground">Delete Account</h3>
             </div>
             <p className="text-sm text-muted-foreground">
               This will permanently delete all your data including agents, conversations,
               knowledge bases, and cancel your subscription. Type{" "}
-              <span className="font-mono font-bold text-red-400">DELETE</span> to confirm.
+              <span className="font-mono font-bold text-gray-400">DELETE</span> to confirm.
             </p>
             <input
               type="text"

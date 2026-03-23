@@ -155,7 +155,7 @@ export default function ImageGalleryPage() {
                 {/* Overlay */}
                 <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
                   <div className="flex items-center gap-1">
-                    <Bot className="h-3 w-3 text-kiln-orange" />
+                    <Bot className="h-3 w-3 text-gray-400" />
                     <span className="text-[10px] text-white truncate">{img.agentName}</span>
                   </div>
                   <span className="text-[10px] text-zinc-400">
@@ -253,7 +253,7 @@ export default function ImageGalleryPage() {
             <div className="border-t border-border p-4 space-y-3">
               <div className="flex items-center gap-4 text-sm">
                 <span className="flex items-center gap-1.5 text-muted-foreground">
-                  <Bot className="h-3.5 w-3.5 text-kiln-orange" />
+                  <Bot className="h-3.5 w-3.5 text-gray-400" />
                   {selectedImage.agentName}
                 </span>
                 <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -269,7 +269,7 @@ export default function ImageGalleryPage() {
               {/* Extracted Document Data */}
               {selectedImage.extractedData && (
                 <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
-                  <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-blue-400">
+                  <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-400">
                     <FileText className="h-3.5 w-3.5" />
                     Extracted: {selectedImage.extractedData.documentType}
                   </p>
@@ -288,7 +288,7 @@ export default function ImageGalleryPage() {
 
               <a
                 href={`/dashboard/conversations?id=${selectedImage.conversationId}`}
-                className="inline-flex items-center gap-1 text-xs text-kiln-orange hover:underline"
+                className="inline-flex items-center gap-1 text-xs text-gray-400 hover:underline"
               >
                 View conversation →
               </a>

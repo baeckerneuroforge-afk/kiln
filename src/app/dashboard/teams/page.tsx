@@ -6,8 +6,6 @@ import Link from "next/link";
 import {
   Users,
   Plus,
-  Play,
-  Pause,
   Loader2,
   Target,
   Clock,
@@ -108,30 +106,30 @@ const QUICK_TEMPLATES = [
     label: "Sales Workflow",
     description: "Lead gen, outreach, qualification & meeting booking",
     icon: Briefcase,
-    color: "text-orange-400",
-    bg: "bg-orange-500/10",
-    border: "border-orange-500/30",
-    hoverBorder: "hover:border-orange-500/50",
+    color: "text-gray-400",
+    bg: "bg-white/[0.05]",
+    border: "border-[#1e1e1e]",
+    hoverBorder: "hover:border-[#2a2a2a]",
   },
   {
     key: "support",
     label: "Support Workflow",
     description: "Triage, technical support, billing & onboarding",
     icon: Headphones,
-    color: "text-blue-400",
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/30",
-    hoverBorder: "hover:border-blue-500/50",
+    color: "text-gray-400",
+    bg: "bg-white/[0.05]",
+    border: "border-[#1e1e1e]",
+    hoverBorder: "hover:border-[#2a2a2a]",
   },
   {
     key: "content",
     label: "Content Workflow",
     description: "Blog, social media, newsletters, SEO & analytics",
     icon: PenTool,
-    color: "text-green-400",
-    bg: "bg-green-500/10",
-    border: "border-green-500/30",
-    hoverBorder: "hover:border-green-500/50",
+    color: "text-gray-400",
+    bg: "bg-white/[0.05]",
+    border: "border-[#1e1e1e]",
+    hoverBorder: "hover:border-[#2a2a2a]",
   },
 ];
 
@@ -150,9 +148,9 @@ const TEAM_TEMPLATE_SHOWCASE = [
     agents: "3 agents + gate",
     flow: "Qualifier → Approval → Closer / Follow-Up",
     icon: Briefcase,
-    color: "text-kiln-orange",
-    bg: "bg-kiln-orange/10",
-    border: "border-kiln-orange/25",
+    color: "text-gray-400",
+    bg: "bg-white/[0.05]",
+    border: "border-[#1e1e1e]",
   },
   {
     id: "customer-support-tiers",
@@ -161,9 +159,9 @@ const TEAM_TEMPLATE_SHOWCASE = [
     agents: "3 agents",
     flow: "Tier 1 → Tier 2 → Escalation",
     icon: Headphones,
-    color: "text-blue-400",
-    bg: "bg-blue-500/10",
-    border: "border-blue-500/25",
+    color: "text-gray-400",
+    bg: "bg-white/[0.05]",
+    border: "border-[#1e1e1e]",
   },
   {
     id: "content-creation-pipeline",
@@ -172,9 +170,9 @@ const TEAM_TEMPLATE_SHOWCASE = [
     agents: "3 agents",
     flow: "Researcher → Writer → Editor",
     icon: PenTool,
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/25",
+    color: "text-gray-400",
+    bg: "bg-white/[0.05]",
+    border: "border-[#1e1e1e]",
   },
   {
     id: "lead-qualification-booking",
@@ -183,9 +181,9 @@ const TEAM_TEMPLATE_SHOWCASE = [
     agents: "2 agents",
     flow: "Qualifier → Booker",
     icon: CalendarDays,
-    color: "text-violet-400",
-    bg: "bg-violet-500/10",
-    border: "border-violet-500/25",
+    color: "text-gray-400",
+    bg: "bg-white/[0.05]",
+    border: "border-[#1e1e1e]",
   },
   {
     id: "shk-betrieb-lead-pipeline",
@@ -194,9 +192,9 @@ const TEAM_TEMPLATE_SHOWCASE = [
     agents: "3 agents",
     flow: "Qualifier → Booker / Follow-Up",
     icon: Hammer,
-    color: "text-amber-400",
-    bg: "bg-amber-500/10",
-    border: "border-amber-500/25",
+    color: "text-gray-400",
+    bg: "bg-white/[0.05]",
+    border: "border-[#1e1e1e]",
     industry: "Handwerk",
   },
   {
@@ -206,9 +204,9 @@ const TEAM_TEMPLATE_SHOWCASE = [
     agents: "3 agents",
     flow: "Qualifier → Matcher → Booker",
     icon: Building2,
-    color: "text-sky-400",
-    bg: "bg-sky-500/10",
-    border: "border-sky-500/25",
+    color: "text-gray-400",
+    bg: "bg-white/[0.05]",
+    border: "border-[#1e1e1e]",
     industry: "Immobilien",
   },
   {
@@ -218,9 +216,9 @@ const TEAM_TEMPLATE_SHOWCASE = [
     agents: "2 agents",
     flow: "Qualifier → Scheduler",
     icon: GraduationCap,
-    color: "text-pink-400",
-    bg: "bg-pink-500/10",
-    border: "border-pink-500/25",
+    color: "text-gray-400",
+    bg: "bg-white/[0.05]",
+    border: "border-[#1e1e1e]",
     industry: "Beratung",
   },
   {
@@ -230,9 +228,9 @@ const TEAM_TEMPLATE_SHOWCASE = [
     agents: "3 agents",
     flow: "Berater → Designer → Booker",
     icon: CookingPot,
-    color: "text-rose-400",
-    bg: "bg-rose-500/10",
-    border: "border-rose-500/25",
+    color: "text-gray-400",
+    bg: "bg-white/[0.05]",
+    border: "border-[#1e1e1e]",
     industry: "Handwerk",
   },
 ];
@@ -262,11 +260,11 @@ function roleCounts(members: TeamMember[]): string {
 }
 
 const roleColors: Record<string, { bg: string; text: string }> = {
-  HEAD: { bg: "bg-orange-500/15", text: "text-orange-400" },
-  COORDINATOR: { bg: "bg-blue-500/15", text: "text-blue-400" },
-  APPROVAL_GATE: { bg: "bg-amber-500/15", text: "text-amber-300" },
-  EXECUTOR: { bg: "bg-green-500/15", text: "text-green-400" },
-  REPORTER: { bg: "bg-purple-500/15", text: "text-purple-400" },
+  HEAD: { bg: "bg-white/[0.06]", text: "text-gray-300" },
+  COORDINATOR: { bg: "bg-white/[0.06]", text: "text-gray-300" },
+  APPROVAL_GATE: { bg: "bg-white/[0.06]", text: "text-gray-300" },
+  EXECUTOR: { bg: "bg-white/[0.06]", text: "text-gray-300" },
+  REPORTER: { bg: "bg-white/[0.06]", text: "text-gray-300" },
 };
 
 const CHAT_ROLE_KEYWORDS = ["support", "chat", "customer", "website"];
@@ -317,7 +315,7 @@ function StepIndicator({
               className={cn(
                 "flex items-center gap-1.5 text-xs font-medium",
                 isActive
-                  ? "text-kiln-orange"
+                  ? "text-gray-400"
                   : isDone
                   ? "text-muted-foreground"
                   : "text-muted-foreground/50"
@@ -329,7 +327,7 @@ function StepIndicator({
                   isActive
                     ? "bg-kiln-orange text-white"
                     : isDone
-                    ? "bg-kiln-orange/30 text-kiln-orange"
+                    ? "bg-kiln-orange/30 text-gray-400"
                     : "bg-muted text-muted-foreground/50"
                 )}
               >
@@ -395,7 +393,7 @@ function AutoStep1({
     <div className="space-y-4">
       <div>
         <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Workflow Name <span className="text-kiln-orange">*</span>
+          Workflow Name <span className="text-gray-400">*</span>
         </label>
         <input
           autoFocus
@@ -408,7 +406,7 @@ function AutoStep1({
       </div>
       <div>
         <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Workflow Goal <span className="text-kiln-orange">*</span>
+          Workflow Goal <span className="text-gray-400">*</span>
         </label>
         <textarea
           value={goal}
@@ -419,7 +417,7 @@ function AutoStep1({
         />
       </div>
       <p className="text-xs text-muted-foreground/70 flex items-center gap-1.5">
-        <Sparkles className="h-3.5 w-3.5 text-kiln-orange/70" />
+        <Sparkles className="h-3.5 w-3.5 text-gray-400/70" />
         Claude will suggest an optimal workflow structure based on your goal.
       </p>
     </div>
@@ -610,7 +608,7 @@ function ReviewStep({
                   </button>
                   <button
                     onClick={() => onRemove(idx)}
-                    className="p-1 text-muted-foreground hover:text-red-400 rounded transition-colors"
+                    className="p-1 text-muted-foreground hover:text-gray-400 rounded transition-colors"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -651,7 +649,7 @@ function ManualStep1({
     <div className="space-y-4">
       <div>
         <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Workflow Name <span className="text-kiln-orange">*</span>
+          Workflow Name <span className="text-gray-400">*</span>
         </label>
         <input
           autoFocus
@@ -664,7 +662,7 @@ function ManualStep1({
       </div>
       <div>
         <label className="mb-1.5 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Goal / Description <span className="text-kiln-orange">*</span>
+          Goal / Description <span className="text-gray-400">*</span>
         </label>
         <textarea
           value={goal}
@@ -750,7 +748,7 @@ function ManualStep2({
                       e.stopPropagation();
                       onRemove(member.id);
                     }}
-                    className="p-1 text-muted-foreground hover:text-red-400 rounded transition-colors"
+                    className="p-1 text-muted-foreground hover:text-gray-400 rounded transition-colors"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -769,7 +767,7 @@ function ManualStep2({
                 {/* Name */}
                 <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Role Name <span className="text-kiln-orange">*</span>
+                    Role Name <span className="text-gray-400">*</span>
                   </label>
                   <input
                     type="text"
@@ -938,7 +936,7 @@ function ManualStep3({
             <div className="flex items-center gap-2">
               <RoleBadge role={member.role} />
               <span className="text-sm font-medium text-foreground">{member.name || "Unnamed"}</span>
-              <span className="text-[10px] bg-green-500/15 text-green-400 px-1.5 py-0.5 rounded">Task Agent</span>
+              <span className="text-[10px] bg-green-500/15 text-gray-400 px-1.5 py-0.5 rounded">Task Agent</span>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1342,10 +1340,10 @@ function CreateTeamModal({
                 {/* Auto-Generate card */}
                 <button
                   onClick={() => setMode("auto")}
-                  className="group flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-all hover:border-kiln-orange/50 hover:bg-kiln-orange/5"
+                  className="group flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-all hover:border-[#2a2a2a] hover:bg-[#1a1a1a]"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10 group-hover:bg-kiln-orange/20 transition-colors">
-                    <Wand2 className="h-5 w-5 text-kiln-orange" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05] group-hover:bg-white/[0.08] transition-colors">
+                    <Wand2 className="h-5 w-5 text-gray-400" />
                   </div>
                   <div>
                     <p className="font-semibold text-foreground">Auto-Generate</p>
@@ -1353,7 +1351,7 @@ function CreateTeamModal({
                       Describe your goal. Claude suggests the optimal workflow structure with agents, roles, and prompts.
                     </p>
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-kiln-orange font-medium mt-auto">
+                  <div className="flex items-center gap-1 text-xs text-gray-400 font-medium mt-auto">
                     Get started <ArrowRight className="h-3.5 w-3.5" />
                   </div>
                 </button>
@@ -1363,8 +1361,8 @@ function CreateTeamModal({
                   onClick={() => setMode("manual")}
                   className="group flex flex-col gap-3 rounded-xl border border-border bg-background p-5 text-left transition-all hover:border-blue-500/50 hover:bg-blue-500/5"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
-                    <Wrench className="h-5 w-5 text-blue-400" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05] group-hover:bg-blue-500/20 transition-colors">
+                    <Wrench className="h-5 w-5 text-gray-400" />
                   </div>
                   <div>
                     <p className="font-semibold text-foreground">Build Manually</p>
@@ -1372,7 +1370,7 @@ function CreateTeamModal({
                       Define each agent yourself: role, model, system prompt, triggers, and outputs — step by step.
                     </p>
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-blue-400 font-medium mt-auto">
+                  <div className="flex items-center gap-1 text-xs text-gray-400 font-medium mt-auto">
                     4-step wizard <ArrowRight className="h-3.5 w-3.5" />
                   </div>
                 </button>
@@ -1571,7 +1569,7 @@ function CreateTeamModal({
                 size="sm"
                 onClick={handleQuickStart}
                 disabled={submitting || !manualStep1Valid}
-                className="border-kiln-orange/30 text-kiln-orange hover:bg-kiln-orange/10"
+                className="border-[#2a2a2a] text-gray-400 hover:bg-white/[0.05]"
               >
                 {submitting ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1824,7 +1822,7 @@ export default function TeamsPage() {
           </div>
           <Link
             href="/dashboard/teams/new"
-            className="inline-flex items-center gap-2 text-sm font-medium text-kiln-orange transition-colors hover:text-kiln-orange/80"
+            className="inline-flex items-center gap-2 text-sm font-medium text-gray-400 transition-colors hover:text-gray-400/80"
           >
             Browse all templates
             <ArrowRight className="h-4 w-4" />
@@ -1839,38 +1837,30 @@ export default function TeamsPage() {
               <Link
                 key={template.id}
                 href={`/dashboard/teams/new?template=${template.id}`}
-                className={cn(
-                  "rounded-xl border bg-background/60 p-4 transition-all duration-200 hover:bg-background hover:border-foreground/15",
-                  template.border
-                )}
+                className="rounded-xl border border-[#1e1e1e] bg-[#161616] p-4 transition-all duration-150 hover:bg-[#1a1a1a] hover:border-[#2a2a2a]"
               >
                 <div className="mb-3 flex items-start justify-between gap-3">
-                  <div
-                    className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-xl",
-                      template.bg
-                    )}
-                  >
-                    <Icon className={cn("h-4 w-4", template.color)} />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.05]">
+                    <Icon className="h-4 w-4 text-gray-400" />
                   </div>
                   <div className="flex items-center gap-1.5">
                     {"industry" in template && template.industry && (
-                      <span className={cn("rounded-full px-2 py-0.5 text-[9px] font-medium", template.bg, template.color)}>
+                      <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[9px] font-medium text-gray-400">
                         {template.industry}
                       </span>
                     )}
-                    <span className="rounded-full border border-border bg-card px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
+                    <span className="text-xs text-gray-500">
                       {template.agents}
                     </span>
                   </div>
                 </div>
-                <h3 className="text-sm font-semibold text-foreground">
+                <h3 className="text-sm font-medium text-gray-200">
                   {template.label}
                 </h3>
-                <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
+                <p className="mt-1.5 text-xs leading-5 text-gray-400">
                   {template.description}
                 </p>
-                <div className="mt-3 rounded-lg border border-border/70 bg-card/70 px-3 py-2 text-xs text-foreground/80">
+                <div className="mt-3 rounded-lg border border-[#1e1e1e] bg-[#111] px-3 py-2 text-xs font-mono text-gray-500">
                   {template.flow}
                 </div>
               </Link>
@@ -1941,8 +1931,8 @@ export default function TeamsPage() {
         /* Empty state */
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 py-16">
           <div className="relative mb-6">
-            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-kiln-orange/10">
-              <Users className="h-10 w-10 text-kiln-orange" />
+            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/[0.05]">
+              <Users className="h-10 w-10 text-gray-400" />
             </div>
             <div className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-kiln-orange shadow-lg">
               <Plus className="h-3.5 w-3.5 text-white" />
@@ -1974,51 +1964,34 @@ export default function TeamsPage() {
                 <Link
                   key={team.id}
                   href={`/dashboard/teams/${team.id}`}
-                  className="group relative flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:border-kiln-orange/30"
+                  className="group relative flex flex-col rounded-xl border border-[#1e1e1e] bg-[#161616] p-5 transition-all duration-150 hover:bg-[#1a1a1a] hover:border-[#2a2a2a]"
                 >
                   {/* Header row */}
                   <div className="mb-3 flex items-start justify-between">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10 transition-colors group-hover:bg-kiln-orange/15">
-                      <Users className="h-5 w-5 text-kiln-orange" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05] group-hover:bg-white/[0.08] transition-colors">
+                      <Users className="h-5 w-5 text-gray-400 group-hover:text-gray-300 transition-colors" />
                     </div>
                     <div className="flex items-center gap-1.5">
                       {healthScores[team.id] && (
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                            healthScores[team.id].color === "green"
-                              ? "bg-kiln-green/10 text-kiln-green"
-                              : healthScores[team.id].color === "yellow"
-                              ? "bg-amber-500/10 text-amber-400"
-                              : "bg-red-500/10 text-red-400"
-                          }`}
-                        >
+                        <span className="inline-flex items-center gap-1 text-xs text-gray-500">
                           <Heart className="h-2.5 w-2.5" />
                           {healthScores[team.id].overall}%
                           {healthScores[team.id].direction === "up" && <TrendingUp className="h-2.5 w-2.5" />}
                           {healthScores[team.id].direction === "down" && <TrendingDown className="h-2.5 w-2.5" />}
                         </span>
                       )}
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                          team.status === "ACTIVE"
-                            ? "bg-kiln-green/10 text-kiln-green"
-                            : "bg-amber-500/10 text-amber-500"
-                        }`}
-                      >
-                        <span className="inline-flex items-center gap-1">
-                          {team.status === "ACTIVE" ? (
-                            <Play className="h-2.5 w-2.5" />
-                          ) : (
-                            <Pause className="h-2.5 w-2.5" />
-                          )}
-                          {team.status === "ACTIVE" ? "Active" : "Paused"}
-                        </span>
+                      <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                        {team.status === "ACTIVE" ? (
+                          <><span className="h-1.5 w-1.5 rounded-full bg-green-500" /><span>Active</span></>
+                        ) : (
+                          <><span className="h-1.5 w-1.5 rounded-full bg-amber-500" /><span>Paused</span></>
+                        )}
                       </span>
                     </div>
                   </div>
 
                   {/* Name + Goal */}
-                  <h3 className="mb-1 font-semibold text-foreground group-hover:text-kiln-orange transition-colors flex items-center gap-2">
+                  <h3 className="mb-1 font-medium text-gray-200 group-hover:text-gray-100 transition-colors flex items-center gap-2">
                     {team.name}
                     {team.parentTeamId && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500 border border-zinc-700/50 font-normal">
@@ -2063,7 +2036,7 @@ export default function TeamsPage() {
             {/* New Team card */}
             <button
               onClick={() => setShowCreate(true)}
-              className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/30 p-5 text-muted-foreground transition-all duration-200 hover:border-kiln-orange/30 hover:text-foreground hover:bg-card/50 min-h-[220px]"
+              className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/30 p-5 text-muted-foreground transition-all duration-200 hover:border-[#2a2a2a] hover:text-foreground hover:bg-card/50 min-h-[220px]"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted mb-3">
                 <Plus className="h-6 w-6" />
@@ -2083,25 +2056,25 @@ export default function TeamsPage() {
                   const taskCount = team._count?.tasks ?? 0;
                   const roleBadge = team.sharedRole || "VIEWER";
                   const roleStyle =
-                    roleBadge === "EDITOR" ? "text-blue-400 bg-blue-500/10 border-blue-500/20"
-                    : roleBadge === "APPROVER" ? "text-purple-400 bg-purple-500/10 border-purple-500/20"
-                    : "text-green-400 bg-green-500/10 border-green-500/20";
+                    roleBadge === "EDITOR" ? "text-gray-400 bg-white/[0.05] border-blue-500/20"
+                    : roleBadge === "APPROVER" ? "text-gray-400 bg-white/[0.05] border-purple-500/20"
+                    : "text-gray-400 bg-white/[0.05] border-green-500/20";
 
                   return (
                     <Link
                       key={team.id}
                       href={`/dashboard/teams/${team.id}`}
-                      className="group relative flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:border-kiln-orange/30"
+                      className="group relative flex flex-col rounded-xl border border-border bg-card p-5 transition-all duration-200 hover:border-[#2a2a2a]"
                     >
                       <div className="mb-3 flex items-start justify-between">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10 transition-colors group-hover:bg-kiln-orange/15">
-                          <Users className="h-5 w-5 text-kiln-orange" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05] transition-colors group-hover:bg-white/[0.08]">
+                          <Users className="h-5 w-5 text-gray-400" />
                         </div>
                         <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase", roleStyle)}>
                           {roleBadge}
                         </span>
                       </div>
-                      <h3 className="mb-1 font-semibold text-foreground group-hover:text-kiln-orange transition-colors">
+                      <h3 className="mb-1 font-semibold text-foreground group-hover:text-gray-400 transition-colors">
                         {team.name}
                       </h3>
                       <p className="mb-auto text-xs text-muted-foreground line-clamp-2 min-h-[2rem]">
@@ -2145,8 +2118,8 @@ export default function TeamsPage() {
           <div className="mx-4 w-full max-w-2xl rounded-2xl border border-border bg-zinc-900 shadow-2xl">
             <div className="flex items-center justify-between border-b border-border px-6 py-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-kiln-orange/10">
-                  <Upload className="h-5 w-5 text-kiln-orange" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.05]">
+                  <Upload className="h-5 w-5 text-gray-400" />
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">Import Workflow from YAML</h2>
@@ -2168,7 +2141,7 @@ export default function TeamsPage() {
 
             <div className="space-y-4 p-6">
               {/* File upload */}
-              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-background/50 px-4 py-3 text-sm text-muted-foreground transition-colors hover:border-kiln-orange/30 hover:text-foreground">
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-background/50 px-4 py-3 text-sm text-muted-foreground transition-colors hover:border-[#2a2a2a] hover:text-foreground">
                 <FileText className="h-4 w-4" />
                 <span>Drop or click to upload .yaml file</span>
                 <input
@@ -2197,7 +2170,7 @@ export default function TeamsPage() {
 
               {/* Error */}
               {importError && (
-                <div className="flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
+                <div className="flex items-center gap-2 rounded-lg border border-red-500/20 bg-white/[0.05] px-4 py-2.5 text-sm text-gray-400">
                   <AlertCircle className="h-4 w-4 shrink-0" />
                   {importError}
                 </div>
@@ -2207,7 +2180,7 @@ export default function TeamsPage() {
               {importPreview && (
                 <div className="rounded-xl border border-border bg-background/60 p-4">
                   <div className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
-                    <Eye className="h-4 w-4 text-kiln-orange" />
+                    <Eye className="h-4 w-4 text-gray-400" />
                     Import Preview
                   </div>
                   <div className="space-y-2 text-sm">

@@ -53,8 +53,8 @@ export default function TemplatesPage() {
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-kiln-orange/10">
-            <Sparkles className="h-5 w-5 text-kiln-orange" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05]">
+            <Sparkles className="h-5 w-5 text-gray-400" />
           </div>
           <div>
             <h1 className="font-serif text-3xl text-foreground">
@@ -117,7 +117,7 @@ export default function TemplatesPage() {
                 return (
                   <span
                     key={action}
-                    className="rounded-md bg-kiln-orange/10 px-2 py-0.5 text-[10px] font-medium text-kiln-orange"
+                    className="rounded-md bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium text-gray-400"
                   >
                     {labels[action] || action}
                   </span>

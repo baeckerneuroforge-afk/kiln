@@ -114,7 +114,7 @@ function AgentNode({ data, selected }: NodeProps) {
       {/* Trigger indicator for Task Agents — top center */}
       {isTask && TriggerIcon && (
         <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 flex h-5 w-5 items-center justify-center rounded-full border border-stone-700 bg-stone-900 shadow-sm">
-          <TriggerIcon className="h-2.5 w-2.5 text-kiln-orange" />
+          <TriggerIcon className="h-2.5 w-2.5 text-gray-400" />
         </div>
       )}
 
@@ -134,12 +134,12 @@ function AgentNode({ data, selected }: NodeProps) {
         <div className="flex items-center gap-2.5">
           <div className={cn(
             "relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
-            isTask ? "bg-kiln-orange/10" : "bg-blue-500/10"
+            isTask ? "bg-white/[0.05]" : "bg-white/[0.05]"
           )}>
             {isTask ? (
-              <Zap className="h-3.5 w-3.5 text-kiln-orange" />
+              <Zap className="h-3.5 w-3.5 text-gray-400" />
             ) : (
-              <MessageSquare className="h-3.5 w-3.5 text-blue-500" />
+              <MessageSquare className="h-3.5 w-3.5 text-gray-400" />
             )}
             {isLive && (
               <div className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border border-stone-900 bg-kiln-green" />
@@ -149,7 +149,7 @@ function AgentNode({ data, selected }: NodeProps) {
             <p className="truncate text-[13px] font-semibold text-foreground">{d.label}</p>
             <span className={cn(
               "text-[9px] font-bold uppercase tracking-wider",
-              isTask ? "text-kiln-orange" : "text-blue-400"
+              isTask ? "text-gray-400" : "text-gray-400"
             )}>
               {isTask ? "Task" : "Chat"}
             </span>
@@ -241,7 +241,7 @@ function ConditionNode({ data, selected }: NodeProps) {
   const d = data as { label: string; condition: string };
   return (
     <AdvancedNodeShell accentColor="!border-l-blue-500" selected={selected}>
-      <AdvancedNodeContent icon={GitBranch} label={d.label} color="text-blue-400" />
+      <AdvancedNodeContent icon={GitBranch} label={d.label} color="text-gray-400" />
       {d.condition && <p className="mt-2 text-[10px] leading-snug text-stone-500">{d.condition}</p>}
     </AdvancedNodeShell>
   );
@@ -251,7 +251,7 @@ function TriggerNode({ data, selected }: NodeProps) {
   const d = data as { label: string };
   return (
     <AdvancedNodeShell accentColor="!border-l-green-500" selected={selected} hasTarget={false}>
-      <AdvancedNodeContent icon={Zap} label={d.label} color="text-green-400" />
+      <AdvancedNodeContent icon={Zap} label={d.label} color="text-gray-400" />
     </AdvancedNodeShell>
   );
 }
@@ -260,7 +260,7 @@ function CodeNode({ data, selected }: NodeProps) {
   const d = data as { label: string };
   return (
     <AdvancedNodeShell accentColor="!border-l-purple-500" selected={selected}>
-      <AdvancedNodeContent icon={Code} label={d.label} color="text-purple-400" />
+      <AdvancedNodeContent icon={Code} label={d.label} color="text-gray-400" />
     </AdvancedNodeShell>
   );
 }
@@ -269,7 +269,7 @@ function HumanHandoffNode({ data, selected }: NodeProps) {
   const d = data as { label: string };
   return (
     <AdvancedNodeShell accentColor="!border-l-red-500" selected={selected} hasSource={false}>
-      <AdvancedNodeContent icon={User} label={d.label} color="text-red-400" />
+      <AdvancedNodeContent icon={User} label={d.label} color="text-gray-400" />
     </AdvancedNodeShell>
   );
 }
@@ -278,7 +278,7 @@ function RouterNode({ data, selected }: NodeProps) {
   const d = data as { label: string };
   return (
     <AdvancedNodeShell accentColor="!border-l-amber-500" selected={selected}>
-      <AdvancedNodeContent icon={Split} label={d.label} color="text-amber-400" />
+      <AdvancedNodeContent icon={Split} label={d.label} color="text-gray-400" />
     </AdvancedNodeShell>
   );
 }
@@ -338,18 +338,18 @@ const edgeTypes = {
 
 /* ---------- Templates ---------- */
 const templates = [
-  { id: "sales-funnel", name: "Sales Funnel", description: "Lead Qualifier → Sales Closer → Onboarding", icon: Sparkles, color: "text-kiln-orange", bg: "bg-kiln-orange/10" },
-  { id: "support-escalation", name: "Support Escalation", description: "L1 Support → L2 Technical → Human Handoff", icon: ArrowRight, color: "text-blue-400", bg: "bg-blue-500/10" },
-  { id: "lead-nurture", name: "Lead Nurture", description: "Lead Capture → Lead Scorer → Follow-Up", icon: Zap, color: "text-green-400", bg: "bg-green-500/10" },
+  { id: "sales-funnel", name: "Sales Funnel", description: "Lead Qualifier → Sales Closer → Onboarding", icon: Sparkles, color: "text-gray-400", bg: "bg-white/[0.05]" },
+  { id: "support-escalation", name: "Support Escalation", description: "L1 Support → L2 Technical → Human Handoff", icon: ArrowRight, color: "text-gray-400", bg: "bg-white/[0.05]" },
+  { id: "lead-nurture", name: "Lead Nurture", description: "Lead Capture → Lead Scorer → Follow-Up", icon: Zap, color: "text-gray-400", bg: "bg-white/[0.05]" },
 ];
 
 /* ---------- Advanced node palette ---------- */
 const advancedNodePalette = [
-  { type: "condition", label: "Condition", desc: "Branch based on rules", icon: GitBranch, color: "text-blue-400", bg: "bg-blue-500/10" },
-  { type: "trigger", label: "Trigger", desc: "Start a flow", icon: Zap, color: "text-green-400", bg: "bg-green-500/10" },
-  { type: "code", label: "Code", desc: "Run custom logic", icon: Code, color: "text-purple-400", bg: "bg-purple-500/10" },
-  { type: "humanHandoff", label: "Human Handoff", desc: "Escalate to human", icon: User, color: "text-red-400", bg: "bg-red-500/10" },
-  { type: "router", label: "Router", desc: "Split to multiple paths", icon: Split, color: "text-amber-400", bg: "bg-amber-500/10" },
+  { type: "condition", label: "Condition", desc: "Branch based on rules", icon: GitBranch, color: "text-gray-400", bg: "bg-white/[0.05]" },
+  { type: "trigger", label: "Trigger", desc: "Start a flow", icon: Zap, color: "text-gray-400", bg: "bg-white/[0.05]" },
+  { type: "code", label: "Code", desc: "Run custom logic", icon: Code, color: "text-gray-400", bg: "bg-white/[0.05]" },
+  { type: "humanHandoff", label: "Human Handoff", desc: "Escalate to human", icon: User, color: "text-gray-400", bg: "bg-white/[0.05]" },
+  { type: "router", label: "Router", desc: "Split to multiple paths", icon: Split, color: "text-gray-400", bg: "bg-white/[0.05]" },
 ];
 
 /* ---------- Edge styles ---------- */
@@ -440,8 +440,8 @@ function NodePanel({
                 className="group flex cursor-default items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-stone-900"
               >
                 <GripVertical className="h-3 w-3 shrink-0 text-stone-700 opacity-0 transition-opacity group-hover:opacity-100" />
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-kiln-orange/10">
-                  <Bot className="h-3 w-3 text-kiln-orange" />
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/[0.05]">
+                  <Bot className="h-3 w-3 text-gray-400" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[11px] font-medium text-stone-300">{agent.name}</p>
@@ -784,15 +784,15 @@ function OrchestrationCanvas() {
         <div className="max-w-lg text-center">
           <div className="mx-auto mb-8 flex items-center justify-center gap-3">
             <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-stone-800 bg-stone-900">
-              <Bot className="h-6 w-6 text-kiln-orange/60" />
+              <Bot className="h-6 w-6 text-gray-400/60" />
             </div>
             <div className="h-px w-10 bg-gradient-to-r from-kiln-orange/30 to-blue-500/30" />
             <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-stone-800 bg-stone-900">
-              <GitBranch className="h-6 w-6 text-blue-400/60" />
+              <GitBranch className="h-6 w-6 text-gray-400/60" />
             </div>
             <div className="h-px w-10 bg-gradient-to-r from-blue-500/30 to-green-500/30" />
             <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-stone-800 bg-stone-900">
-              <Bot className="h-6 w-6 text-green-400/60" />
+              <Bot className="h-6 w-6 text-gray-400/60" />
             </div>
           </div>
 
@@ -836,8 +836,8 @@ function OrchestrationCanvas() {
       {/* Toolbar */}
       <div className="flex items-center justify-between border-b border-stone-800 px-4 py-2 lg:px-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-kiln-orange/10">
-            <Network className="h-3.5 w-3.5 text-kiln-orange" />
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.05]">
+            <Network className="h-3.5 w-3.5 text-gray-400" />
           </div>
           <h1 className="text-sm font-semibold text-foreground">Orchestration</h1>
           <span className="hidden text-[11px] text-stone-500 sm:inline">
@@ -897,7 +897,7 @@ function OrchestrationCanvas() {
           </button>
 
           {advancedMode && (
-            <span className="flex items-center gap-1 rounded-full bg-purple-500/10 px-2 py-1 text-[10px] font-semibold text-purple-400">
+            <span className="flex items-center gap-1 rounded-full bg-white/[0.05] px-2 py-1 text-[10px] font-semibold text-gray-400">
               <Sparkles className="h-3 w-3" />
               Advanced
             </span>
@@ -915,7 +915,7 @@ function OrchestrationCanvas() {
           ) : analyticsData ? (
             <div>
               <div className="mb-3 flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-kiln-orange" />
+                <BarChart3 className="h-4 w-4 text-gray-400" />
                 <h3 className="text-sm font-semibold text-foreground">Analytics</h3>
               </div>
 
@@ -940,13 +940,13 @@ function OrchestrationCanvas() {
                     {analyticsData.routes.slice(0, 5).map((route) => (
                       <div key={route.ruleId} className="flex items-center gap-2 rounded-lg border border-stone-800 bg-stone-900/50 px-3 py-2">
                         <div className="flex items-center gap-1.5 text-xs">
-                          <Bot className="h-3.5 w-3.5 text-kiln-orange" />
+                          <Bot className="h-3.5 w-3.5 text-gray-400" />
                           <span className="font-medium text-stone-200">{route.sourceName}</span>
                           <ArrowRight className="h-3 w-3 text-stone-600" />
-                          <Bot className="h-3.5 w-3.5 text-kiln-orange" />
+                          <Bot className="h-3.5 w-3.5 text-gray-400" />
                           <span className="font-medium text-stone-200">{route.targetName}</span>
                         </div>
-                        <span className="ml-auto rounded-full bg-kiln-orange/10 px-2 py-0.5 text-[10px] font-semibold text-kiln-orange">
+                        <span className="ml-auto rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] font-semibold text-gray-400">
                           {route.count} handoff{route.count !== 1 ? "s" : ""}
                         </span>
                       </div>
@@ -1022,7 +1022,7 @@ function OrchestrationCanvas() {
                 className="flex items-center gap-2 rounded-full border border-stone-800 bg-stone-900/95 px-4 py-2 shadow-lg backdrop-blur-sm animate-in fade-in slide-in-from-bottom-2 duration-300 cursor-pointer"
                 onClick={() => { setShowHint(false); hintDismissed.current = true; }}
               >
-                <ArrowRight className="h-3 w-3 text-kiln-orange" />
+                <ArrowRight className="h-3 w-3 text-gray-400" />
                 <span className="text-[11px] text-stone-400">
                   Drag from a node handle to create a connection
                 </span>
@@ -1043,7 +1043,7 @@ function OrchestrationCanvas() {
                     onClick={() => toggleConnection(selectedEdge)}
                     className={cn(
                       "rounded-lg p-1.5 transition-colors",
-                      selectedConn.enabled ? "text-kiln-green hover:bg-green-500/10" : "text-stone-500 hover:bg-stone-800"
+                      selectedConn.enabled ? "text-gray-400 hover:bg-white/[0.05]" : "text-stone-500 hover:bg-stone-800"
                     )}
                     title={selectedConn.enabled ? "Disable" : "Enable"}
                   >
@@ -1051,7 +1051,7 @@ function OrchestrationCanvas() {
                   </button>
                   <button
                     onClick={() => deleteConnection(selectedEdge)}
-                    className="rounded-lg p-1.5 text-red-400 transition-colors hover:bg-red-500/10"
+                    className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-white/[0.05]"
                     title="Delete"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -1070,12 +1070,12 @@ function OrchestrationCanvas() {
                   <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-stone-600">Flow</label>
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-2 rounded-lg border border-stone-800 bg-stone-900 px-3 py-2">
-                      <Bot className="h-3.5 w-3.5 text-kiln-orange" />
+                      <Bot className="h-3.5 w-3.5 text-gray-400" />
                       <span className="text-xs font-medium text-stone-200">{selectedConn.sourceAgent.name}</span>
                     </div>
                     <ArrowRight className="h-4 w-4 shrink-0 text-stone-600" />
                     <div className="flex items-center gap-2 rounded-lg border border-stone-800 bg-stone-900 px-3 py-2">
-                      <Bot className="h-3.5 w-3.5 text-kiln-orange" />
+                      <Bot className="h-3.5 w-3.5 text-gray-400" />
                       <span className="text-xs font-medium text-stone-200">{selectedConn.targetAgent.name}</span>
                     </div>
                   </div>
@@ -1089,7 +1089,7 @@ function OrchestrationCanvas() {
                       <span className="text-xs text-stone-300">{selectedConn.enabled ? "Active" : "Disabled"}</span>
                     </div>
                     {(selectedConn.handoffCount ?? 0) > 0 && (
-                      <span className="rounded-full bg-kiln-orange/10 px-2.5 py-0.5 text-[10px] font-semibold text-kiln-orange">
+                      <span className="rounded-full bg-white/[0.05] px-2.5 py-0.5 text-[10px] font-semibold text-gray-400">
                         {selectedConn.handoffCount} handoff{selectedConn.handoffCount !== 1 ? "s" : ""}
                       </span>
                     )}

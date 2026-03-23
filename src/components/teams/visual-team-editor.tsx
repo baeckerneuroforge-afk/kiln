@@ -1212,37 +1212,7 @@ function VisualTeamEditorInner({
     [reactFlowInstance, setNodes, onWorkflowNodesChange, wfNodes]
   );
 
-  // Empty state
-  if (members.length === 0 && (!wfNodes || wfNodes.length === 0)) {
-    return (
-      <div className="relative h-full w-full bg-[#141418]">
-        <NodePaletteSidebar
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        />
-        <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-5 py-16">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500/10 border border-orange-500/20">
-            <LayoutGrid className="h-8 w-8 text-orange-500/60" />
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-medium text-zinc-300 mb-1">Start building your workflow</p>
-            <p className="text-xs text-zinc-500 max-w-sm">
-              Drag and drop nodes from the palette to build your workflow, or click below to open it.
-            </p>
-          </div>
-          {sidebarCollapsed && (
-            <button
-              onClick={() => setSidebarCollapsed(false)}
-              className="flex items-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-2 text-sm font-medium text-orange-400 transition-colors hover:bg-orange-500/20"
-            >
-              <PanelLeft className="h-4 w-4" />
-              Show Node Palette
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
+  const isEmpty = members.length === 0 && (!wfNodes || wfNodes.length === 0) && nodes.length === 0;
 
   return (
     <div className="h-full w-full relative" ref={reactFlowWrapper}>
@@ -1328,6 +1298,32 @@ function VisualTeamEditorInner({
           className="!bg-[#1a1a24] !border-[#2a2a3a] !rounded-xl !shadow-xl [&>button]:!bg-[#262630] [&>button]:!border-[#363644] [&>button]:!text-zinc-400 [&>button:hover]:!bg-[#2a2a3a] [&>button:hover]:!text-zinc-200"
           showInteractive={false}
         />
+
+        {/* Empty state overlay — rendered INSIDE ReactFlow so drop target stays active */}
+        {isEmpty && (
+          <Panel position="top-center" className="!mt-[25%]">
+            <div className="flex flex-col items-center gap-4 pointer-events-auto">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-500/10 border border-orange-500/20">
+                <LayoutGrid className="h-7 w-7 text-orange-500/50" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-zinc-300 mb-1">Start building your workflow</p>
+                <p className="text-xs text-zinc-500 max-w-xs">
+                  Drag nodes from the palette and drop them here
+                </p>
+              </div>
+              {sidebarCollapsed && (
+                <button
+                  onClick={() => setSidebarCollapsed(false)}
+                  className="flex items-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs font-medium text-orange-400 transition-colors hover:bg-orange-500/20"
+                >
+                  <PanelLeft className="h-3.5 w-3.5" />
+                  Show Node Palette
+                </button>
+              )}
+            </div>
+          </Panel>
+        )}
 
         {/* Toolbar */}
         <Panel position="top-right" className="flex gap-2">

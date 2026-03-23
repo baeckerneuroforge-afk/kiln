@@ -84,7 +84,7 @@ export default function ClientsDashboardPage() {
             className={cn(
               "flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2",
               activeTab === tab.id
-                ? "text-kiln-orange border-kiln-orange"
+                ? "text-gray-400 border-kiln-orange"
                 : "text-stone-500 border-transparent hover:text-stone-300"
             )}
           >

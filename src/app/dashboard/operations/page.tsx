@@ -97,16 +97,16 @@ function formatRelativeTime(timestamp: string) {
 function ActivityIcon({ type }: { type: string }) {
   switch (type) {
     case "lead":
-      return <UserPlus className="h-4 w-4 text-green-400" />;
+      return <UserPlus className="h-4 w-4 text-gray-400" />;
     case "appointment":
-      return <CalendarCheck2 className="h-4 w-4 text-blue-400" />;
+      return <CalendarCheck2 className="h-4 w-4 text-gray-400" />;
     case "team_execution":
       return <Zap className="h-4 w-4 text-orange-400" />;
     case "handoff":
-      return <AlertTriangle className="h-4 w-4 text-amber-300" />;
+      return <AlertTriangle className="h-4 w-4 text-gray-400" />;
     case "conversation":
     default:
-      return <MessageSquare className="h-4 w-4 text-kiln-orange" />;
+      return <MessageSquare className="h-4 w-4 text-gray-400" />;
   }
 }
 
@@ -265,8 +265,8 @@ export default function OperationsPage() {
     return (
       <div className="mx-auto max-w-4xl">
         <div className="rounded-[28px] border border-border bg-card p-10 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-kiln-orange/10">
-            <Activity className="h-8 w-8 text-kiln-orange" />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.05]">
+            <Activity className="h-8 w-8 text-gray-400" />
           </div>
           <h1 className="mt-6 font-serif text-3xl text-foreground">Operations Dashboard</h1>
           <p className="mt-3 text-sm text-muted-foreground">
@@ -294,7 +294,7 @@ export default function OperationsPage() {
     <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.24em] text-kiln-orange">
+          <p className="text-xs font-medium uppercase tracking-[0.24em] text-gray-400">
             Agent Operations
           </p>
           <h1 className="mt-2 font-serif text-3xl text-foreground">Global command center</h1>
@@ -313,31 +313,31 @@ export default function OperationsPage() {
           label="Active Agents"
           value={String(data.overview.totalActiveAgents)}
           meta={`${data.agentCount} total agents`}
-          icon={<Bot className="h-4 w-4 text-kiln-orange" />}
+          icon={<Bot className="h-4 w-4 text-gray-400" />}
         />
         <OverviewCard
           label="Conversations"
           value={String(data.overview.conversationsWeek)}
           meta={`Today ${data.overview.conversationsToday} · Week to date`}
-          icon={<MessageSquare className="h-4 w-4 text-blue-400" />}
+          icon={<MessageSquare className="h-4 w-4 text-gray-400" />}
         />
         <OverviewCard
           label="Leads Captured"
           value={String(data.overview.leadsWeek)}
           meta={`Today ${data.overview.leadsToday} · Week to date`}
-          icon={<UserPlus className="h-4 w-4 text-green-400" />}
+          icon={<UserPlus className="h-4 w-4 text-gray-400" />}
         />
         <OverviewCard
           label="Credits Remaining"
           value={String(data.overview.creditsRemaining)}
           meta={`${Math.round(data.overview.creditsRatio * 100)}% of ${data.overview.totalCredits}`}
-          icon={<Wallet className="h-4 w-4 text-amber-300" />}
+          icon={<Wallet className="h-4 w-4 text-gray-400" />}
         />
         <OverviewCard
           label="Needs Attention"
           value={String(data.overview.agentsNeedingAttention)}
           meta="Unique agents or workspace issues"
-          icon={<AlertTriangle className="h-4 w-4 text-red-400" />}
+          icon={<AlertTriangle className="h-4 w-4 text-gray-400" />}
         />
       </div>
 
@@ -415,13 +415,13 @@ export default function OperationsPage() {
                 Move from monitoring into action without leaving the dashboard.
               </p>
             </div>
-            <Zap className="h-4 w-4 text-kiln-orange" />
+            <Zap className="h-4 w-4 text-gray-400" />
           </div>
 
           <div className="mt-5 space-y-3">
             <Link
               href={data.quickLinks.createAgentHref}
-              className="flex items-center justify-between rounded-xl border border-border bg-background/40 px-4 py-3 transition-colors hover:border-kiln-orange/30 hover:bg-kiln-orange/5"
+              className="flex items-center justify-between rounded-xl border border-border bg-background/40 px-4 py-3 transition-colors hover:border-[#2a2a2a] hover:bg-[#1a1a1a]"
             >
               <div>
                 <p className="text-sm font-medium text-foreground">Create new agent</p>
@@ -432,7 +432,7 @@ export default function OperationsPage() {
 
             <Link
               href={data.quickLinks.conversationsHref}
-              className="flex items-center justify-between rounded-xl border border-border bg-background/40 px-4 py-3 transition-colors hover:border-kiln-orange/30 hover:bg-kiln-orange/5"
+              className="flex items-center justify-between rounded-xl border border-border bg-background/40 px-4 py-3 transition-colors hover:border-[#2a2a2a] hover:bg-[#1a1a1a]"
             >
               <div>
                 <p className="text-sm font-medium text-foreground">View all conversations</p>
@@ -443,7 +443,7 @@ export default function OperationsPage() {
 
             <div className="rounded-xl border border-border bg-background/40 p-4">
               <div className="flex items-center gap-2">
-                <Play className="h-4 w-4 text-kiln-orange" />
+                <Play className="h-4 w-4 text-gray-400" />
                 <p className="text-sm font-medium text-foreground">Run team</p>
               </div>
               <div className="mt-3 flex gap-2">
@@ -493,13 +493,13 @@ export default function OperationsPage() {
                 Agents or workspace conditions that should be inspected next.
               </p>
             </div>
-            <AlertTriangle className="h-4 w-4 text-red-400" />
+            <AlertTriangle className="h-4 w-4 text-gray-400" />
           </div>
 
           <div className="mt-5 space-y-3">
             {data.attentionItems.length === 0 ? (
               <div className="rounded-xl border border-dashed border-zinc-800 bg-background/30 px-4 py-6 text-center">
-                <CheckCircle2 className="mx-auto h-7 w-7 text-green-400" />
+                <CheckCircle2 className="mx-auto h-7 w-7 text-gray-400" />
                 <p className="mt-3 text-sm font-medium text-foreground">No urgent issues detected</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Your active agents look healthy across the current attention rules.
@@ -524,7 +524,7 @@ export default function OperationsPage() {
                           "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase",
                           item.severity === "critical"
                             ? "bg-red-500/15 text-red-300"
-                            : "bg-amber-500/15 text-amber-300"
+                            : "bg-amber-500/15 text-gray-400"
                         )}
                       >
                         {item.issueType}
@@ -556,7 +556,7 @@ export default function OperationsPage() {
                 Latest cross-agent events, refreshed automatically.
               </p>
             </div>
-            <Activity className="h-4 w-4 text-kiln-orange" />
+            <Activity className="h-4 w-4 text-gray-400" />
           </div>
 
           <div className="mt-5 space-y-3">
@@ -573,7 +573,7 @@ export default function OperationsPage() {
                 <Link
                   key={event.id}
                   href={event.href}
-                  className="flex items-start gap-3 rounded-xl border border-border bg-background/30 px-4 py-3 transition-colors hover:border-kiln-orange/20 hover:bg-kiln-orange/5"
+                  className="flex items-start gap-3 rounded-xl border border-border bg-background/30 px-4 py-3 transition-colors hover:border-[#1e1e1e] hover:bg-[#1a1a1a]"
                 >
                   <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-muted/60">
                     <ActivityIcon type={event.type} />

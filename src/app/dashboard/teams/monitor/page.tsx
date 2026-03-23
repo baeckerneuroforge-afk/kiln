@@ -84,11 +84,11 @@ const PRIORITY_BADGE: Record<number, { label: string; style: string }> = {
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  RUNNING: { label: "Running", color: "text-blue-400 bg-blue-500/10 border-blue-500/20", icon: <Loader2 className="h-3.5 w-3.5 animate-spin" /> },
-  AWAITING_APPROVAL: { label: "Awaiting Approval", color: "text-amber-400 bg-amber-500/10 border-amber-500/20", icon: <Pause className="h-3.5 w-3.5" /> },
-  COMPLETED: { label: "Completed", color: "text-green-400 bg-green-500/10 border-green-500/20", icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
-  PARTIAL: { label: "Partial", color: "text-amber-400 bg-amber-500/10 border-amber-500/20", icon: <AlertTriangle className="h-3.5 w-3.5" /> },
-  FAILED: { label: "Failed", color: "text-red-400 bg-red-500/10 border-red-500/20", icon: <XCircle className="h-3.5 w-3.5" /> },
+  RUNNING: { label: "Running", color: "text-gray-400 bg-white/[0.05] border-blue-500/20", icon: <Loader2 className="h-3.5 w-3.5 animate-spin" /> },
+  AWAITING_APPROVAL: { label: "Awaiting Approval", color: "text-gray-400 bg-white/[0.05] border-amber-500/20", icon: <Pause className="h-3.5 w-3.5" /> },
+  COMPLETED: { label: "Completed", color: "text-gray-400 bg-white/[0.05] border-green-500/20", icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
+  PARTIAL: { label: "Partial", color: "text-gray-400 bg-white/[0.05] border-amber-500/20", icon: <AlertTriangle className="h-3.5 w-3.5" /> },
+  FAILED: { label: "Failed", color: "text-gray-400 bg-white/[0.05] border-red-500/20", icon: <XCircle className="h-3.5 w-3.5" /> },
   QUEUED: { label: "Queued", color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20", icon: <Clock className="h-3.5 w-3.5" /> },
 };
 
@@ -190,13 +190,13 @@ export default function TeamMonitorPage() {
             className={cn(
               "rounded-xl border p-4 text-left transition-all",
               statusFilter === "RUNNING"
-                ? "border-blue-500/30 bg-blue-500/10"
+                ? "border-blue-500/30 bg-white/[0.05]"
                 : "border-zinc-800 bg-zinc-900/60 hover:border-zinc-700"
             )}
           >
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Running Now</span>
-              <Activity className="h-4 w-4 text-blue-400" />
+              <Activity className="h-4 w-4 text-gray-400" />
             </div>
             <p className="mt-2 text-3xl font-bold text-zinc-100">{data.summary.runningNow}</p>
           </button>
@@ -222,13 +222,13 @@ export default function TeamMonitorPage() {
             className={cn(
               "rounded-xl border p-4 text-left transition-all",
               statusFilter === "AWAITING_APPROVAL"
-                ? "border-amber-500/30 bg-amber-500/10"
+                ? "border-amber-500/30 bg-white/[0.05]"
                 : "border-zinc-800 bg-zinc-900/60 hover:border-zinc-700"
             )}
           >
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Awaiting Approval</span>
-              <Pause className="h-4 w-4 text-amber-400" />
+              <Pause className="h-4 w-4 text-gray-400" />
             </div>
             <p className="mt-2 text-3xl font-bold text-zinc-100">{data.summary.awaitingApproval}</p>
           </button>
@@ -238,13 +238,13 @@ export default function TeamMonitorPage() {
             className={cn(
               "rounded-xl border p-4 text-left transition-all",
               statusFilter === "COMPLETED"
-                ? "border-green-500/30 bg-green-500/10"
+                ? "border-green-500/30 bg-white/[0.05]"
                 : "border-zinc-800 bg-zinc-900/60 hover:border-zinc-700"
             )}
           >
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Completed Today</span>
-              <CheckCircle2 className="h-4 w-4 text-green-400" />
+              <CheckCircle2 className="h-4 w-4 text-gray-400" />
             </div>
             <p className="mt-2 text-3xl font-bold text-zinc-100">{data.summary.completedToday}</p>
           </button>
@@ -254,13 +254,13 @@ export default function TeamMonitorPage() {
             className={cn(
               "rounded-xl border p-4 text-left transition-all",
               statusFilter === "FAILED"
-                ? "border-red-500/30 bg-red-500/10"
+                ? "border-red-500/30 bg-white/[0.05]"
                 : "border-zinc-800 bg-zinc-900/60 hover:border-zinc-700"
             )}
           >
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Failed Today</span>
-              <XCircle className="h-4 w-4 text-red-400" />
+              <XCircle className="h-4 w-4 text-gray-400" />
             </div>
             <p className="mt-2 text-3xl font-bold text-zinc-100">{data.summary.failedToday}</p>
           </button>
@@ -384,7 +384,7 @@ export default function TeamMonitorPage() {
                       {(isRunning || isWaiting) && exec.currentStep && (
                         <div className="flex items-center gap-2 mb-2">
                           {isRunning && (exec.currentAgent || exec.currentNodeType) && (
-                            <span className="flex items-center gap-1.5 text-xs text-blue-400">
+                            <span className="flex items-center gap-1.5 text-xs text-gray-400">
                               <span className="relative flex h-2 w-2">
                                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
                                 <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
@@ -400,7 +400,7 @@ export default function TeamMonitorPage() {
                               : `Step ${exec.currentStepIndex + 1}/${exec.totalTasks}: ${exec.currentStep}`}
                           </span>
                           {isWaiting && exec.currentNodeType === "approval_gate" && (
-                            <span className="text-xs text-amber-400">Waiting for approval</span>
+                            <span className="text-xs text-gray-400">Waiting for approval</span>
                           )}
                           {isWaiting && exec.currentNodeType === "delay" && (
                             <span className="text-xs text-cyan-400">Delay active</span>
@@ -442,8 +442,8 @@ export default function TeamMonitorPage() {
                   {/* Inline Approve for awaiting approval */}
                   {isWaiting && exec.pendingApprovals.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center gap-2">
-                      <Pause className="h-3.5 w-3.5 text-amber-400" />
-                      <span className="text-xs text-amber-400 flex-1">
+                      <Pause className="h-3.5 w-3.5 text-gray-400" />
+                      <span className="text-xs text-gray-400 flex-1">
                         Approval required
                         {exec.pendingApprovals[0].approverEmail ? ` from ${exec.pendingApprovals[0].approverEmail}` : ""}
                       </span>

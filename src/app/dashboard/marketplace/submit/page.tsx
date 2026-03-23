@@ -48,14 +48,14 @@ const PLAN_OPTIONS = [
 ];
 
 const categoryColors: Record<string, string> = {
-  sales: "bg-kiln-orange/10 text-kiln-orange",
-  support: "bg-blue-500/10 text-blue-500",
-  research: "bg-purple-500/10 text-purple-400",
+  sales: "bg-white/[0.05] text-gray-400",
+  support: "bg-white/[0.05] text-gray-400",
+  research: "bg-white/[0.05] text-gray-400",
   monitoring: "bg-yellow-500/10 text-yellow-400",
-  "e-commerce": "bg-green-500/10 text-green-400",
-  recruiting: "bg-pink-500/10 text-pink-400",
+  "e-commerce": "bg-white/[0.05] text-gray-400",
+  recruiting: "bg-white/[0.05] text-gray-400",
   marketing: "bg-cyan-500/10 text-cyan-400",
-  legal: "bg-red-500/10 text-red-400",
+  legal: "bg-white/[0.05] text-gray-400",
 };
 
 export default function MarketplaceSubmitPage() {
@@ -186,8 +186,8 @@ export default function MarketplaceSubmitPage() {
   if (submitted) {
     return (
       <div className="mx-auto max-w-2xl py-20 text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-kiln-green/10">
-          <Check className="h-8 w-8 text-kiln-green" />
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-white/[0.05]">
+          <Check className="h-8 w-8 text-gray-400" />
         </div>
         <h1 className="font-serif text-3xl text-foreground">
           Agent eingereicht!
@@ -252,8 +252,8 @@ export default function MarketplaceSubmitPage() {
 
       {/* Plan-Check Banner */}
       {!isPlanSufficient && (
-        <div className="mb-8 flex items-start gap-3 rounded-xl border border-kiln-orange/20 bg-kiln-orange/5 p-4">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-kiln-orange" />
+        <div className="mb-8 flex items-start gap-3 rounded-xl border border-[#1e1e1e] bg-kiln-orange/5 p-4">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" />
           <div>
             <p className="font-medium text-foreground">
               Marketplace-Veröffentlichung erfordert mindestens Pro
@@ -485,7 +485,7 @@ export default function MarketplaceSubmitPage() {
                     type="button"
                     onClick={addScreenshot}
                     disabled={!isPlanSufficient}
-                    className="flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-kiln-orange/30 hover:text-foreground disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-[#2a2a2a] hover:text-foreground disabled:opacity-50"
                   >
                     <Plus className="h-4 w-4" />
                     Screenshot hinzufügen
@@ -519,7 +519,7 @@ export default function MarketplaceSubmitPage() {
             {/* Submit section */}
             <div className="space-y-4">
               <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
-                <Info className="mt-0.5 h-5 w-5 shrink-0 text-blue-400" />
+                <Info className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" />
                 <p className="text-sm text-muted-foreground">
                   Nach dem Einreichen wird dein Agent geprüft. Bei
                   Veröffentlichung erhältst du{" "}
@@ -619,7 +619,7 @@ export default function MarketplaceSubmitPage() {
                     <span
                       className={cn(
                         "text-sm font-semibold",
-                        price > 0 ? "text-foreground" : "text-kiln-green"
+                        price > 0 ? "text-foreground" : "text-gray-400"
                       )}
                     >
                       {price > 0 ? `€${price}` : "Kostenlos"}
@@ -648,7 +648,7 @@ export default function MarketplaceSubmitPage() {
                   {/* Min Plan Badge */}
                   {minPlan !== "free" && (
                     <div className="mt-3">
-                      <span className="rounded-md bg-kiln-orange/10 px-2 py-0.5 text-[10px] font-medium text-kiln-orange">
+                      <span className="rounded-md bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium text-gray-400">
                         Ab {PLAN_OPTIONS.find((p) => p.value === minPlan)?.label}
                       </span>
                     </div>

@@ -5,7 +5,7 @@ export default function SitesPage() {
     <div className="mx-auto max-w-5xl">
       <div className="mb-8 flex items-center gap-3">
         <h1 className="font-serif text-3xl text-foreground">Site Builder</h1>
-        <span className="rounded-full bg-kiln-blue/10 px-2.5 py-1 text-[11px] font-semibold text-kiln-blue">
+        <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-[11px] font-semibold text-gray-400">
           Coming Q3 2026
         </span>
       </div>
@@ -14,8 +14,8 @@ export default function SitesPage() {
       </p>
 
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-kiln-blue/20 bg-card/50 py-16">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-kiln-blue/10">
-          <Globe className="h-8 w-8 text-kiln-blue" />
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.05]">
+          <Globe className="h-8 w-8 text-gray-400" />
         </div>
         <h2 className="mb-2 text-lg font-semibold text-foreground">
           Coming Q3 2026
