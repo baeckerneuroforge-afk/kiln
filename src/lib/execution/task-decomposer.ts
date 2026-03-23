@@ -6,6 +6,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import type { SubTask, SubTaskComplexity, ModelTier } from "./parallel-executor";
+import type { SubAgentTool, ModelPreference } from "./sub-agent-executor";
 
 /* ── Types ── */
 
@@ -27,33 +28,52 @@ export interface DecompositionContext {
 
 /* ── Decomposer ── */
 
-const DECOMPOSE_SYSTEM_PROMPT = `Du bist ein Task-Decomposer für die KILN AI Platform.
-Zerlege ein Ziel in konkrete, parallelisierbare Sub-Tasks.
+const DECOMPOSE_SYSTEM_PROMPT = `You are a Task Decomposer for the KILN AI Platform.
+You decompose complex tasks into sub-tasks for parallel execution by specialized agents.
 
-Regeln:
-1. Maximal 15 Tasks
-2. Identifiziere parallele Tasks (keine Abhängigkeiten untereinander)
-3. Minimiere Sequentialität — je mehr parallel, desto besser
-4. Jeder Task muss eigenständig ausführbar sein
-5. Markiere Komplexität realistisch
+CRITICAL: Maximize parallelism. If two tasks don't depend on each other's output, they MUST be marked as independent. Serial execution is a last resort.
 
-Antworte AUSSCHLIESSLICH mit validem JSON:
+For each sub-task specify:
+- description: what the agent should do (be specific and actionable)
+- tools_needed: which tools it needs (computer_use, code_sandbox, mcp, deep_research, web_search)
+- model_preference: what kind of thinking it needs (fast_extraction, research, code_generation, deep_reasoning, creative)
+- estimated_complexity: low/medium/high (affects model selection and timeout)
+- dependencies: IDs of tasks that must complete first (empty array = can start immediately)
+- output_format: what the result should look like (text, json, table, file)
+
+Common patterns to apply:
+- "Compare X across N sites" → N parallel computer_use tasks + 1 merge task
+- "Research topic from multiple angles" → N parallel deep_research tasks + 1 synthesis task
+- "Process data and create report" → 1 data task → 1 code task (sequential, dependent)
+- "Monitor N things" → N parallel tasks (fully independent)
+
+Rules:
+1. Maximum 15 tasks
+2. Maximize parallel tasks (no dependencies between them unless strictly necessary)
+3. Each task must be independently executable
+4. Mark complexity realistically
+5. Always include tool requirements
+
+Respond EXCLUSIVELY with valid JSON:
 {
   "tasks": [
     {
       "id": "task_1",
-      "description": "Konkrete Aufgabe",
+      "description": "Specific task description",
       "dependencies": [],
       "config": {},
       "estimatedComplexity": "low|medium|high",
-      "suggestedModelTier": "fast|balanced|powerful"
+      "suggestedModelTier": "fast|balanced|powerful",
+      "tools_needed": ["computer_use", "web_search"],
+      "model_preference": "research",
+      "output_format": "text"
     }
   ],
   "phases": [
-    { "phaseIndex": 0, "taskIds": ["task_1", "task_2"], "description": "Parallel: Daten sammeln" }
+    { "phaseIndex": 0, "taskIds": ["task_1", "task_2"], "description": "Parallel: Data gathering" }
   ],
   "estimatedTotalSec": 30,
-  "reasoning": "Erklärung der Zerlegungsstrategie"
+  "reasoning": "Explanation of decomposition strategy and why these tasks are parallel"
 }`;
 
 /**
@@ -116,14 +136,21 @@ export async function decomposeGoal(
   }
 
   // Validate and normalize
-  parsed.tasks = parsed.tasks.slice(0, maxTasks).map((task, i) => ({
-    id: task.id || `task_${i + 1}`,
-    description: task.description || "",
-    dependencies: Array.isArray(task.dependencies) ? task.dependencies : [],
-    config: task.config || {},
-    estimatedComplexity: validateComplexity(task.estimatedComplexity),
-    suggestedModelTier: validateTier(task.suggestedModelTier),
-  }));
+  parsed.tasks = parsed.tasks.slice(0, maxTasks).map((task, i) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw = task as any;
+    return {
+      id: task.id || `task_${i + 1}`,
+      description: task.description || "",
+      dependencies: Array.isArray(task.dependencies) ? task.dependencies : [],
+      config: task.config || {},
+      estimatedComplexity: validateComplexity(task.estimatedComplexity),
+      suggestedModelTier: validateTier(task.suggestedModelTier),
+      tools: validateTools(raw.tools_needed || raw.tools),
+      modelPreference: validateModelPreference(raw.model_preference || raw.modelPreference),
+      outputFormat: validateOutputFormat(raw.output_format || raw.outputFormat),
+    };
+  });
 
   // Validate dependency references
   const taskIds = new Set(parsed.tasks.map((t) => t.id));
@@ -159,6 +186,25 @@ function validateComplexity(c: unknown): SubTaskComplexity {
 function validateTier(t: unknown): ModelTier {
   if (t === "fast" || t === "balanced" || t === "powerful") return t;
   return "balanced";
+}
+
+const VALID_TOOLS: SubAgentTool[] = ["computer_use", "code_sandbox", "mcp", "deep_research", "web_search"];
+
+function validateTools(tools: unknown): SubAgentTool[] | undefined {
+  if (!Array.isArray(tools)) return undefined;
+  return tools.filter((t): t is SubAgentTool => VALID_TOOLS.includes(t as SubAgentTool));
+}
+
+const VALID_PREFERENCES: ModelPreference[] = ["fast_extraction", "research", "code_generation", "deep_reasoning", "creative"];
+
+function validateModelPreference(pref: unknown): ModelPreference | undefined {
+  if (VALID_PREFERENCES.includes(pref as ModelPreference)) return pref as ModelPreference;
+  return undefined;
+}
+
+function validateOutputFormat(fmt: unknown): "text" | "json" | "table" | "file" | undefined {
+  if (fmt === "text" || fmt === "json" || fmt === "table" || fmt === "file") return fmt;
+  return undefined;
 }
 
 function hasCircularDependency(tasks: SubTask[]): boolean {

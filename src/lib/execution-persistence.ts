@@ -28,12 +28,44 @@ export interface ExecutionCheckpoint {
   reason?: string;
 }
 
+export interface EnhancedCheckpointState {
+  /** Aktueller Node-Index im Workflow */
+  currentNodeIndex?: number;
+  /** Aktueller Step-Index innerhalb des Nodes */
+  currentStepIndex?: number;
+  /** Alle Variablen und Zwischenergebnisse */
+  variables?: Record<string, unknown>;
+  /** Shared Workspace State (für Swarms) */
+  sharedWorkspace?: Record<string, unknown>;
+  /** Browser-Session-State */
+  browserState?: {
+    lastUrl?: string;
+    cookies?: string;
+    loggedIn?: boolean;
+    sessionId?: string;
+  };
+  /** Code Sandbox State */
+  sandboxState?: {
+    filesCreated?: string[];
+    packagesInstalled?: string[];
+    sessionId?: string;
+  };
+  /** Reasoning Log bis zum Checkpoint */
+  reasoningLog?: unknown[];
+  /** Bisherige Kosten */
+  costAccumulatedCents?: number;
+  /** Bisherige Context-Komprimierungen */
+  contextCompactions?: number;
+}
+
 export interface ExecutionResumeData {
   context: Record<string, unknown>;
   executedNodeIds: string[];
   pendingQueue: string[];
   completedNodes: number;
   failedNodes: number;
+  /** Erweiterte State-Daten für präzises Resume */
+  enhancedState?: EnhancedCheckpointState;
 }
 
 /* ── Checkpoint Save/Load ── */
@@ -41,9 +73,16 @@ export interface ExecutionResumeData {
 /**
  * Speichert einen Checkpoint für eine laufende Execution.
  * Wird im executionContext-Feld der TeamExecution gespeichert.
+ * Enthält vollständigen State für Crash-Recovery.
  */
 export async function saveCheckpoint(checkpoint: ExecutionCheckpoint): Promise<void> {
-  const checkpointData = {
+  const enhancedState = checkpoint.context._enhancedState as EnhancedCheckpointState | undefined;
+
+  // Baue den checkpoint-Kontext zusammen und entferne _enhancedState aus dem User-Context
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { _enhancedState: _ctxEnhanced, ...cleanCtx } = checkpoint.context;
+
+  const serialized = JSON.parse(JSON.stringify({
     _checkpoint: {
       executedNodeIds: checkpoint.executedNodeIds,
       pendingQueue: checkpoint.pendingQueue,
@@ -52,17 +91,53 @@ export async function saveCheckpoint(checkpoint: ExecutionCheckpoint): Promise<v
       checkpointedAt: checkpoint.checkpointedAt.toISOString(),
       reason: checkpoint.reason,
     },
-    ...checkpoint.context,
-  };
+    _enhancedState: enhancedState || null,
+    ...cleanCtx,
+  }));
 
   await prisma.teamExecution.update({
     where: { id: checkpoint.executionId },
     data: {
-      executionContext: JSON.parse(JSON.stringify(checkpointData)),
+      executionContext: serialized,
       completedTasks: checkpoint.completedNodes,
       failedTasks: checkpoint.failedNodes,
       status: TeamExecutionStatus.RUNNING,
+      contextCompactions: enhancedState?.contextCompactions || 0,
     },
+  });
+}
+
+/**
+ * Speichert einen Checkpoint VOR einer teuren Operation.
+ * Lightweight-Wrapper für den häufigsten Use-Case.
+ */
+export async function savePreOperationCheckpoint(
+  executionId: string,
+  teamId: string,
+  userId: string,
+  state: {
+    context: Record<string, unknown>;
+    executedNodeIds: string[];
+    pendingQueue: string[];
+    completedNodes: number;
+    failedNodes: number;
+    enhancedState?: EnhancedCheckpointState;
+  }
+): Promise<void> {
+  await saveCheckpoint({
+    executionId,
+    teamId,
+    userId,
+    context: {
+      ...state.context,
+      _enhancedState: state.enhancedState,
+    },
+    executedNodeIds: state.executedNodeIds,
+    pendingQueue: state.pendingQueue,
+    completedNodes: state.completedNodes,
+    failedNodes: state.failedNodes,
+    checkpointedAt: new Date(),
+    reason: "pre_operation",
   });
 }
 
@@ -89,9 +164,11 @@ export async function loadCheckpoint(
 
   if (!cp) return null;
 
-  // Entferne den Checkpoint-Marker aus dem Kontext
+  const enhancedState = ctx._enhancedState as EnhancedCheckpointState | undefined;
+
+  // Entferne interne Marker aus dem Kontext
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { _checkpoint: _unused, ...cleanContext } = ctx;
+  const { _checkpoint: _unused, _enhancedState: _unused2, ...cleanContext } = ctx;
 
   return {
     context: cleanContext,
@@ -99,6 +176,7 @@ export async function loadCheckpoint(
     pendingQueue: cp.pendingQueue || [],
     completedNodes: cp.completedNodes || 0,
     failedNodes: cp.failedNodes || 0,
+    enhancedState: enhancedState || undefined,
   };
 }
 
@@ -264,4 +342,19 @@ export function shouldCheckpoint(
 ): boolean {
   const every = interval || DEFAULT_CHECKPOINT_INTERVAL;
   return executedCount > 0 && executedCount % every === 0;
+}
+
+/**
+ * Bestimmt ob ein Pre-Operation-Checkpoint gespeichert werden soll.
+ * Wird VOR teuren Operationen (LLM, Browser, Code) aufgerufen.
+ */
+export function shouldPreOperationCheckpoint(
+  operationType: "llm" | "browser" | "code" | "api"
+): boolean {
+  // Browser und Code-Operationen sind am anfälligsten für Timeouts
+  if (operationType === "browser" || operationType === "code") return true;
+  // LLM-Calls nur wenn sie lange dauern könnten (Opus, etc.)
+  if (operationType === "llm") return true;
+  // API-Calls: nur bei bekannt langsamen Endpunkten
+  return false;
 }

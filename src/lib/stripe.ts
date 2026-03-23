@@ -83,6 +83,9 @@ export const PLAN_LIMITS = {
     teamMembers: 1,
     rbacRoles: false,
     multiTenantDashboard: false,
+    // Workspace & Quality
+    agentWorkspaceMB: 0,
+    outputPolishing: false,
   },
   STARTER: {
     agents: 3,
@@ -145,6 +148,9 @@ export const PLAN_LIMITS = {
     teamMembers: 1,
     rbacRoles: false,
     multiTenantDashboard: false,
+    // Workspace & Quality
+    agentWorkspaceMB: 0,
+    outputPolishing: false,
   },
   PRO: {
     agents: 10,
@@ -207,6 +213,9 @@ export const PLAN_LIMITS = {
     teamMembers: 3,
     rbacRoles: true,
     multiTenantDashboard: false,
+    // Workspace & Quality
+    agentWorkspaceMB: 1024,
+    outputPolishing: true,
   },
   AGENCY: {
     agents: 999999,
@@ -269,6 +278,9 @@ export const PLAN_LIMITS = {
     teamMembers: 999,
     rbacRoles: true,
     multiTenantDashboard: true,
+    // Workspace & Quality
+    agentWorkspaceMB: 10240,
+    outputPolishing: true,
   },
   ENTERPRISE: {
     agents: 999999,
@@ -331,6 +343,9 @@ export const PLAN_LIMITS = {
     teamMembers: 999,
     rbacRoles: true,
     multiTenantDashboard: true,
+    // Workspace & Quality
+    agentWorkspaceMB: 999999,
+    outputPolishing: true,
   },
 } as const;
 

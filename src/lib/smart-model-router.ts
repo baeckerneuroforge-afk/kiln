@@ -197,6 +197,26 @@ export function selectOptimalModel(context: ModelRoutingContext): RoutingDecisio
     }
   }
 
+  // Context-Window-Validierung: überschreitet der Context das Modell-Limit?
+  if (inputTokenEstimate) {
+    const primaryModel = MODELS[rule.primary];
+    if (primaryModel && inputTokenEstimate > primaryModel.maxContextTokens * 0.9) {
+      // Finde ein Modell mit größerem Context-Window
+      const largerModels = Object.entries(MODELS)
+        .filter(([, m]) => m.maxContextTokens >= inputTokenEstimate * 1.1)
+        .filter(([, m]) => !requiresVision || m.supportsVision)
+        .sort((a, b) => a[1].estimatedCostPer1kTokens - b[1].estimatedCostPer1kTokens);
+
+      if (largerModels.length > 0) {
+        const [bestModel] = largerModels[0];
+        console.log(
+          `[SmartRouter] Gewechselt von ${rule.primary} zu ${bestModel}: Context ${inputTokenEstimate} überschreitet ${rule.primary} Limit (${primaryModel.maxContextTokens})`
+        );
+        rule = { primary: bestModel, fallback: rule.fallback };
+      }
+    }
+  }
+
   // Fallback bei vorherigem Fehler: wechsle zum Fallback-Modell
   if (previousModelFailed) {
     if (previousModelFailed === rule.primary) {

@@ -8,6 +8,7 @@ import {
   selectOptimalModel,
   detectTaskType,
 } from "@/lib/smart-model-router";
+import type { SubAgentTool, ModelPreference } from "./sub-agent-executor";
 
 /* ── Types ── */
 
@@ -21,6 +22,12 @@ export interface SubTask {
   config: Record<string, unknown>;
   estimatedComplexity?: SubTaskComplexity;
   suggestedModelTier?: ModelTier;
+  /** Tools die der Sub-Agent nutzen kann */
+  tools?: SubAgentTool[];
+  /** Modell-Präferenz basierend auf Task-Typ */
+  modelPreference?: ModelPreference;
+  /** Erwartetes Output-Format */
+  outputFormat?: "text" | "json" | "table" | "file";
 }
 
 export interface SubTaskResult {
@@ -71,20 +78,57 @@ export function getMaxConcurrency(plan?: string): number {
 
 /* ── Parallel Executor ── */
 
+/** Max total agents in a single swarm (prevent explosion) */
+const MAX_TOTAL_AGENTS = 30;
+
 export class ParallelExecutor {
   private maxConcurrency: number;
   private results: Map<string, SubTaskResult> = new Map();
   private progress: ParallelExecutionProgress;
   private onProgress?: (progress: ParallelExecutionProgress) => void;
+  private dynamicTasks: SubTask[] = [];
+  private totalAgentCount = 0;
+  private budgetExceeded = false;
+  private onBudgetExceeded?: () => void;
 
   constructor(options: {
     maxConcurrency?: number;
     plan?: string;
     onProgress?: (progress: ParallelExecutionProgress) => void;
+    onBudgetExceeded?: () => void;
   }) {
     this.maxConcurrency = options.maxConcurrency || getMaxConcurrency(options.plan);
     this.onProgress = options.onProgress;
+    this.onBudgetExceeded = options.onBudgetExceeded;
     this.progress = { total: 0, completed: 0, failed: 0, running: 0, pending: 0 };
+  }
+
+  /**
+   * Fügt einen dynamischen Task zur Queue hinzu (für sub-agent spawning).
+   * Gibt false zurück wenn das Maximum erreicht ist.
+   */
+  addTask(task: SubTask): boolean {
+    if (this.totalAgentCount >= MAX_TOTAL_AGENTS) return false;
+    this.dynamicTasks.push(task);
+    this.totalAgentCount++;
+    return true;
+  }
+
+  /**
+   * Signalisiert dass das Budget überschritten wurde.
+   * Alle laufenden Agents werden beim nächsten Check gestoppt.
+   */
+  signalBudgetExceeded(): void {
+    this.budgetExceeded = true;
+    this.onBudgetExceeded?.();
+  }
+
+  get isBudgetExceeded(): boolean {
+    return this.budgetExceeded;
+  }
+
+  get currentAgentCount(): number {
+    return this.totalAgentCount;
   }
 
   /**
@@ -96,12 +140,19 @@ export class ParallelExecutor {
     checkpointInfo?: { executionId: string; teamId: string; userId: string }
   ): Promise<ParallelExecutionResult> {
     const startTime = Date.now();
+    this.totalAgentCount = tasks.length;
+    this.dynamicTasks = [];
+    this.budgetExceeded = false;
+
+    // Mutable task list — dynamic tasks werden hier hinzugefügt
+    const allTasks = [...tasks];
+
     this.progress = {
-      total: tasks.length,
+      total: allTasks.length,
       completed: 0,
       failed: 0,
       running: 0,
-      pending: tasks.length,
+      pending: allTasks.length,
     };
 
     const completed = new Set<string>();
@@ -110,14 +161,36 @@ export class ParallelExecutor {
 
     // Topologische Sortierung — finde ausführbare Tasks
     const getReady = (): SubTask[] => {
-      return tasks.filter((t) => {
+      return allTasks.filter((t) => {
         if (completed.has(t.id) || failed.has(t.id) || running.has(t.id)) return false;
         return t.dependencies.every((depId) => completed.has(depId));
       });
     };
 
     // Event-Loop: starte Tasks sobald Kapazität und Dependencies frei sind
-    while (completed.size + failed.size < tasks.length) {
+    while (completed.size + failed.size < allTasks.length) {
+      // Dynamische Tasks integrieren
+      if (this.dynamicTasks.length > 0) {
+        allTasks.push(...this.dynamicTasks);
+        this.dynamicTasks = [];
+      }
+
+      // Budget-Check: bei Überschreitung alle verbleibenden Tasks abbrechen
+      if (this.budgetExceeded && running.size === 0) {
+        const remaining = allTasks.filter((t) => !completed.has(t.id) && !failed.has(t.id));
+        for (const t of remaining) {
+          failed.add(t.id);
+          this.results.set(t.id, {
+            id: t.id,
+            status: "failed",
+            output: null,
+            error: "Budget exceeded — swarm stopped",
+            durationMs: 0,
+          });
+        }
+        break;
+      }
+
       const ready = getReady();
 
       if (ready.length === 0 && running.size === 0) {
@@ -181,7 +254,7 @@ export class ParallelExecutor {
           });
         } finally {
           running.delete(task.id);
-          this.updateProgress(completed.size, failed.size, running.size, tasks.length);
+          this.updateProgress(completed.size, failed.size, running.size, allTasks.length);
         }
       });
 
@@ -202,7 +275,7 @@ export class ParallelExecutor {
             },
           },
           executedNodeIds: Array.from(completed),
-          pendingQueue: tasks.filter((t) => !completed.has(t.id) && !failed.has(t.id)).map((t) => t.id),
+          pendingQueue: allTasks.filter((t) => !completed.has(t.id) && !failed.has(t.id)).map((t) => t.id),
           completedNodes: completed.size,
           failedNodes: failed.size,
           checkpointedAt: new Date(),
@@ -222,7 +295,7 @@ export class ParallelExecutor {
       mergedOutput,
       totalDurationMs: Date.now() - startTime,
       progress: {
-        total: tasks.length,
+        total: allTasks.length,
         completed: completed.size,
         failed: failed.size,
         running: 0,
@@ -245,7 +318,7 @@ export class ParallelExecutor {
 
 /* ── Merge Strategies ── */
 
-export type MergeStrategy = "wait_all" | "first_success" | "majority_vote" | "custom_merge";
+export type MergeStrategy = "wait_all" | "first_success" | "majority_vote" | "custom_merge" | "synthesize";
 
 export function mergeResults(
   results: SubTaskResult[],

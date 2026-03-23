@@ -1,7 +1,7 @@
 /**
- * Agent Swarm Node
- * Zerlegt ein Ziel in parallele Sub-Tasks und führt sie mit individuellen LLM-Aufrufen aus.
- * Mächtiger als spawn_helper: mehrere Agents, Merge-Strategien, Progress-Tracking.
+ * Agent Swarm Node — V2.0
+ * Echtes Multi-Agent-System mit Tool-Zugriff, Shared Workspace,
+ * Inter-Agent-Kommunikation, dynamischem Spawning und intelligentem Merge.
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -11,14 +11,17 @@ import type { ActionNodeResult } from "./action-nodes";
 import {
   ParallelExecutor,
   mergeResults,
-  selectModelForTask,
   type SubTask,
   type SubTaskResult,
   type MergeStrategy,
   type ParallelExecutionProgress,
 } from "@/lib/execution/parallel-executor";
 import { decomposeGoal } from "@/lib/execution/task-decomposer";
-import { trackModelCost, detectTaskType } from "@/lib/smart-model-router";
+import { SharedWorkspace } from "@/lib/execution/shared-workspace";
+import { SwarmEventStream } from "@/lib/execution/swarm-event-stream";
+import { SubAgentExecutor, type SubAgentConfig, type SubAgentResult } from "@/lib/execution/sub-agent-executor";
+import { IntelligentMerge, type IntelligentMergeStrategy, type IntelligentMergeResult } from "@/lib/execution/intelligent-merge";
+import { CostTracker } from "@/lib/cost/cost-tracker";
 
 /* ── Config ── */
 
@@ -26,10 +29,18 @@ export interface AgentSwarmConfig {
   goal: string;
   maxAgents: number;
   maxParallel: number;
-  mergeStrategy: MergeStrategy;
+  mergeStrategy: MergeStrategy | IntelligentMergeStrategy;
   timeoutPerAgent: number; // seconds
   systemPromptOverride?: string;
   customMergePrompt?: string;
+  /** Budget-Cap in Credits für den gesamten Swarm */
+  budgetCredits?: number;
+  /** Agent ID für MCP-Tool-Zugriff */
+  mcpAgentId?: string;
+  /** User ID für Cost-Tracking */
+  userId?: string;
+  /** Agent ID für Cost-Tracking */
+  agentId?: string;
 }
 
 /* ── Executor ── */
@@ -42,10 +53,14 @@ export async function executeAgentSwarm(
     goal: resolveExpression(String(config.goal || ""), context),
     maxAgents: Math.min(Math.max(Number(config.maxAgents) || 5, 2), 20),
     maxParallel: Math.min(Math.max(Number(config.maxParallel) || 3, 2), 10),
-    mergeStrategy: (config.mergeStrategy as MergeStrategy) || "wait_all",
-    timeoutPerAgent: Number(config.timeoutPerAgent) || 60,
+    mergeStrategy: (config.mergeStrategy as MergeStrategy) || "synthesize",
+    timeoutPerAgent: Number(config.timeoutPerAgent) || 120,
     systemPromptOverride: config.systemPromptOverride ? String(config.systemPromptOverride) : undefined,
     customMergePrompt: config.customMergePrompt ? String(config.customMergePrompt) : undefined,
+    budgetCredits: config.budgetCredits ? Number(config.budgetCredits) : undefined,
+    mcpAgentId: config.mcpAgentId ? String(config.mcpAgentId) : undefined,
+    userId: config.userId ? String(config.userId) : undefined,
+    agentId: config.agentId ? String(config.agentId) : undefined,
   };
 
   if (!swarmConfig.goal) {
@@ -58,14 +73,27 @@ export async function executeAgentSwarm(
   }
 
   try {
+    const anthropic = new Anthropic({ apiKey });
+    const swarmId = `swarm_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+
+    // Shared systems initialisieren
+    const workspace = new SharedWorkspace(swarmId);
+    const eventStream = new SwarmEventStream();
+    const costTracker = new CostTracker({
+      userId: swarmConfig.userId,
+      agentId: swarmConfig.agentId,
+    });
+
     // 1. Task-Zerlegung
     const decomposition = await decomposeGoal(swarmConfig.goal, {
       maxTasks: swarmConfig.maxAgents,
+      availableTools: ["computer_use", "code_sandbox", "mcp", "deep_research", "web_search"],
     });
 
     const tasks = decomposition.tasks;
+    eventStream.swarmStarted(tasks.length, swarmConfig.goal);
 
-    // 2. Parallel-Ausführung
+    // 2. Parallel-Ausführung mit Tool-Zugriff
     let latestProgress: ParallelExecutionProgress = {
       total: tasks.length,
       completed: 0,
@@ -77,31 +105,93 @@ export async function executeAgentSwarm(
     const executor = new ParallelExecutor({
       maxConcurrency: swarmConfig.maxParallel,
       onProgress: (p) => { latestProgress = p; },
+      onBudgetExceeded: () => {
+        console.warn(`Swarm ${swarmId}: budget exceeded, stopping agents`);
+      },
     });
 
-    const anthropic = new Anthropic({ apiKey });
-    const systemPrompt = swarmConfig.systemPromptOverride ||
-      "Du bist ein spezialisierter Agent in einem KILN AI Swarm. Löse die gegebene Aufgabe präzise und effizient. Antworte direkt und sachlich.";
+    // Sub-Agent-Ergebnisse sammeln (für Intelligent Merge)
+    const subAgentResults: SubAgentResult[] = [];
 
-    const result = await executor.execute(tasks, async (task, depResults) => {
-      return executeSwarmAgent(anthropic, task, depResults, systemPrompt, swarmConfig.timeoutPerAgent, context);
+    const result = await executor.execute(tasks, async (task) => {
+      return executeSwarmSubAgent(
+        anthropic,
+        task,
+        workspace,
+        eventStream,
+        costTracker,
+        executor,
+        swarmConfig
+      ).then((subResult) => {
+        subAgentResults.push(subResult);
+
+        // Budget-Check nach jedem Agent
+        if (swarmConfig.budgetCredits) {
+          const budget = costTracker.checkBudget(swarmConfig.budgetCredits);
+          if (!budget.withinBudget) {
+            executor.signalBudgetExceeded();
+          }
+        }
+
+        return {
+          id: subResult.id,
+          status: "completed" as const,
+          output: subResult.result,
+          model: subResult.modelUsed,
+          tokensIn: subResult.tokensUsed.input,
+          tokensOut: subResult.tokensUsed.output,
+          estimatedCost: subResult.cost,
+          durationMs: 0,
+        } satisfies SubTaskResult;
+      }).catch((err) => ({
+        id: task.id,
+        status: "failed" as const,
+        output: null,
+        error: err instanceof Error ? err.message : "Sub-agent failed",
+        durationMs: 0,
+      } satisfies SubTaskResult));
     });
 
     // 3. Ergebnisse mergen
-    const completedResults = result.results.filter((r) => r.status === "completed");
-
+    const mergeStrategy = swarmConfig.mergeStrategy;
     let mergedOutput: unknown;
+    let mergeQualityScore: number | undefined;
+    let mergeConflicts: unknown[] = [];
 
-    if (swarmConfig.mergeStrategy === "custom_merge" && swarmConfig.customMergePrompt && completedResults.length > 0) {
-      mergedOutput = await customMerge(anthropic, completedResults, swarmConfig.customMergePrompt, swarmConfig.goal);
+    const intelligentStrategies: IntelligentMergeStrategy[] = ["synthesize", "best_quality", "wait_all", "first_success", "majority_vote"];
+    if (intelligentStrategies.includes(mergeStrategy as IntelligentMergeStrategy) && subAgentResults.length > 0) {
+      const intelligentMerge = new IntelligentMerge(costTracker, eventStream);
+      const mergeResult: IntelligentMergeResult = await intelligentMerge.merge(
+        mergeStrategy as IntelligentMergeStrategy,
+        workspace,
+        swarmConfig.goal,
+        subAgentResults,
+        anthropic
+      );
+      mergedOutput = mergeResult.mergedResult;
+      mergeQualityScore = mergeResult.qualityScore;
+      mergeConflicts = mergeResult.conflicts;
+    } else if (mergeStrategy === "custom_merge" && swarmConfig.customMergePrompt) {
+      const completedResults = result.results.filter((r) => r.status === "completed");
+      if (completedResults.length > 0) {
+        mergedOutput = await customMerge(anthropic, completedResults, swarmConfig.customMergePrompt, swarmConfig.goal);
+      }
     } else {
-      const merged = mergeResults(result.results, swarmConfig.mergeStrategy);
+      const merged = mergeResults(result.results, mergeStrategy as MergeStrategy);
       mergedOutput = merged.output;
     }
 
-    const totalTokensIn = result.results.reduce((sum, r) => sum + (r.tokensIn || 0), 0);
-    const totalTokensOut = result.results.reduce((sum, r) => sum + (r.tokensOut || 0), 0);
-    const totalCost = result.results.reduce((sum, r) => sum + (r.estimatedCost || 0), 0);
+    // Kosten-Summary
+    const costSummary = costTracker.getCostSoFar();
+    const totalToolCalls = subAgentResults.reduce((sum, r) => sum + r.toolCallsCount, 0);
+    const dynamicAgentsSpawned = executor.currentAgentCount - tasks.length;
+
+    eventStream.swarmCompleted(
+      costSummary.totalCostDollars,
+      executor.currentAgentCount,
+      result.totalDurationMs,
+      mergeQualityScore || 0
+    );
 
     const resultKey = String(config.resultKey || "swarmResult");
 
@@ -109,27 +199,38 @@ export async function executeAgentSwarm(
       contextDelta: {
         [resultKey]: mergedOutput,
         [`${resultKey}_meta`]: {
-          totalAgents: tasks.length,
-          completedAgents: completedResults.length,
+          totalAgents: executor.currentAgentCount,
+          initialAgents: tasks.length,
+          dynamicAgentsSpawned,
+          completedAgents: subAgentResults.filter((r) => r.stoppedReason === "completed").length,
           failedAgents: result.results.filter((r) => r.status === "failed").length,
           totalDurationMs: result.totalDurationMs,
-          totalTokensIn,
-          totalTokensOut,
-          totalCost,
-          mergeStrategy: swarmConfig.mergeStrategy,
+          totalTokensIn: costSummary.totalInputTokens,
+          totalTokensOut: costSummary.totalOutputTokens,
+          totalCost: costSummary.totalCostDollars,
+          totalCreditsUsed: costSummary.totalCreditsUsed,
+          totalToolCalls,
+          mergeStrategy,
+          mergeQualityScore,
+          mergeConflicts,
           executionPlan: decomposition.executionPlan,
+          workspaceSnapshot: workspace.getSnapshot(),
+          eventLog: eventStream.getEventLog(),
         },
       },
-      success: completedResults.length > 0,
-      error: completedResults.length === 0 ? "Alle Swarm-Agents fehlgeschlagen" : undefined,
+      success: subAgentResults.length > 0,
+      error: subAgentResults.length === 0 ? "Alle Swarm-Agents fehlgeschlagen" : undefined,
       meta: {
-        totalAgents: tasks.length,
-        completed: completedResults.length,
+        totalAgents: executor.currentAgentCount,
+        completed: subAgentResults.filter((r) => r.stoppedReason === "completed").length,
         failed: result.results.filter((r) => r.status === "failed").length,
         durationMs: result.totalDurationMs,
-        tokensIn: totalTokensIn,
-        tokensOut: totalTokensOut,
-        cost: totalCost,
+        tokensIn: costSummary.totalInputTokens,
+        tokensOut: costSummary.totalOutputTokens,
+        cost: costSummary.totalCostDollars,
+        totalToolCalls,
+        dynamicAgentsSpawned,
+        mergeQualityScore,
       },
       swarmProgress: latestProgress,
     };
@@ -142,89 +243,53 @@ export async function executeAgentSwarm(
   }
 }
 
-/* ── Single Swarm Agent ── */
+/* ── Single Swarm Sub-Agent (V2: mit Tool-Zugriff) ── */
 
-async function executeSwarmAgent(
+async function executeSwarmSubAgent(
   anthropic: Anthropic,
   task: SubTask,
-  depResults: Record<string, unknown>,
-  systemPrompt: string,
-  timeoutSec: number,
-  context: ExpressionContext
-): Promise<SubTaskResult> {
-  const startTime = Date.now();
-  const model = selectModelForTask(task);
+  workspace: SharedWorkspace,
+  eventStream: SwarmEventStream,
+  costTracker: CostTracker,
+  executor: ParallelExecutor,
+  swarmConfig: AgentSwarmConfig,
+): Promise<SubAgentResult> {
+  const subAgentConfig: SubAgentConfig = {
+    id: task.id,
+    description: task.description,
+    tools: task.tools || [],
+    modelPreference: task.modelPreference,
+    estimatedComplexity: task.estimatedComplexity,
+    outputFormat: task.outputFormat,
+    maxIterations: 10,
+    budgetCredits: swarmConfig.budgetCredits
+      ? Math.round((swarmConfig.budgetCredits / (swarmConfig.maxAgents || 5)) * 1.5)
+      : undefined,
+  };
 
-  const contextSummary = JSON.stringify(
-    Object.fromEntries(
-      Object.entries(context as Record<string, unknown>).filter(([k]) => !k.startsWith("_"))
-    )
-  ).slice(0, 1500);
-
-  let userContent = `Aufgabe: ${task.description}`;
-  if (Object.keys(depResults).length > 0) {
-    userContent += `\n\nErgebnisse vorheriger Schritte:\n${JSON.stringify(depResults, null, 2).slice(0, 1000)}`;
-  }
-  userContent += `\n\nKontext: ${contextSummary}`;
-
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutSec * 1000);
-
-    const response = await anthropic.messages.create(
-      {
-        model: model.startsWith("claude-") ? model : "claude-haiku-4-5-20251001",
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userContent }],
-      },
-      { signal: controller.signal }
-    );
-
-    clearTimeout(timeout);
-
-    const output = response.content
-      .filter((b) => b.type === "text")
-      .map((b) => ("text" in b ? (b as { text: string }).text : ""))
-      .join("");
-
-    const tokensIn = response.usage?.input_tokens || 0;
-    const tokensOut = response.usage?.output_tokens || 0;
-    const estimatedCost = (tokensIn * 0.001 + tokensOut * 0.005) / 1000;
-
-    trackModelCost({
-      model,
-      provider: "anthropic",
-      tokensIn,
-      tokensOut,
-      estimatedCost,
-      taskType: detectTaskType(task.description),
-      timestamp: new Date(),
-    });
-
-    return {
-      id: task.id,
-      status: "completed",
-      output,
-      model,
-      tokensIn,
-      tokensOut,
-      estimatedCost,
-      durationMs: Date.now() - startTime,
+  // Spawn-Handler: dynamisch neue Tasks zum ParallelExecutor hinzufügen
+  const spawnHandler = (request: { task: string; tools: SubAgentConfig["tools"]; priority?: string }, parentId: string) => {
+    const spawnId = `spawned_${parentId}_${Date.now()}`;
+    const newTask: SubTask = {
+      id: spawnId,
+      description: request.task,
+      dependencies: [],
+      config: {},
+      estimatedComplexity: "medium",
+      tools: request.tools,
     };
-  } catch (err) {
-    return {
-      id: task.id,
-      status: "failed",
-      output: null,
-      error: err instanceof Error ? err.message : "Agent fehlgeschlagen",
-      model,
-      durationMs: Date.now() - startTime,
-    };
-  }
+    executor.addTask(newTask);
+  };
+
+  const subAgent = new SubAgentExecutor(subAgentConfig, costTracker, {
+    spawnHandler,
+    mcpAgentId: swarmConfig.mcpAgentId,
+  });
+
+  return subAgent.execute(workspace, eventStream, anthropic);
 }
 
-/* ── Custom Merge ── */
+/* ── Legacy: Custom Merge ── */
 
 async function customMerge(
   anthropic: Anthropic,
