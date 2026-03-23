@@ -13,6 +13,7 @@ import {
   writeQuickUseEvent,
 } from "@/lib/quick-use/server";
 import type { QuickUseFileAttachment, QuickUseResult } from "@/lib/quick-use/types";
+import { enhanceQuickUseResult } from "@/lib/quick-use/result-presentation";
 import { processFiles, buildFileContext } from "@/lib/quick-use/file-processor";
 import { executeAgentSwarm } from "@/lib/workflow-nodes/agent-swarm-node";
 
@@ -164,19 +165,36 @@ function summarizeFinding(event: SwarmEvent): string | null {
 }
 
 function buildSwarmResult(goal: string, output: unknown, meta: Record<string, unknown>): QuickUseResult {
-  const markdown = typeof output === "string" ? output : undefined;
-  const summary = typeof output === "string"
-    ? output.slice(0, 240) || "Agent Swarm completed."
-    : `Agent Swarm completed with ${Number(meta.totalAgents) || 0} agents.`;
+  const presentation = meta.mergePresentation as {
+    summary?: string;
+    resultType?: QuickUseResult["resultType"];
+    markdown?: string;
+    sources?: QuickUseResult["sources"];
+    followUpQuestions?: string[];
+  } | undefined;
+  const markdown = presentation?.markdown || (typeof output === "string" ? output : undefined);
+  const summary = presentation?.summary
+    || (typeof output === "string"
+      ? output.slice(0, 240) || "Agent Swarm completed."
+      : `Agent Swarm completed with ${Number(meta.totalAgents) || 0} agents.`);
 
-  return {
+  return enhanceQuickUseResult({
     title: goal,
     summary,
     markdown,
     data: typeof output === "string" ? undefined : output,
+    resultType: presentation?.resultType,
+    followUpQuestions: presentation?.followUpQuestions,
+    sources: presentation?.sources,
+    model: typeof meta.mergeModel === "string" ? meta.mergeModel : undefined,
+    durationMs: Number(meta.totalDurationMs) || undefined,
     qualityScore: Number(meta.mergeQualityScore) || undefined,
     meta,
-  };
+  }, {
+    quickUseType: "agent-swarm",
+    model: typeof meta.mergeModel === "string" ? meta.mergeModel : undefined,
+    durationMs: Number(meta.totalDurationMs) || undefined,
+  });
 }
 
 export async function POST(request: NextRequest) {

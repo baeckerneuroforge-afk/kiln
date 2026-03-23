@@ -31,6 +31,8 @@ export interface ResearchResult {
   depth: ResearchDepth;
   queriesUsed: string[];
   totalDurationMs: number;
+  resultType?: "research";
+  followUpQuestions?: string[];
 }
 
 const DEPTH_CONFIG: Record<ResearchDepth, { maxSources: number; queries: number; model: string }> = {
@@ -39,12 +41,48 @@ const DEPTH_CONFIG: Record<ResearchDepth, { maxSources: number; queries: number;
   deep: { maxSources: 30, queries: 8, model: SONNET_MODEL },
 };
 
+/* ── Serper Search (Fallback wenn kein Perplexity) ── */
+
+async function searchSerper(query: string, maxResults: number): Promise<ResearchSource[]> {
+  const serperKey = process.env.SERPER_API_KEY;
+  if (!serperKey) {
+    throw new Error("Weder PERPLEXITY_API_KEY noch SERPER_API_KEY konfiguriert");
+  }
+
+  const res = await fetch("https://google.serper.dev/search", {
+    method: "POST",
+    headers: {
+      "X-API-KEY": serperKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ q: query, num: Math.min(maxResults, 10) }),
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Serper API: ${res.status} ${res.statusText}`);
+  }
+
+  const data = await res.json() as {
+    organic?: Array<{ title: string; link: string; snippet: string }>;
+  };
+
+  return (data.organic || []).slice(0, maxResults).map((item, i) => ({
+    url: item.link,
+    title: item.title || extractDomainTitle(item.link),
+    snippet: item.snippet || "",
+    relevanceScore: Math.max(0.5, 1 - i * 0.08),
+    domain: new URL(item.link).hostname,
+  }));
+}
+
 /* ── Perplexity Search ── */
 
 async function searchPerplexity(query: string, maxResults: number): Promise<ResearchSource[]> {
   const apiKey = process.env.PERPLEXITY_API_KEY;
   if (!apiKey) {
-    throw new Error("PERPLEXITY_API_KEY nicht konfiguriert");
+    // Fallback zu Serper wenn Perplexity nicht verfügbar
+    return searchSerper(query, maxResults);
   }
 
   const response = await fetch("https://api.perplexity.ai/chat/completions", {
@@ -199,7 +237,13 @@ async function consolidateResearch(
   topic: string,
   sources: ResearchSource[],
   model: string
-): Promise<{ summary: string; fullReport: string; confidence: number }> {
+): Promise<{
+  summary: string;
+  fullReport: string;
+  confidence: number;
+  resultType?: "research";
+  followUpQuestions?: string[];
+}> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY nicht konfiguriert");
 
@@ -229,7 +273,9 @@ Respond in this exact JSON format:
 {
   "summary": "2-3 sentence executive summary",
   "fullReport": "Detailed multi-paragraph report with source references [1], [2] etc. Include key findings, analysis, and conclusions.",
-  "confidence": <0-100 confidence score based on source agreement and quality>
+  "confidence": <0-100 confidence score based on source agreement and quality>,
+  "resultType": "research",
+  "followUpQuestions": ["Specific follow-up question 1", "Specific follow-up question 2", "Specific follow-up question 3"]
 }`,
         },
       ],
@@ -252,11 +298,17 @@ Respond in this exact JSON format:
         summary: string;
         fullReport: string;
         confidence: number;
+        resultType?: "research";
+        followUpQuestions?: string[];
       };
       return {
         summary: parsed.summary || "Keine Zusammenfassung verfügbar",
         fullReport: parsed.fullReport || text,
         confidence: Math.min(100, Math.max(0, parsed.confidence || 50)),
+        resultType: "research",
+        followUpQuestions: Array.isArray(parsed.followUpQuestions)
+          ? parsed.followUpQuestions.map(String).filter(Boolean).slice(0, 4)
+          : undefined,
       };
     }
   } catch {
@@ -267,6 +319,7 @@ Respond in this exact JSON format:
     summary: text.slice(0, 300),
     fullReport: text,
     confidence: 50,
+    resultType: "research",
   };
 }
 
@@ -288,8 +341,8 @@ export async function executeDeepResearch(
     return { contextDelta: {}, success: false, error: "Forschungsthema fehlt" };
   }
 
-  if (!process.env.PERPLEXITY_API_KEY) {
-    return { contextDelta: {}, success: false, error: "PERPLEXITY_API_KEY nicht konfiguriert" };
+  if (!process.env.PERPLEXITY_API_KEY && !process.env.SERPER_API_KEY) {
+    return { contextDelta: {}, success: false, error: "Weder PERPLEXITY_API_KEY noch SERPER_API_KEY konfiguriert" };
   }
 
   const depthConfig = DEPTH_CONFIG[depth] || DEPTH_CONFIG.standard;

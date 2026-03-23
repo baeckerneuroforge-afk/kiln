@@ -11,6 +11,7 @@ import {
   writeQuickUseEvent,
 } from "@/lib/quick-use/server";
 import type { QuickUseFileAttachment, QuickUseResult, QuickUseSource } from "@/lib/quick-use/types";
+import { enhanceQuickUseResult } from "@/lib/quick-use/result-presentation";
 import { processFiles, buildFileContext } from "@/lib/quick-use/file-processor";
 import {
   executeDeepResearch,
@@ -46,17 +47,22 @@ function estimateResearchCredits(depth: ResearchDepth): number {
 }
 
 function buildResearchResult(topic: string, research: ResearchResult): QuickUseResult {
-  const sources: QuickUseSource[] = research.sources.map((source) => ({
+  const sources: QuickUseSource[] = research.sources.map((source, index) => ({
+    id: index + 1,
     title: source.title,
     url: source.url,
     domain: source.domain,
     snippet: source.snippet,
   }));
 
-  return {
+  return enhanceQuickUseResult({
     title: topic,
     summary: research.summary,
     markdown: research.fullReport,
+    resultType: research.resultType || "research",
+    followUpQuestions: research.followUpQuestions,
+    model: research.depth === "quick" ? "claude-haiku-4-5-20251001" : "claude-sonnet-4-6",
+    durationMs: research.totalDurationMs,
     sources,
     data: {
       depth: research.depth,
@@ -70,7 +76,12 @@ function buildResearchResult(topic: string, research: ResearchResult): QuickUseR
       queriesUsed: research.queriesUsed,
       totalDurationMs: research.totalDurationMs,
     },
-  };
+  }, {
+    quickUseType: "deep-research",
+    resultType: "research",
+    model: research.depth === "quick" ? "claude-haiku-4-5-20251001" : "claude-sonnet-4-6",
+    durationMs: research.totalDurationMs,
+  });
 }
 
 export async function POST(request: NextRequest) {

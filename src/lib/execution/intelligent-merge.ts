@@ -9,6 +9,11 @@ import { SharedWorkspace } from "./shared-workspace";
 import { SwarmEventStream } from "./swarm-event-stream";
 import { CostTracker } from "@/lib/cost/cost-tracker";
 import type { SubAgentResult } from "./sub-agent-executor";
+import {
+  detectQuickUseResultType,
+  extractPresentationBlocks,
+} from "@/lib/quick-use/result-presentation";
+import type { QuickUseResultType, QuickUseSource } from "@/lib/quick-use/types";
 
 /* ── Types ── */
 
@@ -31,6 +36,14 @@ export interface IntelligentMergeResult {
   conflicts: MergeConflict[];
   duplicatesRemoved: number;
   agentsContributed: number;
+  presentation?: {
+    summary: string;
+    resultType: QuickUseResultType;
+    markdown: string;
+    sources: QuickUseSource[];
+    followUpQuestions: string[];
+  };
+  synthesisModel?: string;
 }
 
 /* ── IntelligentMerge Class ── */
@@ -207,22 +220,76 @@ Create a comprehensive, well-structured response that:
 2. Resolves contradictions by noting both sources
 3. Highlights the most important discoveries
 4. Directly answers the original goal
-5. Is well-formatted with headers and bullet points where appropriate`;
+5. Is well-formatted with headers and bullet points where appropriate
+
+IMPORTANT: When citing information, use numbered references like [1], [2], [3].
+Always cite prices, dates, statistics, and factual claims with a source number.
+Preserve all source citations [N] from the agent findings whenever possible.
+Compile a unified source list.
+If two agents found the same fact from different sources, cite both.
+
+Respond ONLY with valid JSON in this exact shape:
+{
+  "summary": "2-3 sentence executive summary",
+  "resultType": "comparison|research|price_list|single_fact|list|general",
+  "markdown": "Main response in markdown. Keep inline citations like [1] and [2]. Use a markdown table for comparisons when useful. Do not append a Sources section or FOLLOW_UP_QUESTIONS block here.",
+  "sources": [
+    { "id": 1, "url": "https://example.com", "title": "Example Source", "domain": "example.com", "snippet": "Optional short note" }
+  ],
+  "followUpQuestions": [
+    "Specific next question 1",
+    "Specific next question 2",
+    "Specific next question 3"
+  ]
+}`;
 
     let mergedResult = "";
+    let presentation: IntelligentMergeResult["presentation"];
 
     try {
       const synthesisResponse = await anthropicClient.messages.create({
         model: synthesisModel,
         max_tokens: 4096,
-        system: "You are a synthesis expert. Create a coherent, comprehensive response from multiple agent results. Be thorough but concise. Use markdown formatting.",
+        system: "You are a synthesis expert. Create a coherent, comprehensive response from multiple agent results. Be thorough but concise. Preserve citations and respond ONLY with valid JSON.",
         messages: [{ role: "user", content: synthesisPrompt }],
       });
 
-      mergedResult = synthesisResponse.content
+      const synthesisText = synthesisResponse.content
         .filter((b): b is Anthropic.TextBlock => b.type === "text")
         .map((b) => b.text)
         .join("\n\n");
+      const jsonMatch = synthesisText.match(/\{[\s\S]*\}/);
+      const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : synthesisText) as {
+        summary?: string;
+        resultType?: QuickUseResultType;
+        markdown?: string;
+        sources?: Array<{ id?: number; url?: string; title?: string; domain?: string; snippet?: string }>;
+        followUpQuestions?: string[];
+      };
+      const extracted = extractPresentationBlocks(parsed.markdown || synthesisText);
+
+      presentation = {
+        summary: parsed.summary?.trim() || extracted.markdown.slice(0, 280) || "Agent Swarm completed.",
+        resultType: detectQuickUseResultType({
+          markdown: extracted.markdown || parsed.markdown || "",
+          summary: parsed.summary || extracted.markdown.slice(0, 280),
+          explicitResultType: parsed.resultType,
+        }),
+        markdown: extracted.markdown || parsed.markdown || synthesisText,
+        sources: (parsed.sources || [])
+          .filter((source) => source.url)
+          .map((source, index) => ({
+            id: source.id ?? index + 1,
+            title: source.title || source.url || `Source ${index + 1}`,
+            url: source.url || "",
+            domain: source.domain,
+            snippet: source.snippet,
+          })),
+        followUpQuestions: Array.from(
+          new Set([...(parsed.followUpQuestions || []), ...extracted.followUpQuestions])
+        ).slice(0, 4),
+      };
+      mergedResult = presentation.markdown;
 
       await this.costTracker.trackUsage(
         synthesisModel,
@@ -233,6 +300,21 @@ Create a comprehensive, well-structured response that:
     } catch {
       // Fallback: einfache Konkatenation
       mergedResult = agentFindings.map((f) => `## Agent ${f.agentId}\n${f.result}`).join("\n\n---\n\n");
+    }
+
+    if (!presentation) {
+      const extracted = extractPresentationBlocks(mergedResult);
+      presentation = {
+        summary: extracted.markdown.slice(0, 280) || "Agent Swarm completed.",
+        resultType: detectQuickUseResultType({
+          markdown: extracted.markdown,
+          summary: extracted.markdown.slice(0, 280),
+        }),
+        markdown: extracted.markdown || mergedResult,
+        sources: extracted.sources,
+        followUpQuestions: extracted.followUpQuestions,
+      };
+      mergedResult = presentation.markdown;
     }
 
     // Step 4: Quality Check (Haiku — günstig)
@@ -280,6 +362,8 @@ Create a comprehensive, well-structured response that:
       conflicts,
       duplicatesRemoved,
       agentsContributed: results.length,
+      presentation,
+      synthesisModel,
     };
   }
 }

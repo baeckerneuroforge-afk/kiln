@@ -6,13 +6,17 @@ import { useAuth } from "@clerk/nextjs";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowUp,
+  ChevronDown,
+  ChevronRight,
   Clipboard,
   Coins,
+  Clock3,
   Download,
   ExternalLink,
   FileSpreadsheet,
   FileText,
   FileType2,
+  Globe2,
   Loader2,
   Paperclip,
   RefreshCcw,
@@ -21,17 +25,19 @@ import {
   User,
   X,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { ErrorState } from "@/components/ui/error-state";
-import { MarkdownMessage } from "@/components/agents/markdown-message";
 import { cn } from "@/lib/utils";
 import type {
   QuickUseCreditInfo,
   QuickUseFileAttachment,
   QuickUseGeneratedFile,
   QuickUseResult,
+  QuickUseResultType,
   QuickUseStreamEvent,
   QuickUseType,
 } from "@/lib/quick-use/types";
@@ -40,6 +46,7 @@ import {
   MAX_FILE_SIZE,
   MAX_FILES_PER_MESSAGE,
 } from "@/lib/quick-use/types";
+import { enhanceQuickUseResult } from "@/lib/quick-use/result-presentation";
 
 interface QuickUseChatProps {
   title: string;
@@ -413,6 +420,484 @@ function AgentStatusGrid({ statuses }: { statuses: AgentStatusCard[] }) {
   );
 }
 
+interface ParsedMarkdownTable {
+  headers: string[];
+  rows: { label: string; cells: string[] }[];
+}
+
+function humanizeModel(model?: string): string | null {
+  if (!model) return null;
+  if (/haiku/i.test(model)) return "Haiku";
+  if (/sonnet/i.test(model)) return "Sonnet";
+  if (/sonar/i.test(model)) return "Sonar";
+  return model;
+}
+
+function formatDuration(durationMs?: number): string | null {
+  if (!durationMs || !Number.isFinite(durationMs)) return null;
+  if (durationMs < 1000) return `${durationMs} ms`;
+  const seconds = Math.round(durationMs / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return remainder > 0 ? `${minutes}m ${remainder}s` : `${minutes}m`;
+}
+
+function resultTypeLabel(resultType: QuickUseResultType): string {
+  switch (resultType) {
+    case "comparison":
+      return "Comparison";
+    case "research":
+      return "Research";
+    case "price_list":
+      return "Price Scan";
+    case "single_fact":
+      return "Answer";
+    case "list":
+      return "List";
+    default:
+      return "Analysis";
+  }
+}
+
+function parseMarkdownTable(markdown?: string): ParsedMarkdownTable | null {
+  if (!markdown) return null;
+  const lines = markdown.split("\n");
+  for (let index = 0; index < lines.length - 1; index++) {
+    if (!lines[index].includes("|") || !lines[index + 1].includes("|---")) continue;
+    const block: string[] = [lines[index], lines[index + 1]];
+    let cursor = index + 2;
+    while (cursor < lines.length && lines[cursor].includes("|")) {
+      block.push(lines[cursor]);
+      cursor++;
+    }
+
+    const rows = block
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => line.replace(/^\||\|$/g, "").split("|").map((cell) => cell.trim()));
+
+    if (rows.length < 3) continue;
+    const headers = rows[0];
+    const body = rows.slice(2).filter((row) => row.length === headers.length);
+    if (headers.length < 2 || body.length === 0) continue;
+
+    return {
+      headers,
+      rows: body.map((row) => ({
+        label: row[0],
+        cells: row.slice(1),
+      })),
+    };
+  }
+  return null;
+}
+
+function parseNumericValue(text: string): number | null {
+  const match = text.replace(/,/g, ".").match(/-?\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const value = Number(match[0]);
+  return Number.isFinite(value) ? value : null;
+}
+
+function availabilityScore(value: string): number | null {
+  const lower = value.toLowerCase();
+  if (lower.includes("same day")) return 100;
+  if (lower.includes("in stock") || lower.includes("available")) return 90;
+  if (lower.includes("1 day") || lower.includes("next day")) return 80;
+  if (lower.includes("2-3")) return 70;
+  if (lower.includes("3-5")) return 60;
+  if (lower.includes("preorder")) return 40;
+  if (lower.includes("out of stock") || lower.includes("unavailable")) return 0;
+  return null;
+}
+
+function winnerIndexes(rowLabel: string, cells: string[]): number[] {
+  const lower = rowLabel.toLowerCase();
+
+  if (/price|cost|shipping/.test(lower)) {
+    const scored = cells.map((cell, index) => ({ index, value: parseNumericValue(cell) }))
+      .filter((entry) => entry.value !== null) as Array<{ index: number; value: number }>;
+    if (scored.length === 0) return [];
+    const best = Math.min(...scored.map((entry) => entry.value));
+    return scored.filter((entry) => entry.value === best).map((entry) => entry.index);
+  }
+
+  if (/rating|score/.test(lower)) {
+    const scored = cells.map((cell, index) => ({ index, value: parseNumericValue(cell) }))
+      .filter((entry) => entry.value !== null) as Array<{ index: number; value: number }>;
+    if (scored.length === 0) return [];
+    const best = Math.max(...scored.map((entry) => entry.value));
+    return scored.filter((entry) => entry.value === best).map((entry) => entry.index);
+  }
+
+  if (/availability|delivery/.test(lower)) {
+    const scored = cells.map((cell, index) => ({ index, value: availabilityScore(cell) }))
+      .filter((entry) => entry.value !== null) as Array<{ index: number; value: number }>;
+    if (scored.length === 0) return [];
+    const best = Math.max(...scored.map((entry) => entry.value));
+    return scored.filter((entry) => entry.value === best).map((entry) => entry.index);
+  }
+
+  return [];
+}
+
+function availabilityTone(value: string): string {
+  const lower = value.toLowerCase();
+  if (lower.includes("in stock") || lower.includes("available")) return "bg-emerald-400";
+  if (lower.includes("2-3") || lower.includes("3-5") || lower.includes("preorder")) return "bg-amber-400";
+  if (lower.includes("out of stock") || lower.includes("unavailable")) return "bg-red-400";
+  return "bg-zinc-500";
+}
+
+function markdownSections(markdown?: string): { intro: string; sections: Array<{ title: string; content: string }> } | null {
+  if (!markdown) return null;
+  const matches = Array.from(markdown.matchAll(/^#{1,3}\s+(.+)$/gm));
+  if (matches.length === 0) return null;
+
+  const intro = markdown.slice(0, matches[0].index).trim();
+  const sections = matches.map((match, index) => {
+    const start = (match.index || 0) + match[0].length;
+    const end = index + 1 < matches.length ? (matches[index + 1].index || markdown.length) : markdown.length;
+    return {
+      title: match[1].trim(),
+      content: markdown.slice(start, end).trim(),
+    };
+  }).filter((section) => section.content);
+
+  return { intro, sections };
+}
+
+function markdownListItems(markdown?: string): string[] {
+  if (!markdown) return [];
+  return markdown
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^[-*]\s+/.test(line) || /^\d+\.\s+/.test(line))
+    .map((line) => line.replace(/^[-*]\s+/, "").replace(/^\d+\.\s+/, "").trim());
+}
+
+function extractHighlightStats(text: string): string[] {
+  return Array.from(new Set(text.match(/(?:[$€£]\s?\d[\d.,]*|\d+(?:\.\d+)?%|\d+(?:\.\d+)?x|\b20\d{2}\b)/g) || [])).slice(0, 4);
+}
+
+function citationMarkdown(markdown: string, sourceIds: number[]): string {
+  const knownIds = new Set(sourceIds);
+  return markdown.replace(/\[(\d+)\](?!\()/g, (match, id) => (
+    knownIds.has(Number(id)) ? `[\\[${id}\\]](#source-${id})` : match
+  ));
+}
+
+function sourceFavicon(sourceUrl: string): string {
+  try {
+    const domain = new URL(sourceUrl).hostname;
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`;
+  } catch {
+    return "";
+  }
+}
+
+function ResultMarkdown({
+  markdown,
+  sourceIds,
+  onSourceReference,
+}: {
+  markdown: string;
+  sourceIds: number[];
+  onSourceReference: (sourceId: number) => void;
+}) {
+  return (
+    <div className="prose prose-invert max-w-none prose-headings:font-serif prose-headings:text-white prose-p:text-zinc-200 prose-strong:text-white prose-code:text-orange-200 prose-pre:border prose-pre:border-white/8 prose-pre:bg-black/30 prose-li:text-zinc-200">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          a: ({ href, children }) => {
+            if (href?.startsWith("#source-")) {
+              const sourceId = Number(href.replace("#source-", ""));
+              return (
+                <button
+                  type="button"
+                  onClick={() => onSourceReference(sourceId)}
+                  className="rounded px-0.5 text-orange-300 underline underline-offset-2 transition-colors hover:text-orange-200"
+                >
+                  {children}
+                </button>
+              );
+            }
+
+            return (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-orange-300 underline underline-offset-2 transition-colors hover:text-orange-200"
+              >
+                {children}
+              </a>
+            );
+          },
+          table: ({ children }) => (
+            <div className="overflow-x-auto rounded-2xl border border-white/6">
+              <table className="min-w-full border-collapse text-sm">{children}</table>
+            </div>
+          ),
+          thead: ({ children }) => <thead className="bg-white/[0.04] text-zinc-100">{children}</thead>,
+          tbody: ({ children }) => <tbody className="divide-y divide-white/6">{children}</tbody>,
+          tr: ({ children }) => <tr className="odd:bg-white/[0.01]">{children}</tr>,
+          th: ({ children }) => <th className="border-b border-white/6 px-4 py-3 text-left font-medium">{children}</th>,
+          td: ({ children }) => <td className="px-4 py-3 align-top text-zinc-200">{children}</td>,
+          code: ({ className, children }) => {
+            const inline = !className;
+            return inline ? (
+              <code className="rounded bg-black/25 px-1.5 py-0.5 text-xs text-orange-200">{children}</code>
+            ) : (
+              <code className="block overflow-x-auto whitespace-pre-wrap font-mono text-xs leading-6">{children}</code>
+            );
+          },
+        }}
+      >
+        {citationMarkdown(markdown, sourceIds)}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
+function ComparisonTable({ table }: { table: ParsedMarkdownTable }) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-white/8 bg-black/20">
+      <table className="min-w-full border-collapse text-sm">
+        <thead className="bg-white/[0.05]">
+          <tr>
+            {table.headers.map((header) => (
+              <th key={header} className="border-b border-white/8 px-4 py-3 text-left font-medium text-zinc-100">
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {table.rows.map((row) => {
+            const winners = winnerIndexes(row.label, row.cells);
+            return (
+              <tr key={row.label} className="border-b border-white/6 last:border-b-0">
+                <td className="px-4 py-3 font-medium text-zinc-100">{row.label}</td>
+                {row.cells.map((cell, index) => {
+                  const isWinner = winners.includes(index);
+                  const rowLower = row.label.toLowerCase();
+                  return (
+                    <td
+                      key={`${row.label}-${index}`}
+                      className={cn(
+                        "px-4 py-3 text-zinc-200",
+                        isWinner && "bg-orange-500/10 text-white"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        {/availability|delivery/.test(rowLower) ? (
+                          <span className={cn("h-2.5 w-2.5 rounded-full", availabilityTone(cell))} />
+                        ) : null}
+                        <span className={cn(/price|cost/.test(rowLower) && "font-semibold text-white")}>
+                          {cell}
+                        </span>
+                        {isWinner ? <Sparkles className="h-3.5 w-3.5 text-orange-300" /> : null}
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PriceCards({
+  table,
+  sources,
+}: {
+  table: ParsedMarkdownTable;
+  sources: NonNullable<QuickUseResult["sources"]>;
+}) {
+  const priceRow = table.rows.find((row) => /price|cost/i.test(row.label));
+  if (!priceRow) return null;
+
+  const cards = table.headers.slice(1).map((vendor, index) => {
+    const price = priceRow.cells[index] || "";
+    const numericPrice = parseNumericValue(price) ?? Number.POSITIVE_INFINITY;
+    const availability = table.rows.find((row) => /availability/i.test(row.label))?.cells[index];
+    const shipping = table.rows.find((row) => /shipping|delivery/i.test(row.label))?.cells[index];
+    const rating = table.rows.find((row) => /rating|score/i.test(row.label))?.cells[index];
+    const source = sources.find((entry) =>
+      vendor.toLowerCase().includes((entry.domain || entry.title || "").toLowerCase())
+      || (entry.title || "").toLowerCase().includes(vendor.toLowerCase())
+    );
+
+    return { vendor, price, numericPrice, availability, shipping, rating, source };
+  }).sort((a, b) => a.numericPrice - b.numericPrice);
+
+  const cheapest = cards[0];
+  const mostExpensive = cards[cards.length - 1];
+  const savings = Number.isFinite(cheapest?.numericPrice) && Number.isFinite(mostExpensive?.numericPrice)
+    ? Math.max(0, mostExpensive.numericPrice - cheapest.numericPrice)
+    : 0;
+  const currencySymbol = [cheapest?.price || "", mostExpensive?.price || ""]
+    .map((price) => price.match(/[€$£]/)?.[0])
+    .find(Boolean) || "";
+
+  return (
+    <div className="space-y-3">
+      {savings > 0 ? (
+        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+          Save {currencySymbol}{savings.toFixed(2)} by choosing {cheapest.vendor} over {mostExpensive.vendor}.
+        </div>
+      ) : null}
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {cards.map((card, index) => (
+          <div key={card.vendor} className="rounded-2xl border border-white/8 bg-black/20 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-white">{card.vendor}</p>
+                <p className="mt-2 text-2xl font-semibold text-orange-200">{card.price}</p>
+              </div>
+              {index === 0 ? (
+                <Badge className="bg-emerald-500/15 text-emerald-300">Best Deal</Badge>
+              ) : null}
+            </div>
+            <div className="mt-4 space-y-2 text-sm text-zinc-300">
+              {card.availability ? <p>Availability: {card.availability}</p> : null}
+              {card.shipping ? <p>Shipping: {card.shipping}</p> : null}
+              {card.rating ? <p>Rating: {card.rating}</p> : null}
+            </div>
+            {card.source ? (
+              <a
+                href={card.source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-orange-300"
+              >
+                View source
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StructuredReport({
+  markdown,
+  sourceIds,
+  onSourceReference,
+}: {
+  markdown: string;
+  sourceIds: number[];
+  onSourceReference: (sourceId: number) => void;
+}) {
+  const parsed = markdownSections(markdown);
+  if (!parsed) {
+    return <ResultMarkdown markdown={markdown} sourceIds={sourceIds} onSourceReference={onSourceReference} />;
+  }
+
+  return (
+    <div className="space-y-4">
+      {parsed.intro ? (
+        <div className="rounded-2xl border border-orange-500/15 bg-orange-500/8 p-4">
+          <p className="text-base leading-7 text-zinc-100">{parsed.intro}</p>
+        </div>
+      ) : null}
+      <div className="space-y-3">
+        {parsed.sections.map((section, index) => (
+          <details
+            key={section.title}
+            open={index === 0}
+            className="rounded-2xl border border-white/8 bg-black/20 p-4"
+          >
+            <summary className="cursor-pointer list-none text-base font-semibold text-white">
+              {section.title}
+            </summary>
+            <div className="mt-4 text-sm text-zinc-200">
+              <ResultMarkdown markdown={section.content} sourceIds={sourceIds} onSourceReference={onSourceReference} />
+            </div>
+          </details>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SourceSection({
+  sources,
+  open,
+  highlightedSourceId,
+  onToggle,
+}: {
+  sources: NonNullable<QuickUseResult["sources"]>;
+  open: boolean;
+  highlightedSourceId: number | null;
+  onToggle: () => void;
+}) {
+  if (sources.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl border border-white/6 bg-black/15 p-4">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-3 text-left"
+      >
+        <div className="flex items-center gap-2">
+          {open ? <ChevronDown className="h-4 w-4 text-zinc-400" /> : <ChevronRight className="h-4 w-4 text-zinc-400" />}
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
+            Sources ({sources.length})
+          </p>
+        </div>
+      </button>
+      {open ? (
+        <div className="mt-3 space-y-2">
+          {sources.map((source, index) => {
+            const sourceId = source.id ?? index + 1;
+            return (
+              <a
+                key={`${sourceId}-${source.url}`}
+                id={`source-${sourceId}`}
+                href={source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  "block rounded-xl border border-white/6 bg-white/[0.02] p-3 transition-colors hover:border-white/10 hover:bg-white/[0.04]",
+                  highlightedSourceId === sourceId && "border-orange-500/40 bg-orange-500/10"
+                )}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span
+                      aria-hidden
+                      className="h-5 w-5 shrink-0 rounded-sm bg-cover bg-center"
+                      style={{ backgroundImage: `url("${sourceFavicon(source.url)}")` }}
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-zinc-100">
+                        [{sourceId}] {source.title || source.url}
+                      </p>
+                      <p className="truncate text-xs text-orange-300">{source.domain || source.url}</p>
+                    </div>
+                  </div>
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+                </div>
+                {source.snippet ? <p className="mt-2 text-xs leading-relaxed text-zinc-400">{source.snippet}</p> : null}
+              </a>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ResultCard({
   result,
   credits,
@@ -421,6 +906,7 @@ function ResultCard({
   onSave,
   actionBusy,
   actionDone,
+  onFollowUp,
 }: {
   result: QuickUseResult;
   credits?: QuickUseCreditInfo;
@@ -429,12 +915,106 @@ function ResultCard({
   onSave?: () => void;
   actionBusy?: boolean;
   actionDone?: boolean;
+  onFollowUp?: (question: string) => void;
 }) {
   const [lightboxSrc, setLightboxSrc] = useState<{ src: string; alt: string } | null>(null);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const [highlightedSourceId, setHighlightedSourceId] = useState<number | null>(null);
+  const [followUpsDismissed, setFollowUpsDismissed] = useState(false);
 
-  // Filter internal warnings from user-facing text
-  const cleanSummary = filterWarnings(result.summary);
-  const cleanMarkdown = result.markdown ? filterWarnings(result.markdown) : undefined;
+  const prepared = enhanceQuickUseResult({
+    ...result,
+    summary: filterWarnings(result.summary),
+    markdown: result.markdown ? filterWarnings(result.markdown) : undefined,
+  }, { quickUseType: type });
+  const sourceIds = (prepared.sources || []).map((source, index) => source.id ?? index + 1);
+  const table = parseMarkdownTable(prepared.markdown);
+  const listItems = markdownListItems(prepared.markdown);
+  const topStats = extractHighlightStats(`${prepared.summary}\n${prepared.markdown || ""}`);
+  const modelLabel = humanizeModel(prepared.model);
+  const durationLabel = formatDuration(prepared.durationMs);
+
+  function focusSource(sourceId: number) {
+    setSourcesOpen(true);
+    setHighlightedSourceId(sourceId);
+    const element = document.getElementById(`source-${sourceId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    window.setTimeout(() => setHighlightedSourceId((current) => (current === sourceId ? null : current)), 1800);
+  }
+
+  function renderPrimaryContent() {
+    if (prepared.resultType === "price_list" && table && prepared.sources) {
+      return <PriceCards table={table} sources={prepared.sources} />;
+    }
+
+    if (prepared.resultType === "comparison" && table) {
+      return <ComparisonTable table={table} />;
+    }
+
+    if (prepared.resultType === "research" && prepared.markdown) {
+      const sections = markdownSections(prepared.markdown);
+      if (sections) {
+        return (
+          <div className="space-y-4">
+            {topStats.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {topStats.map((stat) => (
+                  <div key={stat} className="rounded-2xl border border-white/8 bg-black/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-[#8a7a6f]">Key stat</p>
+                    <p className="mt-2 text-xl font-semibold text-white">{stat}</p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
+              <StructuredReport
+                markdown={prepared.markdown}
+                sourceIds={sourceIds}
+                onSourceReference={focusSource}
+              />
+            </div>
+          </div>
+        );
+      }
+    }
+
+    if (prepared.resultType === "single_fact") {
+      return (
+        <div className="rounded-2xl border border-orange-500/15 bg-orange-500/8 p-5">
+          <p className="text-lg leading-8 text-zinc-100">{prepared.summary}</p>
+        </div>
+      );
+    }
+
+    if (prepared.resultType === "list" && listItems.length > 0) {
+      return (
+        <div className="grid gap-3 md:grid-cols-2">
+          {listItems.map((item, index) => (
+            <div key={`${item}-${index}`} className="rounded-2xl border border-white/8 bg-black/20 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-[#8a7a6f]">Item {index + 1}</p>
+              <p className="mt-2 text-sm leading-7 text-zinc-200">{item}</p>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (prepared.markdown) {
+      return (
+        <div className="rounded-2xl border border-white/6 bg-black/15 p-4 text-[15px] leading-7 text-zinc-200">
+          <ResultMarkdown
+            markdown={prepared.markdown}
+            sourceIds={sourceIds}
+            onSourceReference={focusSource}
+          />
+        </div>
+      );
+    }
+
+    return null;
+  }
 
   return (
     <>
@@ -448,48 +1028,65 @@ function ResultCard({
 
       <MessageBubble
         icon={<Sparkles className="h-4 w-4" />}
-        className="bg-[linear-gradient(180deg,rgba(36,26,20,0.97),rgba(24,20,17,0.96))]"
+        className="border-t-2 border-t-orange-500/70 bg-[linear-gradient(180deg,rgba(36,26,20,0.97),rgba(24,20,17,0.96))] shadow-none"
       >
-        <div className="space-y-4">
-          <div className="space-y-1">
-            {result.title ? <h3 className="text-base font-semibold text-white">{result.title}</h3> : null}
-            <p className="text-sm leading-relaxed text-zinc-300">{cleanSummary}</p>
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className="bg-orange-500/15 text-orange-300">{resultTypeLabel(prepared.resultType || "general")}</Badge>
+            {modelLabel ? (
+              <Badge variant="outline" className="border-[#40372f] text-zinc-300">
+                <Sparkles className="h-3 w-3" />
+                {modelLabel}
+              </Badge>
+            ) : null}
+            {durationLabel ? (
+              <Badge variant="outline" className="border-[#40372f] text-zinc-300">
+                <Clock3 className="h-3 w-3" />
+                {durationLabel}
+              </Badge>
+            ) : null}
           </div>
 
-          {cleanMarkdown ? (
-            <div className="rounded-2xl border border-white/6 bg-black/15 p-4 text-[15px] leading-7 text-zinc-200">
-              <MarkdownMessage content={cleanMarkdown} />
+          <div className="space-y-2">
+            {prepared.title ? <h3 className="text-lg font-semibold text-white">{prepared.title}</h3> : null}
+            <div className="text-sm leading-7 text-zinc-300">
+              <ResultMarkdown
+                markdown={prepared.summary}
+                sourceIds={sourceIds}
+                onSourceReference={focusSource}
+              />
             </div>
-          ) : null}
+          </div>
 
-          {result.data !== undefined ? (
+          {renderPrimaryContent()}
+
+          {prepared.data !== undefined ? (
             <div className="rounded-2xl border border-white/6 bg-black/20 p-4">
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
                 Structured Data
               </p>
               <pre className="overflow-x-auto whitespace-pre-wrap text-xs leading-6 text-zinc-300">
-                {stringifyData(result.data)}
+                {stringifyData(prepared.data)}
               </pre>
             </div>
           ) : null}
 
-          {/* Generated Files */}
-          {result.generatedFiles?.length ? (
+          {prepared.generatedFiles?.length ? (
             <div className="space-y-2">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
                 Generated Files
               </p>
               <div className="grid gap-2 sm:grid-cols-2">
-                {result.generatedFiles.map((file) => (
+                {prepared.generatedFiles.map((file) => (
                   <GeneratedFileCard key={`${file.name}-${file.url}`} file={file} />
                 ))}
               </div>
             </div>
           ) : null}
 
-          {result.artifacts?.length ? (
+          {prepared.artifacts?.length ? (
             <div className="grid gap-3 md:grid-cols-2">
-              {result.artifacts.map((artifact) => (
+              {prepared.artifacts.map((artifact) => (
                 <div key={`${artifact.name}-${artifact.url || artifact.dataUrl || ""}`}>
                   {artifact.kind === "image" && artifact.dataUrl ? (
                     <ScreenshotCard
@@ -501,8 +1098,8 @@ function ResultCard({
                     />
                   ) : (
                     <div className="flex items-center justify-between overflow-hidden rounded-2xl border border-white/6 bg-black/20 p-4">
-                      <div>
-                        <p className="text-sm font-medium text-white">{artifact.name}</p>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-white">{artifact.name}</p>
                         <p className="text-xs text-zinc-400">{artifact.mimeType || artifact.kind}</p>
                       </div>
                       {artifact.url ? (
@@ -518,70 +1115,75 @@ function ResultCard({
                       ) : null}
                     </div>
                   )}
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        {result.sources?.length ? (
-          <div className="rounded-2xl border border-white/6 bg-black/15 p-4">
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
-              Sources
-            </p>
-            <div className="space-y-3">
-              {result.sources.map((source) => (
-                <a
-                  key={source.url}
-                  href={source.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block rounded-xl border border-white/6 bg-white/[0.02] p-3 transition-colors hover:border-white/10 hover:bg-white/[0.04]"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-zinc-100">{source.title || source.url}</p>
-                    <ExternalLink className="h-3.5 w-3.5 text-zinc-500" />
-                  </div>
-                  {source.domain ? <p className="mt-1 text-xs text-orange-300">{source.domain}</p> : null}
-                  {source.snippet ? <p className="mt-2 text-xs leading-relaxed text-zinc-400">{source.snippet}</p> : null}
-                </a>
+                </div>
               ))}
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {type === "deep-research" ? (
+          <SourceSection
+            sources={prepared.sources || []}
+            open={sourcesOpen}
+            highlightedSourceId={highlightedSourceId}
+            onToggle={() => setSourcesOpen((current) => !current)}
+          />
+
+          {prepared.followUpQuestions?.length && !followUpsDismissed ? (
+            <div className="rounded-2xl border border-white/6 bg-black/15 p-4">
+              <div className="mb-3 flex items-center gap-2 text-sm text-zinc-300">
+                <Globe2 className="h-4 w-4 text-orange-300" />
+                Continue exploring
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {prepared.followUpQuestions.map((question) => (
+                  <button
+                    key={question}
+                    type="button"
+                    onClick={() => {
+                      setFollowUpsDismissed(true);
+                      onFollowUp?.(question);
+                    }}
+                    className="rounded-full border border-[#40372f] px-3 py-2 text-sm text-zinc-300 transition-colors hover:border-orange-500/40 hover:bg-orange-500/8 hover:text-white"
+                  >
+                    {question}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {type === "deep-research" ? (
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={onExport}>
+                <Download className="h-3.5 w-3.5" />
+                Export as PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={onSave} disabled={actionBusy || actionDone}>
+                {actionBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                {actionDone ? "Saved" : "Save to Knowledge Base"}
+              </Button>
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={onExport}>
-              <Download className="h-3.5 w-3.5" />
-              Export as PDF
-            </Button>
-            <Button variant="outline" size="sm" onClick={onSave} disabled={actionBusy || actionDone}>
-              {actionBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-              {actionDone ? "Saved" : "Save to Knowledge Base"}
-            </Button>
+            {typeof prepared.qualityScore === "number" ? (
+              <Badge className="bg-emerald-500/15 text-emerald-300">
+                Quality {Math.round(prepared.qualityScore)}
+              </Badge>
+            ) : null}
+            {credits?.creditsUsed !== undefined ? (
+              <Badge className="bg-orange-500/15 text-orange-300">
+                <Coins className="h-3 w-3" />
+                {credits.creditsUsed} credits used
+              </Badge>
+            ) : null}
+            {credits?.creditsRemaining !== undefined ? (
+              <Badge variant="outline" className="border-[#40372f] text-zinc-300">
+                {credits.creditsRemaining} remaining
+              </Badge>
+            ) : null}
           </div>
-        ) : null}
-
-        <div className="flex flex-wrap gap-2">
-          {typeof result.qualityScore === "number" ? (
-            <Badge className="bg-emerald-500/15 text-emerald-300">
-              Quality {Math.round(result.qualityScore)}
-            </Badge>
-          ) : null}
-          {credits?.creditsUsed !== undefined ? (
-            <Badge className="bg-orange-500/15 text-orange-300">
-              <Coins className="h-3 w-3" />
-              {credits.creditsUsed} credits used
-            </Badge>
-          ) : null}
-          {credits?.creditsRemaining !== undefined ? (
-            <Badge variant="outline" className="border-[#40372f] text-zinc-300">
-              {credits.creditsRemaining} remaining
-            </Badge>
-          ) : null}
         </div>
-      </div>
-    </MessageBubble>
+      </MessageBubble>
     </>
   );
 }
@@ -1194,6 +1796,9 @@ export function QuickUseChat({
                   }
                   actionBusy={savingState === "saving" && activeResultId === message.id}
                   actionDone={savingState === "saved" && activeResultId === message.id}
+                  onFollowUp={(question) => {
+                    void handleSend(question);
+                  }}
                 />
               );
             })}

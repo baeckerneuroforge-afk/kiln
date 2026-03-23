@@ -1,6 +1,13 @@
 import type { SwarmEvent } from "@/lib/execution/swarm-event-stream";
 
 export type QuickUseType = "computer-use" | "agent-swarm" | "deep-research";
+export type QuickUseResultType =
+  | "comparison"
+  | "research"
+  | "price_list"
+  | "single_fact"
+  | "list"
+  | "general";
 
 export interface QuickUseCreditInfo {
   estimatedCredits?: number;
@@ -17,6 +24,7 @@ export interface QuickUseArtifact {
 }
 
 export interface QuickUseSource {
+  id?: number;
   title: string;
   url: string;
   domain?: string;
@@ -77,6 +85,10 @@ export interface QuickUseResult {
   title?: string;
   summary: string;
   markdown?: string;
+  resultType?: QuickUseResultType;
+  followUpQuestions?: string[];
+  model?: string;
+  durationMs?: number;
   data?: unknown;
   artifacts?: QuickUseArtifact[];
   sources?: QuickUseSource[];

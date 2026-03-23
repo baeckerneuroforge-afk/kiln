@@ -163,6 +163,8 @@ export async function executeAgentSwarm(
     let mergedOutput: unknown;
     let mergeQualityScore: number | undefined;
     let mergeConflicts: unknown[] = [];
+    let mergePresentation: IntelligentMergeResult["presentation"] | undefined;
+    let mergeModel: string | undefined;
 
     const intelligentStrategies: IntelligentMergeStrategy[] = ["synthesize", "best_quality", "wait_all", "first_success", "majority_vote"];
     if (intelligentStrategies.includes(mergeStrategy as IntelligentMergeStrategy) && subAgentResults.length > 0) {
@@ -177,6 +179,8 @@ export async function executeAgentSwarm(
       mergedOutput = mergeResult.mergedResult;
       mergeQualityScore = mergeResult.qualityScore;
       mergeConflicts = mergeResult.conflicts;
+      mergePresentation = mergeResult.presentation;
+      mergeModel = mergeResult.synthesisModel;
     } else if (mergeStrategy === "custom_merge" && swarmConfig.customMergePrompt) {
       const completedResults = result.results.filter((r) => r.status === "completed");
       if (completedResults.length > 0) {
@@ -219,6 +223,8 @@ export async function executeAgentSwarm(
           mergeStrategy,
           mergeQualityScore,
           mergeConflicts,
+          mergePresentation,
+          mergeModel,
           executionPlan: decomposition.executionPlan,
           workspaceSnapshot: workspace.getSnapshot(),
           eventLog: eventStream.getEventLog(),

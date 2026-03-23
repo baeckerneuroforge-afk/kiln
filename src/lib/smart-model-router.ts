@@ -170,6 +170,11 @@ export function selectOptimalModel(context: ModelRoutingContext): RoutingDecisio
 
   let rule = ROUTING_RULES[taskType] || ROUTING_RULES.general;
 
+  // Perplexity-Check: sonar-pro nur wenn API-Key vorhanden
+  if (rule.primary === "sonar-pro" && !process.env.PERPLEXITY_API_KEY) {
+    rule = { primary: "claude-sonnet-4-6", fallback: "claude-haiku-4-5-20251001" };
+  }
+
   // Budget-Anpassungen
   if (budget === "low") {
     // Immer das günstigste Modell

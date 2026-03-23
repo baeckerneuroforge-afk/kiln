@@ -14,6 +14,7 @@ import {
   writeQuickUseEvent,
 } from "@/lib/quick-use/server";
 import type { QuickUseFileAttachment, QuickUseResult } from "@/lib/quick-use/types";
+import { enhanceQuickUseResult, urlsToSources } from "@/lib/quick-use/result-presentation";
 import { processFiles, buildFileContext } from "@/lib/quick-use/file-processor";
 import { executeComputerUse } from "@/lib/workflow-nodes/computer-use-node";
 
@@ -117,7 +118,7 @@ function buildComputerUseResult(session: ComputerUseSessionLike): QuickUseResult
     .filter((step) => typeof step.screenshot === "string" && step.screenshot.length > 0)
     .slice(0, 3);
 
-  return {
+  return enhanceQuickUseResult({
     title: session.task,
     summary: session.summary || "Computer Use completed.",
     markdown: [
@@ -127,6 +128,9 @@ function buildComputerUseResult(session: ComputerUseSessionLike): QuickUseResult
         : null,
       `Completion reason: ${session.completionReason}.`,
     ].filter(Boolean).join("\n\n"),
+    model: "claude-sonnet-4-6",
+    durationMs: session.totalDurationMs,
+    sources: urlsToSources(session.urlsVisited),
     data: session.extractedData || {
       startUrl: session.startUrl,
       urlsVisited: session.urlsVisited,
@@ -150,7 +154,11 @@ function buildComputerUseResult(session: ComputerUseSessionLike): QuickUseResult
       browserBackend: "browserBackend" in session ? session.browserBackend : undefined,
       warning: "warning" in session ? session.warning : undefined,
     },
-  };
+  }, {
+    quickUseType: "computer-use",
+    model: "claude-sonnet-4-6",
+    durationMs: session.totalDurationMs,
+  });
 }
 
 export async function POST(request: NextRequest) {

@@ -582,25 +582,37 @@ async function executeSubAgentTool(
       try {
         const query = String(toolInput.query || "");
         const numResults = Math.min(Number(toolInput.num_results) || 5, 10);
-        // Nutze Perplexity via LLM wenn verfügbar, sonst Fallback
-        const { safeFetch } = await import("@/lib/url-validation");
-        const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_SEARCH_API_KEY}&cx=${process.env.GOOGLE_SEARCH_CX}&q=${encodeURIComponent(query)}&num=${numResults}`;
 
-        if (process.env.GOOGLE_SEARCH_API_KEY && process.env.GOOGLE_SEARCH_CX) {
-          const res = await safeFetch(searchUrl, { signal: AbortSignal.timeout(10000) });
+        // Serper.dev als primärer Suchprovider
+        const serperKey = process.env.SERPER_API_KEY;
+        if (serperKey) {
+          const res = await fetch("https://google.serper.dev/search", {
+            method: "POST",
+            headers: {
+              "X-API-KEY": serperKey,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ q: query, num: numResults }),
+            signal: AbortSignal.timeout(10000),
+          });
+
           if (res.ok) {
-            const data = await res.json();
-            const items = (data.items || []).map((item: { title: string; link: string; snippet: string }) => ({
-              title: item.title, url: item.link, snippet: item.snippet,
+            const data = await res.json() as {
+              organic?: Array<{ title: string; link: string; snippet: string }>;
+            };
+            const items = (data.organic || []).slice(0, numResults).map((item) => ({
+              title: item.title,
+              url: item.link,
+              snippet: item.snippet,
             }));
             return JSON.stringify({ success: true, results: items });
           }
         }
 
-        // Fallback: Hinweis dass Suche nicht verfügbar
+        // Fallback: fetch_url nutzen wenn keine Search-API verfügbar
         return JSON.stringify({
           success: false,
-          error: "Web search API not configured. Use browse_url to check specific URLs.",
+          error: "Web search API not configured (SERPER_API_KEY missing). Use fetch_url to check specific URLs directly.",
         });
       } catch (err) {
         return JSON.stringify({ success: false, error: err instanceof Error ? err.message : "Search failed" });
@@ -740,7 +752,11 @@ export class SubAgentExecutor {
       "- Use workspace_read to check what other agents have found.",
       "- Use send_message to inform other agents of discoveries that affect their work.",
       "- Be precise, thorough, and efficient.",
-      "- When your task is complete, provide a clear final summary.",
+      "- When citing information, use numbered references like [1], [2], [3].",
+      "- Always cite specific facts such as prices, dates, statistics, and claims with a source number.",
+      "- At the end of your final response, include a 'Sources:' section in this format: [1] https://example.com - Source Title.",
+      "- Preserve URLs from browse_url, web_search, and fetch_url results so the merge step can compile a unified source list.",
+      "- When your task is complete, provide a clear final summary with sources cited.",
       this.config.outputFormat === "json" ? "- Return your final answer as valid JSON." : "",
       this.config.outputFormat === "table" ? "- Format your final answer as a markdown table." : "",
     ].filter(Boolean).join("\n");
