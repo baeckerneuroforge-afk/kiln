@@ -52,6 +52,15 @@ import type { WorkflowNodeType } from "@/lib/workflow-node-types";
 
 /* ========== Types ========== */
 
+interface TestNodeResult {
+  success: boolean;
+  output: Record<string, unknown>;
+  error?: string;
+  durationMs: number;
+  creditsUsed: number;
+  dryRun?: boolean;
+}
+
 interface NodeConfigPanelProps {
   nodeId: string;
   nodeType: WorkflowNodeType;
@@ -62,6 +71,7 @@ interface NodeConfigPanelProps {
   onDelete: (nodeId: string) => void;
   onClose: () => void;
   onTestNode?: (nodeId: string) => void;
+  teamId?: string;
   lastRunResult?: unknown;
   lastRunInput?: unknown;
 }
@@ -1748,11 +1758,15 @@ export function NodeConfigPanel({
   onDelete,
   onClose,
   onTestNode,
+  teamId,
   lastRunResult,
   lastRunInput,
 }: NodeConfigPanelProps) {
   const [activeTab, setActiveTab] = useState<"config" | "input" | "output">("config");
   const panelRef = useRef<HTMLDivElement>(null);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<TestNodeResult | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
 
   // Close on Escape
   useEffect(() => {
@@ -1769,6 +1783,53 @@ export function NodeConfigPanel({
     },
     [nodeId, onConfigChange]
   );
+
+  // Test node execution
+  const handleTestNode = useCallback(async () => {
+    if (!teamId) {
+      onTestNode?.(nodeId);
+      return;
+    }
+
+    setTesting(true);
+    setTestResult(null);
+    setTestError(null);
+
+    try {
+      const testInput: Record<string, unknown> = {};
+      // If there's last run input data, use it as test input
+      if (lastRunInput && typeof lastRunInput === "object") {
+        Object.assign(testInput, lastRunInput);
+      }
+
+      const resp = await fetch("/api/workflows/test-node", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teamId,
+          nodeType,
+          nodeConfig: config,
+          testInput: Object.keys(testInput).length > 0 ? testInput : undefined,
+        }),
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        setTestError(data.error || `HTTP ${resp.status}`);
+        setActiveTab("output");
+        return;
+      }
+
+      setTestResult(data as TestNodeResult);
+      setActiveTab("output");
+    } catch (err) {
+      setTestError(err instanceof Error ? err.message : "Test failed");
+      setActiveTab("output");
+    } finally {
+      setTesting(false);
+    }
+  }, [teamId, nodeId, nodeType, config, lastRunInput, onTestNode]);
 
   const typeMeta = nodeTypeLabels[nodeType];
   const TypeIcon = typeMeta ? iconMap[typeMeta.icon] || Zap : Zap;
@@ -1854,23 +1915,74 @@ export function NodeConfigPanel({
 
         {activeTab === "output" && (
           <div className="space-y-3">
-            <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-              Last execution result
-            </p>
-            {lastRunResult ? (
-              <pre className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 text-xs text-zinc-300 font-mono overflow-auto max-h-[400px]">
-                {typeof lastRunResult === "string"
-                  ? lastRunResult
-                  : JSON.stringify(lastRunResult, null, 2)}
-              </pre>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1e1d1b] border border-[#332f2b] mb-3">
-                  <Play className="h-5 w-5 text-zinc-500" />
-                </div>
-                <p className="text-xs text-zinc-500">No output data yet.</p>
-                <p className="text-[10px] text-zinc-500 mt-1">Test this node or run the workflow.</p>
+            {/* Test error */}
+            {testError && (
+              <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-red-400 mb-1.5">Test Error</p>
+                <p className="text-xs text-red-300 font-mono">{testError}</p>
               </div>
+            )}
+
+            {/* Test result */}
+            {testResult && (
+              <>
+                <div className="flex items-center gap-3">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                    Test Result
+                  </p>
+                  <div className="flex items-center gap-2 ml-auto">
+                    {testResult.dryRun && (
+                      <span className="text-[9px] font-medium uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded px-1.5 py-0.5">
+                        Dry Run
+                      </span>
+                    )}
+                    <span className={cn(
+                      "text-[9px] font-medium uppercase tracking-wider rounded px-1.5 py-0.5",
+                      testResult.success
+                        ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                        : "bg-red-500/10 text-red-400 border border-red-500/20"
+                    )}>
+                      {testResult.success ? "Success" : "Failed"}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-[10px] text-zinc-500">
+                  <span>⏱ {testResult.durationMs}ms</span>
+                  {testResult.creditsUsed > 0 && <span>💎 {testResult.creditsUsed} credit{testResult.creditsUsed !== 1 ? "s" : ""}</span>}
+                </div>
+                <pre className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 text-xs text-zinc-300 font-mono overflow-auto max-h-[400px]">
+                  {JSON.stringify(testResult.output, null, 2)}
+                </pre>
+                {testResult.error && (
+                  <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-2">
+                    <p className="text-xs text-red-300 font-mono">{testResult.error}</p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Last workflow run result */}
+            {!testResult && !testError && (
+              <>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                  Last execution result
+                </p>
+                {lastRunResult ? (
+                  <pre className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 text-xs text-zinc-300 font-mono overflow-auto max-h-[400px]">
+                    {typeof lastRunResult === "string"
+                      ? lastRunResult
+                      : JSON.stringify(lastRunResult, null, 2)}
+                  </pre>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1e1d1b] border border-[#332f2b] mb-3">
+                      <Play className="h-5 w-5 text-zinc-500" />
+                    </div>
+                    <p className="text-xs text-zinc-500">No output data yet.</p>
+                    <p className="text-[10px] text-zinc-500 mt-1">Test this node or run the workflow.</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -1881,11 +1993,16 @@ export function NodeConfigPanel({
         <Button
           size="sm"
           variant="outline"
-          onClick={() => onTestNode?.(nodeId)}
-          className="flex-1 bg-[#1e1d1b] border-[#3d3935] text-zinc-300 hover:text-zinc-100 hover:bg-[#2a2826] text-xs"
+          onClick={handleTestNode}
+          disabled={testing}
+          className="flex-1 bg-[#1e1d1b] border-[#3d3935] text-zinc-300 hover:text-zinc-100 hover:bg-[#2a2826] text-xs disabled:opacity-50"
         >
-          <Play className="h-3.5 w-3.5 mr-1.5" />
-          Test Node
+          {testing ? (
+            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+          ) : (
+            <Play className="h-3.5 w-3.5 mr-1.5" />
+          )}
+          {testing ? "Testing..." : "Test Node"}
         </Button>
         <Button
           size="sm"

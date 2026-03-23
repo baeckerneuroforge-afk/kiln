@@ -1083,6 +1083,7 @@ export function VisualTeamEditor(props: VisualTeamEditorProps) {
 }
 
 function VisualTeamEditorInner({
+  teamId,
   members,
   onNodeClick,
   onConnectionCreate,
@@ -2014,6 +2015,7 @@ function VisualTeamEditorInner({
           onLabelChange={handleNodeLabelChange}
           onDelete={handleNodeDelete}
           onClose={handleClosePanel}
+          teamId={teamId}
           lastRunInput={nodeResults?.[selectedNode.id]?.input}
           lastRunResult={nodeResults?.[selectedNode.id]?.output}
         />
