@@ -1283,6 +1283,7 @@ function VisualTeamEditorInner({
 
   const handleClosePanel = useCallback(() => {
     setSelectedNode(null);
+    setSidebarCollapsed(false);
   }, []);
 
   const isEmpty = members.length === 0 && (!wfNodes || wfNodes.length === 0) && nodes.length === 0;
@@ -1302,7 +1303,11 @@ function VisualTeamEditorInner({
       {/* Node Palette Sidebar */}
       <NodePaletteSidebar
         collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        onToggle={() => {
+          const willExpand = sidebarCollapsed;
+          setSidebarCollapsed(!sidebarCollapsed);
+          if (willExpand) setSelectedNode(null);
+        }}
       />
 
       <ReactFlow
@@ -1328,13 +1333,14 @@ function VisualTeamEditorInner({
           if (node.id.startsWith("__fallback__")) return;
           if (node.type === "workflowNode") {
             const nd = node.data as WorkflowNodeData;
-            // Open config panel
+            // Open config panel, collapse palette to make room
             setSelectedNode({
               id: node.id,
               type: nd.nodeType,
               label: nd.label as string,
               config: nd.config as Record<string, unknown>,
             });
+            setSidebarCollapsed(true);
             onWorkflowNodeClick?.(node.id, nd.nodeType, nd.config);
             return;
           }
@@ -1342,7 +1348,10 @@ function VisualTeamEditorInner({
           onNodeClick(node.id);
         }}
         onPaneClick={() => {
-          setSelectedNode(null);
+          if (selectedNode) {
+            setSelectedNode(null);
+            setSidebarCollapsed(false);
+          }
         }}
         onEdgeClick={(_event, edge) => {
           onEdgeClickProp?.(edge.id, edge.source, edge.target);
@@ -1408,7 +1417,7 @@ function VisualTeamEditorInner({
               </div>
               {sidebarCollapsed && (
                 <button
-                  onClick={() => setSidebarCollapsed(false)}
+                  onClick={() => { setSidebarCollapsed(false); setSelectedNode(null); }}
                   className="flex items-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs font-medium text-orange-400 transition-colors hover:bg-orange-500/20"
                 >
                   <PanelLeft className="h-3.5 w-3.5" />
