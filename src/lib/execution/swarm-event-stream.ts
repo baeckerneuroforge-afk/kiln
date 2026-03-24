@@ -7,16 +7,21 @@
 
 export type SwarmEventType =
   | "swarm.started"
+  | "swarm.preliminary"
+  | "swarm.rebalanced"
   | "agent.started"
+  | "agent.progress"
   | "agent.tool_called"
   | "agent.finding"
   | "agent.message"
   | "agent.spawned"
+  | "agent.retry_scheduled"
   | "agent.completed"
   | "agent.failed"
   | "merge.started"
   | "merge.conflict"
   | "merge.completed"
+  | "quality.warning"
   | "swarm.completed";
 
 export interface SwarmEvent {
@@ -71,8 +76,20 @@ export class SwarmEventStream {
     this.emit("swarm.started", { totalAgents, goal });
   }
 
+  swarmPreliminary(stage: "instant" | "fast" | "thorough", result: Record<string, unknown>): void {
+    this.emit("swarm.preliminary", { stage, result });
+  }
+
+  swarmRebalanced(reason: string): void {
+    this.emit("swarm.rebalanced", { reason });
+  }
+
   agentStarted(agentId: string, task: string, model: string, tools?: string[]): void {
     this.emit("agent.started", { agentId, task, model, tools });
+  }
+
+  agentProgress(agentId: string, iteration: number, note: string): void {
+    this.emit("agent.progress", { agentId, iteration, note });
   }
 
   agentToolCalled(agentId: string, tool: string, args: Record<string, unknown>): void {
@@ -89,6 +106,10 @@ export class SwarmEventStream {
 
   agentSpawned(parentId: string, newAgentId: string, task: string): void {
     this.emit("agent.spawned", { parentId, newAgentId, task });
+  }
+
+  agentRetryScheduled(agentId: string, replacementId: string, reason: string): void {
+    this.emit("agent.retry_scheduled", { agentId, replacementId, reason });
   }
 
   agentCompleted(agentId: string, resultSummary: string, cost: number): void {
@@ -109,6 +130,10 @@ export class SwarmEventStream {
 
   mergeCompleted(qualityScore: number): void {
     this.emit("merge.completed", { qualityScore });
+  }
+
+  qualityWarning(agentId: string, message: string): void {
+    this.emit("quality.warning", { agentId, message });
   }
 
   swarmCompleted(totalCost: number, totalAgents: number, duration: number, qualityScore: number): void {

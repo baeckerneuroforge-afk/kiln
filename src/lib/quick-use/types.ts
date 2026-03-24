@@ -97,12 +97,77 @@ export interface QuickUseResult {
   meta?: Record<string, unknown>;
 }
 
+/* ── Background Task Types ── */
+
+export type QuickUseTaskStatus = "RUNNING" | "PAUSED" | "COMPLETED" | "FAILED" | "CANCELLED";
+
+export type InterventionType = "redirect" | "add_context" | "pause" | "resume" | "cancel";
+
+export interface QuickUseIntervention {
+  id: string;
+  type: InterventionType;
+  message: string;
+  timestamp: string;
+}
+
+export interface QuickUseTaskSummary {
+  id: string;
+  type: QuickUseType;
+  status: QuickUseTaskStatus;
+  inputPreview: string;
+  creditsUsed: number;
+  createdAt: string;
+  completedAt: string | null;
+  hasResult: boolean;
+}
+
+export interface QuickUseTaskDetail extends QuickUseTaskSummary {
+  input: { message: string; files?: QuickUseFileAttachment[] };
+  config: Record<string, unknown> | null;
+  progress: {
+    currentStep?: string;
+    agentStatuses?: Record<string, { id: string; task: string; status: string; detail?: string }>;
+    findings?: string[];
+  } | null;
+  result: QuickUseResult | null;
+  credits: QuickUseCreditInfo | null;
+  interventions: QuickUseIntervention[];
+  error: string | null;
+}
+
+export interface QuickUseMemoryPreview {
+  id: string;
+  taskId: string;
+  type: QuickUseType;
+  title?: string;
+  summary: string;
+  ageLabel: string;
+  createdAt: string;
+  highlights?: string[];
+  sourceDomains?: string[];
+  fileNames?: string[];
+}
+
+/* ── Stream Events ── */
+
+/* ── Live Browser View Types ── */
+
+export interface LiveBrowserStep {
+  stepIndex: number;
+  action: string;
+  actionDetail: string;
+  url: string;
+  success?: boolean;
+  durationMs?: number;
+}
+
 export type QuickUseStreamEvent =
   | {
       type: "meta";
       meta: {
         estimatedCredits?: number;
         executionId?: string;
+        taskId?: string;
       };
     }
   | {
@@ -119,6 +184,11 @@ export type QuickUseStreamEvent =
       event: SwarmEvent;
     }
   | {
+      type: "memory";
+      memories: QuickUseMemoryPreview[];
+      autoApplied?: boolean;
+    }
+  | {
       type: "result";
       result: QuickUseResult;
       credits?: QuickUseCreditInfo;
@@ -127,4 +197,41 @@ export type QuickUseStreamEvent =
       type: "error";
       error: string;
       suggestions?: string[];
+    }
+  | {
+      type: "intervention_ack";
+      interventionId: string;
+      message: string;
+    }
+  | {
+      /** Browser navigated to a new URL */
+      type: "browser_navigation";
+      url: string;
+      stepIndex: number;
+    }
+  | {
+      /** Live screenshot from browser (JPEG, max ~100KB) */
+      type: "browser_screenshot";
+      /** Base64 JPEG data (no data URL prefix) */
+      imageData: string;
+      stepIndex: number;
+      url: string;
+    }
+  | {
+      /** Agent performed an action */
+      type: "browser_action";
+      step: LiveBrowserStep;
+    }
+  | {
+      /** Agent's current reasoning/thinking */
+      type: "browser_thinking";
+      thought: string;
+      stepIndex: number;
+    }
+  | {
+      /** A step completed */
+      type: "browser_step_complete";
+      stepIndex: number;
+      action: string;
+      success: boolean;
     };

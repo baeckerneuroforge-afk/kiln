@@ -15,6 +15,7 @@ import {
   type SubTaskResult,
   type MergeStrategy,
   type ParallelExecutionProgress,
+  type ParallelExecutionResult,
 } from "@/lib/execution/parallel-executor";
 import { decomposeGoal, type DecompositionResult } from "@/lib/execution/task-decomposer";
 import { SharedWorkspace } from "@/lib/execution/shared-workspace";
@@ -22,6 +23,8 @@ import { SwarmEventStream } from "@/lib/execution/swarm-event-stream";
 import { SubAgentExecutor, type SubAgentConfig, type SubAgentResult } from "@/lib/execution/sub-agent-executor";
 import { IntelligentMerge, type IntelligentMergeStrategy, type IntelligentMergeResult } from "@/lib/execution/intelligent-merge";
 import { CostTracker } from "@/lib/cost/cost-tracker";
+import { SwarmRebalancer } from "@/lib/execution/swarm-rebalancer";
+import type { QuickUseResultType } from "@/lib/quick-use/types";
 
 /* ── Config ── */
 
@@ -98,6 +101,7 @@ export async function executeAgentSwarm(
 
     const tasks = decomposition.tasks;
     eventStream.swarmStarted(tasks.length, swarmConfig.goal);
+    eventStream.swarmPreliminary("instant", buildPreliminaryPayload("instant", swarmConfig.goal, decomposition));
 
     // 2. Parallel-Ausführung mit Tool-Zugriff
     let latestProgress: ParallelExecutionProgress = {
@@ -115,48 +119,73 @@ export async function executeAgentSwarm(
         console.warn(`Swarm ${swarmId}: budget exceeded, stopping agents`);
       },
     });
+    const rebalancer = new SwarmRebalancer({
+      executor,
+      workspace,
+      eventStream,
+      costTracker,
+      budgetCredits: swarmConfig.budgetCredits,
+    });
+    tasks.forEach((task) => rebalancer.registerTask(task));
+    rebalancer.start();
 
     // Sub-Agent-Ergebnisse sammeln (für Intelligent Merge)
     const subAgentResults: SubAgentResult[] = [];
 
-    const result = await executor.execute(tasks, async (task) => {
-      return executeSwarmSubAgent(
-        anthropic,
-        task,
-        workspace,
-        eventStream,
-        costTracker,
-        executor,
-        swarmConfig
-      ).then((subResult) => {
-        subAgentResults.push(subResult);
+    let result: ParallelExecutionResult;
+    try {
+      result = await executor.execute(tasks, async (task) => {
+        return executeSwarmSubAgent(
+          anthropic,
+          task,
+          workspace,
+          eventStream,
+          costTracker,
+          executor,
+          swarmConfig,
+          rebalancer,
+        ).then((subResult) => {
+          subAgentResults.push(subResult);
+          rebalancer.noteResult(subResult);
 
-        // Budget-Check nach jedem Agent
-        if (swarmConfig.budgetCredits) {
-          const budget = costTracker.checkBudget(swarmConfig.budgetCredits);
-          if (!budget.withinBudget) {
-            executor.signalBudgetExceeded();
+          if (subAgentResults.length >= 1) {
+            eventStream.swarmPreliminary(
+              subAgentResults.some((item) => item.sources.some((source) => source.tool === "browse_url" || source.tool === "take_screenshot"))
+                ? "thorough"
+                : "fast",
+              buildIncrementalPayload(subAgentResults, decomposition, workspace),
+            );
           }
-        }
 
-        return {
-          id: subResult.id,
-          status: "completed" as const,
-          output: subResult.result,
-          model: subResult.modelUsed,
-          tokensIn: subResult.tokensUsed.input,
-          tokensOut: subResult.tokensUsed.output,
-          estimatedCost: subResult.cost,
+          // Budget-Check nach jedem Agent
+          if (swarmConfig.budgetCredits) {
+            const budget = costTracker.checkBudget(swarmConfig.budgetCredits);
+            if (!budget.withinBudget) {
+              executor.signalBudgetExceeded();
+            }
+          }
+
+          return {
+            id: subResult.id,
+            status: "completed" as const,
+            output: subResult.result,
+            model: subResult.modelUsed,
+            tokensIn: subResult.tokensUsed.input,
+            tokensOut: subResult.tokensUsed.output,
+            estimatedCost: subResult.cost,
+            durationMs: 0,
+          } satisfies SubTaskResult;
+        }).catch((err) => ({
+          id: task.id,
+          status: "failed" as const,
+          output: null,
+          error: err instanceof Error ? err.message : "Sub-agent failed",
           durationMs: 0,
-        } satisfies SubTaskResult;
-      }).catch((err) => ({
-        id: task.id,
-        status: "failed" as const,
-        output: null,
-        error: err instanceof Error ? err.message : "Sub-agent failed",
-        durationMs: 0,
-      } satisfies SubTaskResult));
-    });
+        } satisfies SubTaskResult));
+      });
+    } finally {
+      rebalancer.stop();
+    }
 
     // 3. Ergebnisse mergen
     const mergeStrategy = swarmConfig.mergeStrategy;
@@ -168,7 +197,9 @@ export async function executeAgentSwarm(
 
     const intelligentStrategies: IntelligentMergeStrategy[] = ["synthesize", "best_quality", "wait_all", "first_success", "majority_vote"];
     if (intelligentStrategies.includes(mergeStrategy as IntelligentMergeStrategy) && subAgentResults.length > 0) {
-      const intelligentMerge = new IntelligentMerge(costTracker, eventStream);
+      const intelligentMerge = new IntelligentMerge(costTracker, eventStream, {
+        userId: swarmConfig.userId,
+      });
       const mergeResult: IntelligentMergeResult = await intelligentMerge.merge(
         mergeStrategy as IntelligentMergeStrategy,
         workspace,
@@ -181,6 +212,17 @@ export async function executeAgentSwarm(
       mergeConflicts = mergeResult.conflicts;
       mergePresentation = mergeResult.presentation;
       mergeModel = mergeResult.synthesisModel;
+      if (mergePresentation) {
+        eventStream.swarmPreliminary("thorough", {
+          summary: mergePresentation.summary,
+          resultType: mergePresentation.resultType,
+          markdown: mergePresentation.markdown,
+          sources: mergePresentation.sources,
+          followUpQuestions: mergePresentation.followUpQuestions,
+          generatedFiles: mergePresentation.generatedFiles,
+          qualityScore: mergeResult.qualityScore,
+        });
+      }
     } else if (mergeStrategy === "custom_merge" && swarmConfig.customMergePrompt) {
       const completedResults = result.results.filter((r) => r.status === "completed");
       if (completedResults.length > 0) {
@@ -225,6 +267,7 @@ export async function executeAgentSwarm(
           mergeConflicts,
           mergePresentation,
           mergeModel,
+          goalAnalysis: decomposition.goalAnalysis,
           executionPlan: decomposition.executionPlan,
           workspaceSnapshot: workspace.getSnapshot(),
           eventLog: eventStream.getEventLog(),
@@ -265,6 +308,7 @@ async function executeSwarmSubAgent(
   costTracker: CostTracker,
   executor: ParallelExecutor,
   swarmConfig: AgentSwarmConfig,
+  rebalancer: SwarmRebalancer,
 ): Promise<SubAgentResult> {
   const subAgentConfig: SubAgentConfig = {
     id: task.id,
@@ -273,13 +317,23 @@ async function executeSwarmSubAgent(
     modelPreference: task.modelPreference,
     estimatedComplexity: task.estimatedComplexity,
     outputFormat: task.outputFormat,
-    maxIterations: (task.tools || []).includes("computer_use") ? 25 : 15,
+    maxIterations: task.specialization === "synthesizer"
+      ? 6
+      : (task.tools || []).includes("computer_use")
+        ? 25
+        : 15,
     budgetCredits: swarmConfig.budgetCredits
       ? Math.max(
           (task.tools || []).includes("computer_use") ? 20 : 10,
           Math.round((swarmConfig.budgetCredits / (swarmConfig.maxAgents || 5)) * 1.5)
         )
       : undefined,
+    specialization: task.specialization,
+    taskType: task.taskType,
+    expectedOutput: task.expectedOutput,
+    successCriteria: task.successCriteria,
+    toolRouting: task.toolRouting,
+    qualityPriority: task.priority === "critical" ? "quality" : "balanced",
   };
 
   // Spawn-Handler: dynamisch neue Tasks zum ParallelExecutor hinzufügen
@@ -292,8 +346,15 @@ async function executeSwarmSubAgent(
       config: {},
       estimatedComplexity: "medium",
       tools: request.tools,
+      priority: request.priority === "low"
+        ? "nice_to_have"
+        : request.priority === "high"
+          ? "critical"
+          : "important",
     };
-    executor.addTask(newTask);
+    if (executor.addTask(newTask)) {
+      rebalancer.registerTask(newTask);
+    }
   };
 
   const subAgent = new SubAgentExecutor(subAgentConfig, costTracker, {
@@ -328,4 +389,70 @@ async function customMerge(
     .filter((b) => b.type === "text")
     .map((b) => ("text" in b ? (b as { text: string }).text : ""))
     .join("");
+}
+
+function buildPreliminaryPayload(
+  stage: "instant" | "fast" | "thorough",
+  goal: string,
+  decomposition: DecompositionResult,
+): {
+  summary: string;
+  resultType: QuickUseResultType;
+  markdown: string;
+} {
+  const taskCount = decomposition.tasks.length;
+  const specialists = Array.from(new Set(decomposition.tasks.map((task) => task.specialization).filter(Boolean)));
+  const summary = stage === "instant"
+    ? `Planned ${taskCount} specialized agent${taskCount === 1 ? "" : "s"} for this swarm.`
+    : `The swarm is collecting verified findings for ${goal.slice(0, 80)}.`;
+
+  return {
+    summary,
+    resultType: decomposition.goalAnalysis.outputType === "comparison_table" ? "comparison" : "research",
+    markdown: [
+      "## Preliminary Plan",
+      `- Goal type: ${decomposition.goalAnalysis.taskType}`,
+      `- Planned agents: ${taskCount}`,
+      `- Specialists: ${specialists.join(", ") || "generalist researchers"}`,
+      `- Critical path: ${(decomposition.executionPlan.criticalPath || []).join(" -> ") || "to be determined"}`,
+      "",
+      "This is a preliminary orchestration snapshot while the swarm gathers verified results.",
+    ].join("\n"),
+  };
+}
+
+function buildIncrementalPayload(
+  results: SubAgentResult[],
+  decomposition: DecompositionResult,
+  workspace: SharedWorkspace,
+): {
+  summary: string;
+  resultType: QuickUseResultType;
+  markdown: string;
+} {
+  const verifiedEntries = workspace
+    .read()
+    .filter((entry) => entry.source?.verified || entry.source?.url || entry.source?.snippet || entry.source?.screenshot);
+  const highlights = verifiedEntries
+    .slice(-5)
+    .map((entry) => `- **${entry.key.replace(/[_-]+/g, " ")}:** ${String(entry.value).slice(0, 180)}`)
+    .join("\n");
+
+  return {
+    summary: `The swarm has ${results.length} completed agent${results.length === 1 ? "" : "s"} and is refining the answer.`,
+    resultType: decomposition.goalAnalysis.outputType === "comparison_table"
+      ? "comparison"
+      : decomposition.goalAnalysis.outputType === "report"
+        ? "research"
+        : "general",
+    markdown: [
+      "## Interim Findings",
+      highlights || "- Verified findings are still being collected.",
+      "",
+      `Completed agents: ${results.length}`,
+      `Planned total agents: ${decomposition.tasks.length}`,
+      "",
+      "This interim view may still change as more evidence arrives.",
+    ].join("\n"),
+  };
 }

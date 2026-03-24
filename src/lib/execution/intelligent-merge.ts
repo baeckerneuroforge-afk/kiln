@@ -1,11 +1,13 @@
 /**
- * Intelligent Merge
- * Ersetzt einfache Merge-Strategien durch LLM-gestützte Synthese mit
- * Deduplizierung, Konflikt-Erkennung und Qualitätsbewertung.
+ * Intelligent Merge V2
+ * Phase 1: Normalize evidence
+ * Phase 2: Detect conflicts
+ * Phase 3: Synthesize from verified findings
+ * Phase 4: Generate optional deliverables
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { SharedWorkspace } from "./shared-workspace";
+import { SharedWorkspace, type WorkspaceEntry } from "./shared-workspace";
 import { SwarmEventStream } from "./swarm-event-stream";
 import { CostTracker } from "@/lib/cost/cost-tracker";
 import type { SubAgentResult } from "./sub-agent-executor";
@@ -13,7 +15,19 @@ import {
   detectQuickUseResultType,
   extractPresentationBlocks,
 } from "@/lib/quick-use/result-presentation";
-import type { QuickUseResultType, QuickUseSource } from "@/lib/quick-use/types";
+import type {
+  QuickUseGeneratedFile,
+  QuickUseResultType,
+  QuickUseSource,
+} from "@/lib/quick-use/types";
+import {
+  formatUnverifiedClaims,
+  normalizeDateValue,
+  normalizePriceValue,
+  summarizeVerification,
+  type VerificationSummary,
+} from "./hallucination-guard";
+import { generateFile } from "@/lib/output/file-generator";
 
 /* ── Types ── */
 
@@ -26,7 +40,7 @@ export type IntelligentMergeStrategy =
 
 export interface MergeConflict {
   topic: string;
-  sources: { agentId: string; value: string }[];
+  sources: { agentId: string; value: string; citation?: string }[];
   resolution?: string;
 }
 
@@ -42,35 +56,60 @@ export interface IntelligentMergeResult {
     markdown: string;
     sources: QuickUseSource[];
     followUpQuestions: string[];
+    generatedFiles?: QuickUseGeneratedFile[];
+    meta?: Record<string, unknown>;
   };
   synthesisModel?: string;
+  verification?: VerificationSummary;
+  generatedFiles?: QuickUseGeneratedFile[];
 }
 
-/* ── IntelligentMerge Class ── */
+interface NormalizedFinding {
+  agentId: string;
+  key: string;
+  value: string;
+  normalizedValue: string;
+  tags: string[];
+  sourceUrl?: string;
+  sourceTitle?: string;
+  verified: boolean;
+  citation?: string;
+}
+
+interface MergeNormalizationResult {
+  findings: NormalizedFinding[];
+  duplicatesRemoved: number;
+  verification: VerificationSummary;
+  sourceMap: Map<string, number>;
+}
+
+/* ── Merge ── */
 
 export class IntelligentMerge {
-  private costTracker: CostTracker;
-  private eventStream: SwarmEventStream;
+  private readonly costTracker: CostTracker;
+  private readonly eventStream: SwarmEventStream;
+  private readonly userId?: string;
 
-  constructor(costTracker: CostTracker, eventStream: SwarmEventStream) {
+  constructor(
+    costTracker: CostTracker,
+    eventStream: SwarmEventStream,
+    options?: { userId?: string },
+  ) {
     this.costTracker = costTracker;
     this.eventStream = eventStream;
+    this.userId = options?.userId;
   }
 
-  /**
-   * Führt den intelligenten Merge aller Agent-Ergebnisse durch.
-   */
   async merge(
     strategy: IntelligentMergeStrategy,
     workspace: SharedWorkspace,
     originalGoal: string,
     agentResults: SubAgentResult[],
-    anthropicClient: Anthropic
+    anthropicClient: Anthropic,
   ): Promise<IntelligentMergeResult> {
     this.eventStream.mergeStarted(strategy);
 
-    const completedResults = agentResults.filter((r) => r.stoppedReason !== "error" && r.result);
-
+    const completedResults = agentResults.filter((result) => result.stoppedReason !== "error" && result.result);
     if (completedResults.length === 0) {
       this.eventStream.mergeCompleted(0);
       return {
@@ -82,9 +121,9 @@ export class IntelligentMerge {
       };
     }
 
-    // Schnelle Strategien die kein LLM brauchen
     if (strategy === "first_success") {
       const first = completedResults[0];
+      const verification = summarizeVerification(first.workspaceEntries || [], undefined, 1);
       this.eventStream.mergeCompleted(70);
       return {
         mergedResult: first.result,
@@ -92,278 +131,534 @@ export class IntelligentMerge {
         conflicts: [],
         duplicatesRemoved: 0,
         agentsContributed: 1,
+        verification,
       };
     }
 
-    if (strategy === "wait_all" && completedResults.length === 1) {
-      this.eventStream.mergeCompleted(75);
-      return {
-        mergedResult: completedResults[0].result,
-        qualityScore: 75,
-        conflicts: [],
-        duplicatesRemoved: 0,
-        agentsContributed: 1,
-      };
-    }
-
-    // Für alle anderen Strategien: LLM-basierter Merge
-    return this.llmMerge(strategy, workspace, originalGoal, completedResults, anthropicClient);
+    return this.mergeWithSynthesis(strategy, workspace, originalGoal, completedResults, anthropicClient);
   }
 
-  private async llmMerge(
+  private async mergeWithSynthesis(
     strategy: IntelligentMergeStrategy,
     workspace: SharedWorkspace,
     originalGoal: string,
     results: SubAgentResult[],
-    anthropicClient: Anthropic
+    anthropicClient: Anthropic,
   ): Promise<IntelligentMergeResult> {
-    // Step 1: Alle Ergebnisse sammeln
-    const agentFindings = results.map((r) => ({
-      agentId: r.id,
-      result: r.result.slice(0, 3000),
-      toolCalls: r.toolCallsCount,
-      model: r.modelUsed,
-    }));
-
-    // Workspace-Entries auch einbeziehen
-    const workspaceEntries = workspace.read();
-    const workspaceContext = workspaceEntries.length > 0
-      ? "\n\nShared Workspace Findings:\n" + workspaceEntries
-          .map((e) => `[${e.agentId}] ${e.key}: ${JSON.stringify(e.value).slice(0, 500)}`)
-          .join("\n")
-      : "";
-
-    // Step 2: Deduplizierung + Konflikt-Erkennung (Haiku — günstig)
-    const analysisPrompt = `You are analyzing results from ${results.length} research agents.
-
-Original Goal: ${originalGoal}
-
-Agent Results:
-${agentFindings.map((f) => `--- Agent ${f.agentId} (${f.model}, ${f.toolCalls} tool calls) ---\n${f.result}`).join("\n\n")}
-${workspaceContext}
-
-Analyze the results and respond with ONLY valid JSON:
-{
-  "duplicates": [{"topic": "...", "agents": ["id1", "id2"], "keep_best_from": "id1"}],
-  "conflicts": [{"topic": "...", "sources": [{"agentId": "id1", "value": "..."}, {"agentId": "id2", "value": "..."}]}],
-  "unique_findings_count": 0
-}`;
-
-    let duplicatesRemoved = 0;
-    let conflicts: MergeConflict[] = [];
-
-    try {
-      const analysisResponse = await anthropicClient.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 2048,
-        system: "You are a data analyst. Identify duplicates and conflicts across multiple agent results. Respond ONLY with valid JSON.",
-        messages: [{ role: "user", content: analysisPrompt }],
-      });
-
-      const analysisText = analysisResponse.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text)
-        .join("");
-
-      await this.costTracker.trackUsage(
-        "claude-haiku-4-5-20251001",
-        analysisResponse.usage?.input_tokens || 0,
-        analysisResponse.usage?.output_tokens || 0,
-        "merge:analysis"
-      );
-
-      try {
-        const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
-        const analysis = JSON.parse(jsonMatch ? jsonMatch[0] : analysisText);
-        duplicatesRemoved = Array.isArray(analysis.duplicates) ? analysis.duplicates.length : 0;
-
-        if (Array.isArray(analysis.conflicts)) {
-          conflicts = analysis.conflicts.map((c: { topic: string; sources: { agentId: string; value: string }[] }) => ({
-            topic: c.topic,
-            sources: Array.isArray(c.sources) ? c.sources : [],
-          }));
-        }
-      } catch {
-        // JSON-Parsing fehlgeschlagen — weiter ohne Analyse
-      }
-    } catch {
-      // Analyse fehlgeschlagen — weiter ohne
-    }
-
-    // Konflikte melden
+    const normalization = this.normalizeEvidence(workspace.read(), results);
+    const conflicts = detectConflicts(normalization.findings);
     for (const conflict of conflicts) {
-      this.eventStream.mergeConflict(`${conflict.topic}: ${conflict.sources.map((s) => `${s.agentId}="${s.value}"`).join(" vs ")}`);
+      this.eventStream.mergeConflict(
+        `${conflict.topic}: ${conflict.sources.map((source) => `${source.agentId}=${source.value}`).join(" vs ")}`
+      );
     }
 
-    // Step 3: Synthese (Sonnet für Qualität)
-    const synthesisModel = results.length > 5 || originalGoal.length > 500
-      ? "claude-sonnet-4-6"
-      : "claude-haiku-4-5-20251001";
+    const synthesisModel = chooseSynthesisModel(results, originalGoal, normalization.findings.length);
+    const synthesisPrompt = buildSynthesisPrompt(
+      originalGoal,
+      strategy,
+      normalization,
+      conflicts,
+      results,
+    );
 
-    const conflictContext = conflicts.length > 0
-      ? `\n\nKNOWN CONFLICTS (include both sides with source attribution):\n${conflicts.map((c) => `- ${c.topic}: ${c.sources.map((s) => `${s.agentId} says "${s.value}"`).join(" vs ")}`).join("\n")}`
-      : "";
-
-    const synthesisPrompt = `You are synthesizing results from ${results.length} research agents.
-
-Original Goal: ${originalGoal}
-
-Each agent's findings:
-${agentFindings.map((f) => `--- Agent ${f.agentId} ---\n${f.result}`).join("\n\n")}
-${workspaceContext}
-${conflictContext}
-
-${duplicatesRemoved > 0 ? `Note: ${duplicatesRemoved} duplicate findings were identified across agents.` : ""}
-
-Create a comprehensive, well-structured response that:
-1. Combines all unique findings
-2. Resolves contradictions by noting both sources
-3. Highlights the most important discoveries
-4. Directly answers the original goal
-5. Is well-formatted with headers and bullet points where appropriate
-
-IMPORTANT: When citing information, use numbered references like [1], [2], [3].
-Always cite prices, dates, statistics, and factual claims with a source number.
-Preserve all source citations [N] from the agent findings whenever possible.
-Compile a unified source list.
-If two agents found the same fact from different sources, cite both.
-
-Respond ONLY with valid JSON in this exact shape:
-{
-  "summary": "2-3 sentence executive summary",
-  "resultType": "comparison|research|price_list|single_fact|list|general",
-  "markdown": "Main response in markdown. Keep inline citations like [1] and [2]. Use a markdown table for comparisons when useful. Do not append a Sources section or FOLLOW_UP_QUESTIONS block here.",
-  "sources": [
-    { "id": 1, "url": "https://example.com", "title": "Example Source", "domain": "example.com", "snippet": "Optional short note" }
-  ],
-  "followUpQuestions": [
-    "Specific next question 1",
-    "Specific next question 2",
-    "Specific next question 3"
-  ]
-}`;
-
-    let mergedResult = "";
-    let presentation: IntelligentMergeResult["presentation"];
+    let markdown = buildFallbackMarkdown(normalization, conflicts, results);
+    let summary = `Completed swarm synthesis from ${results.length} agent${results.length === 1 ? "" : "s"}.`;
+    let resultType: QuickUseResultType = detectQuickUseResultType({
+      markdown,
+      summary,
+    });
+    let followUpQuestions: string[] = [];
 
     try {
       const synthesisResponse = await anthropicClient.messages.create({
         model: synthesisModel,
         max_tokens: 4096,
-        system: "You are a synthesis expert. Create a coherent, comprehensive response from multiple agent results. Be thorough but concise. Preserve citations and respond ONLY with valid JSON.",
+        system: [
+          "You are a synthesis specialist.",
+          "Create a final report from verified agent findings.",
+          "Every factual claim must keep a citation like [1] or [2].",
+          "Do not hide contradictions. Note them explicitly.",
+          "If evidence is missing, say so in Limitations instead of guessing.",
+          "Respond ONLY with valid JSON.",
+        ].join("\n"),
         messages: [{ role: "user", content: synthesisPrompt }],
       });
-
-      const synthesisText = synthesisResponse.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text)
-        .join("\n\n");
-      const jsonMatch = synthesisText.match(/\{[\s\S]*\}/);
-      const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : synthesisText) as {
-        summary?: string;
-        resultType?: QuickUseResultType;
-        markdown?: string;
-        sources?: Array<{ id?: number; url?: string; title?: string; domain?: string; snippet?: string }>;
-        followUpQuestions?: string[];
-      };
-      const extracted = extractPresentationBlocks(parsed.markdown || synthesisText);
-
-      presentation = {
-        summary: parsed.summary?.trim() || extracted.markdown.slice(0, 280) || "Agent Swarm completed.",
-        resultType: detectQuickUseResultType({
-          markdown: extracted.markdown || parsed.markdown || "",
-          summary: parsed.summary || extracted.markdown.slice(0, 280),
-          explicitResultType: parsed.resultType,
-        }),
-        markdown: extracted.markdown || parsed.markdown || synthesisText,
-        sources: (parsed.sources || [])
-          .filter((source) => source.url)
-          .map((source, index) => ({
-            id: source.id ?? index + 1,
-            title: source.title || source.url || `Source ${index + 1}`,
-            url: source.url || "",
-            domain: source.domain,
-            snippet: source.snippet,
-          })),
-        followUpQuestions: Array.from(
-          new Set([...(parsed.followUpQuestions || []), ...extracted.followUpQuestions])
-        ).slice(0, 4),
-      };
-      mergedResult = presentation.markdown;
 
       await this.costTracker.trackUsage(
         synthesisModel,
         synthesisResponse.usage?.input_tokens || 0,
         synthesisResponse.usage?.output_tokens || 0,
-        "merge:synthesis"
-      );
-    } catch {
-      // Fallback: einfache Konkatenation
-      mergedResult = agentFindings.map((f) => `## Agent ${f.agentId}\n${f.result}`).join("\n\n---\n\n");
-    }
-
-    if (!presentation) {
-      const extracted = extractPresentationBlocks(mergedResult);
-      presentation = {
-        summary: extracted.markdown.slice(0, 280) || "Agent Swarm completed.",
-        resultType: detectQuickUseResultType({
-          markdown: extracted.markdown,
-          summary: extracted.markdown.slice(0, 280),
-        }),
-        markdown: extracted.markdown || mergedResult,
-        sources: extracted.sources,
-        followUpQuestions: extracted.followUpQuestions,
-      };
-      mergedResult = presentation.markdown;
-    }
-
-    // Step 4: Quality Check (Haiku — günstig)
-    let qualityScore = 50; // Default
-
-    try {
-      const qualityResponse = await anthropicClient.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 256,
-        system: "You are a quality assessor. Score the response on a 0-100 scale. Respond with ONLY a JSON object.",
-        messages: [{
-          role: "user",
-          content: `Original Goal: ${originalGoal}\n\nResponse to evaluate:\n${mergedResult.slice(0, 3000)}\n\nScore this response:\n{"completeness": 0-100, "accuracy": 0-100, "coherence": 0-100, "overall": 0-100}`,
-        }],
-      });
-
-      const qualityText = qualityResponse.content
-        .filter((b): b is Anthropic.TextBlock => b.type === "text")
-        .map((b) => b.text)
-        .join("");
-
-      await this.costTracker.trackUsage(
-        "claude-haiku-4-5-20251001",
-        qualityResponse.usage?.input_tokens || 0,
-        qualityResponse.usage?.output_tokens || 0,
-        "merge:quality"
+        "merge:synthesis",
       );
 
-      try {
-        const jsonMatch = qualityText.match(/\{[\s\S]*\}/);
-        const quality = JSON.parse(jsonMatch ? jsonMatch[0] : qualityText);
-        qualityScore = Math.min(100, Math.max(0, Number(quality.overall) || 50));
-      } catch {
-        qualityScore = 60; // Parsing failed — konservativ bewerten
+      const parsed = parseJson(
+        synthesisResponse.content
+          .filter((block): block is Anthropic.TextBlock => block.type === "text")
+          .map((block) => block.text)
+          .join("\n"),
+      ) as {
+        summary?: string;
+        resultType?: QuickUseResultType;
+        markdown?: string;
+        followUpQuestions?: string[];
+      } | null;
+
+      if (parsed?.markdown) {
+        const extracted = extractPresentationBlocks(parsed.markdown);
+        summary = parsed.summary?.trim() || extracted.markdown.slice(0, 280) || summary;
+        resultType = detectQuickUseResultType({
+          markdown: extracted.markdown || parsed.markdown,
+          summary,
+          explicitResultType: parsed.resultType,
+        });
+        markdown = extracted.markdown || parsed.markdown;
+        followUpQuestions = Array.from(
+          new Set([...(parsed.followUpQuestions || []), ...extracted.followUpQuestions]),
+        ).slice(0, 4);
       }
     } catch {
-      qualityScore = 50; // Quality check failed
+      // Fallback bleibt bei code-first synthesized markdown
     }
+
+    const generatedFiles = await this.generateDeliverables(resultType, originalGoal, normalization, markdown);
+    const qualityScore = await this.scoreQuality(
+      anthropicClient,
+      originalGoal,
+      markdown,
+      normalization.verification,
+      conflicts.length,
+    );
+
+    const presentation = {
+      summary,
+      resultType,
+      markdown,
+      sources: normalization.verification.sources,
+      followUpQuestions: followUpQuestions.length > 0
+        ? followUpQuestions
+        : buildDefaultFollowUps(resultType, originalGoal),
+      ...(generatedFiles.length > 0 ? { generatedFiles } : {}),
+      meta: {
+        completeness: normalization.verification.completeness,
+        unverifiedClaims: normalization.verification.unverifiedClaims,
+        duplicateFindingsRemoved: normalization.duplicatesRemoved,
+        conflictCount: conflicts.length,
+        strategy,
+      },
+    } satisfies IntelligentMergeResult["presentation"];
 
     this.eventStream.mergeCompleted(qualityScore);
 
     return {
-      mergedResult,
+      mergedResult: markdown,
       qualityScore,
       conflicts,
-      duplicatesRemoved,
+      duplicatesRemoved: normalization.duplicatesRemoved,
       agentsContributed: results.length,
       presentation,
       synthesisModel,
+      verification: normalization.verification,
+      generatedFiles,
     };
   }
+
+  private normalizeEvidence(
+    workspaceEntries: WorkspaceEntry[],
+    results: SubAgentResult[],
+  ): MergeNormalizationResult {
+    const mergedEntries = workspaceEntries.length > 0
+      ? workspaceEntries
+      : results.flatMap((result) => result.workspaceEntries || []);
+    const verification = summarizeVerification(mergedEntries, undefined, results.length);
+    const sourceMap = new Map<string, number>();
+
+    verification.sources.forEach((source, index) => {
+      sourceMap.set(source.url, source.id ?? index + 1);
+    });
+
+    const dedupe = new Map<string, NormalizedFinding>();
+    let duplicatesRemoved = 0;
+
+    for (const entry of mergedEntries) {
+      const value = stringifyValue(entry.value);
+      const normalizedValue = normalizeComparableValue(value);
+      const sourceUrl = entry.source?.url;
+      const citationNumber = sourceUrl ? sourceMap.get(sourceUrl) : undefined;
+      const finding: NormalizedFinding = {
+        agentId: entry.agentId,
+        key: entry.key,
+        value,
+        normalizedValue,
+        tags: entry.tags,
+        sourceUrl,
+        sourceTitle: entry.source?.title,
+        verified: Boolean(entry.source?.verified ?? entry.source?.url ?? entry.source?.snippet ?? entry.source?.screenshot),
+        citation: citationNumber ? `[${citationNumber}]` : undefined,
+      };
+
+      const dedupeKey = `${entry.key}:${normalizedValue}:${sourceUrl || "no_source"}`;
+      if (dedupe.has(dedupeKey)) {
+        duplicatesRemoved++;
+        continue;
+      }
+
+      dedupe.set(dedupeKey, finding);
+    }
+
+    return {
+      findings: Array.from(dedupe.values()),
+      duplicatesRemoved,
+      verification,
+      sourceMap,
+    };
+  }
+
+  private async generateDeliverables(
+    resultType: QuickUseResultType,
+    originalGoal: string,
+    normalization: MergeNormalizationResult,
+    markdown: string,
+  ): Promise<QuickUseGeneratedFile[]> {
+    if (!this.userId) {
+      return [];
+    }
+
+    const files: QuickUseGeneratedFile[] = [];
+    const comparisonRows = buildComparisonRows(normalization.findings);
+
+    try {
+      if (resultType === "comparison" && comparisonRows.length > 0) {
+        files.push(await generateFile({
+          kind: "xlsx",
+          fileName: `agent-swarm-comparison-${Date.now()}.xlsx`,
+          data: comparisonRows,
+          title: originalGoal.slice(0, 80),
+          userId: this.userId,
+        }));
+        files.push(await generateFile({
+          kind: "csv",
+          fileName: `agent-swarm-comparison-${Date.now()}.csv`,
+          data: comparisonRows,
+          userId: this.userId,
+        }));
+      } else if (resultType === "research") {
+        files.push(await generateFile({
+          kind: "pdf",
+          fileName: `agent-swarm-report-${Date.now()}.pdf`,
+          content: markdown,
+          title: originalGoal.slice(0, 80),
+          userId: this.userId,
+        }));
+      } else if ((resultType === "price_list" || resultType === "list") && comparisonRows.length > 0) {
+        files.push(await generateFile({
+          kind: "csv",
+          fileName: `agent-swarm-data-${Date.now()}.csv`,
+          data: comparisonRows,
+          userId: this.userId,
+        }));
+      }
+    } catch {
+      // File generation is optional. Keep merge result even if artifacts fail.
+    }
+
+    return files;
+  }
+
+  private async scoreQuality(
+    anthropicClient: Anthropic,
+    originalGoal: string,
+    markdown: string,
+    verification: VerificationSummary,
+    conflictCount: number,
+  ): Promise<number> {
+    let qualityScore = 50;
+
+    try {
+      const response = await anthropicClient.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 256,
+        system: "You are a quality assessor. Score the response from 0-100. Respond ONLY with JSON.",
+        messages: [{
+          role: "user",
+          content: [
+            `Goal: ${originalGoal}`,
+            `Verified sources: ${verification.sources.length}`,
+            `Unverified claims: ${verification.unverifiedClaims.length}`,
+            `Conflicts noted: ${conflictCount}`,
+            "",
+            markdown.slice(0, 3000),
+            "",
+            'Respond as {"overall": 0-100}',
+          ].join("\n"),
+        }],
+      });
+
+      await this.costTracker.trackUsage(
+        "claude-haiku-4-5-20251001",
+        response.usage?.input_tokens || 0,
+        response.usage?.output_tokens || 0,
+        "merge:quality",
+      );
+
+      const parsed = parseJson(
+        response.content
+          .filter((block): block is Anthropic.TextBlock => block.type === "text")
+          .map((block) => block.text)
+          .join("\n"),
+      ) as { overall?: number } | null;
+
+      qualityScore = Math.min(100, Math.max(0, Number(parsed?.overall) || 50));
+    } catch {
+      qualityScore = Math.max(45, Math.min(92, 55 + (verification.sources.length * 6) - (verification.unverifiedClaims.length * 4)));
+    }
+
+    return qualityScore;
+  }
+}
+
+/* ── Code-first Normalization / Conflict Detection ── */
+
+function normalizeComparableValue(value: string): string {
+  const normalizedPrice = normalizePriceValue(value);
+  if (normalizedPrice) {
+    return `${normalizedPrice.currency} ${normalizedPrice.amount.toFixed(2)}`;
+  }
+
+  const normalizedDate = normalizeDateValue(value);
+  if (normalizedDate) {
+    return normalizedDate;
+  }
+
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function detectConflicts(findings: NormalizedFinding[]): MergeConflict[] {
+  const grouped = new Map<string, NormalizedFinding[]>();
+
+  for (const finding of findings) {
+    const key = finding.key;
+    const bucket = grouped.get(key) || [];
+    bucket.push(finding);
+    grouped.set(key, bucket);
+  }
+
+  const conflicts: MergeConflict[] = [];
+  for (const [topic, bucket] of grouped.entries()) {
+    const uniqueValues = Array.from(new Set(bucket.map((item) => item.normalizedValue)));
+    if (uniqueValues.length <= 1) continue;
+
+    conflicts.push({
+      topic,
+      sources: bucket.slice(0, 4).map((item) => ({
+        agentId: item.agentId,
+        value: item.value,
+        citation: item.citation,
+      })),
+      resolution: "Report both verified values and note the disagreement explicitly.",
+    });
+  }
+
+  return conflicts;
+}
+
+function buildComparisonRows(findings: NormalizedFinding[]): Record<string, unknown>[] {
+  return findings.map((finding) => ({
+    agentId: finding.agentId,
+    key: finding.key,
+    value: finding.value,
+    normalizedValue: finding.normalizedValue,
+    source: finding.sourceUrl || "",
+    citation: finding.citation || "",
+    verified: finding.verified ? "yes" : "no",
+  }));
+}
+
+/* ── Synthesis Prompt / Fallback ── */
+
+function buildSynthesisPrompt(
+  originalGoal: string,
+  strategy: IntelligentMergeStrategy,
+  normalization: MergeNormalizationResult,
+  conflicts: MergeConflict[],
+  results: SubAgentResult[],
+): string {
+  const verifiedFindings = normalization.findings
+    .filter((finding) => finding.verified)
+    .map((finding) => `- ${finding.key}: ${finding.value}${finding.citation ? ` ${finding.citation}` : ""}${finding.sourceUrl ? ` (${finding.sourceUrl})` : ""}`)
+    .join("\n");
+
+  const conflictsText = conflicts.length > 0
+    ? conflicts
+        .map((conflict) => `- ${conflict.topic}: ${conflict.sources.map((source) => `${source.value}${source.citation ? ` ${source.citation}` : ""}`).join(" vs ")}`)
+        .join("\n")
+    : "None";
+
+  return [
+    `Original goal: ${originalGoal}`,
+    `Merge strategy: ${strategy}`,
+    `Data completeness: ${normalization.verification.completeness}`,
+    "",
+    "Verified findings:",
+    verifiedFindings || "- No verified findings were collected.",
+    "",
+    "Known conflicts:",
+    conflictsText,
+    "",
+    normalization.verification.unverifiedClaims.length > 0
+      ? `Unverified claims (mention only as unverified if needed):\n${formatUnverifiedClaims(normalization.verification.unverifiedClaims)}`
+      : "Unverified claims: none",
+    "",
+    `Agent count: ${results.length}`,
+    "",
+    "Write the final report in this structure:",
+    "Executive Summary",
+    "Key Findings",
+    "Detailed Comparison",
+    "Limitations",
+    "Recommendation",
+    "",
+    "Rules:",
+    "1. Every factual claim must have a citation [N].",
+    "2. Contradictions must be noted, not hidden.",
+    "3. Include data completeness and blocked/failed coverage if relevant.",
+    "4. End with a clear recommendation or conclusion.",
+    "5. Preserve source citations.",
+    "",
+    "Respond ONLY with valid JSON in this exact shape:",
+    "{",
+    '  "summary": "2-3 sentence executive summary",',
+    '  "resultType": "comparison|research|price_list|single_fact|list|general",',
+    '  "markdown": "Markdown report WITHOUT a Sources section or FOLLOW_UP_QUESTIONS block.",',
+    '  "followUpQuestions": ["Question 1", "Question 2", "Question 3"]',
+    "}",
+  ].join("\n");
+}
+
+function buildFallbackMarkdown(
+  normalization: MergeNormalizationResult,
+  conflicts: MergeConflict[],
+  results: SubAgentResult[],
+): string {
+  const verified = normalization.findings.filter((finding) => finding.verified);
+  const topFindings = verified.slice(0, 8);
+
+  const keyFindings = topFindings.length > 0
+    ? topFindings.map((finding) => `- **${humanizeKey(finding.key)}:** ${finding.value}${finding.citation ? ` ${finding.citation}` : ""}`).join("\n")
+    : "- No verified findings were available.";
+
+  const limitations = [
+    normalization.verification.completeness,
+    results.some((result) => result.stoppedReason !== "completed")
+      ? "Some agents did not complete successfully."
+      : "",
+    normalization.verification.unverifiedClaims.length > 0
+      ? `${normalization.verification.unverifiedClaims.length} claim${normalization.verification.unverifiedClaims.length === 1 ? " is" : "s are"} unverified and excluded from the main findings.`
+      : "",
+  ]
+    .filter(Boolean)
+    .map((item) => `- ${item}`)
+    .join("\n");
+
+  const conflictText = conflicts.length > 0
+    ? conflicts
+        .map((conflict) => `- **${humanizeKey(conflict.topic)}:** ${conflict.sources.map((source) => `${source.value}${source.citation ? ` ${source.citation}` : ""}`).join(" vs ")}`)
+        .join("\n")
+    : "- No material conflicts detected across verified findings.";
+
+  return [
+    "## Executive Summary",
+    normalization.verification.completeness,
+    "",
+    "## Key Findings",
+    keyFindings,
+    "",
+    "## Detailed Comparison",
+    keyFindings,
+    "",
+    "## Limitations",
+    limitations,
+    "",
+    "## Recommendation",
+    conflicts.length > 0
+      ? "Use the conflict notes to verify the disputed data points before acting on them."
+      : "Act on the verified findings above and use the cited sources for confirmation.",
+    "",
+    "## Conflicts",
+    conflictText,
+  ].join("\n");
+}
+
+function buildDefaultFollowUps(resultType: QuickUseResultType, goal: string): string[] {
+  const subject = goal.replace(/\s+/g, " ").trim().slice(0, 70) || "this";
+
+  switch (resultType) {
+    case "comparison":
+      return [
+        `Which option in ${subject} looks best if delivery speed matters most?`,
+        `Can you turn this comparison into a downloadable spreadsheet?`,
+        `What changed compared with the cheapest option last time?`,
+      ];
+    case "research":
+      return [
+        `What are the main risks or downsides related to ${subject}?`,
+        `How does this compare with the leading alternative?`,
+        `Can you turn this into a PDF brief?`,
+      ];
+    case "price_list":
+      return [
+        `Can you re-check the cheapest option for ${subject} on the actual site?`,
+        `Which seller has the best delivery terms?`,
+        `Should I also compare refurbished or used options?`,
+      ];
+    default:
+      return [
+        `Can you expand on the most important finding in ${subject}?`,
+        `What should be checked next before acting on this?`,
+        `Can you export the verified data?`,
+      ];
+  }
+}
+
+function chooseSynthesisModel(
+  results: SubAgentResult[],
+  originalGoal: string,
+  findingsCount: number,
+): string {
+  if (results.some((result) => result.sources.some((source) => source.tool === "browse_url" || source.tool === "take_screenshot"))) {
+    return "claude-sonnet-4-6";
+  }
+  if (results.length > 5 || findingsCount > 20 || originalGoal.length > 400) {
+    return "claude-sonnet-4-6";
+  }
+  return "claude-haiku-4-5-20251001";
+}
+
+/* ── Helpers ── */
+
+function parseJson(text: string): unknown {
+  try {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    return JSON.parse(match[0]);
+  } catch {
+    return null;
+  }
+}
+
+function stringifyValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function humanizeKey(key: string): string {
+  return key
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }

@@ -43,6 +43,8 @@ model User {
   agentTeams          AgentTeam[]
   teamExecutions      TeamExecution[]
   creditUsage         AiCreditUsage[]
+  quickUseTasks       QuickUseTask[]
+  quickUseMemories    QuickUseMemory[]
 }
 
 // Referral Credits — tracks rewards for referrers
@@ -1213,6 +1215,61 @@ model AiCreditUsage {
   @@index([agentId])
   @@index([userId, createdAt])
   @@index([type])
+}
+
+// Quick Use background tasks — persists execution state across tab close/reconnect
+model QuickUseTask {
+  id               String             @id @default(cuid())
+  userId           String
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type             String             // "computer_use" | "agent_swarm" | "deep_research"
+  status           QuickUseTaskStatus @default(RUNNING)
+  input            Json               // Original message + file references
+  config           Json?              // Detected tools, model, extracted params
+  progress         Json?              // Current step, agent statuses, partial findings
+  result           Json?              // Final QuickUseResult when complete
+  creditsEstimated Int                @default(0)
+  creditsUsed      Int                @default(0)
+  interventions    Json?              // Array of user intervention messages
+  error            String?            @db.Text
+  notified         Boolean            @default(false) // Whether completion notification was sent
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  completedAt      DateTime?
+  memory           QuickUseMemory?
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model QuickUseMemory {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId         String       @unique
+  task           QuickUseTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  type           String
+  title          String?
+  inputSummary   String       @db.Text
+  summary        String       @db.Text
+  keyData        Json
+  keywords       String[]
+  result         Json?
+  workspaceFiles Json?
+  createdAt      DateTime     @default(now())
+  expiresAt      DateTime
+
+  @@index([userId, createdAt])
+  @@index([userId, expiresAt])
+}
+
+enum QuickUseTaskStatus {
+  RUNNING
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
 }
 
 model AgentRun {

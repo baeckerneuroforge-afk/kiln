@@ -8,6 +8,7 @@ import {
   selectOptimalModel,
   detectTaskType,
 } from "@/lib/smart-model-router";
+import type { AgentSpecializationId, ToolRoutingDecision } from "./agent-specializations";
 import type { SubAgentTool, ModelPreference } from "./sub-agent-executor";
 
 /* ── Types ── */
@@ -28,6 +29,16 @@ export interface SubTask {
   modelPreference?: ModelPreference;
   /** Erwartetes Output-Format */
   outputFormat?: "text" | "json" | "table" | "file";
+  expectedOutput?: string;
+  estimatedDurationSec?: number;
+  estimatedCredits?: number;
+  priority?: "critical" | "important" | "nice_to_have";
+  fallbackStrategy?: string;
+  optional?: boolean;
+  specialization?: AgentSpecializationId;
+  taskType?: string;
+  toolRouting?: ToolRoutingDecision;
+  successCriteria?: string;
 }
 
 export interface SubTaskResult {
@@ -84,6 +95,7 @@ const MAX_TOTAL_AGENTS = 30;
 export class ParallelExecutor {
   private maxConcurrency: number;
   private results: Map<string, SubTaskResult> = new Map();
+  private cancelledTasks: Map<string, string> = new Map();
   private progress: ParallelExecutionProgress;
   private onProgress?: (progress: ParallelExecutionProgress) => void;
   private dynamicTasks: SubTask[] = [];
@@ -112,6 +124,10 @@ export class ParallelExecutor {
     this.dynamicTasks.push(task);
     this.totalAgentCount++;
     return true;
+  }
+
+  cancelTask(taskId: string, reason: string): void {
+    this.cancelledTasks.set(taskId, reason);
   }
 
   /**
@@ -143,6 +159,7 @@ export class ParallelExecutor {
     this.totalAgentCount = tasks.length;
     this.dynamicTasks = [];
     this.budgetExceeded = false;
+    this.cancelledTasks.clear();
 
     // Mutable task list — dynamic tasks werden hier hinzugefügt
     const allTasks = [...tasks];
@@ -162,6 +179,7 @@ export class ParallelExecutor {
     // Topologische Sortierung — finde ausführbare Tasks
     const getReady = (): SubTask[] => {
       return allTasks.filter((t) => {
+        if (this.cancelledTasks.has(t.id)) return false;
         if (completed.has(t.id) || failed.has(t.id) || running.has(t.id)) return false;
         return t.dependencies.every((depId) => completed.has(depId));
       });
@@ -173,6 +191,21 @@ export class ParallelExecutor {
       if (this.dynamicTasks.length > 0) {
         allTasks.push(...this.dynamicTasks);
         this.dynamicTasks = [];
+      }
+
+      for (const task of allTasks) {
+        const cancelReason = this.cancelledTasks.get(task.id);
+        if (!cancelReason || completed.has(task.id) || failed.has(task.id) || running.has(task.id)) {
+          continue;
+        }
+        failed.add(task.id);
+        this.results.set(task.id, {
+          id: task.id,
+          status: "failed",
+          output: null,
+          error: cancelReason,
+          durationMs: 0,
+        });
       }
 
       // Budget-Check: bei Überschreitung alle verbleibenden Tasks abbrechen

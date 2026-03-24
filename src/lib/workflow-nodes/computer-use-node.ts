@@ -1,7 +1,13 @@
 /**
- * Computer Use Node Executor — V2.0
- * Real Browser Control via Browserless API mit Visual Reasoning Loop.
- * Fallback: HTTP-Fetching + Screenshot-Service (V1.0 Verhalten).
+ * Computer Use Node Executor — V3.0
+ * World-class Browser Automation mit 7 Optimierungs-Patterns:
+ * 1. Intelligent Step Planning
+ * 2. Page Understanding
+ * 3. Obstacle Auto-Handler
+ * 4. Smart Data Extraction
+ * 5. Multi-Strategy Navigation
+ * 6. Execution Budget Optimizer
+ * 7. Learning from Experience (PageCache + ProceduralMemory)
  */
 
 import {
@@ -47,6 +53,12 @@ import { ElementFinder } from "@/lib/browser/element-finder";
 import { ActionExecutor } from "@/lib/browser/action-executor";
 import { PageCache } from "@/lib/browser/page-cache";
 import { ReliabilityMetrics } from "@/lib/browser/reliability-metrics";
+import { StepPlanner } from "@/lib/browser/step-planner";
+import { PageAnalyzer } from "@/lib/browser/page-analyzer";
+import { ObstacleHandler } from "@/lib/browser/obstacle-handler";
+import { SmartExtractor } from "@/lib/browser/smart-extractor";
+import { NavigationStrategies } from "@/lib/browser/navigation-strategies";
+import { CostOptimizer } from "@/lib/browser/cost-optimizer";
 
 const COMPUTER_USE_MODEL = "claude-sonnet-4-6";
 const VISION_MODEL = "claude-sonnet-4-6";
@@ -635,6 +647,7 @@ interface LoginResult {
 }
 
 type ComputerUseProgressCallback = (message: string) => void;
+type ComputerUseBrowserEventCallback = (event: Record<string, unknown>) => void;
 
 async function performLogin(
   credentialId: string,
@@ -749,7 +762,7 @@ function describeComputerUseAction(action: ClaudeAction): string {
   }
 }
 
-/* ── Real Browser Execution Loop (V2.0) ── */
+/* ── Real Browser Execution Loop (V3.0 — 7 Patterns) ── */
 
 async function executeWithRealBrowser(
   task: string,
@@ -761,6 +774,7 @@ async function executeWithRealBrowser(
   enableProceduralMemory: boolean = true,
   agentId?: string,
   onProgress?: ComputerUseProgressCallback,
+  onBrowserEvent?: ComputerUseBrowserEventCallback,
 ): Promise<{
   steps: ComputerUseSessionStep[];
   summary: string;
@@ -780,13 +794,23 @@ async function executeWithRealBrowser(
   let finalExtractedData: Record<string, unknown> | null = null;
   let completionReason: ComputerUseSession["completionReason"] = "max_steps";
 
+  // Pattern 1-7: Alle Optimierungs-Module initialisieren
   const reasoningLogger = new ReasoningLogger();
   const elementFinder = new ElementFinder();
   const actionExecutor = new ActionExecutor(elementFinder);
   const pageCache = new PageCache();
   const metrics = new ReliabilityMetrics();
+  const stepPlanner = new StepPlanner();             // Pattern 1
+  const pageAnalyzer = new PageAnalyzer();           // Pattern 2
+  const obstacleHandler = new ObstacleHandler();     // Pattern 3
+  const smartExtractor = new SmartExtractor();       // Pattern 4
+  const navStrategies = new NavigationStrategies();  // Pattern 5
+  const costOptimizer = new CostOptimizer(           // Pattern 6
+    maxSteps * 3, // Geschätztes Budget basierend auf Schritten
+    maxSteps,
+  );
 
-  // Procedural Memory: bekannte Prozedur als Prompt-Hint
+  // Pattern 7: Procedural Memory + Page Cache (bestehend)
   let proceduralHint = "";
   if (enableProceduralMemory && agentId) {
     try {
@@ -799,13 +823,19 @@ async function executeWithRealBrowser(
     }
   }
 
-  // Page Cache: bekannte Struktur als Prompt-Hint
   const cachedStructure = pageCache.getCachedStructure(startUrl);
   if (cachedStructure) {
     proceduralHint += pageCache.structureToPromptHint(cachedStructure);
   }
 
-  let lastContent = ""; // HTML-Content für DOM-basierte Operationen
+  // Pattern 1: Task-Typ erkennen und initialen Plan erstellen
+  const taskType = stepPlanner.detectTaskType(task);
+  let currentPlan = stepPlanner.createQuickPlan(task, startUrl, cachedStructure, taskType);
+
+  let lastContent = "";
+  let lastStepFailed = false;
+  let pageAnalyzed = false;
+  let currentPageAnalysis: Awaited<ReturnType<PageAnalyzer["analyzePage"]>> | null = null;
 
   try {
     onProgress?.(`Launching ${browserSession.backend.toUpperCase()} browser session...`);
@@ -813,46 +843,197 @@ async function executeWithRealBrowser(
       onProgress?.(browserSession.warning);
     }
 
+    // Initiale Navigation
+    onBrowserEvent?.({ eventType: "navigation", url: startUrl, stepIndex: 0 });
     const initialPage = await browserNavigate(browserSession, startUrl, { timeout: 30000 });
     currentUrl = await getCurrentBrowserUrl(browserSession).catch(() => startUrl);
     lastContent = initialPage.content;
 
+    // Initiales Screenshot für Live View
+    if (captureScreenshots) {
+      const initialScreenshot = await takeBrowserScreenshot(browserSession);
+      if (initialScreenshot) {
+        onBrowserEvent?.({ eventType: "screenshot", imageData: initialScreenshot, stepIndex: 0, url: currentUrl });
+      }
+    }
+
+    // Pattern 3: Proaktiv Hindernisse beseitigen (Cookie-Banner, etc.)
+    const initialObstacles = await obstacleHandler.proactiveScan(browserSession, currentUrl);
+    if (initialObstacles.some((o) => o.handled)) {
+      onProgress?.(`Cleared ${initialObstacles.filter((o) => o.handled).length} obstacle(s) (cookie banners, popups...)`);
+      // Content nach Hindernis-Beseitigung neu laden
+      lastContent = await getBrowserPageContent(browserSession, currentUrl).catch(() => lastContent);
+    }
+
+    // Pattern 2: Seite analysieren (kostenlos über DOM)
+    currentPageAnalysis = await pageAnalyzer.analyzePage(browserSession, currentUrl);
+    pageAnalyzed = true;
+
+    // Pattern 7: Seitenstruktur im Cache speichern
+    if (currentPageAnalysis.structure) {
+      pageCache.cachePage(currentUrl, currentPageAnalysis.structure);
+    }
+
+    // Pattern 1: Plan verfeinern mit Seitenanalyse
+    if (currentPageAnalysis.confidence > 0.5) {
+      currentPlan = stepPlanner.createQuickPlan(
+        task, currentUrl, currentPageAnalysis.structure, taskType,
+      );
+    }
+
+    // Pattern 4: Versuche direkte DOM-Extraktion wenn möglich
+    if (currentPageAnalysis.canExtractFromDom && taskType === "data_extraction") {
+      const fields = extractFieldsFromTask(task);
+      if (fields.length > 0) {
+        const directExtraction = await smartExtractor.extract(browserSession, {
+          fields,
+          knownSelectors: buildKnownSelectors(currentPageAnalysis.structure),
+        }, currentUrl);
+
+        if (directExtraction.fieldsFound.length >= Math.ceil(fields.length * 0.6)) {
+          // Direkte Extraktion erfolgreich — Task fertig!
+          onProgress?.("Data extracted directly from page (no Vision needed).");
+
+          finalExtractedData = directExtraction.data;
+          finalSummary = `Extracted ${directExtraction.fieldsFound.length} fields directly from DOM.`;
+          completionReason = "done";
+
+          steps.push({
+            stepIndex: 0,
+            url: currentUrl,
+            action: "extract_data",
+            actionDetail: `Smart Extract: ${directExtraction.fieldsFound.join(", ")} [${directExtraction.method}] — 0 Credits`,
+            htmlSummary: extractHtmlSummary(lastContent),
+            screenshot: captureScreenshots ? await takeBrowserScreenshot(browserSession) : null,
+            extractedData: directExtraction.data,
+            timestamp: new Date().toISOString(),
+            durationMs: Date.now(),
+          });
+
+          costOptimizer.recordCost({
+            action: "extract_data",
+            model: "dom",
+            credits: 0,
+            wasScreenshot: false,
+            wasDomOnly: true,
+          });
+
+          // Shortcut: direkt zum Return
+          await closeBrowserSession(browserSession.id);
+
+          if (enableProceduralMemory && agentId) {
+            saveProcedure(agentId, startUrl, task, steps, true).catch(() => {});
+          }
+
+          return {
+            steps,
+            summary: finalSummary,
+            extractedData: finalExtractedData,
+            completionReason,
+            sessionId: browserSession.id,
+            browserBackend: browserSession.backend,
+            warning: browserSession.warning,
+            reasoningLog: reasoningLogger.toJSON(),
+            verificationLog: [],
+            reliabilityStats: {
+              ...metrics.getSessionStats(),
+              elementFinderStats: elementFinder.getStats(),
+              costOptimizerStats: costOptimizer.getSummary(),
+              pageAnalyzerStats: pageAnalyzer.getStats(),
+              obstacleStats: obstacleHandler.getStats(),
+              extractorStats: smartExtractor.getStats(),
+            },
+          };
+        }
+      }
+    }
+
+    // ── Haupt-Loop ──
     for (let i = 0; i < maxSteps; i++) {
       const stepStart = Date.now();
+      const isNewPage = i === 0 || steps[i - 1]?.action === "navigate" || steps[i - 1]?.action === "click_link";
+
       currentUrl = await getCurrentBrowserUrl(browserSession).catch(() => currentUrl);
       lastContent = await getBrowserPageContent(browserSession, currentUrl).catch(() => lastContent);
       const htmlSummary = extractHtmlSummary(lastContent);
 
+      // Pattern 2: Seite analysieren wenn neu
+      if (isNewPage && i > 0) {
+        currentPageAnalysis = await pageAnalyzer.analyzePage(browserSession, currentUrl);
+        pageAnalyzed = true;
+
+        // Pattern 7: Cache aktualisieren
+        if (currentPageAnalysis.structure) {
+          pageCache.cachePage(currentUrl, currentPageAnalysis.structure);
+        }
+
+        // Pattern 3: Hindernisse auf neuer Seite beseitigen
+        if (currentPageAnalysis.obstacles.length > 0) {
+          const obstacleResults = await obstacleHandler.handleAllObstacles(
+            browserSession,
+            currentUrl,
+            currentPageAnalysis.obstacles,
+          );
+          const cleared = obstacleResults.filter((r) => r.handled);
+          if (cleared.length > 0) {
+            onProgress?.(`Cleared ${cleared.length} obstacle(s) on new page.`);
+            lastContent = await getBrowserPageContent(browserSession, currentUrl).catch(() => lastContent);
+          }
+        }
+      }
+
+      // Pattern 6: Kosten-Entscheidung
+      const costDecision = costOptimizer.decide(
+        "navigate", // Wird nach Claude-Antwort aktualisiert
+        i,
+        {
+          pageAnalyzed,
+          canExtractFromDom: currentPageAnalysis?.canExtractFromDom ?? false,
+          hasPlan: currentPlan.confidence > 0.5,
+          isCheckpoint: stepPlanner.isCheckpoint(currentPlan, i),
+          lastStepFailed,
+          isNewPage,
+          isFirstStep: i === 0,
+        },
+      );
+
+      // Screenshot basierend auf Cost-Optimizer-Entscheidung
       let screenshot: string | null = null;
-      if (captureScreenshots) {
+      if (captureScreenshots && costDecision.takeScreenshot) {
         screenshot = await takeBrowserScreenshot(browserSession);
         if (screenshot) metrics.recordScreenshotTaken();
         else metrics.recordScreenshotSkipped();
+      } else {
+        metrics.recordScreenshotSkipped();
       }
+
+      // Page-Analyse Hint zum Prompt hinzufügen
+      const pageHint = currentPageAnalysis
+        ? `\n\n${pageAnalyzer.analysisToPromptHint(currentPageAnalysis)}`
+        : "";
 
       let claudeAction: ClaudeAction;
       const thinkStart = Date.now();
 
-      if (screenshot) {
+      if (screenshot && costDecision.useVision) {
         claudeAction = await askClaudeWithVision(
           task,
           currentUrl,
           screenshot,
           steps,
-          true, // Browser-Modus
+          true,
           enableCodeExecution,
-          proceduralHint,
+          proceduralHint + pageHint,
           htmlSummary,
         );
       } else {
         claudeAction = await askClaudeForAction(
-          task, currentUrl, lastContent, htmlSummary, steps, false, "", false
+          task, currentUrl, lastContent, htmlSummary, steps, false, "", !!screenshot,
         );
       }
 
       const thinkDuration = Date.now() - thinkStart;
 
-      // Reasoning loggen
       reasoningLogger.logFromClaudeAction(
         i,
         claudeAction.action,
@@ -865,8 +1046,26 @@ async function executeWithRealBrowser(
       const domain = (() => { try { return new URL(currentUrl).hostname; } catch { return currentUrl; } })();
       onProgress?.(`Step ${i + 1}: ${describeComputerUseAction(claudeAction)}`);
 
+      // Live Browser Events: Thinking + Screenshot
+      if (claudeAction.reasoning) {
+        onBrowserEvent?.({
+          eventType: "thinking",
+          thought: claudeAction.reasoning.slice(0, 200),
+          stepIndex: i,
+        });
+      }
+      if (screenshot) {
+        onBrowserEvent?.({
+          eventType: "screenshot",
+          imageData: screenshot,
+          stepIndex: i,
+          url: currentUrl,
+        });
+      }
+
       let proofScreenshot = screenshot;
       let stepHtmlSummary = htmlSummary;
+      lastStepFailed = false;
 
       switch (claudeAction.action) {
         case "done": {
@@ -885,6 +1084,14 @@ async function executeWithRealBrowser(
           finalSummary = claudeAction.summary || claudeAction.reasoning || "Task completed.";
           finalExtractedData = claudeAction.extracted_data || null;
           completionReason = "done";
+
+          costOptimizer.recordCost({
+            action: "done",
+            model: costDecision.model,
+            credits: costDecision.estimatedCredits,
+            wasScreenshot: !!screenshot,
+            wasDomOnly: !screenshot,
+          });
           break;
         }
 
@@ -900,32 +1107,54 @@ async function executeWithRealBrowser(
             currentUrl = claudeAction.url;
           }
 
-          const navigated = await browserNavigate(browserSession, currentUrl, { timeout: 30000 });
-          currentUrl = await getCurrentBrowserUrl(browserSession).catch(() => currentUrl);
-          lastContent = navigated.content;
+          // Pattern 5: Multi-Strategy Navigation
+          const navResult = await navStrategies.navigateWithFallback(
+            browserSession, currentUrl, currentUrl,
+          );
+
+          if (navResult.success) {
+            currentUrl = navResult.finalUrl;
+            lastContent = navResult.content;
+          } else {
+            // Fallback: direkte Navigation
+            const navigated = await browserNavigate(browserSession, currentUrl, { timeout: 30000 });
+            currentUrl = await getCurrentBrowserUrl(browserSession).catch(() => currentUrl);
+            lastContent = navigated.content;
+          }
+
           stepHtmlSummary = extractHtmlSummary(lastContent);
-          proofScreenshot = navigated.screenshot || (captureScreenshots ? await takeBrowserScreenshot(browserSession) : screenshot);
+          proofScreenshot = captureScreenshots ? await takeBrowserScreenshot(browserSession) : screenshot;
 
           metrics.record({
             domain,
             actionType: "navigate",
-            strategy: browserSession.backend,
-            success: true,
+            strategy: navResult.method,
+            success: navResult.success,
             durationMs: Date.now() - stepStart,
-            creditsCost: 0,
+            creditsCost: costDecision.estimatedCredits,
           });
+
+          costOptimizer.recordCost({
+            action: "navigate",
+            model: costDecision.model,
+            credits: costDecision.estimatedCredits,
+            wasScreenshot: !!proofScreenshot,
+            wasDomOnly: false,
+          });
+
+          lastStepFailed = !navResult.success;
 
           steps.push({
             stepIndex: i,
             url: currentUrl,
             action: "navigate",
-            actionDetail: `Navigiere zu: ${claudeAction.url} — ${claudeAction.reasoning}`,
+            actionDetail: `Navigiere zu: ${claudeAction.url} [${navResult.method}] — ${claudeAction.reasoning}`,
             htmlSummary: stepHtmlSummary,
             screenshot: proofScreenshot,
             extractedData: null,
             timestamp: new Date().toISOString(),
             durationMs: Date.now() - stepStart,
-            verified: true,
+            verified: navResult.success,
           });
           continue;
         }
@@ -952,7 +1181,7 @@ async function executeWithRealBrowser(
             const coordinateResult = await clickBrowserCoordinates(
               browserSession,
               claudeAction.x,
-              claudeAction.y
+              claudeAction.y,
             );
             clickSuccess = coordinateResult.success;
             methodUsed = "vision_coordinates";
@@ -970,8 +1199,18 @@ async function executeWithRealBrowser(
             strategy: methodUsed,
             success: clickSuccess,
             durationMs: Date.now() - stepStart,
-            creditsCost: 0,
+            creditsCost: costDecision.estimatedCredits,
           });
+
+          costOptimizer.recordCost({
+            action: "click",
+            model: costDecision.model,
+            credits: costDecision.estimatedCredits,
+            wasScreenshot: !!proofScreenshot,
+            wasDomOnly: false,
+          });
+
+          lastStepFailed = !clickSuccess;
 
           steps.push({
             stepIndex: i,
@@ -1024,7 +1263,7 @@ async function executeWithRealBrowser(
             const focusResult = await clickBrowserCoordinates(
               browserSession,
               claudeAction.x,
-              claudeAction.y
+              claudeAction.y,
             );
             if (focusResult.success) {
               const focusedType = await typeTextInFocusedElement(browserSession, claudeAction.text);
@@ -1042,7 +1281,8 @@ async function executeWithRealBrowser(
           currentUrl = await getCurrentBrowserUrl(browserSession).catch(() => currentUrl);
           lastContent = await getBrowserPageContent(browserSession, currentUrl).catch(() => lastContent);
           stepHtmlSummary = extractHtmlSummary(lastContent);
-          proofScreenshot = captureScreenshots ? await takeBrowserScreenshot(browserSession) : screenshot;
+          // Pattern 6: Kein Screenshot nach Type (DOM-basiert verifizierbar)
+          proofScreenshot = null;
 
           metrics.record({
             domain,
@@ -1052,6 +1292,16 @@ async function executeWithRealBrowser(
             durationMs: Date.now() - stepStart,
             creditsCost: 0,
           });
+
+          costOptimizer.recordCost({
+            action: "type",
+            model: "dom",
+            credits: 0,
+            wasScreenshot: false,
+            wasDomOnly: true,
+          });
+
+          lastStepFailed = !typeSuccess;
 
           steps.push({
             stepIndex: i,
@@ -1079,7 +1329,8 @@ async function executeWithRealBrowser(
           currentUrl = await getCurrentBrowserUrl(browserSession).catch(() => currentUrl);
           lastContent = await getBrowserPageContent(browserSession, currentUrl).catch(() => lastContent);
           stepHtmlSummary = extractHtmlSummary(lastContent);
-          proofScreenshot = captureScreenshots ? await takeBrowserScreenshot(browserSession) : screenshot;
+          // Pattern 6: Kein Screenshot nach Scroll (spart Credits)
+          proofScreenshot = null;
 
           metrics.record({
             domain,
@@ -1088,6 +1339,14 @@ async function executeWithRealBrowser(
             success: scrollResult.success,
             durationMs: scrollResult.timeMs,
             creditsCost: 0,
+          });
+
+          costOptimizer.recordCost({
+            action: "scroll",
+            model: "dom",
+            credits: 0,
+            wasScreenshot: false,
+            wasDomOnly: true,
           });
 
           steps.push({
@@ -1105,55 +1364,105 @@ async function executeWithRealBrowser(
         }
 
         case "click_link": {
-          const resolvedUrl = claudeAction.selector
-            ? resolveLink(lastContent, claudeAction.selector, currentUrl)
-            : null;
+          // Pattern 5: Multi-Strategy Link Following
+          const linkText = claudeAction.selector || "";
+          const linkResult = await navStrategies.followLink(browserSession, linkText, currentUrl);
+
+          if (linkResult.success) {
+            currentUrl = linkResult.finalUrl;
+            lastContent = linkResult.content;
+          } else {
+            // Fallback: HTML-basierte Link-Auflösung
+            const resolvedUrl = claudeAction.selector
+              ? resolveLink(lastContent, claudeAction.selector, currentUrl)
+              : null;
+            if (resolvedUrl) currentUrl = resolvedUrl;
+          }
+
+          stepHtmlSummary = extractHtmlSummary(lastContent);
+          proofScreenshot = captureScreenshots ? await takeBrowserScreenshot(browserSession) : screenshot;
+
+          costOptimizer.recordCost({
+            action: "click_link",
+            model: costDecision.model,
+            credits: costDecision.estimatedCredits,
+            wasScreenshot: !!proofScreenshot,
+            wasDomOnly: false,
+          });
 
           steps.push({
             stepIndex: i,
             url: currentUrl,
             action: "click_link",
-            actionDetail: `Klicke: "${claudeAction.selector}" → ${resolvedUrl || "nicht gefunden"} — ${claudeAction.reasoning}`,
+            actionDetail: `Klicke: "${claudeAction.selector}" [${linkResult.method}] — ${claudeAction.reasoning}`,
             htmlSummary: stepHtmlSummary,
             screenshot: proofScreenshot,
             extractedData: null,
             timestamp: new Date().toISOString(),
             durationMs: Date.now() - stepStart,
           });
-
-          if (resolvedUrl) currentUrl = resolvedUrl;
           continue;
         }
 
         case "extract":
         case "extract_data": {
+          // Pattern 4: Smart Extraction (cheapest-first)
+          const requestedFields = claudeAction.fields || [];
           let extracted = claudeAction.extracted_data || null;
           let methodUsed = "vision_extract";
+
           if (!extracted || Object.keys(extracted).length === 0) {
-            const extractResult = await actionExecutor.executeExtract(
-              browserSession,
-              currentUrl,
-              claudeAction.fields || [],
-              lastContent,
-            );
-            extracted = (extractResult.result as Record<string, unknown>) || {};
-            methodUsed = extractResult.methodUsed;
+            if (requestedFields.length > 0) {
+              const smartResult = await smartExtractor.extract(browserSession, {
+                fields: requestedFields,
+                knownSelectors: currentPageAnalysis
+                  ? buildKnownSelectors(currentPageAnalysis.structure)
+                  : undefined,
+              }, currentUrl);
+
+              if (smartResult.fieldsFound.length > 0) {
+                extracted = smartResult.data;
+                methodUsed = `smart_${smartResult.method}`;
+              }
+            }
+
+            // Fallback: ActionExecutor
+            if (!extracted || Object.keys(extracted).length === 0) {
+              const extractResult = await actionExecutor.executeExtract(
+                browserSession,
+                currentUrl,
+                requestedFields,
+                lastContent,
+              );
+              extracted = (extractResult.result as Record<string, unknown>) || {};
+              methodUsed = extractResult.methodUsed;
+            }
           }
+
+          const wasDomOnly = methodUsed.startsWith("smart_") || methodUsed === "dom_extract";
 
           metrics.record({
             domain,
             actionType: "extract",
             strategy: methodUsed,
-            success: !!extracted,
+            success: !!extracted && Object.keys(extracted).length > 0,
             durationMs: Date.now() - stepStart,
-            creditsCost: 0,
+            creditsCost: wasDomOnly ? 0 : costDecision.estimatedCredits,
+          });
+
+          costOptimizer.recordCost({
+            action: "extract",
+            model: wasDomOnly ? "dom" : costDecision.model,
+            credits: wasDomOnly ? 0 : costDecision.estimatedCredits,
+            wasScreenshot: false,
+            wasDomOnly,
           });
 
           steps.push({
             stepIndex: i,
             url: currentUrl,
             action: "extract_data",
-            actionDetail: `Extrahiere: ${(claudeAction.fields || []).join(", ")} [${methodUsed}] — ${claudeAction.reasoning}`,
+            actionDetail: `Extrahiere: ${requestedFields.join(", ")} [${methodUsed}] — ${claudeAction.reasoning}`,
             htmlSummary: stepHtmlSummary,
             screenshot: proofScreenshot,
             extractedData: extracted,
@@ -1192,6 +1501,14 @@ async function executeWithRealBrowser(
           if (codeResult.output) {
             codeExtracted._codeOutput = codeResult.output;
           }
+
+          costOptimizer.recordCost({
+            action: "execute_code",
+            model: "sandbox",
+            credits: 0.5,
+            wasScreenshot: false,
+            wasDomOnly: false,
+          });
 
           steps.push({
             stepIndex: i,
@@ -1236,7 +1553,7 @@ async function executeWithRealBrowser(
       await cleanupCodeSession(executionId).catch(() => {});
     }
 
-    // Procedural Memory: Prozedur speichern/aktualisieren
+    // Pattern 7: Prozedur speichern/aktualisieren
     if (enableProceduralMemory && agentId && steps.length >= 2) {
       saveProcedure(
         agentId, startUrl, task, steps,
@@ -1250,9 +1567,10 @@ async function executeWithRealBrowser(
     }
   }
 
-  // Reliability-Statistiken für Meta
+  // Statistiken für Meta
   const sessionStats = metrics.getSessionStats();
   const efStats = elementFinder.getStats();
+  const costSummary = costOptimizer.getSummary();
 
   return {
     steps,
@@ -1270,10 +1588,60 @@ async function executeWithRealBrowser(
       domVerifications: sessionStats.domVerifications,
       visionVerifications: sessionStats.visionVerifications,
       elementFinderStats: efStats,
-      creditsSaved: sessionStats.creditsSaved,
+      creditsSaved: sessionStats.creditsSaved + costSummary.creditsSaved,
       actionExecutorStats: actionExecutor.getStats(),
+      costOptimizerStats: costSummary,
+      pageAnalyzerStats: pageAnalyzer.getStats(),
+      obstacleStats: obstacleHandler.getStats(),
+      smartExtractorStats: smartExtractor.getStats(),
+      navigationStats: navStrategies.getStats(),
+      stepPlannerHistory: stepPlanner.getHistory().length,
     },
   };
+}
+
+/* ── Helpers für Pattern-Integration ── */
+
+function extractFieldsFromTask(task: string): string[] {
+  const fields: string[] = [];
+
+  // Explizit genannte Felder
+  const fieldMatch = task.match(/(?:extract|get|find|scrape)\s+(?:the\s+)?(.+?)(?:\s+from|\s+on|\s+at|$)/i);
+  if (fieldMatch) {
+    const rawFields = fieldMatch[1].split(/,\s*|\s+and\s+|\s+&\s+/);
+    for (const f of rawFields) {
+      const clean = f.trim().toLowerCase();
+      if (clean.length > 1 && clean.length < 40) fields.push(clean);
+    }
+  }
+
+  // Bekannte Feldnamen erkennen
+  const knownFields = ["price", "title", "name", "rating", "description", "availability", "stock", "address", "phone", "email", "hours"];
+  const taskLower = task.toLowerCase();
+  for (const field of knownFields) {
+    if (taskLower.includes(field) && !fields.includes(field)) {
+      fields.push(field);
+    }
+  }
+
+  return fields.slice(0, 10);
+}
+
+function buildKnownSelectors(
+  structure: import("@/lib/browser/page-cache").PageStructure,
+): Record<string, string> {
+  const selectors: Record<string, string> = {};
+
+  for (const price of structure.prices) {
+    selectors.price = price.selector;
+    break;
+  }
+
+  if (structure.searchField) {
+    selectors.search = structure.searchField;
+  }
+
+  return selectors;
 }
 
 /* ── Main Executor ── */

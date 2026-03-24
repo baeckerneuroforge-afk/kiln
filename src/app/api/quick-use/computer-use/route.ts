@@ -16,7 +16,14 @@ import {
 import type { QuickUseFileAttachment, QuickUseResult } from "@/lib/quick-use/types";
 import { enhanceQuickUseResult, urlsToSources } from "@/lib/quick-use/result-presentation";
 import { processFiles, buildFileContext } from "@/lib/quick-use/file-processor";
+import { quickUseSessionMemory } from "@/lib/quick-use/session-memory";
 import { executeComputerUse } from "@/lib/workflow-nodes/computer-use-node";
+import {
+  createBackgroundTask,
+  updateTaskProgress,
+  completeTask,
+  failTask,
+} from "@/lib/quick-use/background-executor";
 
 export const dynamic = "force-dynamic";
 
@@ -176,13 +183,21 @@ export async function POST(request: NextRequest) {
     message?: string;
     userId?: string;
     files?: QuickUseFileAttachment[];
+    memoryIds?: string[];
   } | null;
   const message = body?.message?.trim();
   const fileAttachments = Array.isArray(body?.files) ? body.files : [];
+  const selectedMemoryIds = Array.isArray(body?.memoryIds) ? body.memoryIds : [];
 
   if (!message) {
     return Response.json({ error: "Message is required" }, { status: 400 });
   }
+
+  const relevantMemories = await quickUseSessionMemory.getRelevantMemory(userId, message, {
+    quickUseType: "computer-use",
+    selectedMemoryIds,
+  });
+  const memoryPrompt = quickUseSessionMemory.buildContextPrompt(relevantMemories, message);
 
   // Process uploaded files and append context to task
   let taskWithFiles = message;
@@ -191,8 +206,17 @@ export async function POST(request: NextRequest) {
     const fileContext = buildFileContext(processed);
     taskWithFiles = `${message}\n\n${fileContext}`;
   }
+  if (memoryPrompt) {
+    taskWithFiles = `${taskWithFiles}\n\n${memoryPrompt}`;
+  }
 
   const extracted = await extractComputerUseRequest(taskWithFiles);
+  const fallbackMemoryUrl = relevantMemories
+    .flatMap((memory) => memory.visitedUrls)
+    .find((url) => Boolean(url));
+  if (!extracted.url && fallbackMemoryUrl) {
+    extracted.url = normalizeUrl(fallbackMemoryUrl);
+  }
 
   if (!extracted.url) {
     return Response.json(
@@ -216,22 +240,60 @@ export async function POST(request: NextRequest) {
   const context = createQuickUseExecutionContext("computer-use", userId);
   const executionId = getExecutionIdFromContext(context);
 
+  // Hintergrund-Task erstellen
+  const taskId = await createBackgroundTask(
+    userId,
+    "computer_use",
+    { message, files: fileAttachments },
+    {
+      url: extracted.url,
+      task: extracted.task,
+      maxSteps: extracted.maxSteps,
+      memoriesApplied: relevantMemories.map((memory) => quickUseSessionMemory.toPreview(memory)),
+    },
+    creditEstimate.totalCredits
+  );
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const encoder = new TextEncoder();
+      let streamClosed = false;
+
+      const safeWrite = (event: Parameters<typeof writeQuickUseEvent>[2]) => {
+        if (streamClosed) return;
+        try {
+          writeQuickUseEvent(controller, encoder, event);
+        } catch {
+          streamClosed = true;
+        }
+      };
+
       try {
-        writeQuickUseEvent(controller, encoder, {
+        safeWrite({
           type: "meta",
           meta: {
             estimatedCredits: creditEstimate.totalCredits,
             executionId,
+            taskId,
           },
         });
 
-        writeQuickUseEvent(controller, encoder, {
+        if (relevantMemories.length > 0) {
+          safeWrite({
+            type: "memory",
+            memories: relevantMemories.map((memory) => quickUseSessionMemory.toPreview(memory)),
+            autoApplied: true,
+          });
+        }
+
+        safeWrite({
           type: "progress",
           message: `Preparing browser automation for ${extracted.url}...`,
         });
+        void updateTaskProgress(taskId, { currentStep: `Preparing browser automation for ${extracted.url}...` });
+
+        let lastScreenshotTime = 0;
+        const SCREENSHOT_THROTTLE_MS = 1000; // Max 1 screenshot per second
 
         const resultKey = "quickComputerUseResult";
         const result = await executeComputerUse(
@@ -247,10 +309,66 @@ export async function POST(request: NextRequest) {
             browserMode: "real",
             resultKey,
             onProgress: (progressMessage: string) => {
-              writeQuickUseEvent(controller, encoder, {
+              safeWrite({
                 type: "progress",
                 message: progressMessage,
               });
+              void updateTaskProgress(taskId, { currentStep: progressMessage });
+            },
+            onBrowserEvent: (event: Record<string, unknown>) => {
+              const eventType = String(event.eventType || "");
+
+              if (eventType === "navigation") {
+                safeWrite({
+                  type: "browser_navigation",
+                  url: String(event.url || ""),
+                  stepIndex: Number(event.stepIndex) || 0,
+                });
+              }
+
+              if (eventType === "screenshot") {
+                const now = Date.now();
+                if (now - lastScreenshotTime >= SCREENSHOT_THROTTLE_MS) {
+                  lastScreenshotTime = now;
+                  safeWrite({
+                    type: "browser_screenshot",
+                    imageData: String(event.imageData || ""),
+                    stepIndex: Number(event.stepIndex) || 0,
+                    url: String(event.url || ""),
+                  });
+                }
+              }
+
+              if (eventType === "action") {
+                safeWrite({
+                  type: "browser_action",
+                  step: {
+                    stepIndex: Number(event.stepIndex) || 0,
+                    action: String(event.action || ""),
+                    actionDetail: String(event.actionDetail || ""),
+                    url: String(event.url || ""),
+                    success: event.success as boolean | undefined,
+                    durationMs: event.durationMs as number | undefined,
+                  },
+                });
+              }
+
+              if (eventType === "thinking") {
+                safeWrite({
+                  type: "browser_thinking",
+                  thought: String(event.thought || ""),
+                  stepIndex: Number(event.stepIndex) || 0,
+                });
+              }
+
+              if (eventType === "step_complete") {
+                safeWrite({
+                  type: "browser_step_complete",
+                  stepIndex: Number(event.stepIndex) || 0,
+                  action: String(event.action || ""),
+                  success: Boolean(event.success),
+                });
+              }
             },
           },
           context
@@ -279,28 +397,45 @@ export async function POST(request: NextRequest) {
           "quick_use_computer_use"
         );
 
-        writeQuickUseEvent(controller, encoder, {
+        const finalResult = buildComputerUseResult(session);
+        const finalCredits = {
+          estimatedCredits: creditEstimate.totalCredits,
+          creditsUsed: actualCreditEstimate.totalCredits,
+          creditsRemaining: charge.newBalance,
+        };
+
+        safeWrite({
           type: "result",
-          result: buildComputerUseResult(session),
-          credits: {
-            estimatedCredits: creditEstimate.totalCredits,
-            creditsUsed: actualCreditEstimate.totalCredits,
-            creditsRemaining: charge.newBalance,
-          },
+          result: finalResult,
+          credits: finalCredits,
         });
+
+        await completeTask(taskId, finalResult, finalCredits);
+        void quickUseSessionMemory.saveTaskContext(userId, taskId, {
+          type: "computer-use",
+          inputMessage: message,
+          result: finalResult,
+        }).catch(() => {});
       } catch (error) {
-        writeQuickUseEvent(controller, encoder, {
+        const errorMessage = error instanceof Error ? error.message : "Computer Use failed";
+        safeWrite({
           type: "error",
-          error: error instanceof Error ? error.message : "Computer Use failed",
+          error: errorMessage,
           suggestions: [
             "Check that the URL is reachable.",
             "Make the task more specific.",
             "Try a smaller scope or fewer steps.",
           ],
         });
+        await failTask(taskId, errorMessage);
       } finally {
-        writeQuickUseDone(controller, encoder);
-        controller.close();
+        streamClosed = true;
+        try {
+          writeQuickUseDone(controller, encoder);
+          controller.close();
+        } catch {
+          // Client already disconnected
+        }
       }
     },
   });

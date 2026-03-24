@@ -24,6 +24,25 @@ import type { BrowserSession } from "@/lib/browser-service";
 // DomVerifier wird indirekt via ActionExecutor/ElementFinder genutzt
 import { ScreenshotStrategy } from "@/lib/browser/screenshot-strategy";
 import { PageCache, type PageStructure } from "@/lib/browser/page-cache";
+import {
+  AGENT_SPECIALIZATIONS,
+  decideToolRouting,
+  resolveSpecialization,
+  type AgentSpecialization,
+  type AgentSpecializationId,
+  type ToolRoutingDecision,
+} from "./agent-specializations";
+import {
+  summarizeVerification,
+  type EvidenceSourceMeta,
+  type VerificationSummary,
+} from "./hallucination-guard";
+import type { WorkspaceEntry } from "./shared-workspace";
+import {
+  ContextCompactor,
+  estimateMessagesTokens,
+  type CompactionMessage,
+} from "./context-compactor";
 
 /* ── Types ── */
 
@@ -51,6 +70,12 @@ export interface SubAgentConfig {
   maxIterations?: number;
   budgetCredits?: number;
   parentAgentId?: string; // für dynamisch gespawnte Agents
+  specialization?: AgentSpecializationId;
+  taskType?: string;
+  expectedOutput?: string;
+  successCriteria?: string;
+  toolRouting?: ToolRoutingDecision;
+  qualityPriority?: "speed" | "quality" | "balanced";
 }
 
 export interface SubAgentArtifact {
@@ -67,6 +92,10 @@ export interface SubAgentResult {
   modelUsed: string;
   cost: number;
   artifacts: SubAgentArtifact[];
+  specialization: AgentSpecializationId;
+  sources: EvidenceSourceMeta[];
+  verification: VerificationSummary;
+  workspaceEntries: WorkspaceEntry[];
   stoppedReason?: "completed" | "budget_exceeded" | "max_iterations" | "error";
 }
 
@@ -124,6 +153,262 @@ function preferenceToRoutingContext(pref: ModelPreference, complexity: string): 
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringifyContent(content: Anthropic.MessageParam["content"] | Anthropic.ContentBlock[]): string {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+
+  return content
+    .map((block) => {
+      if (!isRecord(block)) return "";
+      if (block.type === "text" && typeof block.text === "string") {
+        return block.text;
+      }
+      if (block.type === "tool_use") {
+        return `[tool_use:${typeof block.name === "string" ? block.name : "unknown"}] ${
+          typeof block.input === "object" ? JSON.stringify(block.input) : ""
+        }`;
+      }
+      if (block.type === "tool_result") {
+        const payload = Array.isArray(block.content)
+          ? block.content
+              .map((item) => (isRecord(item) && typeof item.text === "string" ? item.text : ""))
+              .join("\n")
+          : typeof block.content === "string"
+            ? block.content
+            : JSON.stringify(block.content);
+        return `[tool_result] ${payload}`;
+      }
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function extractUrls(text: string): string[] {
+  const matches = text.match(/https?:\/\/[^\s)]+/gi) || [];
+  return Array.from(new Set(matches));
+}
+
+function toCompactionMessages(messages: Anthropic.MessageParam[]): CompactionMessage[] {
+  return messages.map((message) => {
+    const content = stringifyContent(message.content);
+    const hasToolResult = Array.isArray(message.content)
+      && message.content.some((block) => isRecord(block) && block.type === "tool_result");
+
+    return {
+      role: message.role === "assistant" ? "assistant" : "user",
+      content,
+      hasToolResult,
+    };
+  });
+}
+
+function fromCompactionMessages(messages: CompactionMessage[]): Anthropic.MessageParam[] {
+  return messages.map((message) => ({
+    role: message.role === "assistant" ? "assistant" : "user",
+    content: message.content,
+  }));
+}
+
+function safeJsonParse<T>(value: string): T | null {
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeEvidenceSource(
+  value: unknown,
+  fallbackTool?: string,
+): EvidenceSourceMeta | undefined {
+  if (!isRecord(value) || typeof value.source !== "string") {
+    return undefined;
+  }
+
+  const meta: EvidenceSourceMeta = {
+    source: value.source as EvidenceSourceMeta["source"],
+    tool: typeof value.tool === "string" ? value.tool : fallbackTool,
+    verified: typeof value.verified === "boolean" ? value.verified : undefined,
+  };
+
+  if (typeof value.url === "string") meta.url = value.url;
+  if (typeof value.title === "string") meta.title = value.title;
+  if (typeof value.snippet === "string") meta.snippet = value.snippet;
+  if (typeof value.screenshot === "string") meta.screenshot = value.screenshot;
+
+  return meta;
+}
+
+function summarizeWorkspaceEntries(entries: WorkspaceEntry[]): string {
+  if (entries.length === 0) {
+    return "No verified findings were written to the workspace.";
+  }
+
+  return entries
+    .slice(-8)
+    .map((entry) => `- ${entry.key}: ${typeof entry.value === "string" ? entry.value : JSON.stringify(entry.value)}`)
+    .join("\n");
+}
+
+function appendSourcesSection(result: string, sources: EvidenceSourceMeta[]): string {
+  if (sources.length === 0 || /(^|\n)Sources:\s*$/im.test(result)) {
+    return result;
+  }
+
+  const unique = new Map<string, EvidenceSourceMeta>();
+  for (const source of sources) {
+    const key = source.url || source.title || source.snippet || JSON.stringify(source);
+    if (!unique.has(key)) {
+      unique.set(key, source);
+    }
+  }
+
+  const lines = Array.from(unique.values())
+    .filter((source) => source.url)
+    .map((source, index) => `[${index + 1}] ${source.url} - ${source.title || source.url}`);
+
+  if (lines.length === 0) {
+    return result;
+  }
+
+  return `${result.trim()}\n\nSources:\n${lines.join("\n")}`;
+}
+
+function collectSources(entries: WorkspaceEntry[], resultText: string): EvidenceSourceMeta[] {
+  const seen = new Set<string>();
+  const sources: EvidenceSourceMeta[] = [];
+
+  for (const entry of entries) {
+    if (!entry.source) continue;
+    const key = entry.source.url || entry.source.title || `${entry.source.source}:${entry.key}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    sources.push(entry.source);
+  }
+
+  for (const url of extractUrls(resultText)) {
+    if (seen.has(url)) continue;
+    seen.add(url);
+    sources.push({
+      source: "url",
+      url,
+      title: url,
+      tool: "final_result",
+      verified: true,
+    });
+  }
+
+  return sources;
+}
+
+async function maybeCompactConversation(
+  compactor: ContextCompactor,
+  eventStream: SwarmEventStream,
+  agentId: string,
+  messages: Anthropic.MessageParam[],
+): Promise<Anthropic.MessageParam[]> {
+  const compactable = toCompactionMessages(messages);
+  if (estimateMessagesTokens(compactable) < 14_000) {
+    return messages;
+  }
+
+  const result = await compactor.compact(compactable, 9_000);
+  if (result.summaryGenerated) {
+    eventStream.agentProgress(agentId, -1, "Compacted conversation context to stay within model limits.");
+  }
+
+  return fromCompactionMessages(result.compactedMessages);
+}
+
+async function requestForcedSummary(
+  anthropicClient: Anthropic,
+  model: string,
+  systemPrompt: string,
+  messages: Anthropic.MessageParam[],
+  workspaceEntries: WorkspaceEntry[],
+  outputFormat?: SubAgentConfig["outputFormat"],
+): Promise<string> {
+  const summaryPrompt = [
+    "Summarize the verified findings you have gathered so far.",
+    "Do not invent new facts.",
+    "Use only information from the conversation and workspace summary below.",
+    outputFormat === "json" ? "Return valid JSON." : "",
+    outputFormat === "table" ? "Return a markdown table if a comparison helps." : "",
+    "",
+    "Workspace findings:",
+    summarizeWorkspaceEntries(workspaceEntries),
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const summaryResponse = await anthropicClient.messages.create({
+    model,
+    max_tokens: 1200,
+    system: systemPrompt,
+    messages: [
+      ...messages.slice(-6),
+      { role: "user", content: summaryPrompt },
+    ],
+  });
+
+  return summaryResponse.content
+    .filter((block) => block.type === "text")
+    .map((block) => ("text" in block ? block.text : ""))
+    .join("\n")
+    .trim();
+}
+
+function buildSystemPrompt(
+  config: SubAgentConfig,
+  specialization: AgentSpecialization,
+  toolRouting?: ToolRoutingDecision,
+): string {
+  const activeTools = Array.from(new Set([...specialization.defaultTools, ...config.tools])).join(", ");
+  const routingSection = toolRouting
+    ? [
+        `TOOL ROUTING STRATEGY: ${toolRouting.mode}`,
+        `Primary tool: ${toolRouting.primaryTool}`,
+        toolRouting.supportingTools.length > 0 ? `Supporting tools: ${toolRouting.supportingTools.join(", ")}` : "",
+        `Why: ${toolRouting.reason}`,
+        toolRouting.requiresVision ? "This task likely needs visual verification. Use screenshots/browser state before concluding." : "",
+        toolRouting.requiresLogin ? "This task may require authenticated browsing. Do not fake login success." : "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "TOOL ROUTING STRATEGY: Use the cheapest effective tool first, then escalate only if needed.";
+
+  return [
+    `You are a specialized sub-agent in a KILN AI Swarm. Your ID is "${config.id}".`,
+    `Role: ${specialization.label}`,
+    `Specialization brief: ${specialization.systemPrompt}`,
+    `Task: ${config.description}`,
+    config.expectedOutput ? `Expected output: ${config.expectedOutput}` : "",
+    `Success criteria: ${config.successCriteria || specialization.successCriteria}`,
+    `Available tools: ${activeTools}`,
+    routingSection,
+    "",
+    "NON-NEGOTIABLE RULES:",
+    "- Use workspace_write to save every important finding immediately.",
+    "- Every workspace_write call MUST include a source object with one of: url, search_result, extracted, computed, llm_knowledge, screenshot.",
+    "- Never claim a fact without source evidence. If something is inferred or not directly verified, mark the source as llm_knowledge or computed.",
+    "- Use workspace_read to check what other agents have already found before duplicating work.",
+    "- Use send_message when a discovery should change another agent's plan.",
+    "- For prices, dates, statistics, and factual claims, include numbered citations like [1], [2], [3] in the final answer whenever possible.",
+    "- End with a 'Sources:' section in the format: [1] https://example.com - Source Title.",
+    "- If a site blocks access, record the failure and apply the fallback strategy instead of hallucinating.",
+    config.outputFormat === "json" ? "- Return your final answer as valid JSON." : "",
+    config.outputFormat === "table" ? "- Format your final answer as a markdown table." : "",
+    config.outputFormat === "file" ? "- If file output is needed, describe the file clearly so a synthesis agent can generate it." : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 /* ── Tool Definitions Builder ── */
 
 function buildToolDefinitions(tools: SubAgentTool[], enableSpawn: boolean): Anthropic.Tool[] {
@@ -132,15 +417,33 @@ function buildToolDefinitions(tools: SubAgentTool[], enableSpawn: boolean): Anth
   // Workspace-Tools (immer verfügbar)
   defs.push({
     name: "workspace_write",
-    description: "Write a finding to the shared workspace so other agents can see it. Use this whenever you discover important information.",
+    description: "Write a finding to the shared workspace so other agents can see it. Use this whenever you discover important information. You MUST include source metadata for the finding.",
     input_schema: {
       type: "object" as const,
       properties: {
         key: { type: "string", description: "Short identifier for this finding (e.g., 'sonepar_price', 'competitor_list')" },
         value: { type: "string", description: "The finding content — be detailed and specific" },
         tags: { type: "array", items: { type: "string" }, description: "Optional tags for categorization" },
+        source: {
+          type: "object" as const,
+          description: "Source metadata proving where this finding came from",
+          properties: {
+            source: {
+              type: "string",
+              enum: ["url", "search_result", "extracted", "computed", "llm_knowledge", "screenshot"],
+              description: "Evidence type",
+            },
+            url: { type: "string", description: "Canonical URL where the fact was found, if available" },
+            title: { type: "string", description: "Source title or site name" },
+            snippet: { type: "string", description: "Supporting quote or snippet" },
+            screenshot: { type: "string", description: "Screenshot identifier or brief screenshot note" },
+            tool: { type: "string", description: "Which tool produced this evidence" },
+            verified: { type: "boolean", description: "Whether the source is directly verified by a tool" },
+          },
+          required: ["source"],
+        },
       },
-      required: ["key", "value"],
+      required: ["key", "value", "source"],
     },
   });
 
@@ -328,9 +631,22 @@ async function executeSubAgentTool(
       const key = String(toolInput.key || "");
       const value = toolInput.value;
       const tags = Array.isArray(toolInput.tags) ? toolInput.tags.map(String) : [];
-      workspace.write(agentId, key, value, tags);
+      const source = normalizeEvidenceSource(toolInput.source, "workspace_write");
+
+      if (!source) {
+        return JSON.stringify({
+          success: false,
+          error: "workspace_write requires a valid source object",
+        });
+      }
+
+      workspace.write(agentId, key, value, tags, source);
       eventStream.agentFinding(agentId, key, value);
-      return JSON.stringify({ success: true, message: `Finding '${key}' written to workspace` });
+      return JSON.stringify({
+        success: true,
+        message: `Finding '${key}' written to workspace`,
+        source,
+      });
     }
 
     case "workspace_read": {
@@ -338,7 +654,13 @@ async function executeSubAgentTool(
       const entries = workspace.read(key);
       return JSON.stringify({
         success: true,
-        findings: entries.map((e) => ({ agent: e.agentId, key: e.key, value: e.value, time: e.timestamp })),
+        findings: entries.map((e) => ({
+          agent: e.agentId,
+          key: e.key,
+          value: e.value,
+          time: e.timestamp,
+          source: e.source,
+        })),
       });
     }
 
@@ -412,7 +734,18 @@ async function executeSubAgentTool(
           // PageCache ist optional
         }
 
-        const result: Record<string, unknown> = { success: true, url, content: text };
+        const result: Record<string, unknown> = {
+          success: true,
+          url,
+          content: text,
+          source: {
+            source: browserSession ? "url" : "extracted",
+            url,
+            title: url,
+            tool: "browse_url",
+            verified: true,
+          },
+        };
         if (browserSession) {
           result.browserBackend = browserSession.backend;
         }
@@ -447,6 +780,16 @@ async function executeSubAgentTool(
             screenshot: screenshot ? "screenshot_captured" : "screenshot_unavailable",
             backend: browserSession.backend,
             warning: browserSession.warning,
+            source: screenshot
+              ? {
+                  source: "screenshot",
+                  url: url || browserSession.currentUrl,
+                  title: "Browser screenshot",
+                  screenshot: "browser_screenshot",
+                  tool: "take_screenshot",
+                  verified: true,
+                }
+              : undefined,
           });
         }
 
@@ -462,6 +805,16 @@ async function executeSubAgentTool(
           success: true,
           screenshot: screenshot ? "screenshot_captured" : "screenshot_unavailable",
           strategyReason: decision.reason,
+          source: screenshot
+            ? {
+                source: "screenshot",
+                url,
+                title: "Fallback screenshot",
+                screenshot: "fallback_screenshot",
+                tool: "take_screenshot",
+                verified: true,
+              }
+            : undefined,
         });
       } catch (err) {
         return JSON.stringify({ success: false, error: err instanceof Error ? err.message : "Screenshot failed" });
@@ -604,8 +957,16 @@ async function executeSubAgentTool(
               title: item.title,
               url: item.link,
               snippet: item.snippet,
+              source: {
+                source: "search_result",
+                url: item.link,
+                title: item.title,
+                snippet: item.snippet,
+                tool: "web_search",
+                verified: true,
+              },
             }));
-            return JSON.stringify({ success: true, results: items });
+            return JSON.stringify({ success: true, query, results: items });
           }
         }
 
@@ -632,7 +993,18 @@ async function executeSubAgentTool(
           .replace(/\s+/g, " ")
           .trim()
           .slice(0, 8000);
-        return JSON.stringify({ success: true, url, content: cleaned });
+        return JSON.stringify({
+          success: true,
+          url,
+          content: cleaned,
+          source: {
+            source: "url",
+            url,
+            title: url,
+            tool: "fetch_url",
+            verified: true,
+          },
+        });
       } catch (err) {
         return JSON.stringify({ success: false, error: err instanceof Error ? err.message : "Fetch failed" });
       }
@@ -676,6 +1048,7 @@ export class SubAgentExecutor {
   private costTracker: CostTracker;
   private reasoningLogger: ReasoningLogger;
   private errorLibrary: ErrorStrategyLibrary;
+  private contextCompactor: ContextCompactor;
   private spawnHandler?: SpawnHandler;
   private mcpAgentId?: string;
 
@@ -691,6 +1064,7 @@ export class SubAgentExecutor {
     this.costTracker = costTracker;
     this.reasoningLogger = new ReasoningLogger();
     this.errorLibrary = new ErrorStrategyLibrary();
+    this.contextCompactor = new ContextCompactor(process.env.ANTHROPIC_API_KEY);
     this.spawnHandler = options?.spawnHandler;
     this.mcpAgentId = options?.mcpAgentId;
   }
@@ -703,7 +1077,21 @@ export class SubAgentExecutor {
     eventStream: SwarmEventStream,
     anthropicClient: Anthropic
   ): Promise<SubAgentResult> {
-    const maxIterations = this.config.maxIterations || 10;
+    const specialization = this.config.specialization
+      ? AGENT_SPECIALIZATIONS[this.config.specialization] || resolveSpecialization(
+          this.config.description,
+          this.config.tools,
+          this.config.taskType,
+          this.config.outputFormat
+        )
+      : resolveSpecialization(
+          this.config.description,
+          this.config.tools,
+          this.config.taskType,
+          this.config.outputFormat
+        );
+    const toolRouting = this.config.toolRouting || decideToolRouting(this.config.description, this.config.tools);
+    const maxIterations = this.config.maxIterations || specialization.maxIterations;
     const spawnCount = { current: 0 };
     let totalToolCalls = 0;
     let totalInputTokens = 0;
@@ -723,7 +1111,9 @@ export class SubAgentExecutor {
         };
 
     const routingDecision = selectOptimalModel(routingContext);
-    const model = routingDecision.primary.model;
+    const model = toolRouting?.requiresVision
+      ? "claude-sonnet-4-6"
+      : specialization.preferredModel || routingDecision.primary.model;
 
     eventStream.agentStarted(this.config.id, this.config.description, model, this.config.tools);
 
@@ -743,23 +1133,7 @@ export class SubAgentExecutor {
     }
 
     // Step 3: Build system prompt
-    const systemPrompt = [
-      `You are a specialized sub-agent in a KILN AI Swarm. Your ID is "${this.config.id}".`,
-      `Your task: ${this.config.description}`,
-      "",
-      "IMPORTANT RULES:",
-      "- Use workspace_write to save every important finding immediately.",
-      "- Use workspace_read to check what other agents have found.",
-      "- Use send_message to inform other agents of discoveries that affect their work.",
-      "- Be precise, thorough, and efficient.",
-      "- When citing information, use numbered references like [1], [2], [3].",
-      "- Always cite specific facts such as prices, dates, statistics, and claims with a source number.",
-      "- At the end of your final response, include a 'Sources:' section in this format: [1] https://example.com - Source Title.",
-      "- Preserve URLs from browse_url, web_search, and fetch_url results so the merge step can compile a unified source list.",
-      "- When your task is complete, provide a clear final summary with sources cited.",
-      this.config.outputFormat === "json" ? "- Return your final answer as valid JSON." : "",
-      this.config.outputFormat === "table" ? "- Format your final answer as a markdown table." : "",
-    ].filter(Boolean).join("\n");
+    const systemPrompt = buildSystemPrompt(this.config, specialization, toolRouting);
 
     // Step 4: ReAct Loop
     const messages: Anthropic.MessageParam[] = [
@@ -780,6 +1154,14 @@ export class SubAgentExecutor {
         }
       }
 
+      eventStream.agentProgress(
+        this.config.id,
+        iteration + 1,
+        iteration === 0
+          ? `Starting ${specialization.label.toLowerCase()} workflow.`
+          : `Continuing ${specialization.label.toLowerCase()} workflow.`
+      );
+
       // Inter-Agent-Messages abholen und prependen
       const pendingMessages = workspace.getMessages(this.config.id);
       if (pendingMessages.length > 0) {
@@ -791,6 +1173,16 @@ export class SubAgentExecutor {
           content: `📨 Messages from other agents:\n${msgBlock}\n\nContinue your task, taking these messages into account.`,
         });
       }
+
+      const compactedMessages = await maybeCompactConversation(
+        this.contextCompactor,
+        eventStream,
+        this.config.id,
+        messages
+      );
+
+      messages.length = 0;
+      messages.push(...compactedMessages);
 
       try {
         const response = await anthropicClient.messages.create({
@@ -851,6 +1243,22 @@ export class SubAgentExecutor {
               eventStream.agentFailed(this.config.id, `Tool ${block.name} failed: ${errorMsg}`, !!recoveryStep);
             }
 
+            const parsedToolResult = safeJsonParse<Record<string, unknown>>(toolResult);
+            if (parsedToolResult?.success && block.name === "take_screenshot") {
+              artifacts.push({
+                type: "screenshot",
+                name: `screenshot_${this.config.id}_${iteration + 1}`,
+                content: parsedToolResult,
+              });
+            }
+            if (parsedToolResult?.success && (block.name === "execute_python" || block.name === "execute_javascript")) {
+              artifacts.push({
+                type: "json",
+                name: `execution_${this.config.id}_${iteration + 1}`,
+                content: parsedToolResult,
+              });
+            }
+
             toolResults.push({
               type: "tool_result",
               tool_use_id: block.id,
@@ -871,9 +1279,18 @@ export class SubAgentExecutor {
           }
         }
 
+        const trimmedText = textContent.trim();
+        if (trimmedText) {
+          eventStream.agentProgress(
+            this.config.id,
+            iteration + 1,
+            trimmedText.slice(0, 220)
+          );
+        }
+
         if (!hasToolUse) {
           // Keine Tool-Calls → Agent ist fertig
-          finalResult = textContent;
+          finalResult = trimmedText;
           stoppedReason = "completed";
           break;
         }
@@ -885,7 +1302,7 @@ export class SubAgentExecutor {
         // Letzte Iteration: force final answer
         if (iteration === maxIterations - 1) {
           stoppedReason = "max_iterations";
-          finalResult = textContent || `Agent reached max iterations (${maxIterations}). Results saved to workspace.`;
+          finalResult = trimmedText || `Agent reached max iterations (${maxIterations}). Results saved to workspace.`;
         }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : "LLM call failed";
@@ -895,6 +1312,35 @@ export class SubAgentExecutor {
         break;
       }
     }
+
+    const workspaceEntries = workspace.readByAgent(this.config.id);
+    if ((!finalResult || stoppedReason === "max_iterations") && workspaceEntries.length > 0) {
+      try {
+        const forcedSummary = await requestForcedSummary(
+          anthropicClient,
+          model,
+          systemPrompt,
+          messages,
+          workspaceEntries,
+          this.config.outputFormat
+        );
+        if (forcedSummary.trim()) {
+          finalResult = forcedSummary.trim();
+        }
+      } catch {
+        if (!finalResult.trim()) {
+          finalResult = summarizeWorkspaceEntries(workspaceEntries);
+        }
+      }
+    }
+
+    if (!finalResult.trim()) {
+      finalResult = summarizeWorkspaceEntries(workspaceEntries);
+    }
+
+    const verification = summarizeVerification(workspaceEntries, undefined, 1);
+    const sources = collectSources(workspaceEntries, finalResult);
+    finalResult = appendSourcesSection(finalResult, sources);
 
     // Kosten-Summary
     const costSummary = this.costTracker.getCostSoFar();
@@ -910,6 +1356,10 @@ export class SubAgentExecutor {
       modelUsed: model,
       cost: costSummary.totalCostDollars,
       artifacts,
+      specialization: specialization.id,
+      sources,
+      verification,
+      workspaceEntries,
       stoppedReason,
     };
   }

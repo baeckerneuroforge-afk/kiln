@@ -13,11 +13,18 @@ import {
 import type { QuickUseFileAttachment, QuickUseResult, QuickUseSource } from "@/lib/quick-use/types";
 import { enhanceQuickUseResult } from "@/lib/quick-use/result-presentation";
 import { processFiles, buildFileContext } from "@/lib/quick-use/file-processor";
+import { quickUseSessionMemory } from "@/lib/quick-use/session-memory";
 import {
   executeDeepResearch,
   type ResearchDepth,
   type ResearchResult,
 } from "@/lib/workflow-nodes/deep-research-node";
+import {
+  createBackgroundTask,
+  updateTaskProgress,
+  completeTask,
+  failTask,
+} from "@/lib/quick-use/background-executor";
 
 export const dynamic = "force-dynamic";
 
@@ -99,13 +106,21 @@ export async function POST(request: NextRequest) {
     message?: string;
     userId?: string;
     files?: QuickUseFileAttachment[];
+    memoryIds?: string[];
   } | null;
   const message = body?.message?.trim();
   const fileAttachments = Array.isArray(body?.files) ? body.files : [];
+  const selectedMemoryIds = Array.isArray(body?.memoryIds) ? body.memoryIds : [];
 
   if (!message) {
     return Response.json({ error: "Message is required" }, { status: 400 });
   }
+
+  const relevantMemories = await quickUseSessionMemory.getRelevantMemory(userId, message, {
+    quickUseType: "deep-research",
+    selectedMemoryIds,
+  });
+  const memoryPrompt = quickUseSessionMemory.buildContextPrompt(relevantMemories, message);
 
   // Process uploaded files and append context to research topic
   let topicWithFiles = message;
@@ -113,6 +128,9 @@ export async function POST(request: NextRequest) {
     const processed = await processFiles(fileAttachments);
     const fileContext = buildFileContext(processed);
     topicWithFiles = `${message}\n\n${fileContext}`;
+  }
+  if (memoryPrompt) {
+    topicWithFiles = `${topicWithFiles}\n\n${memoryPrompt}`;
   }
 
   const depth = selectResearchDepth(message);
@@ -135,23 +153,57 @@ export async function POST(request: NextRequest) {
   const executionId = getExecutionIdFromContext(context);
   const language = detectOutputLanguage(message);
 
+  // Hintergrund-Task erstellen
+  const taskId = await createBackgroundTask(
+    userId,
+    "deep_research",
+    { message, files: fileAttachments },
+    {
+      depth,
+      language,
+      estimatedCredits,
+      memoriesApplied: relevantMemories.map((memory) => quickUseSessionMemory.toPreview(memory)),
+    },
+    estimatedCredits
+  );
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const encoder = new TextEncoder();
+      let streamClosed = false;
+
+      const safeWrite = (event: Parameters<typeof writeQuickUseEvent>[2]) => {
+        if (streamClosed) return;
+        try {
+          writeQuickUseEvent(controller, encoder, event);
+        } catch {
+          streamClosed = true;
+        }
+      };
 
       try {
-        writeQuickUseEvent(controller, encoder, {
+        safeWrite({
           type: "meta",
           meta: {
             estimatedCredits,
             executionId,
+            taskId,
           },
         });
 
-        writeQuickUseEvent(controller, encoder, {
+        if (relevantMemories.length > 0) {
+          safeWrite({
+            type: "memory",
+            memories: relevantMemories.map((memory) => quickUseSessionMemory.toPreview(memory)),
+            autoApplied: true,
+          });
+        }
+
+        safeWrite({
           type: "progress",
           message: `Starting ${depth} research on "${message}"...`,
         });
+        void updateTaskProgress(taskId, { currentStep: `Starting ${depth} research on "${message}"...` });
 
         const resultKey = "quickDeepResearchResult";
         const result = await executeDeepResearch(
@@ -161,10 +213,11 @@ export async function POST(request: NextRequest) {
             language,
             resultKey,
             onProgress: (progressMessage: string) => {
-              writeQuickUseEvent(controller, encoder, {
+              safeWrite({
                 type: "progress",
                 message: progressMessage,
               });
+              void updateTaskProgress(taskId, { currentStep: progressMessage });
             },
           },
           context
@@ -186,28 +239,45 @@ export async function POST(request: NextRequest) {
           "quick_use_deep_research"
         );
 
-        writeQuickUseEvent(controller, encoder, {
+        const finalResult = buildResearchResult(message, research);
+        const finalCredits = {
+          estimatedCredits,
+          creditsUsed: estimatedCredits,
+          creditsRemaining: charge.newBalance,
+        };
+
+        safeWrite({
           type: "result",
-          result: buildResearchResult(message, research),
-          credits: {
-            estimatedCredits,
-            creditsUsed: estimatedCredits,
-            creditsRemaining: charge.newBalance,
-          },
+          result: finalResult,
+          credits: finalCredits,
         });
+
+        await completeTask(taskId, finalResult, finalCredits);
+        void quickUseSessionMemory.saveTaskContext(userId, taskId, {
+          type: "deep-research",
+          inputMessage: message,
+          result: finalResult,
+        }).catch(() => {});
       } catch (error) {
-        writeQuickUseEvent(controller, encoder, {
+        const errorMessage = error instanceof Error ? error.message : "Deep Research failed";
+        safeWrite({
           type: "error",
-          error: error instanceof Error ? error.message : "Deep Research failed",
+          error: errorMessage,
           suggestions: [
             "Narrow the topic slightly.",
             "Try a different phrasing or angle.",
             "Retry in a few moments if a provider timed out.",
           ],
         });
+        await failTask(taskId, errorMessage);
       } finally {
-        writeQuickUseDone(controller, encoder);
-        controller.close();
+        streamClosed = true;
+        try {
+          writeQuickUseDone(controller, encoder);
+          controller.close();
+        } catch {
+          // Client already disconnected
+        }
       }
     },
   });

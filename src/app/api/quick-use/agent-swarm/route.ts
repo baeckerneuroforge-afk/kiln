@@ -15,7 +15,14 @@ import {
 import type { QuickUseFileAttachment, QuickUseResult } from "@/lib/quick-use/types";
 import { enhanceQuickUseResult } from "@/lib/quick-use/result-presentation";
 import { processFiles, buildFileContext } from "@/lib/quick-use/file-processor";
+import { quickUseSessionMemory } from "@/lib/quick-use/session-memory";
 import { executeAgentSwarm } from "@/lib/workflow-nodes/agent-swarm-node";
+import {
+  createBackgroundTask,
+  updateTaskProgress,
+  completeTask,
+  failTask,
+} from "@/lib/quick-use/background-executor";
 
 export const dynamic = "force-dynamic";
 
@@ -144,10 +151,18 @@ function summarizeSwarmEvent(event: SwarmEvent): string | null {
   switch (event.type) {
     case "swarm.started":
       return `Spawning ${Number(event.data.totalAgents) || 0} agents...`;
+    case "swarm.rebalanced":
+      return String(event.data.reason || "Rebalancing the swarm plan...");
+    case "agent.progress":
+      return `${String(event.data.agentId)}: ${String(event.data.note || "")}`;
     case "agent.started":
       return `${String(event.data.agentId)} started: ${String(event.data.task || "")}`;
     case "agent.tool_called":
       return `${String(event.data.agentId)} is using ${String(event.data.tool)}...`;
+    case "agent.retry_scheduled":
+      return `${String(event.data.agentId)} is being retried with a fallback strategy.`;
+    case "quality.warning":
+      return `${String(event.data.agentId)} produced a low-quality result, retrying...`;
     case "merge.started":
       return "Merging agent findings...";
     case "merge.completed":
@@ -171,6 +186,8 @@ function buildSwarmResult(goal: string, output: unknown, meta: Record<string, un
     markdown?: string;
     sources?: QuickUseResult["sources"];
     followUpQuestions?: string[];
+    generatedFiles?: QuickUseResult["generatedFiles"];
+    meta?: Record<string, unknown>;
   } | undefined;
   const markdown = presentation?.markdown || (typeof output === "string" ? output : undefined);
   const summary = presentation?.summary
@@ -186,10 +203,14 @@ function buildSwarmResult(goal: string, output: unknown, meta: Record<string, un
     resultType: presentation?.resultType,
     followUpQuestions: presentation?.followUpQuestions,
     sources: presentation?.sources,
+    generatedFiles: presentation?.generatedFiles,
     model: typeof meta.mergeModel === "string" ? meta.mergeModel : undefined,
     durationMs: Number(meta.totalDurationMs) || undefined,
     qualityScore: Number(meta.mergeQualityScore) || undefined,
-    meta,
+    meta: {
+      ...meta,
+      ...(presentation?.meta || {}),
+    },
   }, {
     quickUseType: "agent-swarm",
     model: typeof meta.mergeModel === "string" ? meta.mergeModel : undefined,
@@ -213,14 +234,22 @@ export async function POST(request: NextRequest) {
     userId?: string;
     hasFiles?: boolean;
     files?: QuickUseFileAttachment[];
+    memoryIds?: string[];
   } | null;
   const message = body?.message?.trim();
   const fileAttachments = Array.isArray(body?.files) ? body.files : [];
   const hasFiles = fileAttachments.length > 0 || Boolean(body?.hasFiles);
+  const selectedMemoryIds = Array.isArray(body?.memoryIds) ? body.memoryIds : [];
 
   if (!message) {
     return Response.json({ error: "Message is required" }, { status: 400 });
   }
+
+  const relevantMemories = await quickUseSessionMemory.getRelevantMemory(userId, message, {
+    quickUseType: "agent-swarm",
+    selectedMemoryIds,
+  });
+  const memoryPrompt = quickUseSessionMemory.buildContextPrompt(relevantMemories, message);
 
   // Process uploaded files to extract content
   let fileContext = "";
@@ -235,9 +264,9 @@ export async function POST(request: NextRequest) {
     ? DECOMPOSITION_MODEL_BROWSER
     : DECOMPOSITION_MODEL_TEXT;
 
-  const goalWithFiles = fileContext
-    ? `${message}\n\n${fileContext}`
-    : message;
+  const goalWithFiles = [message, fileContext, memoryPrompt]
+    .filter(Boolean)
+    .join("\n\n");
 
   const decomposition = await decomposeGoal(goalWithFiles, {
     maxTasks: 8,
@@ -304,6 +333,20 @@ export async function POST(request: NextRequest) {
   const executionId = getExecutionIdFromContext(context);
   const eventStream = new SwarmEventStream();
 
+  // Hintergrund-Task erstellen
+  const taskId = await createBackgroundTask(
+    userId,
+    "agent_swarm",
+    { message, files: fileAttachments },
+    {
+      detectedTools,
+      decompositionModel,
+      estimatedCredits,
+      memoriesApplied: relevantMemories.map((memory) => quickUseSessionMemory.toPreview(memory)),
+    },
+    estimatedCredits
+  );
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const encoder = new TextEncoder();
@@ -311,11 +354,39 @@ export async function POST(request: NextRequest) {
 
       const safeWrite = (event: Parameters<typeof writeQuickUseEvent>[2]) => {
         if (streamClosed) return;
-        writeQuickUseEvent(controller, encoder, event);
+        try {
+          writeQuickUseEvent(controller, encoder, event);
+        } catch {
+          streamClosed = true;
+        }
       };
 
       const unsubscribe = eventStream.on((event) => {
         safeWrite({ type: "swarm_event", event });
+
+        if (event.type === "swarm.preliminary" && event.data.result) {
+          const preliminary = event.data.result as Record<string, unknown>;
+          const preliminaryResult = enhanceQuickUseResult({
+            title: message,
+            summary: String(preliminary.summary || "The swarm is working on a preliminary answer."),
+            markdown: typeof preliminary.markdown === "string" ? preliminary.markdown : undefined,
+            resultType: preliminary.resultType as QuickUseResult["resultType"] | undefined,
+            sources: Array.isArray(preliminary.sources) ? preliminary.sources as QuickUseResult["sources"] : undefined,
+            followUpQuestions: Array.isArray(preliminary.followUpQuestions) ? preliminary.followUpQuestions as string[] : undefined,
+            generatedFiles: Array.isArray(preliminary.generatedFiles) ? preliminary.generatedFiles as QuickUseResult["generatedFiles"] : undefined,
+            qualityScore: Number(preliminary.qualityScore) || undefined,
+            meta: {
+              stage: event.data.stage,
+            },
+          }, {
+            quickUseType: "agent-swarm",
+          });
+
+          safeWrite({
+            type: "result",
+            result: preliminaryResult,
+          });
+        }
 
         const progress = summarizeSwarmEvent(event);
         if (progress) {
@@ -334,8 +405,17 @@ export async function POST(request: NextRequest) {
           meta: {
             estimatedCredits,
             executionId,
+            taskId,
           },
         });
+
+        if (relevantMemories.length > 0) {
+          safeWrite({
+            type: "memory",
+            memories: relevantMemories.map((memory) => quickUseSessionMemory.toPreview(memory)),
+            autoApplied: true,
+          });
+        }
 
         safeWrite({
           type: "progress",
@@ -345,6 +425,12 @@ export async function POST(request: NextRequest) {
         safeWrite({
           type: "progress",
           message: roughEstimate.summary,
+        });
+
+        await updateTaskProgress(taskId, {
+          currentStep: `Running ${decomposition.tasks.length} agents...`,
+          agentStatuses: {},
+          findings: [],
         });
 
         const resultKey = "quickSwarmResult";
@@ -359,6 +445,7 @@ export async function POST(request: NextRequest) {
             taskDecomposition: decomposition,
             eventStream,
             resultKey,
+            userId,
           },
           context
         );
@@ -376,39 +463,57 @@ export async function POST(request: NextRequest) {
           "quick_use_agent_swarm"
         );
 
+        const finalResult = buildSwarmResult(
+          message,
+          result.contextDelta[resultKey],
+          {
+            ...(swarmMeta || {}),
+            detectedTools,
+            decompositionModel,
+            roughPerAgentCredits: roughEstimate.perAgentCredits,
+          }
+        );
+
+        const finalCredits = {
+          estimatedCredits,
+          creditsUsed: totalCreditsUsed + decompositionCreditCost,
+          creditsRemaining: finalCharge.newBalance,
+        };
+
         safeWrite({
           type: "result",
-          result: buildSwarmResult(
-            message,
-            result.contextDelta[resultKey],
-            {
-              ...(swarmMeta || {}),
-              detectedTools,
-              decompositionModel,
-              roughPerAgentCredits: roughEstimate.perAgentCredits,
-            }
-          ),
-          credits: {
-            estimatedCredits,
-            creditsUsed: totalCreditsUsed + decompositionCreditCost,
-            creditsRemaining: finalCharge.newBalance,
-          },
+          result: finalResult,
+          credits: finalCredits,
         });
+
+        // Hintergrund-Task abschließen (Notification wird gesendet)
+        await completeTask(taskId, finalResult, finalCredits);
+        void quickUseSessionMemory.saveTaskContext(userId, taskId, {
+          type: "agent-swarm",
+          inputMessage: message,
+          result: finalResult,
+        }).catch(() => {});
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Agent Swarm failed";
         safeWrite({
           type: "error",
-          error: error instanceof Error ? error.message : "Agent Swarm failed",
+          error: errorMessage,
           suggestions: [
             "Reduce the scope of the task.",
             "List the comparison targets explicitly.",
             "Retry if one of the providers timed out.",
           ],
         });
+        await failTask(taskId, errorMessage);
       } finally {
         streamClosed = true;
         unsubscribe();
-        writeQuickUseDone(controller, encoder);
-        controller.close();
+        try {
+          writeQuickUseDone(controller, encoder);
+          controller.close();
+        } catch {
+          // Client already disconnected
+        }
       }
     },
   });

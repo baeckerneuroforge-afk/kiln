@@ -4,6 +4,8 @@
  * and send directed or broadcast messages to each other.
  */
 
+import type { EvidenceSourceMeta } from "./hallucination-guard";
+
 /* ── Types ── */
 
 export interface WorkspaceEntry {
@@ -11,6 +13,7 @@ export interface WorkspaceEntry {
   key: string;
   value: unknown;
   tags: string[];
+  source?: EvidenceSourceMeta;
   timestamp: string;
 }
 
@@ -47,12 +50,19 @@ export class SharedWorkspace {
    * Agent schreibt ein Finding in den Workspace.
    * Append-only — keine Überschreibungen, concurrent-safe via Array.push.
    */
-  write(agentId: string, key: string, value: unknown, tags: string[] = []): void {
+  write(
+    agentId: string,
+    key: string,
+    value: unknown,
+    tags: string[] = [],
+    source?: EvidenceSourceMeta
+  ): void {
     const entry: WorkspaceEntry = {
       agentId,
       key,
       value,
       tags,
+      source,
       timestamp: new Date().toISOString(),
     };
     this.entries.push(entry);

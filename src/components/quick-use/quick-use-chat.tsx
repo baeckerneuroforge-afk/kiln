@@ -8,6 +8,7 @@ import {
   ArrowUp,
   ChevronDown,
   ChevronRight,
+  Circle,
   Clipboard,
   Coins,
   Clock3,
@@ -17,11 +18,16 @@ import {
   FileText,
   FileType2,
   Globe2,
+  History,
   Loader2,
+  MessageSquare,
   Paperclip,
+  Pause,
+  Play,
   RefreshCcw,
   Save,
   Sparkles,
+  Square,
   User,
   X,
 } from "lucide-react";
@@ -36,10 +42,14 @@ import type {
   QuickUseCreditInfo,
   QuickUseFileAttachment,
   QuickUseGeneratedFile,
+  QuickUseMemoryPreview,
   QuickUseResult,
   QuickUseResultType,
   QuickUseStreamEvent,
+  QuickUseTaskDetail,
+  QuickUseTaskSummary,
   QuickUseType,
+  InterventionType,
 } from "@/lib/quick-use/types";
 import {
   ALLOWED_EXTENSIONS,
@@ -1233,6 +1243,279 @@ function FilePills({
   );
 }
 
+/* ── Task History Dropdown ── */
+
+function taskTypeIcon(type: string) {
+  if (type === "agent_swarm") return "🤖";
+  if (type === "computer_use") return "🖥";
+  return "🔍";
+}
+
+function taskStatusBadge(status: string) {
+  switch (status) {
+    case "COMPLETED":
+      return <span className="h-2 w-2 rounded-full bg-emerald-400" />;
+    case "RUNNING":
+      return <span className="h-2 w-2 animate-pulse rounded-full bg-orange-400" />;
+    case "FAILED":
+      return <span className="h-2 w-2 rounded-full bg-red-400" />;
+    case "PAUSED":
+      return <span className="h-2 w-2 rounded-full bg-amber-400" />;
+    case "CANCELLED":
+      return <span className="h-2 w-2 rounded-full bg-zinc-400" />;
+    default:
+      return <span className="h-2 w-2 rounded-full bg-zinc-500" />;
+  }
+}
+
+function TaskHistoryDropdown({
+  tasks,
+  onSelect,
+  onRerun,
+}: {
+  tasks: QuickUseTaskSummary[];
+  onSelect: (taskId: string) => void;
+  onRerun: (inputPreview: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (tasks.length === 0) return null;
+
+  return (
+    <div className="relative">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(!open)}
+        className="gap-1.5"
+      >
+        <History className="h-3.5 w-3.5" />
+        History
+        <Badge className="bg-zinc-500/20 text-zinc-300">{tasks.length}</Badge>
+      </Button>
+
+      {open ? (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-50 mt-2 w-80 max-h-96 overflow-y-auto rounded-2xl border border-[#332f2b] bg-[#171311] p-2 shadow-2xl">
+            {tasks.map((task) => (
+              <button
+                key={task.id}
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onSelect(task.id);
+                }}
+                className="flex w-full items-start gap-3 rounded-xl p-3 text-left transition-colors hover:bg-white/[0.04]"
+              >
+                <span className="mt-0.5 text-base">{taskTypeIcon(task.type)}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    {taskStatusBadge(task.status)}
+                    <p className="truncate text-sm text-zinc-200">{task.inputPreview || "Task"}</p>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2 text-[11px] text-zinc-500">
+                    <span>{new Date(task.createdAt).toLocaleDateString()}</span>
+                    {task.creditsUsed > 0 ? <span>{task.creditsUsed} credits</span> : null}
+                  </div>
+                </div>
+                {task.hasResult ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpen(false);
+                      onRerun(task.inputPreview);
+                    }}
+                    className="shrink-0 rounded-lg border border-[#3a322d] px-2 py-1 text-[11px] text-zinc-400 transition-colors hover:border-orange-500/30 hover:text-orange-300"
+                    title="Rerun with same input"
+                  >
+                    <RefreshCcw className="h-3 w-3" />
+                  </button>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/* ── Background Execution Banner ── */
+
+function BackgroundBanner({ taskId }: { taskId: string }) {
+  return (
+    <div className="rounded-2xl border border-blue-500/20 bg-blue-500/8 px-4 py-3 text-sm text-blue-200">
+      <div className="flex items-center gap-2">
+        <Circle className="h-2.5 w-2.5 animate-pulse fill-blue-400 text-blue-400" />
+        <span>Running in background — you can close this tab.</span>
+      </div>
+      <p className="mt-1 text-xs text-blue-300/60">
+        We&apos;ll notify you when done. Task ID: {taskId.slice(0, 8)}...
+      </p>
+    </div>
+  );
+}
+
+/* ── Intervention Controls ── */
+
+function InterventionBar({
+  isPaused,
+  onIntervene,
+}: {
+  isPaused: boolean;
+  onIntervene: (type: InterventionType, message: string) => Promise<void>;
+}) {
+  const [interventionInput, setInterventionInput] = useState("");
+  const [sending, setSending] = useState(false);
+
+  async function sendIntervention(type: InterventionType, message?: string) {
+    setSending(true);
+    try {
+      await onIntervene(type, message || "");
+      if (type === "redirect" || type === "add_context") {
+        setInterventionInput("");
+      }
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-orange-500/15 bg-[#1a1613] p-3">
+      <div className="flex items-center gap-2">
+        {/* Control buttons */}
+        {isPaused ? (
+          <button
+            type="button"
+            onClick={() => sendIntervention("resume")}
+            disabled={sending}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-40"
+            title="Resume"
+          >
+            <Play className="h-3.5 w-3.5" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => sendIntervention("pause")}
+            disabled={sending}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 transition-colors hover:bg-amber-500/20 disabled:opacity-40"
+            title="Pause"
+          >
+            <Pause className="h-3.5 w-3.5" />
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => sendIntervention("cancel")}
+          disabled={sending}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 transition-colors hover:bg-red-500/20 disabled:opacity-40"
+          title="Stop and show partial results"
+        >
+          <Square className="h-3.5 w-3.5" />
+        </button>
+
+        {/* Intervention text input */}
+        <div className="flex flex-1 items-center gap-2">
+          <input
+            type="text"
+            value={interventionInput}
+            onChange={(e) => setInterventionInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && interventionInput.trim()) {
+                void sendIntervention("add_context", interventionInput.trim());
+              }
+            }}
+            placeholder={isPaused ? "Paused — click Resume to continue" : "Give feedback to agents..."}
+            disabled={sending || isPaused}
+            className="flex-1 rounded-lg border border-[#332f2b] bg-transparent px-3 py-1.5 text-sm text-white placeholder:text-[#6f645c] focus:border-orange-500/30 focus:outline-none disabled:opacity-40"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (interventionInput.trim()) {
+                void sendIntervention("add_context", interventionInput.trim());
+              }
+            }}
+            disabled={sending || !interventionInput.trim() || isPaused}
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/20 text-orange-300 transition-colors hover:bg-orange-500/30 disabled:opacity-40"
+          >
+            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquare className="h-3.5 w-3.5" />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MemoryBanner({
+  memories,
+  selected,
+  onUse,
+  onDismiss,
+}: {
+  memories: QuickUseMemoryPreview[];
+  selected: boolean;
+  onUse: () => void;
+  onDismiss: () => void;
+}) {
+  if (memories.length === 0) return null;
+
+  const primary = memories[0];
+  const extraCount = Math.max(0, memories.length - 1);
+
+  return (
+    <div className="mb-3 rounded-2xl border border-[#3a322d] bg-[#201915] p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
+            Related Context
+          </p>
+          <p className="mt-1 text-sm leading-6 text-zinc-200">
+            {primary.ageLabel}: {primary.summary}
+          </p>
+          {primary.highlights?.length ? (
+            <p className="mt-1 text-xs text-zinc-400">
+              {primary.highlights.join(" · ")}
+            </p>
+          ) : null}
+          {extraCount > 0 ? (
+            <p className="mt-2 text-xs text-zinc-500">
+              +{extraCount} more related task{extraCount === 1 ? "" : "s"}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onUse}
+            className={cn(
+              "rounded-full border px-3 py-1.5 text-xs transition-colors",
+              selected
+                ? "border-orange-500/40 bg-orange-500/12 text-orange-200"
+                : "border-[#40372f] text-zinc-300 hover:border-orange-500/35 hover:text-white"
+            )}
+          >
+            {selected ? "Context Pinned" : "Use This Context"}
+          </button>
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="rounded-full border border-[#40372f] p-1.5 text-zinc-500 transition-colors hover:text-white"
+            aria-label="Dismiss related context"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Main Component ── */
 
 export function QuickUseChat({
@@ -1255,11 +1538,34 @@ export function QuickUseChat({
   const [activeResultId, setActiveResultId] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [taskHistory, setTaskHistory] = useState<QuickUseTaskSummary[]>([]);
+  const [interventionMessages, setInterventionMessages] = useState<string[]>([]);
+  const [memorySuggestions, setMemorySuggestions] = useState<QuickUseMemoryPreview[]>([]);
+  const [selectedMemoryIds, setSelectedMemoryIds] = useState<string[]>([]);
+  const [dismissedMemoryKey, setDismissedMemoryKey] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const orderedAgentStatuses = Object.values(agentStatuses).sort((a, b) => a.id.localeCompare(b.id));
+
+  // Fetch task history on mount
+  useEffect(() => {
+    async function fetchHistory() {
+      try {
+        const res = await fetch("/api/quick-use/tasks");
+        if (res.ok) {
+          const data = await res.json() as { tasks: QuickUseTaskSummary[] };
+          setTaskHistory(data.tasks);
+        }
+      } catch {
+        // Ignore — history is non-critical
+      }
+    }
+    void fetchHistory();
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1270,6 +1576,49 @@ export function QuickUseChat({
     textareaRef.current.style.height = "auto";
     textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
   }, [input]);
+
+  useEffect(() => {
+    const query = input.trim();
+    if (!userId || isStreaming || query.length < 3) {
+      if (query.length === 0) {
+        setMemorySuggestions([]);
+        setSelectedMemoryIds([]);
+        setDismissedMemoryKey(null);
+      }
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      try {
+        const response = await fetch("/api/quick-use/memory", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: query, type }),
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+
+        const data = await response.json() as { memories?: QuickUseMemoryPreview[] };
+        const memories = Array.isArray(data.memories) ? data.memories : [];
+        const memoryIds = new Set(memories.map((memory) => memory.id));
+        setMemorySuggestions(memories);
+        setSelectedMemoryIds((current) => current.filter((id) => memoryIds.has(id)));
+      } catch {
+        // Ignore aborted or transient memory lookups
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [input, isStreaming, type, userId]);
+
+  const memorySuggestionKey = memorySuggestions.map((memory) => memory.id).join(":");
+  const showMemoryBanner = input.trim().length >= 3
+    && memorySuggestions.length > 0
+    && (selectedMemoryIds.length > 0 || dismissedMemoryKey !== memorySuggestionKey);
 
   function resetChat() {
     setMessages([]);
@@ -1283,6 +1632,12 @@ export function QuickUseChat({
     setActiveResultId(null);
     setPendingFiles([]);
     setIsDragOver(false);
+    setActiveTaskId(null);
+    setIsPaused(false);
+    setInterventionMessages([]);
+    setMemorySuggestions([]);
+    setSelectedMemoryIds([]);
+    setDismissedMemoryKey(null);
   }
 
   function appendMessage(entry: ChatEntry) {
@@ -1432,6 +1787,168 @@ export function QuickUseChat({
     }
   }
 
+  /* ── Intervention ── */
+
+  async function handleIntervene(interventionType: InterventionType, message: string) {
+    if (!activeTaskId) return;
+
+    try {
+      const res = await fetch(`/api/quick-use/tasks/${activeTaskId}/intervene`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: interventionType, message }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Failed" })) as { error?: string };
+        appendMessage({
+          id: createId(),
+          kind: "error",
+          content: err.error || "Intervention failed",
+        });
+        return;
+      }
+
+      if (interventionType === "pause") {
+        setIsPaused(true);
+        setActiveProgress("Paused — waiting for you to resume.");
+      } else if (interventionType === "resume") {
+        setIsPaused(false);
+        setActiveProgress("Resuming...");
+      } else if (interventionType === "cancel") {
+        setActiveProgress(null);
+        setIsStreaming(false);
+        appendMessage({
+          id: createId(),
+          kind: "assistant",
+          content: "Task cancelled. Partial results may be available in History.",
+        });
+      } else if (message) {
+        setInterventionMessages((prev) => [...prev, message]);
+      }
+    } catch {
+      appendMessage({
+        id: createId(),
+        kind: "error",
+        content: "Could not send intervention.",
+      });
+    }
+  }
+
+  /* ── Load task from history ── */
+
+  async function loadTaskFromHistory(taskId: string) {
+    try {
+      const res = await fetch(`/api/quick-use/tasks/${taskId}`);
+      if (!res.ok) return;
+
+      const data = await res.json() as { task: QuickUseTaskDetail };
+      const task = data.task;
+
+      resetChat();
+
+      // Restore messages from task
+      appendMessage({
+        id: createId(),
+        kind: "user",
+        content: task.input.message,
+      });
+
+      if (task.status === "RUNNING" || task.status === "PAUSED") {
+        setActiveTaskId(task.id);
+        setIsPaused(task.status === "PAUSED");
+        setActiveProgress(task.progress?.currentStep || "Running...");
+        setIsStreaming(true);
+
+        // Poll for updates
+        void pollTaskStatus(task.id);
+      } else if (task.result) {
+        appendMessage({
+          id: createId(),
+          kind: "result",
+          result: task.result,
+          credits: task.credits || undefined,
+        });
+      } else if (task.error) {
+        appendMessage({
+          id: createId(),
+          kind: "error",
+          content: task.error,
+        });
+      }
+    } catch {
+      appendMessage({
+        id: createId(),
+        kind: "error",
+        content: "Could not load task.",
+      });
+    }
+  }
+
+  async function pollTaskStatus(taskId: string) {
+    const pollInterval = 3000;
+    const maxPolls = 200; // ~10 minutes max
+    let polls = 0;
+
+    while (polls < maxPolls) {
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      polls++;
+
+      try {
+        const res = await fetch(`/api/quick-use/tasks/${taskId}`);
+        if (!res.ok) break;
+
+        const data = await res.json() as { task: QuickUseTaskDetail };
+        const task = data.task;
+
+        if (task.progress?.currentStep) {
+          setActiveProgress(task.progress.currentStep);
+        }
+
+        if (task.status === "COMPLETED" && task.result) {
+          setActiveProgress(null);
+          setIsStreaming(false);
+          setActiveTaskId(null);
+          appendMessage({
+            id: createId(),
+            kind: "result",
+            result: task.result,
+            credits: task.credits || undefined,
+          });
+          return;
+        }
+
+        if (task.status === "FAILED") {
+          setActiveProgress(null);
+          setIsStreaming(false);
+          setActiveTaskId(null);
+          appendMessage({
+            id: createId(),
+            kind: "error",
+            content: task.error || "Task failed",
+          });
+          return;
+        }
+
+        if (task.status === "CANCELLED") {
+          setActiveProgress(null);
+          setIsStreaming(false);
+          setActiveTaskId(null);
+          appendMessage({
+            id: createId(),
+            kind: "assistant",
+            content: "Task was cancelled.",
+          });
+          return;
+        }
+
+        setIsPaused(task.status === "PAUSED");
+      } catch {
+        break;
+      }
+    }
+  }
+
   /* ── Swarm events ── */
 
   function handleSwarmEvent(event: Extract<QuickUseStreamEvent, { type: "swarm_event" }>["event"]) {
@@ -1528,6 +2045,7 @@ export function QuickUseChat({
     if (!message || isStreaming) return;
 
     const hasFiles = pendingFiles.some((f) => !f.error);
+    const pinnedMemoryIds = [...selectedMemoryIds];
 
     setInput("");
     setActiveProgress(hasFiles ? "Uploading files..." : "Starting execution...");
@@ -1536,6 +2054,9 @@ export function QuickUseChat({
     setEstimatedCredits(undefined);
     setSavingState("idle");
     setActiveResultId(null);
+    setMemorySuggestions([]);
+    setSelectedMemoryIds([]);
+    setDismissedMemoryKey(null);
 
     const userFiles = pendingFiles
       .filter((f) => !f.error)
@@ -1563,6 +2084,7 @@ export function QuickUseChat({
         body: JSON.stringify({
           message,
           userId,
+          ...(pinnedMemoryIds.length > 0 ? { memoryIds: pinnedMemoryIds } : {}),
           ...(fileAttachments.length > 0 ? { files: fileAttachments } : {}),
         }),
       });
@@ -1597,6 +2119,9 @@ export function QuickUseChat({
 
             if (event.type === "meta") {
               setEstimatedCredits(event.meta.estimatedCredits);
+              if (event.meta.taskId) {
+                setActiveTaskId(event.meta.taskId);
+              }
             }
 
             if (event.type === "progress") {
@@ -1611,6 +2136,10 @@ export function QuickUseChat({
 
             if (event.type === "swarm_event") {
               handleSwarmEvent(event.event);
+            }
+
+            if (event.type === "memory") {
+              setMemorySuggestions(event.memories);
             }
 
             if (event.type === "result") {
@@ -1651,6 +2180,13 @@ export function QuickUseChat({
     } finally {
       setIsStreaming(false);
       setPendingFiles([]);
+      setActiveTaskId(null);
+      setIsPaused(false);
+      // Refresh task history
+      fetch("/api/quick-use/tasks")
+        .then((r) => r.json())
+        .then((data: { tasks: QuickUseTaskSummary[] }) => setTaskHistory(data.tasks))
+        .catch(() => {});
     }
   }
 
@@ -1690,10 +2226,20 @@ export function QuickUseChat({
               </div>
             </div>
 
-            <Button variant="outline" onClick={resetChat}>
-              <RefreshCcw className="h-3.5 w-3.5" />
-              New Chat
-            </Button>
+            <div className="flex items-center gap-2">
+              <TaskHistoryDropdown
+                tasks={taskHistory}
+                onSelect={(id) => void loadTaskFromHistory(id)}
+                onRerun={(preview) => {
+                  setInput(preview);
+                  textareaRef.current?.focus();
+                }}
+              />
+              <Button variant="outline" onClick={resetChat}>
+                <RefreshCcw className="h-3.5 w-3.5" />
+                New Chat
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -1804,20 +2350,41 @@ export function QuickUseChat({
             })}
 
             {activeProgress ? (
-              <MessageBubble
-                icon={<Loader2 className="h-4 w-4 animate-spin" />}
-                className="border-orange-500/20 bg-[linear-gradient(180deg,rgba(34,20,12,0.95),rgba(27,20,16,0.94))]"
-              >
-                <div className="flex flex-wrap items-center gap-3">
-                  <p className="text-sm leading-relaxed text-zinc-100">{activeProgress}</p>
-                  {estimatedCredits ? (
-                    <Badge className="bg-orange-500/15 text-orange-300">
-                      <Coins className="h-3 w-3" />
-                      ~{estimatedCredits} credits
-                    </Badge>
-                  ) : null}
-                </div>
-              </MessageBubble>
+              <div className="space-y-3">
+                <MessageBubble
+                  icon={isPaused ? <Pause className="h-4 w-4 text-amber-400" /> : <Loader2 className="h-4 w-4 animate-spin" />}
+                  className="border-orange-500/20 bg-[linear-gradient(180deg,rgba(34,20,12,0.95),rgba(27,20,16,0.94))]"
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <p className="text-sm leading-relaxed text-zinc-100">{activeProgress}</p>
+                    {estimatedCredits ? (
+                      <Badge className="bg-orange-500/15 text-orange-300">
+                        <Coins className="h-3 w-3" />
+                        ~{estimatedCredits} credits
+                      </Badge>
+                    ) : null}
+                  </div>
+                </MessageBubble>
+
+                {activeTaskId ? <BackgroundBanner taskId={activeTaskId} /> : null}
+
+                {/* User intervention messages */}
+                {interventionMessages.map((msg, i) => (
+                  <div key={`int-${i}`} className="flex justify-end">
+                    <div className="max-w-md rounded-2xl border border-blue-500/20 bg-blue-500/10 px-4 py-2.5 text-sm text-blue-200">
+                      <span className="text-[11px] font-medium uppercase tracking-wider text-blue-400">You: </span>
+                      {msg}
+                    </div>
+                  </div>
+                ))}
+
+                {activeTaskId ? (
+                  <InterventionBar
+                    isPaused={isPaused}
+                    onIntervene={handleIntervene}
+                  />
+                ) : null}
+              </div>
             ) : null}
 
             {messages.length === 0 && !activeProgress ? (
@@ -1858,6 +2425,18 @@ export function QuickUseChat({
           ) : null}
 
           <div className="rounded-[26px] border border-[#332f2b] bg-[#1a1613] p-3 shadow-[0_-12px_35px_rgba(0,0,0,0.18)]">
+            {showMemoryBanner ? (
+              <MemoryBanner
+                memories={memorySuggestions}
+                selected={selectedMemoryIds.length > 0}
+                onUse={() => {
+                  setSelectedMemoryIds(memorySuggestions.map((memory) => memory.id));
+                  setDismissedMemoryKey(null);
+                }}
+                onDismiss={() => setDismissedMemoryKey(memorySuggestionKey)}
+              />
+            ) : null}
+
             {/* File pills */}
             <FilePills files={pendingFiles} onRemove={removePendingFile} />
 
