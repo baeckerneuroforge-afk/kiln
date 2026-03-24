@@ -837,6 +837,26 @@ async function executeWithRealBrowser(
   let pageAnalyzed = false;
   let currentPageAnalysis: Awaited<ReturnType<PageAnalyzer["analyzePage"]>> | null = null;
 
+  // Streaming findings deduplication
+  const streamedFindings = new Set<string>();
+  const emitFinding = (data: Record<string, unknown>, source: string) => {
+    if (!onBrowserEvent) return;
+    for (const [key, value] of Object.entries(data)) {
+      if (key.startsWith("_") || value === undefined || value === null) continue;
+      const displayValue = typeof value === "object" ? JSON.stringify(value) : String(value);
+      if (displayValue.length === 0 || displayValue.length > 500) continue;
+      const dedupeKey = `${key}:${displayValue.slice(0, 100)}`;
+      if (streamedFindings.has(dedupeKey)) continue;
+      streamedFindings.add(dedupeKey);
+      const domain = (() => { try { return new URL(currentUrl).hostname; } catch { return ""; } })();
+      onBrowserEvent({
+        eventType: "finding",
+        finding: `Found ${key}: ${displayValue}${domain ? ` on ${domain}` : ""}`,
+        source,
+      });
+    }
+  };
+
   try {
     onProgress?.(`Launching ${browserSession.backend.toUpperCase()} browser session...`);
     if (browserSession.warning) {
@@ -892,6 +912,8 @@ async function executeWithRealBrowser(
 
         if (directExtraction.fieldsFound.length >= Math.ceil(fields.length * 0.6)) {
           // Direkte Extraktion erfolgreich — Task fertig!
+          // Stream findings immediately so user sees data within seconds
+          emitFinding(directExtraction.data, "smart_extract_shortcut");
           onProgress?.("Data extracted directly from page (no Vision needed).");
 
           finalExtractedData = directExtraction.data;
