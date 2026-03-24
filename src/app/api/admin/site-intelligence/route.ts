@@ -2,35 +2,50 @@
  * Admin API: Site Intelligence
  * GET — Stats overview
  * POST — Seed database from static recipes
+ *
+ * Auth: Clerk admin (email @hephaistos.systems) OR CRON_SECRET Bearer token.
  */
 
+import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import {
   getIntelligenceStats,
   seedFromStaticRecipes,
 } from "@/lib/browser/collective-learning";
-
-// Static recipes import (the exported SITE_RECIPES is not exported, so we re-import the getter)
 import { getRecipeForUrl } from "@/lib/browser/site-recipes";
 
-// Hardcoded domains for seeding (matches SITE_RECIPES keys)
+// Domains matching SITE_RECIPES keys
 const SEED_DOMAINS = [
   "amazon.de", "amazon.com", "mediamarkt.de", "saturn.de",
   "apple.com", "ebay.de", "ebay.com", "idealo.de",
   "google.com", "otto.de", "zalando.de",
 ];
 
-export async function GET() {
-  const { userId } = await auth();
-  if (!userId) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+/**
+ * Checks admin access via Clerk session OR CRON_SECRET Bearer token.
+ */
+async function isAuthorized(request: NextRequest): Promise<boolean> {
+  // Option 1: CRON_SECRET Bearer token
+  const authHeader = request.headers.get("authorization");
+  if (authHeader && process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`) {
+    return true;
   }
 
-  // Admin check
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
-  if (!user?.email?.endsWith("@hephaistos.systems")) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
+  // Option 2: Clerk admin session
+  try {
+    const { userId } = await auth();
+    if (!userId) return false;
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    return !!user?.email?.endsWith("@hephaistos.systems");
+  } catch {
+    return false;
+  }
+}
+
+export async function GET(request: NextRequest) {
+  if (!(await isAuthorized(request))) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -44,15 +59,9 @@ export async function GET() {
   }
 }
 
-export async function POST() {
-  const { userId } = await auth();
-  if (!userId) {
+export async function POST(request: NextRequest) {
+  if (!(await isAuthorized(request))) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
-  if (!user?.email?.endsWith("@hephaistos.systems")) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {
