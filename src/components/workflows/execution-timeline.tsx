@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   X,
   Check,
@@ -8,6 +8,8 @@ import {
   Clock,
   ChevronUp,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Eye,
   Copy,
   Wrench,
@@ -15,10 +17,25 @@ import {
   List,
   GripHorizontal,
   Filter,
+  Monitor,
+  Play,
+  Pause,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ========== Types ========== */
+
+export interface BrowserReplayEvent {
+  eventType: string;
+  timestamp: number;
+  url?: string;
+  imageData?: string;
+  message?: string;
+  action?: string;
+  stepIndex?: number;
+  _screenshotDropped?: boolean;
+  [key: string]: unknown;
+}
 
 export interface TimelineNodeEntry {
   nodeId: string;
@@ -35,6 +52,7 @@ export interface TimelineNodeEntry {
   input?: unknown;
   output?: unknown;
   startedAt?: string;
+  meta?: Record<string, unknown>;
 }
 
 export interface ExecutionTimelineData {
@@ -114,6 +132,114 @@ const LOG_LEVEL_COLORS: Record<string, string> = {
   success: "text-green-400",
 };
 
+/* ========== Browser Replay ========== */
+
+function BrowserReplayPanel({ events }: { events: BrowserReplayEvent[] }) {
+  const screenshots = events.filter((e) => e.eventType === "browser" && e.imageData);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Auto-play effect
+  useEffect(() => {
+    if (playing && screenshots.length > 1) {
+      intervalRef.current = setInterval(() => {
+        setCurrentIdx((prev) => {
+          if (prev >= screenshots.length - 1) {
+            setPlaying(false);
+            return prev;
+          }
+          return prev + 1;
+        });
+      }, 1500);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [playing, screenshots.length]);
+
+  if (screenshots.length === 0) {
+    // Show progress events only
+    const progressEvents = events.filter((e) => e.eventType === "progress");
+    if (progressEvents.length === 0) return null;
+
+    return (
+      <div className="px-6 py-2 bg-[#131211] border-t border-[#2a2826]/50">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <Monitor className="h-3 w-3 text-orange-400/60" />
+          <span className="text-[10px] font-medium text-zinc-400">Browser Steps</span>
+        </div>
+        <div className="space-y-0.5">
+          {progressEvents.slice(-8).map((e, i) => (
+            <p key={i} className="text-[10px] text-zinc-500 font-mono truncate">
+              {e.message}
+            </p>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const current = screenshots[currentIdx];
+  const progressAtStep = events.filter(
+    (e) => e.eventType === "progress" && e.timestamp <= (current?.timestamp || Infinity),
+  );
+  const lastProgress = progressAtStep[progressAtStep.length - 1];
+
+  return (
+    <div className="px-6 py-2 bg-[#131211] border-t border-[#2a2826]/50">
+      <div className="flex items-center gap-2 mb-2">
+        <Monitor className="h-3 w-3 text-orange-400/60" />
+        <span className="text-[10px] font-medium text-zinc-400">Browser Replay</span>
+        <span className="text-[10px] text-zinc-600">
+          {currentIdx + 1}/{screenshots.length}
+        </span>
+        <div className="flex-1" />
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => { setCurrentIdx((p) => Math.max(0, p - 1)); setPlaying(false); }}
+            disabled={currentIdx === 0}
+            className="p-0.5 rounded text-zinc-500 hover:text-zinc-300 disabled:text-zinc-700 transition-colors"
+          >
+            <ChevronLeft className="h-3 w-3" />
+          </button>
+          <button
+            onClick={() => setPlaying(!playing)}
+            className="p-0.5 rounded text-zinc-500 hover:text-zinc-300 transition-colors"
+          >
+            {playing ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+          </button>
+          <button
+            onClick={() => { setCurrentIdx((p) => Math.min(screenshots.length - 1, p + 1)); setPlaying(false); }}
+            disabled={currentIdx >= screenshots.length - 1}
+            className="p-0.5 rounded text-zinc-500 hover:text-zinc-300 disabled:text-zinc-700 transition-colors"
+          >
+            <ChevronRight className="h-3 w-3" />
+          </button>
+        </div>
+      </div>
+      {/* Screenshot */}
+      <div className="relative rounded border border-[#2a2826] overflow-hidden bg-black/50" style={{ maxHeight: 200 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`data:image/jpeg;base64,${current?.imageData}`}
+          alt={`Step ${currentIdx + 1}`}
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: 200 }}
+        />
+        {current?.url && (
+          <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-2 py-0.5">
+            <span className="text-[9px] text-zinc-400 font-mono truncate block">{current.url as string}</span>
+          </div>
+        )}
+      </div>
+      {lastProgress && (
+        <p className="text-[10px] text-zinc-500 mt-1 truncate">{lastProgress.message}</p>
+      )}
+    </div>
+  );
+}
+
 /* ========== Component ========== */
 
 export function ExecutionTimelinePanel({
@@ -125,6 +251,7 @@ export function ExecutionTimelinePanel({
   const [expanded, setExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<"timeline" | "console">("timeline");
   const [panelHeight, setPanelHeight] = useState(260);
+  const [replayNodeId, setReplayNodeId] = useState<string | null>(null);
   const [logFilters, setLogFilters] = useState({ info: true, warn: true, error: true, success: true });
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
   const consoleEndRef = useRef<HTMLDivElement>(null);
@@ -277,65 +404,95 @@ export function ExecutionTimelinePanel({
                   </tr>
                 </thead>
                 <tbody>
-                  {data.entries.map((entry, idx) => (
-                    <tr
-                      key={entry.nodeId}
-                      className={cn(
-                        "border-b border-[#2a2826]/50 hover:bg-[#1e1d1b] transition-colors cursor-pointer",
-                        entry.status === "failed" && "bg-red-500/[0.03]",
-                      )}
-                      onClick={() => onHighlightNode?.(entry.nodeId)}
-                    >
-                      <td className="px-4 py-2 text-zinc-500 font-mono">{idx + 1}</td>
-                      <td className="px-2 py-2">
-                        <div className="flex items-center gap-2">
-                          {statusIcon(entry.status)}
-                          <span className="text-zinc-200 font-medium truncate max-w-[180px]">
-                            {entry.nodeLabel}
-                          </span>
-                        </div>
-                        {/* Inline error for failed nodes */}
-                        {entry.status === "failed" && entry.error && (
-                          <div className="mt-1 ml-5">
-                            <p className="text-[10px] text-red-400/80 truncate max-w-[250px]">
-                              {entry.error.message}
-                            </p>
-                          </div>
+                  {data.entries.map((entry, idx) => {
+                    const browserEvents = (entry.meta?._browserEvents ?? []) as BrowserReplayEvent[];
+                    const hasBrowserReplay = entry.nodeType === "computer_use" && browserEvents.length > 0;
+                    const isReplayOpen = replayNodeId === entry.nodeId;
+
+                    return (
+                      <React.Fragment key={entry.nodeId}>
+                        <tr
+                          className={cn(
+                            "border-b border-[#2a2826]/50 hover:bg-[#1e1d1b] transition-colors cursor-pointer",
+                            entry.status === "failed" && "bg-red-500/[0.03]",
+                            isReplayOpen && "bg-[#1e1d1b]",
+                          )}
+                          onClick={() => onHighlightNode?.(entry.nodeId)}
+                        >
+                          <td className="px-4 py-2 text-zinc-500 font-mono">{idx + 1}</td>
+                          <td className="px-2 py-2">
+                            <div className="flex items-center gap-2">
+                              {statusIcon(entry.status)}
+                              <span className="text-zinc-200 font-medium truncate max-w-[180px]">
+                                {entry.nodeLabel}
+                              </span>
+                            </div>
+                            {/* Inline error for failed nodes */}
+                            {entry.status === "failed" && entry.error && (
+                              <div className="mt-1 ml-5">
+                                <p className="text-[10px] text-red-400/80 truncate max-w-[250px]">
+                                  {entry.error.message}
+                                </p>
+                              </div>
+                            )}
+                          </td>
+                          <td className={cn("px-2 py-2 font-medium", statusColor(entry.status))}>
+                            {statusLabel(entry.status)}
+                          </td>
+                          <td className="px-2 py-2 text-right text-zinc-400 font-mono">
+                            {formatDuration(entry.durationMs)}
+                          </td>
+                          <td className="px-2 py-2 text-right text-zinc-400 font-mono">
+                            {entry.credits ?? 0}
+                          </td>
+                          <td className="px-4 py-2 text-right">
+                            <div className="flex items-center gap-1 justify-end">
+                              {hasBrowserReplay && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setReplayNodeId(isReplayOpen ? null : entry.nodeId); }}
+                                  className={cn(
+                                    "p-1 rounded transition-colors",
+                                    isReplayOpen
+                                      ? "text-orange-400 bg-orange-500/10"
+                                      : "text-zinc-500 hover:text-orange-400 hover:bg-orange-500/10",
+                                  )}
+                                  title="Browser replay"
+                                >
+                                  <Monitor className="h-3 w-3" />
+                                </button>
+                              )}
+                              {(entry.status === "completed" || entry.status === "failed") && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); onNodeClick?.(entry.nodeId); }}
+                                  className="p-1 rounded text-zinc-500 hover:text-zinc-200 hover:bg-[#2a2826] transition-colors"
+                                  title="View output"
+                                >
+                                  <Eye className="h-3 w-3" />
+                                </button>
+                              )}
+                              {entry.status === "failed" && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); onNodeFix?.(entry.nodeId); }}
+                                  className="p-1 rounded text-red-400/70 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                                  title="Fix this node"
+                                >
+                                  <Wrench className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                        {/* Browser replay panel — expandable below the row */}
+                        {isReplayOpen && hasBrowserReplay && (
+                          <tr>
+                            <td colSpan={6} className="p-0">
+                              <BrowserReplayPanel events={browserEvents} />
+                            </td>
+                          </tr>
                         )}
-                      </td>
-                      <td className={cn("px-2 py-2 font-medium", statusColor(entry.status))}>
-                        {statusLabel(entry.status)}
-                      </td>
-                      <td className="px-2 py-2 text-right text-zinc-400 font-mono">
-                        {formatDuration(entry.durationMs)}
-                      </td>
-                      <td className="px-2 py-2 text-right text-zinc-400 font-mono">
-                        {entry.credits ?? 0}
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <div className="flex items-center gap-1 justify-end">
-                          {(entry.status === "completed" || entry.status === "failed") && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); onNodeClick?.(entry.nodeId); }}
-                              className="p-1 rounded text-zinc-500 hover:text-zinc-200 hover:bg-[#2a2826] transition-colors"
-                              title="View output"
-                            >
-                              <Eye className="h-3 w-3" />
-                            </button>
-                          )}
-                          {entry.status === "failed" && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); onNodeFix?.(entry.nodeId); }}
-                              className="p-1 rounded text-red-400/70 hover:text-red-300 hover:bg-red-500/10 transition-colors"
-                              title="Fix this node"
-                            >
-                              <Wrench className="h-3 w-3" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
 

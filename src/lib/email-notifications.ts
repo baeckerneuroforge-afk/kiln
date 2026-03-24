@@ -356,6 +356,34 @@ export async function sendTeamInviteEmail(
   );
 }
 
+export async function sendInsufficientCreditsEmail(params: {
+  to: string;
+  teamName: string;
+  balance: number;
+  requiredCredits: number;
+}) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
+  const subject = `⚠️ Scheduled workflow skipped — insufficient credits`;
+  const html = `
+    <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;padding:20px">
+      <h2 style="color:#F97316;font-size:18px;margin-bottom:8px">Scheduled Workflow Paused</h2>
+      <p style="color:#d4d4d4;font-size:14px;line-height:1.5">
+        Your scheduled workflow <strong>"${escapeHtml(params.teamName)}"</strong> was skipped because your credit balance is too low.
+      </p>
+      <div style="background:#1a1918;border:1px solid #332f2b;border-radius:8px;padding:16px;margin:16px 0">
+        <p style="margin:0"><strong>Current balance:</strong> ${params.balance} credits</p>
+        <p style="margin:8px 0 0"><strong>Minimum required:</strong> ${params.requiredCredits} credits</p>
+      </div>
+      <p style="color:#a8a29e;font-size:13px">The schedule will retry on the next cycle. Top up your credits to resume automatic execution.</p>
+      <a href="${appUrl}/dashboard/settings/billing" style="display:inline-block;background:#F97316;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500">
+        Top Up Credits
+      </a>
+      <p style="color:#888;font-size:12px;margin-top:24px">— The KILN Team</p>
+    </div>`;
+
+  await sendEmail(params.to, subject, html);
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")

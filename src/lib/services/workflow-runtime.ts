@@ -602,14 +602,40 @@ export async function executeWorkflow(
 
           case "integration":
           case "ai_tool": {
-            const integrationExecutor = category === "integration"
-              ? executeIntegrationNode
-              : executeAiNode;
-            const integrationResult = await integrationExecutor(
-              node.type,
-              node.config,
-              context
-            );
+            // Event-Collector für Live-Browser-Events und Progress
+            const MAX_STORED_SCREENSHOTS = 10;
+            const nodeEvents: Array<{ eventType: string; timestamp: number; [key: string]: unknown }> = [];
+            let screenshotCount = 0;
+
+            const onNodeEvent = category === "ai_tool"
+              ? (event: { eventType: string; [key: string]: unknown }) => {
+                  const entry: { eventType: string; timestamp: number; [key: string]: unknown } = {
+                    ...event,
+                    timestamp: Date.now(),
+                  };
+
+                  // Screenshots begrenzen um DB-Bloat zu vermeiden
+                  if (event.eventType === "browser" && event.imageData) {
+                    screenshotCount++;
+                    if (screenshotCount > MAX_STORED_SCREENSHOTS) {
+                      // Screenshot-Daten weglassen, Event trotzdem loggen
+                      delete entry.imageData;
+                      entry._screenshotDropped = true;
+                    }
+                  }
+
+                  nodeEvents.push(entry);
+                }
+              : undefined;
+
+            const integrationResult = category === "integration"
+              ? await executeIntegrationNode(node.type, node.config, context)
+              : await executeAiNode(node.type, node.config, context, onNodeEvent);
+
+            // Browser-Events in meta speichern (für Timeline-Replay)
+            const enrichedMeta = nodeEvents.length > 0
+              ? { ...integrationResult.meta, _browserEvents: nodeEvents }
+              : integrationResult.meta;
 
             if (integrationResult.success) {
               context = { ...context, ...integrationResult.contextDelta };
@@ -621,7 +647,7 @@ export async function executeWorkflow(
                 contextDelta: integrationResult.contextDelta,
                 startedAt: startTime,
                 completedAt: new Date(),
-                meta: integrationResult.meta,
+                meta: enrichedMeta,
               };
 
               queue.push(...getNormalSuccessors(node.id, edges));
@@ -634,7 +660,7 @@ export async function executeWorkflow(
                 error: integrationResult.error,
                 startedAt: startTime,
                 completedAt: new Date(),
-                meta: integrationResult.meta,
+                meta: enrichedMeta,
               };
 
               const intErrorTargets = getErrorSuccessors(node.id, edges);

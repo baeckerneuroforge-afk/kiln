@@ -764,6 +764,30 @@ export function DeepResearchConfig({ config, onChange }: ConfigProps) {
         </div>
       </div>
       <div className="space-y-1.5">
+        <FieldLabel label="Layer" hint="Welche Recherche-Methode. Auto erkennt automatisch." />
+        <div className="flex gap-2">
+          {([
+            { value: "auto", label: "Auto", desc: "Automatisch" },
+            { value: "extract", label: "Extract", desc: "0 Credits" },
+            { value: "search", label: "Search", desc: "2-5 Credits" },
+            { value: "deep", label: "Deep", desc: "10-20 Credits" },
+          ]).map((l) => (
+            <button
+              key={l.value}
+              onClick={() => onChange({ ...config, layer: l.value })}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-colors border ${
+                (config.layer || "auto") === l.value
+                  ? "border-pink-500/50 bg-pink-500/10 text-pink-400"
+                  : "border-[#332f2b] bg-[#1a1918] text-zinc-500 hover:text-zinc-400"
+              }`}
+            >
+              {l.label}
+              <span className="block text-[9px] text-zinc-600 mt-0.5">{l.desc}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1.5">
         <FieldLabel label="Sprache" />
         <div className="flex gap-2">
           {[

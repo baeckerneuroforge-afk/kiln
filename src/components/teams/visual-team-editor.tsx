@@ -168,7 +168,7 @@ interface VisualTeamEditorProps {
   executionStatus?: "idle" | "running" | "completed" | "failed";
   executionDuration?: number;
   executionCredits?: number;
-  nodeResults?: Record<string, { input?: unknown; output?: unknown; status?: "completed" | "failed" | "running"; durationMs?: number; credits?: number; error?: string; nodeLabel?: string; nodeType?: string }>;
+  nodeResults?: Record<string, { input?: unknown; output?: unknown; status?: "completed" | "failed" | "running"; durationMs?: number; credits?: number; error?: string; nodeLabel?: string; nodeType?: string; meta?: Record<string, unknown> }>;
   executionLogs?: Array<{ timestamp: string; level: "info" | "warn" | "error" | "success"; message: string; nodeId?: string }>;
 }
 
@@ -1966,6 +1966,7 @@ function VisualTeamEditorInner({
         error: result.error ? { type: "runtime_error", message: result.error } : undefined,
         input: result.input,
         output: result.output,
+        meta: result.meta,
       });
     }
 

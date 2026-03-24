@@ -3,7 +3,7 @@ import { waitUntil } from "@vercel/functions";
 import { cleanupOrchestrationLogs } from "@/lib/orchestration-logger";
 import { Prisma } from "@prisma/client";
 import { getClaudeClient } from "@/lib/ai";
-import { deductCredits } from "@/lib/credits";
+import { checkCredits, deductCredits } from "@/lib/credits";
 import { sendTeamScheduleCompletionEmail } from "@/lib/email-notifications";
 import { prisma } from "@/lib/prisma";
 import {
@@ -104,6 +104,9 @@ Respond ONLY with a valid JSON array, no other text.`,
   }));
 }
 
+// Minimum credits required to start a scheduled workflow
+const SCHEDULED_MIN_CREDITS = 5;
+
 async function runScheduledTeamExecution(params: {
   teamId: string;
   userId: string;
@@ -112,6 +115,22 @@ async function runScheduledTeamExecution(params: {
   notifyOnComplete: boolean;
   notifyEmail: string;
 }) {
+  // Credit pre-check — abort early if insufficient balance
+  const creditCheck = await checkCredits(params.userId, "claude-sonnet-4-6", false);
+  if (!creditCheck.allowed || creditCheck.balance < SCHEDULED_MIN_CREDITS) {
+    // Notify user if email is configured
+    if (params.notifyEmail) {
+      const { sendInsufficientCreditsEmail } = await import("@/lib/email-notifications");
+      await sendInsufficientCreditsEmail({
+        to: params.notifyEmail,
+        teamName: params.goal,
+        balance: creditCheck.balance,
+        requiredCredits: SCHEDULED_MIN_CREDITS,
+      }).catch(() => {});
+    }
+    throw new Error(`Insufficient credits (${creditCheck.balance}/${SCHEDULED_MIN_CREDITS}) — scheduled execution skipped.`);
+  }
+
   const team = await loadTeamExecutionRuntimeContext(params.teamId, params.userId);
   if (!team) {
     throw new Error("Team not found");

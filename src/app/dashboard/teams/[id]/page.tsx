@@ -1969,7 +1969,7 @@ function TeamDetailInner() {
   const [wfExecStatus, setWfExecStatus] = useState<"idle" | "running" | "completed" | "failed">("idle");
   const [wfExecDuration, setWfExecDuration] = useState<number | undefined>();
   const [wfExecCredits, setWfExecCredits] = useState<number | undefined>();
-  const [wfNodeResults, setWfNodeResults] = useState<Record<string, { input?: unknown; output?: unknown; status?: "completed" | "failed" | "running"; durationMs?: number; credits?: number; error?: string; nodeLabel?: string; nodeType?: string }>>({});
+  const [wfNodeResults, setWfNodeResults] = useState<Record<string, { input?: unknown; output?: unknown; status?: "completed" | "failed" | "running"; durationMs?: number; credits?: number; error?: string; nodeLabel?: string; nodeType?: string; meta?: Record<string, unknown> }>>({});
   const wfExecPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [wfExecLogs, setWfExecLogs] = useState<Array<{ timestamp: string; level: "info" | "warn" | "error" | "success"; message: string; nodeId?: string }>>([]);
 
@@ -2391,7 +2391,7 @@ function TeamDetailInner() {
           }>;
 
           // Build enhanced node results from execution logs
-          const results: Record<string, { input?: unknown; output?: unknown; status?: "completed" | "failed" | "running"; durationMs?: number; credits?: number; error?: string; nodeLabel?: string; nodeType?: string }> = {};
+          const results: Record<string, { input?: unknown; output?: unknown; status?: "completed" | "failed" | "running"; durationMs?: number; credits?: number; error?: string; nodeLabel?: string; nodeType?: string; meta?: Record<string, unknown> }> = {};
           let totalCredits = 0;
 
           for (const entry of timeline) {
@@ -2403,6 +2403,12 @@ function TeamDetailInner() {
               : "running";
             const durationMs = lastAttempt?.durationMs ?? undefined;
 
+            // Extract meta (including _browserEvents) from attempt input
+            const attemptInput = lastAttempt?.input as Record<string, unknown> | null;
+            const meta = attemptInput && typeof attemptInput === "object"
+              ? attemptInput
+              : undefined;
+
             results[entry.nodeId] = {
               status,
               input: lastAttempt?.input,
@@ -2412,6 +2418,7 @@ function TeamDetailInner() {
               error: entry.latestError || undefined,
               nodeLabel,
               nodeType: entry.nodeType || undefined,
+              meta,
             };
 
             if (status === "completed") totalCredits++;

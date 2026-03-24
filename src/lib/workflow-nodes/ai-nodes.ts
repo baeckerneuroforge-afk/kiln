@@ -217,10 +217,17 @@ const KNOWLEDGE_EXTRACTABLE_TYPES = new Set([
   "multi_site",
 ]);
 
+/** Callback für Live-Events aus AI-Nodes (Browser-Events, Progress etc.) */
+export type NodeEventCallback = (event: {
+  eventType: string;
+  [key: string]: unknown;
+}) => void;
+
 export async function executeAiNode(
   nodeType: string,
   config: Record<string, unknown>,
-  context: ExpressionContext
+  context: ExpressionContext,
+  onNodeEvent?: NodeEventCallback,
 ): Promise<ActionNodeResult> {
   let result: ActionNodeResult;
 
@@ -234,12 +241,31 @@ export async function executeAiNode(
     case "ai_extract":
       result = await executeAiExtract(config, context);
       break;
-    case "computer_use":
-      result = await executeComputerUse(config, context);
+    case "computer_use": {
+      // Browser-Events und Progress an Workflow-Runtime durchreichen
+      const cuConfig = { ...config };
+      if (onNodeEvent) {
+        cuConfig.onBrowserEvent = (event: Record<string, unknown>) => {
+          onNodeEvent({ eventType: "browser", ...event });
+        };
+        cuConfig.onProgress = (message: string) => {
+          onNodeEvent({ eventType: "progress", message });
+        };
+      }
+      result = await executeComputerUse(cuConfig, context);
       break;
-    case "deep_research":
-      result = await executeDeepResearch(config, context);
+    }
+    case "deep_research": {
+      // Progress-Events an Workflow-Runtime durchreichen
+      const drConfig = { ...config };
+      if (onNodeEvent) {
+        drConfig.onProgress = (message: string) => {
+          onNodeEvent({ eventType: "progress", message });
+        };
+      }
+      result = await executeDeepResearch(drConfig, context);
       break;
+    }
     case "code_sandbox":
       result = await executeCodeSandbox(config, context);
       break;

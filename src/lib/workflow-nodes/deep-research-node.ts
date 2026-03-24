@@ -282,6 +282,9 @@ export async function executeDeepResearch(
 ): Promise<ActionNodeResult> {
   const topic = resolveExpression(String(config.topic || ""), context);
   const depthOverride = config.depth ? String(config.depth) as ResearchDepth : undefined;
+  const layerOverride = config.layer && config.layer !== "auto"
+    ? String(config.layer) as ResearchLayer
+    : undefined;
   const resultKey = String(config.resultKey || "researchResult");
   const language = String(config.language || "en");
   const onProgress = typeof config.onProgress === "function"
@@ -293,7 +296,7 @@ export async function executeDeepResearch(
   }
 
   const startTime = Date.now();
-  const layer = detectResearchLayer(topic);
+  const layer = layerOverride || detectResearchLayer(topic);
   const depth = depthOverride || layerToDepth(layer);
   const depthConfig = DEPTH_CONFIG[depth] || DEPTH_CONFIG.standard;
 

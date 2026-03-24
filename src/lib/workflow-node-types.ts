@@ -503,6 +503,7 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
     defaultConfig: {
       topic: "",
       depth: "standard",
+      layer: "auto",
       language: "de",
       resultKey: "researchResult",
     },
