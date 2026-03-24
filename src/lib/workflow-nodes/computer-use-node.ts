@@ -67,6 +67,10 @@ import {
   extractSearchQuery,
   isProductPage,
 } from "@/lib/browser/site-recipes";
+import {
+  learnFromExecution,
+  getExecutionStrategy,
+} from "@/lib/browser/collective-learning";
 
 const COMPUTER_USE_MODEL = "claude-sonnet-4-6";
 const VISION_MODEL = "claude-sonnet-4-6";
@@ -910,8 +914,127 @@ async function executeWithRealBrowser(
       );
     }
 
+    // ── COLLECTIVE INTELLIGENCE SHORTCUT ──
+    // Priority 1: Dynamic recipes from aggregated execution data
+    if (taskType === "data_extraction" || taskType === "search" || taskType === "comparison") {
+      try {
+        const intelligenceStrategy = await getExecutionStrategy(currentUrl);
+        if (intelligenceStrategy && intelligenceStrategy.recipe && intelligenceStrategy.confidence >= 0.7) {
+          onProgress?.(`Collective intelligence found for ${intelligenceStrategy.domain} (${Math.round(intelligenceStrategy.confidence * 100)}% confidence, ${intelligenceStrategy.executionCount} executions).`);
+
+          const { recipe: dynRecipe, domain: dynDomain } = intelligenceStrategy;
+          let dynResult: Awaited<ReturnType<typeof executeRecipeProductExtraction>> | null = null;
+
+          if (isProductPage(currentUrl) && dynRecipe.product) {
+            dynResult = await executeRecipeProductExtraction(browserSession, currentUrl, dynRecipe, dynDomain);
+          } else {
+            const searchQuery = extractSearchQuery(task);
+            if (searchQuery && dynRecipe.search && dynRecipe.searchResults) {
+              dynResult = await executeRecipeSearch(browserSession, currentUrl, dynRecipe, dynDomain, searchQuery);
+            } else if (dynRecipe.product) {
+              dynResult = await executeRecipeProductExtraction(browserSession, currentUrl, dynRecipe, dynDomain);
+            }
+          }
+
+          if (dynResult?.success && Object.keys(dynResult.data).length > 0) {
+            emitFinding(dynResult.data, "collective_intelligence");
+            evidenceCollector.recordRecipeExtraction(dynResult.data, currentUrl, dynDomain, dynRecipe.product);
+            onProgress?.(`Intelligence extraction completed in ${dynResult.durationMs}ms (0 credits, ${intelligenceStrategy.executionCount} prior executions).`);
+
+            // Learn from success (non-blocking)
+            if (dynRecipe.product) {
+              learnFromExecution({
+                url: currentUrl,
+                task,
+                successfulSelectors: dynRecipe.product,
+                fieldsFound: dynResult.fieldsFound,
+                extractionMethod: "collective_intelligence",
+                durationMs: dynResult.durationMs,
+              }).catch(() => {});
+            }
+
+            finalExtractedData = dynResult.data;
+            finalSummary = `Extracted data from ${dynDomain} using collective intelligence (${dynResult.fieldsFound.length} fields, ${dynResult.durationMs}ms, 0 credits).`;
+            completionReason = "done";
+
+            steps.push({
+              stepIndex: 0,
+              url: currentUrl,
+              action: "extract_data",
+              actionDetail: `Intelligence: ${dynDomain} → ${dynResult.fieldsFound.join(", ")} [${dynResult.durationMs}ms, 0 Credits, ${intelligenceStrategy.executionCount} prior]`,
+              htmlSummary: extractHtmlSummary(lastContent),
+              screenshot: captureScreenshots ? await takeBrowserScreenshot(browserSession) : null,
+              extractedData: dynResult.data,
+              timestamp: new Date().toISOString(),
+              durationMs: dynResult.durationMs,
+            });
+
+            onBrowserEvent?.({
+              eventType: "action",
+              stepIndex: 0,
+              action: "extract_data",
+              actionDetail: `Intelligence: ${dynDomain} → ${dynResult.fieldsFound.join(", ")}`,
+              url: currentUrl,
+              success: true,
+              durationMs: dynResult.durationMs,
+            });
+            onBrowserEvent?.({
+              eventType: "step_complete",
+              stepIndex: 0,
+              action: "extract_data",
+              success: true,
+            });
+
+            costOptimizer.recordCost({
+              action: "extract_data",
+              model: "dom",
+              credits: 0,
+              wasScreenshot: false,
+              wasDomOnly: true,
+            });
+
+            await closeBrowserSession(browserSession.id);
+
+            if (enableProceduralMemory && agentId) {
+              saveProcedure(agentId, startUrl, task, steps, true).catch(() => {});
+            }
+
+            const chain = evidenceCollector.getChain();
+            return {
+              steps,
+              summary: finalSummary,
+              extractedData: {
+                ...finalExtractedData,
+                _evidence: evidenceCollector.buildSourceMetadata(),
+                _qualityScore: chain.qualityScore,
+              },
+              completionReason,
+              sessionId: browserSession.id,
+              browserBackend: browserSession.backend,
+              warning: browserSession.warning,
+              reasoningLog: reasoningLogger.toJSON(),
+              verificationLog: [],
+              reliabilityStats: {
+                ...metrics.getSessionStats(),
+                elementFinderStats: elementFinder.getStats(),
+                costOptimizerStats: costOptimizer.getSummary(),
+                pageAnalyzerStats: pageAnalyzer.getStats(),
+                obstacleStats: obstacleHandler.getStats(),
+                extractorStats: smartExtractor.getStats(),
+                intelligenceUsed: dynDomain,
+                intelligenceConfidence: intelligenceStrategy.confidence,
+              },
+            };
+          }
+          // Intelligence recipe failed — fall through to static recipes
+        }
+      } catch {
+        // Intelligence lookup failed — continue with static recipes
+      }
+    }
+
     // ── SITE RECIPE SHORTCUT ──
-    // For known sites: 0 LLM calls, pure DOM extraction, 2-5 seconds
+    // Priority 2: Static recipes for known sites — 0 LLM calls, pure DOM extraction
     const recipeMatch = getRecipeForUrl(currentUrl);
     if (recipeMatch && (taskType === "data_extraction" || taskType === "search" || taskType === "comparison")) {
       const { recipe, domain: recipeDomain } = recipeMatch;
@@ -938,6 +1061,22 @@ async function executeWithRealBrowser(
         emitFinding(recipeResult.data, "recipe");
         evidenceCollector.recordRecipeExtraction(recipeResult.data, currentUrl, recipeDomain, recipe.product);
         onProgress?.(`Recipe extraction completed in ${recipeResult.durationMs}ms (0 credits).`);
+
+        // Learn from static recipe success (non-blocking)
+        if (recipe.product) {
+          learnFromExecution({
+            url: currentUrl,
+            task,
+            successfulSelectors: recipe.product,
+            fieldsFound: recipeResult.fieldsFound,
+            extractionMethod: "recipe",
+            recipeUsed: recipeDomain,
+            obstaclesDismissed: recipe.obstacles ? Object.fromEntries(
+              Object.entries(recipe.obstacles).filter((e): e is [string, string] => !!e[1]),
+            ) : undefined,
+            durationMs: recipeResult.durationMs,
+          }).catch(() => {});
+        }
 
         finalExtractedData = recipeResult.data;
         finalSummary = `Extracted data from ${recipeDomain} using optimized recipe (${recipeResult.fieldsFound.length} fields, ${recipeResult.durationMs}ms, 0 credits).`;
@@ -1035,6 +1174,19 @@ async function executeWithRealBrowser(
             buildKnownSelectors(currentPageAnalysis.structure),
           );
           onProgress?.("Data extracted directly from page (no Vision needed).");
+
+          // Learn from SmartExtractor success (non-blocking)
+          const knownSels = buildKnownSelectors(currentPageAnalysis.structure);
+          if (knownSels && Object.keys(knownSels).length > 0) {
+            learnFromExecution({
+              url: currentUrl,
+              task,
+              successfulSelectors: knownSels,
+              fieldsFound: directExtraction.fieldsFound,
+              extractionMethod: directExtraction.method || "css_selector",
+              durationMs: 0,
+            }).catch(() => {});
+          }
 
           finalExtractedData = directExtraction.data;
           finalSummary = `Extracted ${directExtraction.fieldsFound.length} fields directly from DOM.`;
@@ -1237,6 +1389,17 @@ async function executeWithRealBrowser(
             emitFinding(claudeAction.extracted_data, "done_action");
             evidenceCollector.setCurrentStep(i);
             evidenceCollector.recordVisionExtraction(claudeAction.extracted_data, currentUrl, 0.8);
+
+            // Learn from LLM-loop success (non-blocking)
+            // This helps future executions on same domain skip the expensive LLM loop
+            learnFromExecution({
+              url: currentUrl,
+              task,
+              successfulSelectors: {}, // LLM-loop doesn't have explicit selectors
+              fieldsFound: Object.keys(claudeAction.extracted_data).filter((k) => !k.startsWith("_")),
+              extractionMethod: "vision",
+              durationMs: Date.now() - stepStart,
+            }).catch(() => {});
           }
 
           onBrowserEvent?.({
@@ -1783,6 +1946,19 @@ async function executeWithRealBrowser(
               `Step ${i + 1}: ${claudeAction.reasoning || "extraction"}`,
               currentPageAnalysis ? buildKnownSelectors(currentPageAnalysis.structure) : undefined,
             );
+
+            // Learn from in-loop extraction (non-blocking)
+            const extractSels = currentPageAnalysis ? buildKnownSelectors(currentPageAnalysis.structure) : {};
+            if (extractSels && Object.keys(extractSels).length > 0) {
+              learnFromExecution({
+                url: currentUrl,
+                task,
+                successfulSelectors: extractSels,
+                fieldsFound: Object.keys(extracted).filter((k) => !k.startsWith("_")),
+                extractionMethod: methodUsed,
+                durationMs: Date.now() - stepStart,
+              }).catch(() => {});
+            }
           }
           continue;
         }

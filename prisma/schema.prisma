@@ -2198,3 +2198,29 @@ model DataQueryLog {
   @@index([dataConnectionId, createdAt])
   @@index([userId, createdAt])
 }
+
+// ── Feature: Collective Learning (Site Intelligence) ──────────────────────────
+
+model SiteIntelligence {
+  id             String   @id @default(cuid())
+  domain         String   // z.B. "amazon.de"
+  pathPattern    String   // z.B. "/dp/:id", "/s", "/"
+  dataType       String   // "product_selector", "search_selector", "obstacle_selector", "page_pattern"
+  selectorKey    String   // z.B. "title", "price", "cookieBanner"
+  selectorValue  String   // z.B. "#productTitle", ".a-price .a-offscreen"
+  successCount   Int      @default(1)
+  failCount      Int      @default(0)
+  confidence     Float    @default(0.5) // 0-1, steigt mit Erfolgen
+  lastSeenAt     DateTime @default(now())
+  lastFailedAt   DateTime?
+  source         String   @default("execution") // "execution", "static_recipe", "manual"
+  metadata       Json?    // Zusätzliche Infos (z.B. alternatives Selectors)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([domain, pathPattern, dataType, selectorKey])
+  @@index([domain])
+  @@index([domain, pathPattern])
+  @@index([confidence])
+  @@index([lastSeenAt])
+}
