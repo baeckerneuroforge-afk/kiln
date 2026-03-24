@@ -27,7 +27,7 @@ import {
   summarizeVerification,
   type VerificationSummary,
 } from "./hallucination-guard";
-import { generateFile } from "@/lib/output/file-generator";
+import { generateFile, buildSmartFileName } from "@/lib/output/file-generator";
 
 /* ── Types ── */
 
@@ -331,21 +331,21 @@ export class IntelligentMerge {
       if (resultType === "comparison" && comparisonRows.length > 0) {
         files.push(await generateFile({
           kind: "xlsx",
-          fileName: `agent-swarm-comparison-${Date.now()}.xlsx`,
+          fileName: buildSmartFileName(originalGoal, "Vergleich", "xlsx"),
           data: comparisonRows,
           title: originalGoal.slice(0, 80),
           userId: this.userId,
         }));
         files.push(await generateFile({
           kind: "csv",
-          fileName: `agent-swarm-comparison-${Date.now()}.csv`,
+          fileName: buildSmartFileName(originalGoal, "Vergleich", "csv"),
           data: comparisonRows,
           userId: this.userId,
         }));
       } else if (resultType === "research") {
         files.push(await generateFile({
           kind: "pdf",
-          fileName: `agent-swarm-report-${Date.now()}.pdf`,
+          fileName: buildSmartFileName(originalGoal, "Report", "pdf"),
           content: markdown,
           title: originalGoal.slice(0, 80),
           userId: this.userId,
@@ -353,7 +353,7 @@ export class IntelligentMerge {
       } else if ((resultType === "price_list" || resultType === "list") && comparisonRows.length > 0) {
         files.push(await generateFile({
           kind: "csv",
-          fileName: `agent-swarm-data-${Date.now()}.csv`,
+          fileName: buildSmartFileName(originalGoal, "Daten", "csv"),
           data: comparisonRows,
           userId: this.userId,
         }));

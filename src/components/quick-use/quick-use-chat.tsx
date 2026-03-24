@@ -362,18 +362,232 @@ function GeneratedFileCard({ file }: { file: QuickUseGeneratedFile }) {
     <a
       href={file.url}
       download={file.name}
-      className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.03] p-3 transition-colors hover:border-white/14 hover:bg-white/[0.06]"
+      className="flex items-center gap-3 rounded-xl border border-orange-500/20 bg-orange-500/[0.06] p-3 transition-colors hover:border-orange-500/30 hover:bg-orange-500/[0.1]"
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/6 bg-white/[0.04]">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/10">
         <GeneratedFileIcon kind={file.kind} />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-white">{file.name}</p>
         <p className="text-xs text-zinc-400">{file.kind.toUpperCase()} &middot; {formatFileSize(file.size)}</p>
       </div>
-      <Download className="h-4 w-4 shrink-0 text-zinc-400" />
+      <Download className="h-4 w-4 shrink-0 text-orange-400" />
     </a>
   );
+}
+
+/** On-demand file generation button — calls /api/quick-use/generate-file */
+function OnDemandFileButton({
+  kind,
+  label,
+  icon: Icon,
+  data,
+  markdown,
+  topic,
+  title,
+  onGenerated,
+}: {
+  kind: "xlsx" | "pdf" | "docx" | "csv";
+  label: string;
+  icon: LucideIcon;
+  data?: Record<string, unknown>[];
+  markdown?: string;
+  topic?: string;
+  title?: string;
+  onGenerated: (file: QuickUseGeneratedFile) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const handleClick = async () => {
+    if (loading || done) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/quick-use/generate-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind, data, markdown, topic, title }),
+      });
+      const json = await res.json();
+      if (json.file) {
+        onGenerated(json.file);
+        setDone(true);
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={loading || done}
+      className={cn(
+        "flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
+        done
+          ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400"
+          : "border-white/8 bg-white/[0.02] text-zinc-400 hover:border-white/14 hover:text-zinc-200",
+      )}
+    >
+      {loading ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <Icon className="h-3.5 w-3.5" />
+      )}
+      {done ? "Created" : label}
+    </button>
+  );
+}
+
+/** Preview first rows of tabular data */
+function DataPreviewTable({ data }: { data: Record<string, unknown>[] }) {
+  if (!data || data.length === 0) return null;
+  const headers = Object.keys(data[0]);
+  const previewRows = data.slice(0, 5);
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-white/6 bg-black/20">
+      <table className="w-full text-left text-[11px]">
+        <thead>
+          <tr className="border-b border-white/6 bg-white/[0.03]">
+            {headers.map((h) => (
+              <th key={h} className="px-3 py-1.5 font-semibold text-zinc-400 whitespace-nowrap">
+                {h}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {previewRows.map((row, i) => (
+            <tr key={i} className="border-b border-white/[0.03]">
+              {headers.map((h) => (
+                <td key={h} className="px-3 py-1.5 text-zinc-300 whitespace-nowrap max-w-[200px] truncate">
+                  {String(row[h] ?? "")}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {data.length > 5 && (
+        <p className="px-3 py-1.5 text-[10px] text-zinc-600">
+          +{data.length - 5} more rows
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Combined file output section: auto-generated downloads + on-demand buttons + preview */
+function FileOutputSection({
+  result,
+  onFileGenerated,
+}: {
+  result: QuickUseResult;
+  onFileGenerated: (file: QuickUseGeneratedFile) => void;
+}) {
+  const [extraFiles, setExtraFiles] = useState<QuickUseGeneratedFile[]>([]);
+  const allFiles = [...(result.generatedFiles || []), ...extraFiles];
+  const hasMarkdown = !!result.markdown && result.markdown.length > 100;
+  const hasTable = !!result.markdown && /\|.*\|.*\|/m.test(result.markdown);
+
+  // Determine which on-demand options to show (exclude already-generated types)
+  const existingKinds = new Set(allFiles.map((f) => f.kind));
+  const onDemandOptions: Array<{
+    kind: "xlsx" | "pdf" | "docx" | "csv";
+    label: string;
+    icon: LucideIcon;
+    show: boolean;
+  }> = [
+    { kind: "xlsx", label: "Excel", icon: FileSpreadsheet, show: hasTable && !existingKinds.has("xlsx") },
+    { kind: "pdf", label: "PDF", icon: FileText, show: hasMarkdown && !existingKinds.has("pdf") },
+    { kind: "docx", label: "Word", icon: FileType2, show: hasMarkdown && !existingKinds.has("docx") },
+    { kind: "csv", label: "CSV", icon: FileSpreadsheet, show: hasTable && !existingKinds.has("csv") },
+  ];
+  const visibleOptions = onDemandOptions.filter((o) => o.show);
+
+  // Extract table data for preview
+  const tableData = hasTable ? extractPreviewTable(result.markdown!) : null;
+
+  const handleGenerated = (file: QuickUseGeneratedFile) => {
+    setExtraFiles((prev) => [...prev, file]);
+    onFileGenerated(file);
+  };
+
+  if (allFiles.length === 0 && visibleOptions.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      {/* Auto-generated file downloads (prominent) */}
+      {allFiles.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-400/70">
+            Downloads
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {allFiles.map((file) => (
+              <GeneratedFileCard key={`${file.name}-${file.url}`} file={file} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Data preview for table results */}
+      {tableData && tableData.length > 0 && (
+        <DataPreviewTable data={tableData} />
+      )}
+
+      {/* On-demand generation buttons */}
+      {visibleOptions.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-600">
+            Or generate
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {visibleOptions.map((opt) => (
+              <OnDemandFileButton
+                key={opt.kind}
+                kind={opt.kind}
+                label={opt.label}
+                icon={opt.icon}
+                data={tableData ?? undefined}
+                markdown={result.markdown}
+                topic={result.title}
+                title={result.title}
+                onGenerated={handleGenerated}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Extract first N rows from a markdown table for preview */
+function extractPreviewTable(markdown: string): Record<string, string>[] | null {
+  const lines = markdown.split("\n");
+  const tableLines = lines.filter((l) => l.trim().startsWith("|") && l.trim().endsWith("|"));
+  if (tableLines.length < 3) return null;
+
+  const headerLine = tableLines[0];
+  const headers = headerLine.split("|").map((h) => h.trim()).filter(Boolean);
+  if (headers.length === 0) return null;
+
+  const dataLines = tableLines.slice(2);
+  const rows: Record<string, string>[] = [];
+
+  for (const line of dataLines) {
+    const cells = line.split("|").map((c) => c.trim()).filter((_, i, arr) => i > 0 && i < arr.length);
+    if (cells.length === 0) continue;
+    const row: Record<string, string> = {};
+    headers.forEach((h, i) => { row[h] = cells[i] || ""; });
+    rows.push(row);
+  }
+
+  return rows.length > 0 ? rows : null;
 }
 
 /* ── UI Components ── */
@@ -1087,18 +1301,13 @@ function ResultCard({
             </div>
           ) : null}
 
-          {prepared.generatedFiles?.length ? (
-            <div className="space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
-                Generated Files
-              </p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {prepared.generatedFiles.map((file) => (
-                  <GeneratedFileCard key={`${file.name}-${file.url}`} file={file} />
-                ))}
-              </div>
-            </div>
-          ) : null}
+          <FileOutputSection
+            result={prepared}
+            onFileGenerated={(file) => {
+              // Add to the result's generated files (local state update)
+              prepared.generatedFiles = [...(prepared.generatedFiles || []), file];
+            }}
+          />
 
           {prepared.artifacts?.length ? (
             <div className="grid gap-3 md:grid-cols-2">

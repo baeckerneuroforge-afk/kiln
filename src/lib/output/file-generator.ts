@@ -1,23 +1,18 @@
 /**
  * File Generator — Erzeugt Excel, PDF, Word und CSV-Dateien.
- * Nutzt E2B Sandbox für Excel/PDF/Word-Generierung.
- * CSV wird direkt ohne Sandbox erzeugt.
+ *
+ * Strategie: Lokale Node.js-Generierung (ExcelJS, PDFKit) als Standard.
+ * E2B-Sandbox nur wenn explizit angefordert (z.B. für Python-Code-Execution).
  * Ergebnis wird in Supabase Storage gespeichert (7 Tage TTL).
  */
 
 import { getSupabaseAdmin } from "@/lib/supabase";
-import {
-  isCodeSandboxAvailable,
-  createSandbox,
-  executeCode,
-  destroySandbox,
-} from "@/lib/sandbox/code-sandbox";
 import type { QuickUseGeneratedFile } from "@/lib/quick-use/types";
 
 const OUTPUT_BUCKET = "agent-artifacts";
 const SIGNED_URL_TTL = 7 * 24 * 60 * 60; // 7 days
 
-interface FileGenerationRequest {
+export interface FileGenerationRequest {
   kind: "xlsx" | "pdf" | "docx" | "csv";
   fileName: string;
   /** Structured data for spreadsheets/tables */
@@ -32,7 +27,7 @@ interface FileGenerationRequest {
 
 /**
  * Generates a file and uploads it to Supabase Storage.
- * Returns a QuickUseGeneratedFile with a signed download URL.
+ * Uses local Node.js libraries — no sandbox needed.
  */
 export async function generateFile(
   request: FileGenerationRequest
@@ -41,17 +36,54 @@ export async function generateFile(
     case "csv":
       return generateCsv(request);
     case "xlsx":
-      return generateExcel(request);
+      return generateExcelLocal(request);
     case "pdf":
-      return generatePdf(request);
+      return generatePdfLocal(request);
     case "docx":
-      return generateDocx(request);
+      return generateDocxLocal(request);
     default:
       throw new Error(`Nicht unterstützter Dateityp: ${request.kind}`);
   }
 }
 
-/* ── CSV (no sandbox needed) ── */
+/* ── Smart File Naming ── */
+
+const STOP_WORDS = new Set([
+  "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of",
+  "with", "by", "from", "is", "are", "was", "were", "be", "been", "being",
+  "have", "has", "had", "do", "does", "did", "will", "would", "could", "should",
+  "may", "might", "shall", "can", "need", "must", "der", "die", "das", "und",
+  "oder", "aber", "in", "auf", "an", "zu", "für", "von", "mit", "bei", "aus",
+  "ist", "sind", "war", "hat", "ein", "eine", "einen", "einem", "einer",
+  "compare", "find", "search", "get", "show", "list", "what", "how", "which",
+  "vergleiche", "finde", "suche", "zeige", "was", "wie", "welche",
+]);
+
+/**
+ * Builds a meaningful file name from the user's topic/message.
+ * Pattern: Topic-Type-YYYY-MM-DD.ext
+ */
+export function buildSmartFileName(
+  topic: string,
+  fileType: string,
+  ext: string,
+): string {
+  const words = topic
+    .replace(/https?:\/\/\S+/g, "") // strip URLs
+    .replace(/[^a-zA-ZäöüÄÖÜß0-9\s-]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !STOP_WORDS.has(w.toLowerCase()))
+    .slice(0, 4);
+
+  const topicSlug = words.length > 0
+    ? words.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("-")
+    : "KILN-Output";
+
+  const date = new Date().toISOString().slice(0, 10);
+  return `${topicSlug}-${fileType}-${date}.${ext}`;
+}
+
+/* ── CSV (no dependencies) ── */
 
 async function generateCsv(req: FileGenerationRequest): Promise<QuickUseGeneratedFile> {
   const rows = Array.isArray(req.data) ? req.data : [];
@@ -69,13 +101,7 @@ async function generateCsv(req: FileGenerationRequest): Promise<QuickUseGenerate
   const csvContent = csvLines.join("\n");
   const buffer = Buffer.from(csvContent, "utf-8");
 
-  return uploadGeneratedFile(
-    buffer,
-    req.fileName || "output.csv",
-    "text/csv",
-    "csv",
-    req.userId
-  );
+  return uploadGeneratedFile(buffer, req.fileName || "output.csv", "text/csv", "csv", req.userId);
 }
 
 function escapeCsvField(field: string): string {
@@ -85,266 +111,192 @@ function escapeCsvField(field: string): string {
   return field;
 }
 
-/* ── Excel (via E2B sandbox) ── */
+/* ── Excel (local — ExcelJS) ── */
 
-async function generateExcel(req: FileGenerationRequest): Promise<QuickUseGeneratedFile> {
-  if (!isCodeSandboxAvailable()) {
-    throw new Error("Code-Sandbox nicht verfügbar (E2B_API_KEY fehlt)");
-  }
-
-  const dataJson = JSON.stringify(req.data || []);
-  const title = req.title || "Report";
+async function generateExcelLocal(req: FileGenerationRequest): Promise<QuickUseGeneratedFile> {
+  const ExcelJS = await import("exceljs");
+  const workbook = new ExcelJS.default.Workbook();
   const fileName = req.fileName || "output.xlsx";
 
-  const pythonCode = `
-import json
-import base64
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+  // Handle dict of sheets or single array
+  const sheetsData: Record<string, Record<string, unknown>[]> =
+    Array.isArray(req.data)
+      ? { Data: req.data }
+      : (req.data as Record<string, Record<string, unknown>[]>) || { Data: [] };
 
-data = json.loads('''${dataJson.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}''')
-title = "${title.replace(/"/g, '\\"')}"
+  for (const [sheetName, rows] of Object.entries(sheetsData)) {
+    if (!Array.isArray(rows) || rows.length === 0) continue;
 
-wb = openpyxl.Workbook()
+    const sheet = workbook.addWorksheet(sheetName);
+    const headers = Object.keys(rows[0]);
 
-# Handle dict of sheets or single array
-if isinstance(data, dict):
-    sheets_data = data
-else:
-    sheets_data = {"Data": data}
+    // Define columns
+    sheet.columns = headers.map((h) => ({
+      header: h,
+      key: h,
+      width: Math.min(
+        Math.max(
+          h.length + 2,
+          ...rows.slice(0, 100).map((r) => String(r[h] ?? "").length),
+          10,
+        ) + 2,
+        50,
+      ),
+    }));
 
-first = True
-for sheet_name, rows in sheets_data.items():
-    if not isinstance(rows, list) or len(rows) == 0:
-        continue
-    ws = wb.active if first else wb.create_sheet(sheet_name)
-    if first:
-        ws.title = sheet_name
-        first = False
+    // Style header row — KILN orange
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFF97316" },
+    };
+    headerRow.alignment = { horizontal: "center" };
 
-    headers = list(rows[0].keys()) if rows else []
+    // Add data rows (max 2000)
+    for (const row of rows.slice(0, 2000)) {
+      const values: Record<string, unknown> = {};
+      for (const h of headers) {
+        values[h] = row[h] ?? "";
+      }
+      sheet.addRow(values);
+    }
 
-    # Header styling
-    header_fill = PatternFill(start_color="F97316", end_color="F97316", fill_type="solid")
-    header_font = Font(bold=True, color="FFFFFF", size=11)
-    thin_border = Border(
-        bottom=Side(style="thin", color="DDDDDD")
-    )
+    // Freeze header
+    sheet.views = [{ state: "frozen", ySplit: 1 }];
+  }
 
-    for col_idx, header in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col_idx, value=header)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal="center")
+  const arrayBuffer = await workbook.xlsx.writeBuffer();
+  const buffer = Buffer.from(arrayBuffer);
 
-    # Data rows
-    for row_idx, row in enumerate(rows[:2000], 2):
-        for col_idx, header in enumerate(headers, 1):
-            cell = ws.cell(row=row_idx, column=col_idx, value=row.get(header, ""))
-            cell.border = thin_border
-
-    # Auto-width columns
-    for col_idx, header in enumerate(headers, 1):
-        max_len = max(
-            len(str(header)),
-            max((len(str(row.get(header, ""))) for row in rows[:100]), default=0)
-        )
-        ws.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = min(max_len + 4, 50)
-
-    # Freeze header row
-    ws.freeze_panes = "A2"
-
-output_path = "/tmp/${fileName}"
-wb.save(output_path)
-
-with open(output_path, "rb") as f:
-    content = f.read()
-    print("FILE_BASE64:" + base64.b64encode(content).decode())
-    print("FILE_SIZE:" + str(len(content)))
-`;
-
-  return executeSandboxAndUpload(pythonCode, fileName,
+  return uploadGeneratedFile(
+    buffer, fileName,
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "xlsx", req.userId, ["openpyxl"]);
+    "xlsx", req.userId,
+  );
 }
 
-/* ── PDF (via E2B sandbox) ── */
+/* ── PDF (local — PDFKit) ── */
 
-async function generatePdf(req: FileGenerationRequest): Promise<QuickUseGeneratedFile> {
-  if (!isCodeSandboxAvailable()) {
-    throw new Error("Code-Sandbox nicht verfügbar (E2B_API_KEY fehlt)");
-  }
-
-  const content = (req.content || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n");
-  const title = (req.title || "Report").replace(/"/g, '\\"');
+async function generatePdfLocal(req: FileGenerationRequest): Promise<QuickUseGeneratedFile> {
+  const PDFDocument = (await import("pdfkit")).default;
   const fileName = req.fileName || "output.pdf";
+  const title = req.title || "Report";
+  const content = req.content || "";
 
-  const pythonCode = `
-import base64
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import mm
-from reportlab.lib.colors import HexColor
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+  return new Promise<QuickUseGeneratedFile>((resolve, reject) => {
+    const doc = new PDFDocument({
+      size: "A4",
+      margins: { top: 72, bottom: 72, left: 72, right: 72 },
+      info: {
+        Title: title,
+        Creator: "KILN",
+      },
+    });
 
-output_path = "/tmp/${fileName}"
-doc = SimpleDocTemplate(output_path, pagesize=A4,
-    leftMargin=25*mm, rightMargin=25*mm, topMargin=30*mm, bottomMargin=25*mm)
+    const chunks: Buffer[] = [];
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on("end", async () => {
+      try {
+        const buffer = Buffer.concat(chunks);
+        const result = await uploadGeneratedFile(buffer, fileName, "application/pdf", "pdf", req.userId);
+        resolve(result);
+      } catch (err) {
+        reject(err);
+      }
+    });
+    doc.on("error", reject);
 
-styles = getSampleStyleSheet()
-styles.add(ParagraphStyle(
-    name="KilnTitle",
-    parent=styles["Title"],
-    fontSize=24,
-    textColor=HexColor("#F97316"),
-    spaceAfter=12,
-))
-styles.add(ParagraphStyle(
-    name="KilnBody",
-    parent=styles["Normal"],
-    fontSize=11,
-    leading=16,
-    spaceAfter=8,
-))
-styles.add(ParagraphStyle(
-    name="KilnH2",
-    parent=styles["Heading2"],
-    fontSize=14,
-    textColor=HexColor("#1a1613"),
-    spaceBefore=16,
-    spaceAfter=8,
-))
+    // Title — KILN Orange
+    doc.fontSize(24).fillColor("#F97316").text(title, { align: "left" });
+    doc.moveDown(0.5);
 
-content = '''${content}'''
-title = "${title}"
+    // Thin orange line under title
+    doc.strokeColor("#F97316").lineWidth(1)
+      .moveTo(72, doc.y).lineTo(523, doc.y).stroke();
+    doc.moveDown(1);
 
-story = []
-story.append(Paragraph(title, styles["KilnTitle"]))
-story.append(Spacer(1, 12))
+    // Reset to body color
+    doc.fillColor("#1a1613");
 
-for line in content.split("\\n"):
-    line = line.strip()
-    if not line:
-        story.append(Spacer(1, 6))
-    elif line.startswith("## "):
-        story.append(Paragraph(line[3:], styles["KilnH2"]))
-    elif line.startswith("# "):
-        story.append(Paragraph(line[2:], styles["KilnTitle"]))
-    else:
-        story.append(Paragraph(line, styles["KilnBody"]))
+    // Parse markdown-like content
+    const lines = content.split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
 
-doc.build(story)
+      if (!trimmed) {
+        doc.moveDown(0.3);
+        continue;
+      }
 
-with open(output_path, "rb") as f:
-    data = f.read()
-    print("FILE_BASE64:" + base64.b64encode(data).decode())
-    print("FILE_SIZE:" + str(len(data)))
-`;
+      if (trimmed.startsWith("### ")) {
+        doc.moveDown(0.5);
+        doc.fontSize(13).font("Helvetica-Bold").text(trimmed.slice(4));
+        doc.moveDown(0.2);
+        doc.font("Helvetica");
+      } else if (trimmed.startsWith("## ")) {
+        doc.moveDown(0.8);
+        doc.fontSize(15).font("Helvetica-Bold").fillColor("#F97316").text(trimmed.slice(3));
+        doc.fillColor("#1a1613");
+        doc.moveDown(0.3);
+        doc.font("Helvetica");
+      } else if (trimmed.startsWith("# ")) {
+        doc.moveDown(0.8);
+        doc.fontSize(18).font("Helvetica-Bold").text(trimmed.slice(2));
+        doc.moveDown(0.3);
+        doc.font("Helvetica");
+      } else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+        doc.fontSize(11).font("Helvetica").text(`  •  ${trimmed.slice(2)}`, { lineGap: 3 });
+      } else if (trimmed.startsWith("> ")) {
+        doc.fontSize(11).font("Helvetica-Oblique").fillColor("#666666")
+          .text(trimmed.slice(2), { indent: 20 });
+        doc.fillColor("#1a1613").font("Helvetica");
+      } else if (/^\|/.test(trimmed)) {
+        // Markdown table row — render as monospace
+        doc.fontSize(9).font("Courier").text(trimmed);
+        doc.font("Helvetica");
+      } else {
+        // Strip inline markdown bold/italic for cleaner rendering
+        const cleaned = trimmed
+          .replace(/\*\*([^*]+)\*\*/g, "$1")
+          .replace(/\*([^*]+)\*/g, "$1")
+          .replace(/\[(\d+)\]/g, "[$1]"); // Keep citation references
+        doc.fontSize(11).font("Helvetica").text(cleaned, { lineGap: 3 });
+      }
 
-  return executeSandboxAndUpload(pythonCode, fileName,
-    "application/pdf", "pdf", req.userId, ["reportlab"]);
+      // Page break safety
+      if (doc.y > 750) {
+        doc.addPage();
+      }
+    }
+
+    // Footer
+    doc.moveDown(2);
+    doc.fontSize(8).fillColor("#999999")
+      .text(`Generated by KILN — ${new Date().toISOString().slice(0, 10)}`, { align: "center" });
+
+    doc.end();
+  });
 }
 
-/* ── Word/DOCX (via E2B sandbox) ── */
+/* ── Word/DOCX (local — minimal OOXML) ── */
 
-async function generateDocx(req: FileGenerationRequest): Promise<QuickUseGeneratedFile> {
-  if (!isCodeSandboxAvailable()) {
-    throw new Error("Code-Sandbox nicht verfügbar (E2B_API_KEY fehlt)");
-  }
-
-  const content = (req.content || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n");
-  const title = (req.title || "Report").replace(/"/g, '\\"');
+async function generateDocxLocal(req: FileGenerationRequest): Promise<QuickUseGeneratedFile> {
   const fileName = req.fileName || "output.docx";
+  const title = req.title || "Report";
+  const content = req.content || "";
 
-  const pythonCode = `
-import base64
-from docx import Document
-from docx.shared import Pt, Inches, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+  // Minimal DOCX using raw OOXML — no external dependency needed
+  // DOCX is a ZIP with XML files inside
+  const { createDocxBuffer } = await import("@/lib/output/docx-builder");
+  const buffer = await createDocxBuffer(title, content);
 
-doc = Document()
-
-# Style: Title
-style = doc.styles["Title"]
-style.font.size = Pt(24)
-style.font.color.rgb = RGBColor(0xF9, 0x73, 0x16)
-
-title = "${title}"
-content = '''${content}'''
-
-doc.add_heading(title, level=0)
-
-for line in content.split("\\n"):
-    line = line.strip()
-    if not line:
-        doc.add_paragraph("")
-    elif line.startswith("## "):
-        doc.add_heading(line[3:], level=2)
-    elif line.startswith("# "):
-        doc.add_heading(line[2:], level=1)
-    elif line.startswith("- "):
-        doc.add_paragraph(line[2:], style="List Bullet")
-    else:
-        doc.add_paragraph(line)
-
-output_path = "/tmp/${fileName}"
-doc.save(output_path)
-
-with open(output_path, "rb") as f:
-    data = f.read()
-    print("FILE_BASE64:" + base64.b64encode(data).decode())
-    print("FILE_SIZE:" + str(len(data)))
-`;
-
-  return executeSandboxAndUpload(pythonCode, fileName,
+  return uploadGeneratedFile(
+    buffer, fileName,
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "docx", req.userId, ["python-docx"]);
-}
-
-/* ── Shared: Execute in sandbox and upload ── */
-
-async function executeSandboxAndUpload(
-  pythonCode: string,
-  fileName: string,
-  mimeType: string,
-  kind: QuickUseGeneratedFile["kind"],
-  userId: string,
-  pipPackages: string[]
-): Promise<QuickUseGeneratedFile> {
-  const session = await createSandbox("python", 2 * 60 * 1000); // 2 min timeout
-  if (!session.sandbox) {
-    throw new Error("Sandbox konnte nicht erstellt werden");
-  }
-
-  try {
-    // Install required packages
-    const installCode = pipPackages.map((p) => `!pip install -q ${p}`).join("\n");
-    if (installCode) {
-      await executeCode(session.id, "python", installCode);
-    }
-
-    // Run generation code
-    const result = await executeCode(session.id, "python", pythonCode);
-
-    if (!result.success) {
-      throw new Error(result.error || result.stderr || "Datei-Generierung fehlgeschlagen");
-    }
-
-    // Extract base64 from stdout
-    const base64Match = result.stdout.match(/FILE_BASE64:(.+)/);
-    const sizeMatch = result.stdout.match(/FILE_SIZE:(\d+)/);
-
-    if (!base64Match?.[1]) {
-      throw new Error("Sandbox hat keine Datei-Ausgabe produziert");
-    }
-
-    const fileBuffer = Buffer.from(base64Match[1], "base64");
-    const fileSize = sizeMatch ? parseInt(sizeMatch[1], 10) : fileBuffer.length;
-
-    return uploadGeneratedFile(fileBuffer, fileName, mimeType, kind, userId, fileSize);
-  } finally {
-    await destroySandbox(session.id);
-  }
+    "docx", req.userId,
+  );
 }
 
 /* ── Upload to Supabase ── */
@@ -387,4 +339,35 @@ async function uploadGeneratedFile(
     size: overrideSize ?? buffer.length,
     mimeType,
   };
+}
+
+/**
+ * Extracts tabular data from markdown for preview/file generation.
+ * Returns rows as Record<string, string>[] or null if no table found.
+ */
+export function extractTableFromMarkdown(markdown: string): Record<string, string>[] | null {
+  const lines = markdown.split("\n");
+  const tableLines = lines.filter((l) => l.trim().startsWith("|") && l.trim().endsWith("|"));
+  if (tableLines.length < 3) return null; // Need header + separator + at least 1 row
+
+  // Parse header
+  const headerLine = tableLines[0];
+  const headers = headerLine.split("|").map((h) => h.trim()).filter(Boolean);
+  if (headers.length === 0) return null;
+
+  // Skip separator line (---|---)
+  const dataLines = tableLines.slice(2);
+  const rows: Record<string, string>[] = [];
+
+  for (const line of dataLines) {
+    const cells = line.split("|").map((c) => c.trim()).filter((_, i, arr) => i > 0 && i < arr.length);
+    if (cells.length === 0) continue;
+    const row: Record<string, string> = {};
+    headers.forEach((h, i) => {
+      row[h] = cells[i] || "";
+    });
+    rows.push(row);
+  }
+
+  return rows.length > 0 ? rows : null;
 }

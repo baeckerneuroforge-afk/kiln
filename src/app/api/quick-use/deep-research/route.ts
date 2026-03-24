@@ -10,8 +10,9 @@ import {
   writeQuickUseDone,
   writeQuickUseEvent,
 } from "@/lib/quick-use/server";
-import type { QuickUseFileAttachment, QuickUseResult, QuickUseSource } from "@/lib/quick-use/types";
+import type { QuickUseFileAttachment, QuickUseGeneratedFile, QuickUseResult, QuickUseSource } from "@/lib/quick-use/types";
 import { enhanceQuickUseResult } from "@/lib/quick-use/result-presentation";
+import { generateFile, buildSmartFileName, extractTableFromMarkdown } from "@/lib/output/file-generator";
 import { processFiles, buildFileContext } from "@/lib/quick-use/file-processor";
 import { quickUseSessionMemory } from "@/lib/quick-use/session-memory";
 import {
@@ -256,6 +257,44 @@ export async function POST(request: NextRequest) {
         }
 
         const finalResult = buildResearchResult(message, research);
+
+        // Auto-generate file downloads für Layer 2/3 Ergebnisse
+        if (layer !== "extract" && research.fullReport) {
+          try {
+            safeWrite({ type: "progress", message: "Generating downloadable files..." });
+            const generatedFiles: QuickUseGeneratedFile[] = [];
+
+            // PDF für Research-Reports
+            generatedFiles.push(await generateFile({
+              kind: "pdf",
+              fileName: buildSmartFileName(message, "Research", "pdf"),
+              content: research.fullReport,
+              title: message.slice(0, 80),
+              userId,
+            }));
+
+            // Excel/CSV wenn Tabellendaten vorhanden
+            const tableData = extractTableFromMarkdown(research.fullReport);
+            if (tableData && tableData.length > 0) {
+              generatedFiles.push(await generateFile({
+                kind: "xlsx",
+                fileName: buildSmartFileName(message, "Daten", "xlsx"),
+                data: tableData,
+                title: message.slice(0, 80),
+                userId,
+              }));
+            }
+
+            if (generatedFiles.length > 0) {
+              finalResult.generatedFiles = [
+                ...(finalResult.generatedFiles || []),
+                ...generatedFiles,
+              ];
+            }
+          } catch {
+            // File generation is optional — don't fail the result
+          }
+        }
 
         safeWrite({ type: "result", result: finalResult, credits: finalCredits });
         await completeTask(taskId, finalResult, finalCredits);
