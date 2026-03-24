@@ -1107,6 +1107,11 @@ async function executeWithRealBrowser(
           finalExtractedData = claudeAction.extracted_data || null;
           completionReason = "done";
 
+          // Stream any final extracted data as findings
+          if (claudeAction.extracted_data && Object.keys(claudeAction.extracted_data).length > 0) {
+            emitFinding(claudeAction.extracted_data, "done_action");
+          }
+
           onBrowserEvent?.({
             eventType: "step_complete",
             stepIndex: i,
@@ -1631,6 +1636,10 @@ async function executeWithRealBrowser(
 
           if (!finalExtractedData) finalExtractedData = {};
           Object.assign(finalExtractedData, extracted);
+          // Stream findings immediately
+          if (extracted && Object.keys(extracted).length > 0) {
+            emitFinding(extracted, "extract_action");
+          }
           continue;
         }
 

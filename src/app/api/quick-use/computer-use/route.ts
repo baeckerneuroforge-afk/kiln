@@ -369,6 +369,13 @@ export async function POST(request: NextRequest) {
                   success: Boolean(event.success),
                 });
               }
+
+              if (eventType === "finding") {
+                safeWrite({
+                  type: "finding",
+                  message: String(event.finding || ""),
+                });
+              }
             },
           },
           context
