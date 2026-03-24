@@ -57,6 +57,12 @@ import {
   MAX_FILES_PER_MESSAGE,
 } from "@/lib/quick-use/types";
 import { enhanceQuickUseResult } from "@/lib/quick-use/result-presentation";
+import {
+  LiveBrowserView,
+  type BrowserViewState,
+  type ActionLogEntry,
+  type ScreenshotThumb,
+} from "@/components/quick-use/live-browser-view";
 
 interface QuickUseChatProps {
   title: string;
@@ -1545,6 +1551,8 @@ export function QuickUseChat({
   const [memorySuggestions, setMemorySuggestions] = useState<QuickUseMemoryPreview[]>([]);
   const [selectedMemoryIds, setSelectedMemoryIds] = useState<string[]>([]);
   const [dismissedMemoryKey, setDismissedMemoryKey] = useState<string | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [browserView, setBrowserView] = useState<BrowserViewState | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1638,6 +1646,8 @@ export function QuickUseChat({
     setMemorySuggestions([]);
     setSelectedMemoryIds([]);
     setDismissedMemoryKey(null);
+    setBrowserView(null);
+    setLightboxSrc(null);
   }
 
   function appendMessage(entry: ChatEntry) {
@@ -2122,6 +2132,19 @@ export function QuickUseChat({
               if (event.meta.taskId) {
                 setActiveTaskId(event.meta.taskId);
               }
+              // Initialize live browser view for computer-use
+              if (type === "computer-use") {
+                setBrowserView({
+                  currentUrl: "",
+                  currentStep: 0,
+                  maxSteps: 10,
+                  liveScreenshot: null,
+                  actionLog: [],
+                  screenshotTimeline: [],
+                  thinkingText: null,
+                  status: "running",
+                });
+              }
             }
 
             if (event.type === "progress") {
@@ -2142,8 +2165,72 @@ export function QuickUseChat({
               setMemorySuggestions(event.memories);
             }
 
+            // Live browser view events
+            if (event.type === "browser_navigation") {
+              setBrowserView((prev) =>
+                prev
+                  ? { ...prev, currentUrl: event.url, currentStep: event.stepIndex + 1 }
+                  : prev
+              );
+            }
+
+            if (event.type === "browser_screenshot") {
+              setBrowserView((prev) => {
+                if (!prev) return prev;
+                const thumb: ScreenshotThumb = {
+                  stepIndex: event.stepIndex,
+                  imageData: event.imageData,
+                  url: event.url,
+                  timestamp: Date.now(),
+                };
+                return {
+                  ...prev,
+                  liveScreenshot: event.imageData,
+                  screenshotTimeline: [...prev.screenshotTimeline, thumb].slice(-20),
+                };
+              });
+            }
+
+            if (event.type === "browser_action") {
+              setBrowserView((prev) => {
+                if (!prev) return prev;
+                const entry: ActionLogEntry = {
+                  stepIndex: event.step.stepIndex,
+                  action: event.step.action,
+                  actionDetail: event.step.actionDetail,
+                  url: event.step.url,
+                  success: event.step.success,
+                  durationMs: event.step.durationMs,
+                  timestamp: Date.now(),
+                };
+                return {
+                  ...prev,
+                  actionLog: [...prev.actionLog, entry].slice(-50),
+                };
+              });
+            }
+
+            if (event.type === "browser_thinking") {
+              setBrowserView((prev) =>
+                prev
+                  ? { ...prev, thinkingText: event.thought }
+                  : prev
+              );
+            }
+
+            if (event.type === "browser_step_complete") {
+              setBrowserView((prev) =>
+                prev
+                  ? { ...prev, currentStep: event.stepIndex + 1 }
+                  : prev
+              );
+            }
+
             if (event.type === "result") {
               setActiveProgress(null);
+              setBrowserView((prev) =>
+                prev ? { ...prev, status: "completed", thinkingText: null } : prev
+              );
               const id = createId();
               appendMessage({
                 id,
@@ -2160,6 +2247,9 @@ export function QuickUseChat({
 
             if (event.type === "error") {
               setActiveProgress(null);
+              setBrowserView((prev) =>
+                prev ? { ...prev, status: "failed", thinkingText: null } : prev
+              );
               appendMessage({
                 id: createId(),
                 kind: "error",
@@ -2366,6 +2456,14 @@ export function QuickUseChat({
                   </div>
                 </MessageBubble>
 
+                {/* Live Browser View for Computer Use */}
+                {browserView && type === "computer-use" ? (
+                  <LiveBrowserView
+                    state={browserView}
+                    onScreenshotClick={(src) => setLightboxSrc(src)}
+                  />
+                ) : null}
+
                 {activeTaskId ? <BackgroundBanner taskId={activeTaskId} /> : null}
 
                 {/* User intervention messages */}
@@ -2501,6 +2599,15 @@ export function QuickUseChat({
           </div>
         </div>
       </div>
+
+      {/* Screenshot lightbox */}
+      {lightboxSrc ? (
+        <ScreenshotLightbox
+          src={lightboxSrc}
+          alt="Browser screenshot"
+          onClose={() => setLightboxSrc(null)}
+        />
+      ) : null}
     </div>
   );
 }

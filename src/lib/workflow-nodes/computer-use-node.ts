@@ -1085,6 +1085,13 @@ async function executeWithRealBrowser(
           finalExtractedData = claudeAction.extracted_data || null;
           completionReason = "done";
 
+          onBrowserEvent?.({
+            eventType: "step_complete",
+            stepIndex: i,
+            action: "done",
+            success: true,
+          });
+
           costOptimizer.recordCost({
             action: "done",
             model: costDecision.model,
@@ -1143,6 +1150,35 @@ async function executeWithRealBrowser(
           });
 
           lastStepFailed = !navResult.success;
+
+          onBrowserEvent?.({
+            eventType: "navigation",
+            url: currentUrl,
+            stepIndex: i,
+          });
+          if (proofScreenshot) {
+            onBrowserEvent?.({
+              eventType: "screenshot",
+              imageData: proofScreenshot,
+              stepIndex: i,
+              url: currentUrl,
+            });
+          }
+          onBrowserEvent?.({
+            eventType: "action",
+            stepIndex: i,
+            action: "navigate",
+            actionDetail: `Navigiere zu: ${claudeAction.url}`,
+            url: currentUrl,
+            success: navResult.success,
+            durationMs: Date.now() - stepStart,
+          });
+          onBrowserEvent?.({
+            eventType: "step_complete",
+            stepIndex: i,
+            action: "navigate",
+            success: navResult.success,
+          });
 
           steps.push({
             stepIndex: i,
@@ -1211,6 +1247,30 @@ async function executeWithRealBrowser(
           });
 
           lastStepFailed = !clickSuccess;
+
+          if (proofScreenshot) {
+            onBrowserEvent?.({
+              eventType: "screenshot",
+              imageData: proofScreenshot,
+              stepIndex: i,
+              url: currentUrl,
+            });
+          }
+          onBrowserEvent?.({
+            eventType: "action",
+            stepIndex: i,
+            action: "click",
+            actionDetail: `Click: "${target || `${claudeAction.x},${claudeAction.y}`}"`,
+            url: currentUrl,
+            success: clickSuccess,
+            durationMs: Date.now() - stepStart,
+          });
+          onBrowserEvent?.({
+            eventType: "step_complete",
+            stepIndex: i,
+            action: "click",
+            success: clickSuccess,
+          });
 
           steps.push({
             stepIndex: i,
@@ -1303,6 +1363,22 @@ async function executeWithRealBrowser(
 
           lastStepFailed = !typeSuccess;
 
+          onBrowserEvent?.({
+            eventType: "action",
+            stepIndex: i,
+            action: "type",
+            actionDetail: `Type: "${claudeAction.text}"`,
+            url: currentUrl,
+            success: typeSuccess,
+            durationMs: Date.now() - stepStart,
+          });
+          onBrowserEvent?.({
+            eventType: "step_complete",
+            stepIndex: i,
+            action: "type",
+            success: typeSuccess,
+          });
+
           steps.push({
             stepIndex: i,
             url: currentUrl,
@@ -1349,6 +1425,22 @@ async function executeWithRealBrowser(
             wasDomOnly: true,
           });
 
+          onBrowserEvent?.({
+            eventType: "action",
+            stepIndex: i,
+            action: "scroll",
+            actionDetail: `Scroll ${claudeAction.direction || "down"} ${claudeAction.pixels || 500}px`,
+            url: currentUrl,
+            success: scrollResult.success,
+            durationMs: scrollResult.timeMs,
+          });
+          onBrowserEvent?.({
+            eventType: "step_complete",
+            stepIndex: i,
+            action: "scroll",
+            success: scrollResult.success,
+          });
+
           steps.push({
             stepIndex: i,
             url: currentUrl,
@@ -1388,6 +1480,35 @@ async function executeWithRealBrowser(
             credits: costDecision.estimatedCredits,
             wasScreenshot: !!proofScreenshot,
             wasDomOnly: false,
+          });
+
+          onBrowserEvent?.({
+            eventType: "navigation",
+            url: currentUrl,
+            stepIndex: i,
+          });
+          if (proofScreenshot) {
+            onBrowserEvent?.({
+              eventType: "screenshot",
+              imageData: proofScreenshot,
+              stepIndex: i,
+              url: currentUrl,
+            });
+          }
+          onBrowserEvent?.({
+            eventType: "action",
+            stepIndex: i,
+            action: "click_link",
+            actionDetail: `Klicke: "${claudeAction.selector}"`,
+            url: currentUrl,
+            success: linkResult.success,
+            durationMs: Date.now() - stepStart,
+          });
+          onBrowserEvent?.({
+            eventType: "step_complete",
+            stepIndex: i,
+            action: "click_link",
+            success: linkResult.success,
           });
 
           steps.push({
@@ -1458,6 +1579,22 @@ async function executeWithRealBrowser(
             wasDomOnly,
           });
 
+          onBrowserEvent?.({
+            eventType: "action",
+            stepIndex: i,
+            action: "extract_data",
+            actionDetail: `Extrahiere: ${requestedFields.join(", ")}`,
+            url: currentUrl,
+            success: !!extracted && Object.keys(extracted).length > 0,
+            durationMs: Date.now() - stepStart,
+          });
+          onBrowserEvent?.({
+            eventType: "step_complete",
+            stepIndex: i,
+            action: "extract_data",
+            success: !!extracted && Object.keys(extracted).length > 0,
+          });
+
           steps.push({
             stepIndex: i,
             url: currentUrl,
@@ -1508,6 +1645,22 @@ async function executeWithRealBrowser(
             credits: 0.5,
             wasScreenshot: false,
             wasDomOnly: false,
+          });
+
+          onBrowserEvent?.({
+            eventType: "action",
+            stepIndex: i,
+            action: "execute_code",
+            actionDetail: `${codeLang}: ${claudeAction.reasoning}`,
+            url: currentUrl,
+            success: codeResult.success,
+            durationMs: Date.now() - stepStart,
+          });
+          onBrowserEvent?.({
+            eventType: "step_complete",
+            stepIndex: i,
+            action: "execute_code",
+            success: codeResult.success,
           });
 
           steps.push({
@@ -1666,6 +1819,9 @@ export async function executeComputerUse(
   const onProgress = typeof config.onProgress === "function"
     ? (config.onProgress as ComputerUseProgressCallback)
     : undefined;
+  const onBrowserEvent = typeof config.onBrowserEvent === "function"
+    ? (config.onBrowserEvent as ComputerUseBrowserEventCallback)
+    : undefined;
 
   if (!task) {
     return { contextDelta: {}, success: false, error: "Aufgabe fehlt" };
@@ -1725,7 +1881,7 @@ export async function executeComputerUse(
         const result = await executeWithRealBrowser(
           task, startUrl, maxSteps, captureScreenshots,
           enableCodeExecution, String(context._executionId || ""),
-          enableProceduralMemory, agentId, onProgress,
+          enableProceduralMemory, agentId, onProgress, onBrowserEvent,
         );
 
         const cuSession: ComputerUseSession = {
