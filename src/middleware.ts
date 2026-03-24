@@ -41,6 +41,8 @@ const isPublicRoute = createRouteMatcher([
   "/api/mcp(.*)",            // MCP Server (eigene Key-Auth)
   "/api/health",             // Health Check
   "/api/automations/run",   // Cron-Endpoint (eigene Secret-Auth)
+  "/api/cron/(.*)",         // Cron-Endpoints (eigene Secret-Auth)
+  "/api/admin/site-intelligence", // Site Intelligence (dual auth: Clerk oder CRON_SECRET)
   "/api/teams/:id/executions/:execId/approve",
   "/api/teams/:id/executions/:execId/reject",
   "/api/workflows/callback/(.*)",  // Workflow callback (resume paused executions)
