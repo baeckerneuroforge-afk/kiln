@@ -936,7 +936,74 @@ async function executeSubAgentTool(
         const query = String(toolInput.query || "");
         const numResults = Math.min(Number(toolInput.num_results) || 5, 10);
 
-        // Serper.dev als primärer Suchprovider
+        // Priority 1: Perplexity Search API — beste Qualität
+        const perplexityKey = process.env.PERPLEXITY_API_KEY;
+        if (perplexityKey) {
+          try {
+            const pplxRes = await fetch("https://api.perplexity.ai/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${perplexityKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "sonar",
+                messages: [
+                  {
+                    role: "system",
+                    content: "Return concise search results. For each result include the URL, title, and a brief snippet.",
+                  },
+                  { role: "user", content: query },
+                ],
+                max_tokens: 1024,
+                return_citations: true,
+                search_recency_filter: "month",
+              }),
+              signal: AbortSignal.timeout(15000),
+            });
+
+            if (pplxRes.ok) {
+              const pplxData = await pplxRes.json() as {
+                choices?: Array<{ message: { content: string } }>;
+                citations?: string[];
+              };
+              const citations = pplxData.citations || [];
+              const content = pplxData.choices?.[0]?.message?.content || "";
+
+              if (citations.length > 0) {
+                const items = citations.slice(0, numResults).map((url, i) => {
+                  let domain = url;
+                  try { domain = new URL(url).hostname; } catch { /* */ }
+                  return {
+                    title: domain,
+                    url,
+                    snippet: i === 0 ? content.slice(0, 300) : "",
+                    source: {
+                      source: "search_result",
+                      url,
+                      title: domain,
+                      snippet: content.slice(0, 200),
+                      tool: "web_search",
+                      provider: "perplexity",
+                      verified: true,
+                    },
+                  };
+                });
+                return JSON.stringify({
+                  success: true,
+                  query,
+                  results: items,
+                  synthesis: content.slice(0, 1000),
+                  provider: "perplexity",
+                });
+              }
+            }
+          } catch {
+            // Perplexity fehlgeschlagen — weiter zu Serper
+          }
+        }
+
+        // Priority 2: Serper.dev — Google Search API
         const serperKey = process.env.SERPER_API_KEY;
         if (serperKey) {
           const res = await fetch("https://google.serper.dev/search", {
@@ -963,17 +1030,18 @@ async function executeSubAgentTool(
                 title: item.title,
                 snippet: item.snippet,
                 tool: "web_search",
+                provider: "serper",
                 verified: true,
               },
             }));
-            return JSON.stringify({ success: true, query, results: items });
+            return JSON.stringify({ success: true, query, results: items, provider: "serper" });
           }
         }
 
-        // Fallback: fetch_url nutzen wenn keine Search-API verfügbar
+        // Kein Search-Provider verfügbar
         return JSON.stringify({
           success: false,
-          error: "Web search API not configured (SERPER_API_KEY missing). Use fetch_url to check specific URLs directly.",
+          error: "Web search not configured (PERPLEXITY_API_KEY or SERPER_API_KEY required). Use fetch_url to check specific URLs directly.",
         });
       } catch (err) {
         return JSON.stringify({ success: false, error: err instanceof Error ? err.message : "Search failed" });

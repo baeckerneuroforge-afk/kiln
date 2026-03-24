@@ -4,6 +4,7 @@ export type QuickUseType = "computer-use" | "agent-swarm" | "deep-research";
 export type QuickUseResultType =
   | "comparison"
   | "research"
+  | "instant_extract"
   | "price_list"
   | "single_fact"
   | "list"

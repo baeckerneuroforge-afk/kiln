@@ -502,4 +502,178 @@ export class SmartExtractor {
       fieldsMissing: [...fields],
     };
   }
+
+  /* ── Static: HTTP-First Extraction (no browser needed) ── */
+
+  /**
+   * Extracts data from raw HTML string without a browser session.
+   * Same extraction logic: JSON-LD → Microdata → Meta → Regex.
+   * ~200ms, 0 credits, no browser required.
+   */
+  static extractFromHtml(
+    html: string,
+    url: string,
+    fields: string[],
+  ): ExtractionResult {
+    const data: Record<string, unknown> = {};
+
+    // 1. JSON-LD (Schema.org) — höchste Confidence
+    const jsonLdMatches = html.matchAll(/<script[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    const jsonLdItems: Record<string, unknown>[] = [];
+    for (const match of jsonLdMatches) {
+      try {
+        const parsed = JSON.parse(match[1]);
+        if (Array.isArray(parsed)) {
+          jsonLdItems.push(...parsed);
+        } else {
+          jsonLdItems.push(parsed);
+        }
+      } catch { /* ungültiges JSON */ }
+    }
+
+    if (jsonLdItems.length > 0) {
+      for (const field of fields) {
+        if (data[field] !== undefined) continue;
+        for (const item of jsonLdItems) {
+          // Direkte Felder
+          if (item[field] !== undefined) {
+            data[field] = String(item[field]).slice(0, 500);
+            break;
+          }
+          // Name/Titel-Varianten
+          if (field === "title" && item.name) {
+            data[field] = String(item.name).slice(0, 500);
+            break;
+          }
+          // Verschachtelt: offers.price, offers.priceCurrency
+          for (const val of Object.values(item)) {
+            if (typeof val === "object" && val !== null) {
+              const nested = val as Record<string, unknown>;
+              if (nested[field] !== undefined) {
+                data[field] = String(nested[field]).slice(0, 500);
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Microdata (itemprop)
+    const microdataRegex = /<[^>]+itemprop\s*=\s*["']([^"']+)["'][^>]*(?:content\s*=\s*["']([^"']+)["'])?[^>]*>([^<]*)/gi;
+    let mdMatch: RegExpExecArray | null;
+    while ((mdMatch = microdataRegex.exec(html)) !== null) {
+      const prop = mdMatch[1];
+      const value = (mdMatch[2] || mdMatch[3] || "").trim();
+      if (!value) continue;
+      for (const field of fields) {
+        if (data[field] !== undefined) continue;
+        if (prop.toLowerCase() === field.toLowerCase()) {
+          data[field] = value.slice(0, 500);
+        }
+      }
+    }
+
+    // 3. Open Graph meta tags
+    const ogRegex = /<meta[^>]+property\s*=\s*["']og:([^"']+)["'][^>]+content\s*=\s*["']([^"']+)["']/gi;
+    let ogMatch: RegExpExecArray | null;
+    while ((ogMatch = ogRegex.exec(html)) !== null) {
+      const prop = ogMatch[1];
+      const content = ogMatch[2].trim();
+      for (const field of fields) {
+        if (data[field] !== undefined) continue;
+        if (prop.toLowerCase() === field.toLowerCase() || (field === "title" && prop === "title") || (field === "description" && prop === "description") || (field === "image" && prop === "image")) {
+          data[field] = content.slice(0, 500);
+        }
+      }
+    }
+
+    // 4. Meta description
+    if (!data.description) {
+      const descMatch = html.match(/<meta[^>]+name\s*=\s*["']description["'][^>]+content\s*=\s*["']([^"']+)["']/i);
+      if (descMatch && fields.includes("description")) {
+        data.description = descMatch[1].trim().slice(0, 500);
+      }
+    }
+
+    // 5. Title from <h1> or <title>
+    if (!data.title && fields.includes("title")) {
+      const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+      if (h1Match) {
+        data.title = h1Match[1].replace(/<[^>]+>/g, "").trim().slice(0, 200);
+      } else {
+        const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+        if (titleMatch) {
+          data.title = titleMatch[1].replace(/<[^>]+>/g, "").trim().slice(0, 200);
+        }
+      }
+    }
+
+    // 6. Price extraction from common patterns
+    if (!data.price && fields.includes("price")) {
+      // itemprop="price" content="..."
+      const priceContentMatch = html.match(/<[^>]+itemprop\s*=\s*["']price["'][^>]+content\s*=\s*["']([^"']+)["']/i);
+      if (priceContentMatch) {
+        data.price = priceContentMatch[1].trim();
+      } else {
+        // data-price="..."
+        const dataPriceMatch = html.match(/data-price\s*=\s*["']([^"']+)["']/i);
+        if (dataPriceMatch) {
+          data.price = dataPriceMatch[1].trim();
+        }
+      }
+    }
+
+    // 7. Currency
+    if (!data.currency && fields.includes("currency")) {
+      const currMatch = html.match(/<[^>]+itemprop\s*=\s*["']priceCurrency["'][^>]+content\s*=\s*["']([^"']+)["']/i);
+      if (currMatch) {
+        data.currency = currMatch[1].trim();
+      }
+    }
+
+    // 8. Availability
+    if (!data.availability && fields.includes("availability")) {
+      const availMatch = html.match(/<[^>]+itemprop\s*=\s*["']availability["'][^>]+(?:content|href)\s*=\s*["']([^"']+)["']/i);
+      if (availMatch) {
+        const val = availMatch[1];
+        // Schema.org URLs zu lesbarem Text
+        data.availability = val.replace(/^https?:\/\/schema\.org\//, "").trim();
+      }
+    }
+
+    // 9. Rating
+    if (!data.rating && fields.includes("rating")) {
+      const ratingMatch = html.match(/<[^>]+itemprop\s*=\s*["']ratingValue["'][^>]+content\s*=\s*["']([^"']+)["']/i);
+      if (ratingMatch) {
+        data.rating = ratingMatch[1].trim();
+      }
+    }
+
+    // 10. Brand
+    if (!data.brand && fields.includes("brand")) {
+      const brandMatch = html.match(/<[^>]+itemprop\s*=\s*["']brand["'][^>]*>[\s\S]*?itemprop\s*=\s*["']name["'][^>]+content\s*=\s*["']([^"']+)["']/i)
+        || html.match(/<[^>]+itemprop\s*=\s*["']brand["'][^>]+content\s*=\s*["']([^"']+)["']/i);
+      if (brandMatch) {
+        data.brand = (brandMatch[1] || brandMatch[2] || "").trim();
+      }
+    }
+
+    // Ergebnis zusammenstellen
+    const fieldsFound = fields.filter((f) => data[f] !== undefined && data[f] !== null && String(data[f]).length > 0);
+    const fieldsMissing = fields.filter((f) => !fieldsFound.includes(f));
+
+    // Confidence basiert auf JSON-LD > Microdata > Meta
+    const hasJsonLd = jsonLdItems.length > 0 && fieldsFound.length > 0;
+    const confidence = hasJsonLd ? 0.95 : fieldsFound.length > 0 ? 0.8 : 0;
+
+    return {
+      data,
+      method: hasJsonLd ? "structured_data" : "dom_regex",
+      confidence,
+      creditsCost: 0,
+      fieldsFound,
+      fieldsMissing,
+    };
+  }
 }

@@ -16,8 +16,10 @@ import { processFiles, buildFileContext } from "@/lib/quick-use/file-processor";
 import { quickUseSessionMemory } from "@/lib/quick-use/session-memory";
 import {
   executeDeepResearch,
+  detectResearchLayer,
   type ResearchDepth,
   type ResearchResult,
+  type ResearchLayer,
 } from "@/lib/workflow-nodes/deep-research-node";
 import {
   createBackgroundTask,
@@ -28,12 +30,12 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function selectResearchDepth(topic: string): ResearchDepth {
-  if (topic.length > 140 || /\b(regulations?|market size|latest|2026|compare|pros and cons|key players)\b/i.test(topic)) {
-    return "deep";
+function layerToDepth(layer: ResearchLayer): ResearchDepth {
+  switch (layer) {
+    case "extract": return "quick";
+    case "search": return "standard";
+    case "deep": return "deep";
   }
-  if (topic.length < 60) return "quick";
-  return "standard";
 }
 
 function detectOutputLanguage(topic: string): "en" | "de" {
@@ -42,15 +44,23 @@ function detectOutputLanguage(topic: string): "en" | "de" {
   return "en";
 }
 
-function estimateResearchCredits(depth: ResearchDepth): number {
-  const queryCount = depth === "quick" ? 2 : depth === "deep" ? 8 : 4;
-  const consolidationModel = depth === "quick" ? "claude-haiku-4-5-20251001" : "claude-sonnet-4-6";
-
-  return (
-    getCreditCost("claude-haiku-4-5-20251001") +
-    queryCount * getCreditCost("sonar") +
-    getCreditCost(consolidationModel)
-  );
+function estimateResearchCredits(layer: ResearchLayer): number {
+  switch (layer) {
+    case "extract":
+      return 0; // HTTP-only, no LLM calls
+    case "search":
+      return (
+        getCreditCost("claude-haiku-4-5-20251001") + // query generation
+        2 * getCreditCost("sonar") +                  // search
+        getCreditCost("claude-haiku-4-5-20251001")    // synthesis
+      );
+    case "deep":
+      return (
+        getCreditCost("claude-haiku-4-5-20251001") + // query generation
+        8 * getCreditCost("sonar") +                  // search
+        getCreditCost("claude-sonnet-4-6")            // synthesis
+      );
+  }
 }
 
 function buildResearchResult(topic: string, research: ResearchResult): QuickUseResult {
@@ -62,31 +72,39 @@ function buildResearchResult(topic: string, research: ResearchResult): QuickUseR
     snippet: source.snippet,
   }));
 
+  const model = research.layer === "extract"
+    ? "none"
+    : research.layer === "search"
+      ? "claude-haiku-4-5-20251001"
+      : "claude-sonnet-4-6";
+
   return enhanceQuickUseResult({
     title: topic,
     summary: research.summary,
     markdown: research.fullReport,
-    resultType: research.resultType || "research",
+    resultType: research.resultType === "instant_extract" ? "instant_extract" : "research",
     followUpQuestions: research.followUpQuestions,
-    model: research.depth === "quick" ? "claude-haiku-4-5-20251001" : "claude-sonnet-4-6",
+    model,
     durationMs: research.totalDurationMs,
     sources,
     data: {
       depth: research.depth,
+      layer: research.layer,
       confidence: research.confidence,
       queriesUsed: research.queriesUsed,
       totalDurationMs: research.totalDurationMs,
     },
     meta: {
       depth: research.depth,
+      layer: research.layer,
       confidence: research.confidence,
       queriesUsed: research.queriesUsed,
       totalDurationMs: research.totalDurationMs,
     },
   }, {
     quickUseType: "deep-research",
-    resultType: "research",
-    model: research.depth === "quick" ? "claude-haiku-4-5-20251001" : "claude-sonnet-4-6",
+    resultType: research.resultType === "instant_extract" ? "instant_extract" : "research",
+    model,
     durationMs: research.totalDurationMs,
   });
 }
@@ -122,7 +140,6 @@ export async function POST(request: NextRequest) {
   });
   const memoryPrompt = quickUseSessionMemory.buildContextPrompt(relevantMemories, message);
 
-  // Process uploaded files and append context to research topic
   let topicWithFiles = message;
   if (fileAttachments.length > 0) {
     const processed = await processFiles(fileAttachments);
@@ -133,38 +150,36 @@ export async function POST(request: NextRequest) {
     topicWithFiles = `${topicWithFiles}\n\n${memoryPrompt}`;
   }
 
-  const depth = selectResearchDepth(message);
-  const estimatedCredits = estimateResearchCredits(depth);
-  const affordability = await canAffordExecution(
-    userId,
-    { ...estimateGenericCost("claude-sonnet-4-6", 1), totalCredits: estimatedCredits }
-  );
+  // Detect layer from the raw message (before file context is appended)
+  const layer = detectResearchLayer(message);
+  const depth = layerToDepth(layer);
+  const estimatedCredits = estimateResearchCredits(layer);
+  const language = detectOutputLanguage(message);
 
-  if (!affordability.affordable) {
-    return Response.json(
-      {
-        error: `Not enough credits. This run is estimated at ${estimatedCredits} credits and your balance is ${affordability.balance}.`,
-      },
-      { status: 402 }
+  // Layer 1 (extract) is free — skip credit check
+  if (layer !== "extract") {
+    const affordability = await canAffordExecution(
+      userId,
+      { ...estimateGenericCost("claude-sonnet-4-6", 1), totalCredits: estimatedCredits },
     );
+
+    if (!affordability.affordable) {
+      return Response.json(
+        { error: `Not enough credits. Estimated: ${estimatedCredits} credits, balance: ${affordability.balance}.` },
+        { status: 402 },
+      );
+    }
   }
 
   const context = createQuickUseExecutionContext("deep-research", userId);
   const executionId = getExecutionIdFromContext(context);
-  const language = detectOutputLanguage(message);
 
-  // Hintergrund-Task erstellen
   const taskId = await createBackgroundTask(
     userId,
     "deep_research",
     { message, files: fileAttachments },
-    {
-      depth,
-      language,
-      estimatedCredits,
-      memoriesApplied: relevantMemories.map((memory) => quickUseSessionMemory.toPreview(memory)),
-    },
-    estimatedCredits
+    { depth, layer, language, estimatedCredits, memoriesApplied: relevantMemories.map((m) => quickUseSessionMemory.toPreview(m)) },
+    estimatedCredits,
   );
 
   const stream = new ReadableStream<Uint8Array>({
@@ -184,26 +199,27 @@ export async function POST(request: NextRequest) {
       try {
         safeWrite({
           type: "meta",
-          meta: {
-            estimatedCredits,
-            executionId,
-            taskId,
-          },
+          meta: { estimatedCredits, executionId, taskId },
         });
 
         if (relevantMemories.length > 0) {
           safeWrite({
             type: "memory",
-            memories: relevantMemories.map((memory) => quickUseSessionMemory.toPreview(memory)),
+            memories: relevantMemories.map((m) => quickUseSessionMemory.toPreview(m)),
             autoApplied: true,
           });
         }
 
+        const layerLabels: Record<ResearchLayer, string> = {
+          extract: "⚡ Instant Extract",
+          search: "🔍 Web Research",
+          deep: "📊 Deep Research",
+        };
         safeWrite({
           type: "progress",
-          message: `Starting ${depth} research on "${message}"...`,
+          message: `${layerLabels[layer]} — "${message}"`,
         });
-        void updateTaskProgress(taskId, { currentStep: `Starting ${depth} research on "${message}"...` });
+        void updateTaskProgress(taskId, { currentStep: `${layerLabels[layer]}` });
 
         const resultKey = "quickDeepResearchResult";
         const result = await executeDeepResearch(
@@ -213,14 +229,11 @@ export async function POST(request: NextRequest) {
             language,
             resultKey,
             onProgress: (progressMessage: string) => {
-              safeWrite({
-                type: "progress",
-                message: progressMessage,
-              });
+              safeWrite({ type: "progress", message: progressMessage });
               void updateTaskProgress(taskId, { currentStep: progressMessage });
             },
           },
-          context
+          context,
         );
 
         if (!result.success) {
@@ -232,27 +245,21 @@ export async function POST(request: NextRequest) {
           throw new Error("Deep Research returned no report");
         }
 
-        const charge = await deductCreditsByAmount(
-          userId,
-          estimatedCredits,
-          "TASK_RUN",
-          "quick_use_deep_research"
-        );
+        // Only charge credits for Layer 2/3
+        let finalCredits = { estimatedCredits, creditsUsed: 0, creditsRemaining: 0 };
+        if (layer !== "extract" && estimatedCredits > 0) {
+          const charge = await deductCreditsByAmount(userId, estimatedCredits, "TASK_RUN", "quick_use_deep_research");
+          finalCredits = { estimatedCredits, creditsUsed: estimatedCredits, creditsRemaining: charge.newBalance };
+        } else {
+          // Layer 1 — free, just get balance
+          finalCredits = { estimatedCredits: 0, creditsUsed: 0, creditsRemaining: 0 };
+        }
 
         const finalResult = buildResearchResult(message, research);
-        const finalCredits = {
-          estimatedCredits,
-          creditsUsed: estimatedCredits,
-          creditsRemaining: charge.newBalance,
-        };
 
-        safeWrite({
-          type: "result",
-          result: finalResult,
-          credits: finalCredits,
-        });
-
+        safeWrite({ type: "result", result: finalResult, credits: finalCredits });
         await completeTask(taskId, finalResult, finalCredits);
+
         void quickUseSessionMemory.saveTaskContext(userId, taskId, {
           type: "deep-research",
           inputMessage: message,
@@ -275,9 +282,7 @@ export async function POST(request: NextRequest) {
         try {
           writeQuickUseDone(controller, encoder);
           controller.close();
-        } catch {
-          // Client already disconnected
-        }
+        } catch { /* Client disconnected */ }
       }
     },
   });

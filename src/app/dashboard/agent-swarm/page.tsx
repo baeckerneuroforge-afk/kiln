@@ -7,7 +7,7 @@ export default function AgentSwarmPage() {
   return (
     <QuickUseChat
       title="Agent Swarm"
-      subtitle="Give me a complex task and I'll split it across multiple agents"
+      subtitle="Split complex tasks across multiple agents"
       icon={Users}
       apiEndpoint="/api/quick-use/agent-swarm"
       type="agent-swarm"

@@ -7,14 +7,14 @@ export default function DeepResearchPage() {
   return (
     <QuickUseChat
       title="Deep Research"
-      subtitle="Ask me anything and I'll research it thoroughly"
+      subtitle="Fast, source-backed web research"
       icon={Search}
       apiEndpoint="/api/quick-use/deep-research"
       type="deep-research"
       examplePrompts={[
-        "What are the latest developments in voice AI for businesses?",
-        "Research the German SHK market size and key players",
-        "Find the pros and cons of Next.js vs Remix in 2026",
+        "What's the current price of PS5 on amazon.de?",
+        "Compare the top 5 project management tools",
+        "Comprehensive analysis of the German SHK market",
         "What regulations apply to AI agents in the EU?",
       ]}
     />
