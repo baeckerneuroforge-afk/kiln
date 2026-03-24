@@ -59,6 +59,14 @@ import { ObstacleHandler } from "@/lib/browser/obstacle-handler";
 import { SmartExtractor } from "@/lib/browser/smart-extractor";
 import { NavigationStrategies } from "@/lib/browser/navigation-strategies";
 import { CostOptimizer } from "@/lib/browser/cost-optimizer";
+import { EvidenceCollector } from "@/lib/browser/evidence-collector";
+import {
+  getRecipeForUrl,
+  executeRecipeProductExtraction,
+  executeRecipeSearch,
+  extractSearchQuery,
+  isProductPage,
+} from "@/lib/browser/site-recipes";
 
 const COMPUTER_USE_MODEL = "claude-sonnet-4-6";
 const VISION_MODEL = "claude-sonnet-4-6";
@@ -809,6 +817,7 @@ async function executeWithRealBrowser(
     maxSteps * 3, // Geschätztes Budget basierend auf Schritten
     maxSteps,
   );
+  const evidenceCollector = new EvidenceCollector();  // Evidence Chain
 
   // Pattern 7: Procedural Memory + Page Cache (bestehend)
   let proceduralHint = "";
@@ -901,6 +910,110 @@ async function executeWithRealBrowser(
       );
     }
 
+    // ── SITE RECIPE SHORTCUT ──
+    // For known sites: 0 LLM calls, pure DOM extraction, 2-5 seconds
+    const recipeMatch = getRecipeForUrl(currentUrl);
+    if (recipeMatch && (taskType === "data_extraction" || taskType === "search" || taskType === "comparison")) {
+      const { recipe, domain: recipeDomain } = recipeMatch;
+      onProgress?.(`Known site detected: ${recipeDomain} — using optimized recipe.`);
+
+      let recipeResult: Awaited<ReturnType<typeof executeRecipeProductExtraction>> | null = null;
+
+      if (isProductPage(currentUrl) && recipe.product) {
+        // Product page — extract directly
+        recipeResult = await executeRecipeProductExtraction(browserSession, currentUrl, recipe, recipeDomain);
+      } else {
+        // Try search if task contains a search query
+        const searchQuery = extractSearchQuery(task);
+        if (searchQuery && recipe.search && recipe.searchResults) {
+          recipeResult = await executeRecipeSearch(browserSession, currentUrl, recipe, recipeDomain, searchQuery);
+        } else if (recipe.product) {
+          // Might be a product page with non-standard URL
+          recipeResult = await executeRecipeProductExtraction(browserSession, currentUrl, recipe, recipeDomain);
+        }
+      }
+
+      if (recipeResult?.success && Object.keys(recipeResult.data).length > 0) {
+        // Recipe succeeded — complete the task immediately
+        emitFinding(recipeResult.data, "recipe");
+        evidenceCollector.recordRecipeExtraction(recipeResult.data, currentUrl, recipeDomain, recipe.product);
+        onProgress?.(`Recipe extraction completed in ${recipeResult.durationMs}ms (0 credits).`);
+
+        finalExtractedData = recipeResult.data;
+        finalSummary = `Extracted data from ${recipeDomain} using optimized recipe (${recipeResult.fieldsFound.length} fields, ${recipeResult.durationMs}ms, 0 credits).`;
+        completionReason = "done";
+
+        steps.push({
+          stepIndex: 0,
+          url: currentUrl,
+          action: "extract_data",
+          actionDetail: `Recipe: ${recipeDomain} → ${recipeResult.fieldsFound.join(", ")} [${recipeResult.durationMs}ms, 0 Credits]`,
+          htmlSummary: extractHtmlSummary(lastContent),
+          screenshot: captureScreenshots ? await takeBrowserScreenshot(browserSession) : null,
+          extractedData: recipeResult.data,
+          timestamp: new Date().toISOString(),
+          durationMs: recipeResult.durationMs,
+        });
+
+        onBrowserEvent?.({
+          eventType: "action",
+          stepIndex: 0,
+          action: "extract_data",
+          actionDetail: `Recipe: ${recipeDomain} → ${recipeResult.fieldsFound.join(", ")}`,
+          url: currentUrl,
+          success: true,
+          durationMs: recipeResult.durationMs,
+        });
+        onBrowserEvent?.({
+          eventType: "step_complete",
+          stepIndex: 0,
+          action: "extract_data",
+          success: true,
+        });
+
+        costOptimizer.recordCost({
+          action: "extract_data",
+          model: "dom",
+          credits: 0,
+          wasScreenshot: false,
+          wasDomOnly: true,
+        });
+
+        await closeBrowserSession(browserSession.id);
+
+        if (enableProceduralMemory && agentId) {
+          saveProcedure(agentId, startUrl, task, steps, true).catch(() => {});
+        }
+
+        const chain = evidenceCollector.getChain();
+        return {
+          steps,
+          summary: finalSummary,
+          extractedData: {
+            ...finalExtractedData,
+            _evidence: evidenceCollector.buildSourceMetadata(),
+            _qualityScore: chain.qualityScore,
+          },
+          completionReason,
+          sessionId: browserSession.id,
+          browserBackend: browserSession.backend,
+          warning: browserSession.warning,
+          reasoningLog: reasoningLogger.toJSON(),
+          verificationLog: [],
+          reliabilityStats: {
+            ...metrics.getSessionStats(),
+            elementFinderStats: elementFinder.getStats(),
+            costOptimizerStats: costOptimizer.getSummary(),
+            pageAnalyzerStats: pageAnalyzer.getStats(),
+            obstacleStats: obstacleHandler.getStats(),
+            extractorStats: smartExtractor.getStats(),
+            recipeUsed: recipeDomain,
+          },
+        };
+      }
+      // Recipe failed — fall through to normal extraction
+    }
+
     // Pattern 4: Versuche direkte DOM-Extraktion wenn möglich
     if (currentPageAnalysis.canExtractFromDom && taskType === "data_extraction") {
       const fields = extractFieldsFromTask(task);
@@ -914,6 +1027,13 @@ async function executeWithRealBrowser(
           // Direkte Extraktion erfolgreich — Task fertig!
           // Stream findings immediately so user sees data within seconds
           emitFinding(directExtraction.data, "smart_extract_shortcut");
+          evidenceCollector.recordExtraction(
+            directExtraction.data,
+            directExtraction.method === "structured_data" ? "json_ld" : "css_selector",
+            currentUrl,
+            `Direct DOM extraction from ${currentUrl}`,
+            buildKnownSelectors(currentPageAnalysis.structure),
+          );
           onProgress?.("Data extracted directly from page (no Vision needed).");
 
           finalExtractedData = directExtraction.data;
@@ -947,10 +1067,15 @@ async function executeWithRealBrowser(
             saveProcedure(agentId, startUrl, task, steps, true).catch(() => {});
           }
 
+          const chain = evidenceCollector.getChain();
           return {
             steps,
             summary: finalSummary,
-            extractedData: finalExtractedData,
+            extractedData: {
+              ...finalExtractedData,
+              _evidence: evidenceCollector.buildSourceMetadata(),
+              _qualityScore: chain.qualityScore,
+            },
             completionReason,
             sessionId: browserSession.id,
             browserBackend: browserSession.backend,
@@ -1110,6 +1235,8 @@ async function executeWithRealBrowser(
           // Stream any final extracted data as findings
           if (claudeAction.extracted_data && Object.keys(claudeAction.extracted_data).length > 0) {
             emitFinding(claudeAction.extracted_data, "done_action");
+            evidenceCollector.setCurrentStep(i);
+            evidenceCollector.recordVisionExtraction(claudeAction.extracted_data, currentUrl, 0.8);
           }
 
           onBrowserEvent?.({
@@ -1640,6 +1767,22 @@ async function executeWithRealBrowser(
           // Stream findings immediately
           if (extracted && Object.keys(extracted).length > 0) {
             emitFinding(extracted, "extract_action");
+            // Record evidence
+            const evidenceMethod = methodUsed.startsWith("smart_structured")
+              ? "json_ld" as const
+              : methodUsed.startsWith("smart_dom")
+                ? "css_selector" as const
+                : methodUsed.includes("regex")
+                  ? "dom_regex" as const
+                  : "vision" as const;
+            evidenceCollector.setCurrentStep(i);
+            evidenceCollector.recordExtraction(
+              extracted,
+              evidenceMethod,
+              currentUrl,
+              `Step ${i + 1}: ${claudeAction.reasoning || "extraction"}`,
+              currentPageAnalysis ? buildKnownSelectors(currentPageAnalysis.structure) : undefined,
+            );
           }
           continue;
         }
@@ -1760,7 +1903,13 @@ async function executeWithRealBrowser(
   return {
     steps,
     summary: finalSummary || `${steps.length} Schritte ausgeführt`,
-    extractedData: finalExtractedData,
+    extractedData: finalExtractedData
+      ? {
+          ...finalExtractedData,
+          _evidence: evidenceCollector.buildSourceMetadata(),
+          _qualityScore: evidenceCollector.getChain().qualityScore,
+        }
+      : null,
     completionReason,
     sessionId: browserSession.id,
     browserBackend: browserSession.backend,
@@ -1781,6 +1930,7 @@ async function executeWithRealBrowser(
       smartExtractorStats: smartExtractor.getStats(),
       navigationStats: navStrategies.getStats(),
       stepPlannerHistory: stepPlanner.getHistory().length,
+      evidenceQuality: evidenceCollector.getChain().qualityScore,
     },
   };
 }

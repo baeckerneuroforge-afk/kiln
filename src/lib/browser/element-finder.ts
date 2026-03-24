@@ -14,7 +14,7 @@ export interface ElementMatch {
   xpath?: string;
   x?: number;
   y?: number;
-  method: "semantic" | "css" | "xpath" | "vision";
+  method: "semantic" | "css" | "xpath" | "accessibility" | "vision";
   confidence: number;
   elementText?: string;
 }
@@ -29,7 +29,7 @@ export interface ElementActionResult {
 /* ── Element Finder ── */
 
 export class ElementFinder {
-  private stats = { semantic: 0, css: 0, xpath: 0, vision: 0, total: 0 };
+  private stats = { semantic: 0, css: 0, xpath: 0, accessibility: 0, vision: 0, total: 0 };
 
   /**
    * Findet ein Element auf der Seite über multiple Strategien.
@@ -64,7 +64,14 @@ export class ElementFinder {
       return xpath;
     }
 
-    // Strategie 4: Vision Fallback — nur wenn Strategien 1-3 versagen
+    // Strategie 3.5: Accessibility Tree — structured interactive elements
+    const a11y = await this.findByAccessibilityTree(session, url, description);
+    if (a11y) {
+      this.stats.accessibility++;
+      return a11y;
+    }
+
+    // Strategie 4: Vision Fallback — nur wenn Strategien 1-3.5 versagen
     // (wird vom Aufrufer gehandhabt — wir geben null zurück)
     return null;
   }
@@ -389,8 +396,161 @@ export class ElementFinder {
     return { success: false, method: match.method || "none", confidence: 0, error: "Typing fehlgeschlagen" };
   }
 
+  /**
+   * Strategie 3.5: Accessibility Tree.
+   * Builds a structured view of interactive elements the way screen readers see them.
+   * Better than XPath for finding controls by description.
+   */
+  private async findByAccessibilityTree(
+    session: BrowserSession,
+    url: string,
+    description: string,
+  ): Promise<ElementMatch | null> {
+    const descLower = description.toLowerCase().trim();
+
+    const script = `
+      const target = ${JSON.stringify(descLower)};
+      const items = [];
+      const roles = new Set(['button', 'link', 'textbox', 'searchbox', 'combobox',
+        'checkbox', 'radio', 'tab', 'menuitem', 'option', 'switch']);
+      const interactiveTags = new Set(['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA']);
+
+      function genSelector(el) {
+        if (el.id) return '#' + CSS.escape(el.id);
+        const testId = el.getAttribute('data-testid');
+        if (testId) return '[data-testid="' + testId + '"]';
+        const ariaLabel = el.getAttribute('aria-label');
+        if (ariaLabel) return '[aria-label="' + ariaLabel.replace(/"/g, '\\\\"') + '"]';
+        const name = el.getAttribute('name');
+        if (name) return el.tagName.toLowerCase() + '[name="' + name + '"]';
+        // nth-child fallback
+        const parent = el.parentElement;
+        if (!parent) return el.tagName.toLowerCase();
+        const siblings = Array.from(parent.children).filter(c => c.tagName === el.tagName);
+        const idx = siblings.indexOf(el);
+        if (siblings.length === 1) return parent.id ? '#' + CSS.escape(parent.id) + ' > ' + el.tagName.toLowerCase() : el.tagName.toLowerCase();
+        return el.tagName.toLowerCase() + ':nth-of-type(' + (idx + 1) + ')';
+      }
+
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
+      let node;
+      while (node = walker.nextNode()) {
+        const role = node.getAttribute('role') || '';
+        const tag = node.tagName;
+        if (!roles.has(role) && !interactiveTags.has(tag)) continue;
+
+        const label = node.getAttribute('aria-label') || '';
+        const labelledBy = node.getAttribute('aria-labelledby');
+        const labelledText = labelledBy ? (document.getElementById(labelledBy)?.textContent || '') : '';
+        const title = node.getAttribute('title') || '';
+        const alt = node.getAttribute('alt') || '';
+        const placeholder = node.getAttribute('placeholder') || '';
+        const text = (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA')
+          ? (placeholder || label || title)
+          : (node.textContent || '').trim().substring(0, 200);
+
+        const name = (label || labelledText || title || alt || placeholder || text).trim();
+        if (!name || name.length === 0) continue;
+
+        const rect = node.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) continue;
+
+        const style = getComputedStyle(node);
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') continue;
+
+        const visible = rect.top < window.innerHeight && rect.bottom > 0;
+
+        items.push({
+          role: role || tag.toLowerCase(),
+          name: name.substring(0, 200),
+          selector: genSelector(node),
+          visible,
+          y: rect.y
+        });
+      }
+
+      // Score each item
+      const scored = items.map(item => {
+        const nameLower = item.name.toLowerCase();
+        let score = 0;
+        if (nameLower === target) score = 100;
+        else if (nameLower.includes(target)) score = 80;
+        else if (target.includes(nameLower) && nameLower.length > 3) score = 70;
+        else {
+          // Word overlap
+          const targetWords = target.split(/\\s+/);
+          const nameWords = nameLower.split(/\\s+/);
+          const overlap = targetWords.filter(w => nameWords.some(nw => nw.includes(w) || w.includes(nw)));
+          if (overlap.length > 0) score = Math.min(65, 25 + overlap.length * 15);
+        }
+        return { ...item, score };
+      }).filter(item => item.score >= 40);
+
+      // Sort: exact > contains > visible > top of page
+      scored.sort((a, b) => {
+        if (a.score !== b.score) return b.score - a.score;
+        if (a.visible !== b.visible) return a.visible ? -1 : 1;
+        return a.y - b.y;
+      });
+
+      return scored.length > 0 ? scored[0] : null;
+    `;
+
+    try {
+      const result = await executeScript(session, url, script);
+      if (result.success && result.result) {
+        const match = result.result as { selector: string; name: string; score: number; role: string };
+        if (match.score >= 40) {
+          return {
+            selector: match.selector,
+            method: "accessibility",
+            confidence: Math.min(0.92, match.score / 105),
+            elementText: match.name,
+          };
+        }
+      }
+    } catch {
+      // Accessibility tree search failed — return null
+    }
+
+    return null;
+  }
+
+  /**
+   * Verifies that an element found by any strategy is visible and interactable.
+   * Prevents clicking on hidden, zero-size, or off-screen elements.
+   */
+  async verifyInteractable(
+    session: BrowserSession,
+    url: string,
+    selector: string,
+  ): Promise<{ ok: boolean; reason?: string; bounds?: { x: number; y: number } }> {
+    const script = `
+      const el = document.querySelector(${JSON.stringify(selector)});
+      if (!el) return { ok: false, reason: 'not found' };
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return { ok: false, reason: 'zero size' };
+      if (rect.top > window.innerHeight || rect.bottom < 0) return { ok: false, reason: 'not in viewport' };
+      const style = getComputedStyle(el);
+      if (style.display === 'none') return { ok: false, reason: 'display none' };
+      if (style.visibility === 'hidden') return { ok: false, reason: 'visibility hidden' };
+      if (style.opacity === '0') return { ok: false, reason: 'opacity 0' };
+      return { ok: true, bounds: { x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2) } };
+    `;
+
+    try {
+      const result = await executeScript(session, url, script);
+      if (result.success && result.result) {
+        return result.result as { ok: boolean; reason?: string; bounds?: { x: number; y: number } };
+      }
+      return { ok: false, reason: "script failed" };
+    } catch {
+      return { ok: false, reason: "execution error" };
+    }
+  }
+
   /** Gibt die bisherigen Strategie-Statistiken zurück */
-  getStats(): { semantic: number; css: number; xpath: number; vision: number; total: number } {
+  getStats(): { semantic: number; css: number; xpath: number; accessibility: number; vision: number; total: number } {
     return { ...this.stats };
   }
 }
