@@ -1435,11 +1435,12 @@ async function executeWithRealBrowser(
           // Pattern 6: Kein Screenshot nach Scroll (spart Credits)
           proofScreenshot = null;
 
+          // Scroll is best-effort — always treat as success
           metrics.record({
             domain,
             actionType: "scroll",
             strategy: browserSession.backend,
-            success: scrollResult.success,
+            success: true,
             durationMs: scrollResult.timeMs,
             creditsCost: 0,
           });
@@ -1458,14 +1459,14 @@ async function executeWithRealBrowser(
             action: "scroll",
             actionDetail: `Scroll ${claudeAction.direction || "down"} ${claudeAction.pixels || 500}px`,
             url: currentUrl,
-            success: scrollResult.success,
+            success: true,
             durationMs: scrollResult.timeMs,
           });
           onBrowserEvent?.({
             eventType: "step_complete",
             stepIndex: i,
             action: "scroll",
-            success: scrollResult.success,
+            success: true,
           });
 
           steps.push({

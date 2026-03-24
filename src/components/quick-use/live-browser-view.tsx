@@ -62,7 +62,10 @@ function getActionMeta(action: string, success?: boolean): {
   category: ActionCategory;
   label: string;
 } {
-  if (success === false) {
+  // Best-effort actions never show as errors
+  const bestEffort = action === "scroll" || action === "hover" || action === "focus" || action === "analyze";
+
+  if (success === false && !bestEffort) {
     return {
       icon: <X className="h-3 w-3" />,
       category: "error",
@@ -101,6 +104,17 @@ const categoryColors: Record<ActionCategory, { bg: string; text: string; border:
   error: { bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/20" },
   complete: { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/20" },
 };
+
+/** Best-effort actions should never appear as failures in the UI */
+function isBestEffortAction(action: string): boolean {
+  return action === "scroll" || action === "hover" || action === "focus" || action === "analyze";
+}
+
+/** Effective success — best-effort actions are always treated as successful */
+function effectiveSuccess(action: string, success?: boolean): boolean | undefined {
+  if (isBestEffortAction(action)) return success === undefined ? undefined : true;
+  return success;
+}
 
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
@@ -237,7 +251,8 @@ function StepCard({
   thinkingForStep?: string;
 }) {
   const [expanded, setExpanded] = useState(isLatest);
-  const meta = getActionMeta(entry.action, entry.success);
+  const success = effectiveSuccess(entry.action, entry.success);
+  const meta = getActionMeta(entry.action, success);
   const colors = categoryColors[meta.category];
 
   // Auto-expand latest, but don't collapse previously expanded
@@ -251,9 +266,9 @@ function StepCard({
     <div
       className={cn(
         "lbv-step-enter overflow-hidden rounded-xl border transition-all duration-200",
-        isLatest && entry.success !== false
+        isLatest && success !== false
           ? "border-orange-500/25 bg-[#1a1410]"
-          : entry.success === false
+          : success === false
             ? "border-red-500/20 bg-red-500/[0.03]"
             : "border-[#2a2622] bg-[#13110f]",
         "hover:-translate-y-px hover:border-[#3a352f]"
@@ -270,7 +285,7 @@ function StepCard({
         )}
       >
         {/* Active indicator */}
-        {isLatest && entry.success !== false ? (
+        {isLatest && success !== false ? (
           <div className="w-0.5 self-stretch rounded-full bg-orange-500" />
         ) : null}
 
@@ -280,7 +295,7 @@ function StepCard({
             "flex h-6 w-6 shrink-0 items-center justify-center rounded-lg",
             colors.bg,
             colors.text,
-            isLatest && entry.success !== false && "animate-pulse"
+            isLatest && success !== false && "animate-pulse"
           )}
         >
           {meta.icon}
@@ -290,7 +305,7 @@ function StepCard({
         <div className="min-w-0 flex-1">
           <p className={cn(
             "truncate text-xs font-medium",
-            entry.success === false ? "text-red-300" : "text-zinc-200"
+            success === false ? "text-red-300" : "text-zinc-200"
           )}>
             {entry.actionDetail || entry.action}
           </p>
@@ -304,8 +319,8 @@ function StepCard({
         ) : null}
 
         {/* Status */}
-        {entry.success !== undefined ? (
-          entry.success ? (
+        {success !== undefined ? (
+          success ? (
             <Check className="h-3 w-3 shrink-0 text-emerald-500/70" />
           ) : (
             <X className="h-3 w-3 shrink-0 text-red-400" />
@@ -674,7 +689,8 @@ export function LiveBrowserView({
             ) : (
               <div className="space-y-px p-1.5">
                 {state.actionLog.map((entry, idx) => {
-                  const meta = getActionMeta(entry.action, entry.success);
+                  const sidebarSuccess = effectiveSuccess(entry.action, entry.success);
+                  const meta = getActionMeta(entry.action, sidebarSuccess);
                   const colors = categoryColors[meta.category];
                   const isLast = idx === state.actionLog.length - 1;
 
@@ -700,8 +716,8 @@ export function LiveBrowserView({
                           {formatDuration(entry.durationMs)}
                         </span>
                       ) : null}
-                      {entry.success !== undefined ? (
-                        entry.success ? (
+                      {sidebarSuccess !== undefined ? (
+                        sidebarSuccess ? (
                           <Check className="h-2.5 w-2.5 shrink-0 text-emerald-600" />
                         ) : (
                           <X className="h-2.5 w-2.5 shrink-0 text-red-500" />
