@@ -1350,12 +1350,30 @@ function TaskHistoryDropdown({
 
 /* ── Background Execution Banner ── */
 
-function BackgroundBanner({ taskId }: { taskId: string }) {
+function BackgroundBanner({
+  taskId,
+  onStop,
+}: {
+  taskId: string;
+  onStop?: () => void;
+}) {
   return (
     <div className="rounded-2xl border border-blue-500/20 bg-blue-500/8 px-4 py-3 text-sm text-blue-200">
-      <div className="flex items-center gap-2">
-        <Circle className="h-2.5 w-2.5 animate-pulse fill-blue-400 text-blue-400" />
-        <span>Running in background — you can close this tab.</span>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Circle className="h-2.5 w-2.5 animate-pulse fill-blue-400 text-blue-400" />
+          <span>Running in background — you can close this tab.</span>
+        </div>
+        {onStop ? (
+          <button
+            type="button"
+            onClick={onStop}
+            className="shrink-0 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-medium text-red-300 transition-colors hover:bg-red-500/20"
+          >
+            <Square className="mr-1 inline h-3 w-3" />
+            Stop
+          </button>
+        ) : null}
       </div>
       <p className="mt-1 text-xs text-blue-300/60">
         We&apos;ll notify you when done. Task ID: {taskId.slice(0, 8)}...
@@ -1364,95 +1382,142 @@ function BackgroundBanner({ taskId }: { taskId: string }) {
   );
 }
 
-/* ── Intervention Controls ── */
+/* ── Task Control Bar (replaces input area during execution) ── */
 
-function InterventionBar({
+function TaskControlBar({
   isPaused,
+  isStopping,
   onIntervene,
 }: {
   isPaused: boolean;
+  isStopping: boolean;
   onIntervene: (type: InterventionType, message: string) => Promise<void>;
 }) {
-  const [interventionInput, setInterventionInput] = useState("");
+  const [feedbackMode, setFeedbackMode] = useState(false);
+  const [feedbackInput, setFeedbackInput] = useState("");
   const [sending, setSending] = useState(false);
+  const feedbackRef = useRef<HTMLInputElement>(null);
 
   async function sendIntervention(type: InterventionType, message?: string) {
     setSending(true);
     try {
       await onIntervene(type, message || "");
-      if (type === "redirect" || type === "add_context") {
-        setInterventionInput("");
+      if (type === "add_context") {
+        setFeedbackInput("");
+        setFeedbackMode(false);
       }
     } finally {
       setSending(false);
     }
   }
 
-  return (
-    <div className="rounded-2xl border border-orange-500/15 bg-[#1a1613] p-3">
-      <div className="flex items-center gap-2">
-        {/* Control buttons */}
-        {isPaused ? (
-          <button
-            type="button"
-            onClick={() => sendIntervention("resume")}
-            disabled={sending}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-40"
-            title="Resume"
-          >
-            <Play className="h-3.5 w-3.5" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => sendIntervention("pause")}
-            disabled={sending}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-300 transition-colors hover:bg-amber-500/20 disabled:opacity-40"
-            title="Pause"
-          >
-            <Pause className="h-3.5 w-3.5" />
-          </button>
-        )}
+  // Focus feedback input when entering feedback mode
+  useEffect(() => {
+    if (feedbackMode) feedbackRef.current?.focus();
+  }, [feedbackMode]);
 
-        <button
-          type="button"
-          onClick={() => sendIntervention("cancel")}
-          disabled={sending}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 transition-colors hover:bg-red-500/20 disabled:opacity-40"
-          title="Stop and show partial results"
-        >
-          <Square className="h-3.5 w-3.5" />
-        </button>
+  if (isStopping) {
+    return (
+      <div className="flex items-center justify-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/[0.06] px-4 py-3">
+        <Loader2 className="h-4 w-4 animate-spin text-red-400" />
+        <span className="text-sm font-medium text-red-300">Stopping task...</span>
+      </div>
+    );
+  }
 
-        {/* Intervention text input */}
-        <div className="flex flex-1 items-center gap-2">
+  if (feedbackMode) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 rounded-2xl border border-orange-500/20 bg-[#1a1613] p-2">
           <input
+            ref={feedbackRef}
             type="text"
-            value={interventionInput}
-            onChange={(e) => setInterventionInput(e.target.value)}
+            value={feedbackInput}
+            onChange={(e) => setFeedbackInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && interventionInput.trim()) {
-                void sendIntervention("add_context", interventionInput.trim());
+              if (e.key === "Enter" && feedbackInput.trim()) {
+                void sendIntervention("add_context", feedbackInput.trim());
+              }
+              if (e.key === "Escape") {
+                setFeedbackMode(false);
+                setFeedbackInput("");
               }
             }}
-            placeholder={isPaused ? "Paused — click Resume to continue" : "Give feedback to agents..."}
-            disabled={sending || isPaused}
-            className="flex-1 rounded-lg border border-[#332f2b] bg-transparent px-3 py-1.5 text-sm text-white placeholder:text-[#6f645c] focus:border-orange-500/30 focus:outline-none disabled:opacity-40"
+            placeholder="Tell the agent what to do differently..."
+            disabled={sending}
+            className="flex-1 rounded-lg border-0 bg-transparent px-3 py-2 text-sm text-white placeholder:text-[#6f645c] focus:outline-none disabled:opacity-40"
           />
           <button
             type="button"
             onClick={() => {
-              if (interventionInput.trim()) {
-                void sendIntervention("add_context", interventionInput.trim());
+              if (feedbackInput.trim()) {
+                void sendIntervention("add_context", feedbackInput.trim());
               }
             }}
-            disabled={sending || !interventionInput.trim() || isPaused}
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/20 text-orange-300 transition-colors hover:bg-orange-500/30 disabled:opacity-40"
+            disabled={sending || !feedbackInput.trim()}
+            className="flex h-9 items-center gap-1.5 rounded-xl bg-orange-500/20 px-3 text-sm text-orange-300 transition-colors hover:bg-orange-500/30 disabled:opacity-40"
           >
-            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquare className="h-3.5 w-3.5" />}
+            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowUp className="h-3.5 w-3.5" />}
+            Send
+          </button>
+          <button
+            type="button"
+            onClick={() => { setFeedbackMode(false); setFeedbackInput(""); }}
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:text-zinc-300"
+          >
+            <X className="h-4 w-4" />
           </button>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* Pause / Resume */}
+      {isPaused ? (
+        <button
+          type="button"
+          onClick={() => sendIntervention("resume")}
+          disabled={sending}
+          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-sm font-medium text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-40"
+        >
+          <Play className="h-4 w-4" />
+          Resume
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => sendIntervention("pause")}
+          disabled={sending}
+          className="flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 text-sm font-medium text-amber-300 transition-colors hover:bg-amber-500/20 disabled:opacity-40"
+        >
+          <Pause className="h-4 w-4" />
+          Pause
+        </button>
+      )}
+
+      {/* Stop — most prominent */}
+      <button
+        type="button"
+        onClick={() => sendIntervention("cancel")}
+        disabled={sending}
+        className="flex h-11 flex-[1.5] items-center justify-center gap-2 rounded-2xl bg-red-600 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-40"
+      >
+        <Square className="h-4 w-4" />
+        Stop Task
+      </button>
+
+      {/* Give Feedback */}
+      <button
+        type="button"
+        onClick={() => setFeedbackMode(true)}
+        disabled={isPaused}
+        className="flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-[#332f2b] bg-[#1a1613] text-sm font-medium text-zinc-300 transition-colors hover:border-orange-500/20 hover:text-orange-300 disabled:opacity-40"
+      >
+        <MessageSquare className="h-4 w-4" />
+        Feedback
+      </button>
     </div>
   );
 }
@@ -1546,6 +1611,7 @@ export function QuickUseChat({
   const [isDragOver, setIsDragOver] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
   const [taskHistory, setTaskHistory] = useState<QuickUseTaskSummary[]>([]);
   const [interventionMessages, setInterventionMessages] = useState<string[]>([]);
   const [memorySuggestions, setMemorySuggestions] = useState<QuickUseMemoryPreview[]>([]);
@@ -1642,6 +1708,7 @@ export function QuickUseChat({
     setIsDragOver(false);
     setActiveTaskId(null);
     setIsPaused(false);
+    setIsStopping(false);
     setInterventionMessages([]);
     setMemorySuggestions([]);
     setSelectedMemoryIds([]);
@@ -1802,6 +1869,11 @@ export function QuickUseChat({
   async function handleIntervene(interventionType: InterventionType, message: string) {
     if (!activeTaskId) return;
 
+    // Show stopping state immediately for cancel
+    if (interventionType === "cancel") {
+      setIsStopping(true);
+    }
+
     try {
       const res = await fetch(`/api/quick-use/tasks/${activeTaskId}/intervene`, {
         method: "POST",
@@ -1811,6 +1883,7 @@ export function QuickUseChat({
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Failed" })) as { error?: string };
+        setIsStopping(false);
         appendMessage({
           id: createId(),
           kind: "error",
@@ -1828,15 +1901,20 @@ export function QuickUseChat({
       } else if (interventionType === "cancel") {
         setActiveProgress(null);
         setIsStreaming(false);
+        setIsStopping(false);
+        setBrowserView((prev) =>
+          prev ? { ...prev, status: "failed", thinkingText: null } : prev
+        );
         appendMessage({
           id: createId(),
           kind: "assistant",
-          content: "Task cancelled. Partial results may be available in History.",
+          content: "Task stopped. Partial results may be available in History.",
         });
       } else if (message) {
         setInterventionMessages((prev) => [...prev, message]);
       }
     } catch {
+      setIsStopping(false);
       appendMessage({
         id: createId(),
         kind: "error",
@@ -2272,6 +2350,7 @@ export function QuickUseChat({
       setPendingFiles([]);
       setActiveTaskId(null);
       setIsPaused(false);
+      setIsStopping(false);
       // Refresh task history
       fetch("/api/quick-use/tasks")
         .then((r) => r.json())
@@ -2464,7 +2543,12 @@ export function QuickUseChat({
                   />
                 ) : null}
 
-                {activeTaskId ? <BackgroundBanner taskId={activeTaskId} /> : null}
+                {activeTaskId ? (
+                  <BackgroundBanner
+                    taskId={activeTaskId}
+                    onStop={() => void handleIntervene("cancel", "")}
+                  />
+                ) : null}
 
                 {/* User intervention messages */}
                 {interventionMessages.map((msg, i) => (
@@ -2475,13 +2559,6 @@ export function QuickUseChat({
                     </div>
                   </div>
                 ))}
-
-                {activeTaskId ? (
-                  <InterventionBar
-                    isPaused={isPaused}
-                    onIntervene={handleIntervene}
-                  />
-                ) : null}
               </div>
             ) : null}
 
@@ -2500,103 +2577,114 @@ export function QuickUseChat({
           <div ref={scrollRef} />
         </div>
 
-        {/* Input area */}
+        {/* Input area / Task controls */}
         <div className="border-t border-[#2f2925] bg-[#130f0d]/95 px-4 py-4 backdrop-blur-sm sm:px-6">
-          {messages.length === 0 ? (
-            <div className="mb-4">
-              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#7d6f66]">
-                Example Prompts
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {examplePrompts.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => handleSend(prompt)}
-                    className="rounded-full border border-[#3a322d] bg-[#201a17] px-4 py-2 text-left text-sm text-zinc-300 transition-colors hover:border-orange-500/30 hover:bg-[#261d17] hover:text-white"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="rounded-[26px] border border-[#332f2b] bg-[#1a1613] p-3 shadow-[0_-12px_35px_rgba(0,0,0,0.18)]">
-            {showMemoryBanner ? (
-              <MemoryBanner
-                memories={memorySuggestions}
-                selected={selectedMemoryIds.length > 0}
-                onUse={() => {
-                  setSelectedMemoryIds(memorySuggestions.map((memory) => memory.id));
-                  setDismissedMemoryKey(null);
-                }}
-                onDismiss={() => setDismissedMemoryKey(memorySuggestionKey)}
-              />
-            ) : null}
-
-            {/* File pills */}
-            <FilePills files={pendingFiles} onRemove={removePendingFile} />
-
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  void handleSend();
-                }
-              }}
-              placeholder="Describe what you want done..."
-              className="min-h-[72px] resize-none border-0 bg-transparent px-2 py-2 text-base text-white placeholder:text-[#6f645c] focus-visible:ring-0"
+          {/* Task control bar — shown during active execution */}
+          {(isStreaming || activeTaskId) ? (
+            <TaskControlBar
+              isPaused={isPaused}
+              isStopping={isStopping}
+              onIntervene={handleIntervene}
             />
+          ) : (
+            <>
+              {messages.length === 0 ? (
+                <div className="mb-4">
+                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#7d6f66]">
+                    Example Prompts
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {examplePrompts.map((prompt) => (
+                      <button
+                        key={prompt}
+                        type="button"
+                        onClick={() => handleSend(prompt)}
+                        className="rounded-full border border-[#3a322d] bg-[#201a17] px-4 py-2 text-left text-sm text-zinc-300 transition-colors hover:border-orange-500/30 hover:bg-[#261d17] hover:text-white"
+                      >
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                {/* Attach file button */}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isStreaming}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#3a322d] bg-[#201a17] text-zinc-400 transition-colors hover:border-orange-500/30 hover:text-orange-300 disabled:opacity-40"
-                  title="Attach files (PDF, DOCX, XLSX, CSV, TXT, JSON, PNG, JPG)"
-                >
-                  <Paperclip className="h-4 w-4" />
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept={ALLOWED_EXTENSIONS.join(",")}
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files) {
-                      addFiles(e.target.files);
-                      e.target.value = "";
+              <div className="rounded-[26px] border border-[#332f2b] bg-[#1a1613] p-3 shadow-[0_-12px_35px_rgba(0,0,0,0.18)]">
+                {showMemoryBanner ? (
+                  <MemoryBanner
+                    memories={memorySuggestions}
+                    selected={selectedMemoryIds.length > 0}
+                    onUse={() => {
+                      setSelectedMemoryIds(memorySuggestions.map((memory) => memory.id));
+                      setDismissedMemoryKey(null);
+                    }}
+                    onDismiss={() => setDismissedMemoryKey(memorySuggestionKey)}
+                  />
+                ) : null}
+
+                {/* File pills */}
+                <FilePills files={pendingFiles} onRemove={removePendingFile} />
+
+                <Textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      void handleSend();
                     }
                   }}
+                  placeholder="Describe what you want done..."
+                  className="min-h-[72px] resize-none border-0 bg-transparent px-2 py-2 text-base text-white placeholder:text-[#6f645c] focus-visible:ring-0"
                 />
 
-                <p className="text-xs text-[#776b63]">
-                  {type === "agent-swarm"
-                    ? "Complex tasks are split across multiple agents."
-                    : type === "deep-research"
-                      ? "Research results stream in as sources are processed."
-                      : "Direct browser execution with live step updates."}
-                </p>
-              </div>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    {/* Attach file button */}
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isStreaming}
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#3a322d] bg-[#201a17] text-zinc-400 transition-colors hover:border-orange-500/30 hover:text-orange-300 disabled:opacity-40"
+                      title="Attach files (PDF, DOCX, XLSX, CSV, TXT, JSON, PNG, JPG)"
+                    >
+                      <Paperclip className="h-4 w-4" />
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept={ALLOWED_EXTENSIONS.join(",")}
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files) {
+                          addFiles(e.target.files);
+                          e.target.value = "";
+                        }
+                      }}
+                    />
 
-              <Button
-                onClick={() => handleSend()}
-                disabled={(!input.trim() && pendingFiles.length === 0) || isStreaming}
-                className="h-11 rounded-2xl bg-[linear-gradient(135deg,#f97316,#ea580c)] px-4 text-white hover:opacity-95"
-              >
-                {isStreaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
-                Send
-              </Button>
-            </div>
-          </div>
+                    <p className="text-xs text-[#776b63]">
+                      {type === "agent-swarm"
+                        ? "Complex tasks are split across multiple agents."
+                        : type === "deep-research"
+                          ? "Research results stream in as sources are processed."
+                          : "Direct browser execution with live step updates."}
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={() => handleSend()}
+                    disabled={(!input.trim() && pendingFiles.length === 0) || isStreaming}
+                    className="h-11 rounded-2xl bg-[linear-gradient(135deg,#f97316,#ea580c)] px-4 text-white hover:opacity-95"
+                  >
+                    {isStreaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
+                    Send
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
