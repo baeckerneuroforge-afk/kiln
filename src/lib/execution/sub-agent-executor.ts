@@ -312,17 +312,26 @@ async function maybeCompactConversation(
   agentId: string,
   messages: Anthropic.MessageParam[],
 ): Promise<Anthropic.MessageParam[]> {
+  if (messages.length === 0) return messages;
+
   const compactable = toCompactionMessages(messages);
   if (estimateMessagesTokens(compactable) < 14_000) {
     return messages;
   }
 
-  const result = await compactor.compact(compactable, 9_000);
-  if (result.summaryGenerated) {
-    eventStream.agentProgress(agentId, -1, "Compacted conversation context to stay within model limits.");
-  }
+  try {
+    const result = await compactor.compact(compactable, 9_000);
+    if (result.summaryGenerated) {
+      eventStream.agentProgress(agentId, -1, "Compacted conversation context to stay within model limits.");
+    }
 
-  return fromCompactionMessages(result.compactedMessages);
+    const compacted = fromCompactionMessages(result.compactedMessages);
+    // Never return empty — fall back to original messages
+    return compacted.length > 0 ? compacted : messages;
+  } catch {
+    // Compaction failed — return original
+    return messages;
+  }
 }
 
 async function requestForcedSummary(
@@ -346,14 +355,28 @@ async function requestForcedSummary(
     .filter(Boolean)
     .join("\n");
 
+  // Ensure valid messages for the summary call
+  const recentMessages = messages.slice(-6);
+  const summaryMessages: Anthropic.MessageParam[] = recentMessages.length > 0
+    ? [...recentMessages, { role: "user", content: summaryPrompt }]
+    : [{ role: "user", content: summaryPrompt }];
+  // Fix consecutive user messages by ensuring alternation
+  const cleanedSummaryMessages: Anthropic.MessageParam[] = [];
+  for (const msg of summaryMessages) {
+    const lastMsg = cleanedSummaryMessages[cleanedSummaryMessages.length - 1];
+    if (lastMsg && lastMsg.role === msg.role && msg.role === "user") {
+      // Merge consecutive user messages
+      lastMsg.content = `${typeof lastMsg.content === "string" ? lastMsg.content : JSON.stringify(lastMsg.content)}\n\n${typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content)}`;
+    } else {
+      cleanedSummaryMessages.push({ ...msg });
+    }
+  }
+
   const summaryResponse = await anthropicClient.messages.create({
     model,
     max_tokens: 1200,
     system: systemPrompt,
-    messages: [
-      ...messages.slice(-6),
-      { role: "user", content: summaryPrompt },
-    ],
+    messages: cleanedSummaryMessages,
   });
 
   return summaryResponse.content
@@ -1251,6 +1274,23 @@ export class SubAgentExecutor {
 
       messages.length = 0;
       messages.push(...compactedMessages);
+
+      // Safety: Anthropic API requires at least one message
+      if (messages.length === 0) {
+        messages.push({ role: "user", content: this.config.description || "Continue your task." });
+      }
+
+      // Ensure first message is user role (API requirement)
+      if (messages[0].role !== "user") {
+        messages.unshift({ role: "user", content: this.config.description || "Continue your task." });
+      }
+
+      // Ensure no empty content strings
+      for (const msg of messages) {
+        if (typeof msg.content === "string" && msg.content.trim() === "") {
+          msg.content = "(empty)";
+        }
+      }
 
       try {
         const response = await anthropicClient.messages.create({

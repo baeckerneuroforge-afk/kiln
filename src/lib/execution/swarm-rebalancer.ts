@@ -162,9 +162,13 @@ export class SwarmRebalancer {
   }
 
   private scheduleReplacement(task: SubTask, reason: string): void {
-    const fallbackDescription = task.fallbackStrategy
-      ? `${task.description}\n\nFallback strategy: ${task.fallbackStrategy}`
-      : `${task.description}\n\nFallback strategy: use a different source or cheaper tool route if the original approach is blocked.`;
+    // Strip previous fallback strategy to prevent infinite growth
+    const baseDescription = task.description.replace(/\n\nFallback strategy:[\s\S]*$/, "").trim();
+    const fallbackSuffix = task.fallbackStrategy
+      ? `\n\nFallback strategy: ${task.fallbackStrategy}`
+      : "\n\nFallback strategy: use a different source or cheaper tool route if the original approach is blocked.";
+    // Cap total description length
+    const fallbackDescription = (baseDescription + fallbackSuffix).slice(0, 2000);
 
     const replacementTask: SubTask = {
       ...task,
