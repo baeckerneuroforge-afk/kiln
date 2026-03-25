@@ -14,7 +14,13 @@ import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/l
 import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
 import { decrypt } from "@/lib/encryption";
-import { deductCredits } from "@/lib/credits";
+import { deductCredits, deductCreditsByAmount } from "@/lib/credits";
+import {
+  checkKbSufficiency,
+  searchWebForChat,
+  buildWebSearchContext,
+  buildNoInfoGuard,
+} from "@/lib/chat-web-search";
 import { AgentHealthMonitor } from "@/lib/monitoring/agent-health-monitor";
 import crypto from "crypto";
 
@@ -126,17 +132,36 @@ export async function POST(
 
     // RAG
     let knowledgeContext = "";
+    let ragChunks: { content: string; similarity: number }[] = [];
+    let usedWebSearch = false;
     if (agent.knowledgeBases.length > 0) {
       try {
-        const chunks = await searchRelevantChunks(params.id, message, 5);
-        if (chunks.length > 0) {
+        ragChunks = await searchRelevantChunks(params.id, message, 5);
+        if (ragChunks.length > 0) {
           knowledgeContext =
-            "\n\n---\nRELEVANT KNOWLEDGE:\n" +
-            chunks.map((c, i) => `[${i + 1}] ${c.content}`).join("\n\n") +
+            "\n\n---\nKNOWLEDGE BASE (primary source):\n" +
+            ragChunks.map((c, i) => `[${i + 1}] ${c.content}`).join("\n\n") +
             "\n---\nUse the above knowledge to answer. Do not make up information.";
         }
       } catch {
         // RAG failed — weiter ohne
+      }
+    }
+
+    // Agentic RAG: Web-Suche wenn KB unzureichend
+    if (message && agent.enableAgenticRag) {
+      const sufficiency = checkKbSufficiency(ragChunks, message);
+      if (!sufficiency.sufficient) {
+        try {
+          const webCtx = await searchWebForChat(message, params.id, sessionId);
+          if (webCtx.used) {
+            usedWebSearch = true;
+            knowledgeContext += buildWebSearchContext(webCtx);
+          }
+        } catch { /* Web search fehlgeschlagen */ }
+      }
+      if (ragChunks.length === 0 && !usedWebSearch) {
+        knowledgeContext += buildNoInfoGuard();
       }
     }
 
@@ -231,6 +256,12 @@ export async function POST(
           console.error("Public API credit deduction failed:", err);
         })
       );
+      // Web-Search-Credit: 1 extra Credit wenn Web-Suche genutzt
+      if (usedWebSearch) {
+        waitUntil(
+          deductCreditsByAmount(agent.userId, 1, "TASK_RUN", "chat_web_search", params.id, conversation.id).catch(() => {})
+        );
+      }
     }
 
     // Health recording (non-blocking)

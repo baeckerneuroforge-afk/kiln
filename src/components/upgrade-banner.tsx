@@ -16,6 +16,9 @@ export function UpgradeBanner() {
         return res.json();
       })
       .then((data) => {
+        // Admin users: never show upgrade banners
+        if (data.plan === "ADMIN" || data.plan === "ENTERPRISE") return;
+
         if (!data.limits || !data.limits.agents || !data.limits.chatsPerMonth) return;
 
         // agents >= 999999 means "unlimited"

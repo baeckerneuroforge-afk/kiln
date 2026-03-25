@@ -6,7 +6,7 @@ import OpenAI from "openai";
 import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP, modelSupportsVision, type ProviderKey } from "@/lib/ai";
 import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
-import { checkCredits, deductCredits } from "@/lib/credits";
+import { checkCredits, deductCredits, deductCreditsByAmount } from "@/lib/credits";
 import { decrypt } from "@/lib/encryption";
 import { fireWebhookEvent } from "@/lib/webhooks";
 import { emitEvent } from "@/lib/events";
@@ -31,6 +31,13 @@ import {
   getAgentScheduleStatus,
 } from "@/lib/agent-scheduling";
 import { detectKnowledgeGap, researchAndLearn } from "@/lib/agentic-rag";
+import {
+  checkKbSufficiency,
+  searchWebForChat,
+  buildWebSearchContext,
+  buildNoInfoGuard,
+  type WebSearchContext,
+} from "@/lib/chat-web-search";
 import { extractInsights, recordInsights, injectEnterpriseContext } from "@/lib/enterprise-memory";
 import { detectImageAction, extractDocumentData } from "@/lib/image-actions";
 import { matchProductFromImage } from "@/lib/image-product-match";
@@ -468,22 +475,25 @@ export async function POST(
     // RAG: Search for relevant knowledge base chunks
     let knowledgeContext = "";
     let ragChunks: { content: string; similarity: number }[] = [];
+    let webSearchCtx: WebSearchContext = { searchResults: null, fetchedSnippets: [], used: false };
+    let usedWebSearch = false;
 
     const lastUserMessage = [...messages]
       .reverse()
       .find((m: { role: string }) => m.role === "user");
+    const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : "";
 
-    if (agent.knowledgeBases.length > 0 && lastUserMessage) {
+    if (agent.knowledgeBases.length > 0 && lastUserText) {
       try {
         ragChunks = await searchRelevantChunks(
           params.id,
-          extractTextContent(lastUserMessage.content),
+          lastUserText,
           5
         );
 
         if (ragChunks.length > 0) {
           knowledgeContext =
-            "\n\n---\nRELEVANT KNOWLEDGE FROM THE KNOWLEDGE BASE:\n" +
+            "\n\n---\nKNOWLEDGE BASE (primary source):\n" +
             ragChunks
               .map((c, i) => `[${i + 1}] ${c.content}`)
               .join("\n\n") +
@@ -491,6 +501,32 @@ export async function POST(
         }
       } catch {
         // RAG search failed — continue without context
+      }
+    }
+
+    // Agentic RAG: wenn KB unzureichend → Web-Suche als Fallback
+    if (lastUserText && agent.enableAgenticRag) {
+      const sufficiency = checkKbSufficiency(ragChunks, lastUserText);
+
+      if (!sufficiency.sufficient) {
+        try {
+          webSearchCtx = await searchWebForChat(
+            lastUserText,
+            params.id,
+            sessionId || "default"
+          );
+          if (webSearchCtx.used) {
+            usedWebSearch = true;
+            knowledgeContext += buildWebSearchContext(webSearchCtx);
+          }
+        } catch {
+          // Web search fehlgeschlagen — weiter mit KB only
+        }
+      }
+
+      // Anti-Halluzination Guard wenn weder KB noch Web
+      if (ragChunks.length === 0 && !usedWebSearch) {
+        knowledgeContext += buildNoInfoGuard();
       }
     }
 
@@ -1301,6 +1337,13 @@ export async function POST(
             } catch (err) {
               Sentry.captureException(err, { tags: { component: "credit-deduction", agentId: params.id }, extra: { userId: agent.userId, model: selectedModel } });
             }
+          }
+
+          // Web-Search-Credit: 1 extra Credit wenn Web-Suche genutzt (nicht bei BYOK)
+          if (usedWebSearch && !creditCheck.byokActive) {
+            waitUntil(
+              deductCreditsByAmount(agent.userId, 1, "TASK_RUN", "chat_web_search", params.id, conversationId).catch(() => {})
+            );
           }
 
           // Conversation-Metadaten aktualisieren
