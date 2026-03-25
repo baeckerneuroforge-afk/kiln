@@ -118,55 +118,61 @@ function buildDependencyPrompt(
   maxTasks: number,
 ): string {
   return [
-    "Create a dependency graph of sub-tasks for the following swarm goal.",
+    "Create a task plan for this goal. CRITICAL: MINIMIZE agents. Each agent must do REAL WORK that requires separate execution.",
     "",
     `Goal: ${goal}`,
     `Task type: ${analysis.taskType}`,
     `Scope: ${analysis.scope}`,
     `Output type: ${analysis.outputType}`,
     `Required tools: ${analysis.requiredTools.join(", ")}`,
-    `Quality requirement: ${analysis.qualityRequirements}`,
-    `Estimated complexity: ${analysis.estimatedComplexity}`,
-    `Maximum tasks: ${maxTasks}`,
+    `Quality: ${analysis.qualityRequirements}`,
+    `Max tasks: ${maxTasks}`,
     context.availableAgents?.length
       ? `Available agents:\n${context.availableAgents.map((agent) => `- ${agent.name}: ${agent.description}`).join("\n")}`
       : "",
     context.constraints?.length ? `Constraints:\n${context.constraints.map((item) => `- ${item}`).join("\n")}` : "",
     "",
-    "Rules:",
-    "- MAXIMIZE parallelism. If two tasks do not depend on each other, they must be independent.",
-    "- MINIMIZE serial chains. The longest dependency chain determines total execution time.",
-    "- Each task must be self-contained and have one clear deliverable.",
-    "- Use haiku-friendly tasks for extraction/research and sonnet-worthy tasks for complex reasoning or browser vision.",
-    "- Mark nice-to-have tasks as optional.",
-    "- Keep dependencies to 3 or fewer per task.",
+    "AGENT PLANNING RULES:",
+    "1. Number of agents = number of DISTINCT ENTITIES to research. 'Compare 3 PM tools' = 3 agents, one per tool.",
+    "2. Each RESEARCHER agent researches ONE entity COMPREHENSIVELY (pricing + features + reviews + pros/cons). Do NOT split pricing and features into separate agents.",
+    "3. NEVER create agents for: 'compile findings', 'create table', 'summarize results', 'write report'. The merge phase does this AUTOMATICALLY.",
+    "4. NEVER create agents that just read other agents' results. That is the merge phase.",
+    "5. NEVER include a SYNTHESIZER task. Synthesis happens automatically after all agents complete.",
+    "6. ALL research agents should be PARALLEL (no dependencies between them).",
+    "7. For a single topic with no comparison, use 1-2 agents max.",
     "",
-    "Respond ONLY with valid JSON in this exact shape:",
+    "BAD (8 agents): Search Asana pricing → Search Asana features → Search Monday pricing → Search Monday features → Compile → Analyze → Table → Summary",
+    "WHY BAD: Features+pricing for one tool = ONE agent. Compile/table/summary = merge phase.",
+    "",
+    "GOOD (3 agents): 'Research Asana comprehensively' | 'Research Monday.com comprehensively' | 'Research Notion comprehensively'",
+    "WHY GOOD: Each agent does thorough work on one topic. All parallel. Merge handles the rest.",
+    "",
+    "Respond ONLY with valid JSON:",
     "{",
     '  "tasks": [',
     "    {",
     '      "id": "task_1",',
-    '      "description": "Specific, actionable instruction",',
+    '      "description": "Research [entity] comprehensively: pricing tiers, key features, limitations, user reviews, best for",',
     '      "tools": ["web_search"],',
-    '      "model_preference": "fast_extraction|research|code_generation|deep_reasoning|creative",',
-    '      "estimatedComplexity": "low|medium|high",',
-    '      "suggestedModelTier": "fast|balanced|powerful",',
+    '      "model_preference": "research",',
+    '      "estimatedComplexity": "medium",',
+    '      "suggestedModelTier": "fast",',
     '      "dependencies": [],',
-    '      "output_format": "text|json|table|file",',
-    '      "expected_output": "Concrete deliverable format",',
+    '      "output_format": "json",',
+    '      "expected_output": "Structured data: pricing, features, limitations, reviews, sources",',
     '      "estimated_duration_sec": 30,',
     '      "estimated_credits": 5,',
-    '      "priority": "critical|important|nice_to_have",',
-    '      "fallback": "What to do if blocked",',
-    '      "task_type": "research|comparison|analysis|monitoring|extraction|creation",',
+    '      "priority": "critical",',
+    '      "fallback": "Use alternative sources or search with different keywords",',
+    '      "task_type": "research",',
     '      "optional": false,',
-    '      "success_criteria": "How we know this task is done"',
+    '      "success_criteria": "Found pricing, 3+ features, and at least 2 source URLs"',
     "    }",
     "  ],",
     '  "criticalPath": ["task_1"],',
-    '  "optionalTasks": ["task_4"],',
+    '  "optionalTasks": [],',
     '  "mergeStrategy": "comparison_table|structured_report|ranked_list|analytical_narrative",',
-    '  "reasoning": "Explain how the plan maximizes parallelism and why the merge strategy fits."',
+    '  "reasoning": "Explain why this number of agents is optimal."',
     "}",
   ]
     .filter(Boolean)
@@ -206,7 +212,7 @@ export async function decomposeGoal(
   }
 
   const anthropic = new Anthropic({ apiKey });
-  const maxTasks = Math.min(Math.max(context.maxTasks || 8, 2), 15);
+  const maxTasks = Math.min(Math.max(context.maxTasks || 6, 2), 10);
   const allowedTools = normalizeAllowedTools(context.availableTools);
   const model = context.model || (allowedTools.includes("computer_use")
     ? "claude-sonnet-4-6"
@@ -216,7 +222,7 @@ export async function decomposeGoal(
   let graph = await buildDependencyGraph(anthropic, model, goal, analysis, context, maxTasks);
 
   let tasks = normalizeTasks(graph.tasks || [], analysis, allowedTools, maxTasks);
-  tasks = ensureSynthesisTask(tasks, analysis, maxTasks);
+  tasks = stripSynthesisTasks(tasks); // Merge handles synthesis — no agent needed
   tasks = repairDependencies(tasks);
   tasks = enforceParallelism(tasks, analysis);
 
@@ -224,7 +230,7 @@ export async function decomposeGoal(
   if (!validation.valid) {
     graph = await repairGraph(anthropic, model, goal, analysis, graph, validation.issues, maxTasks, allowedTools);
     tasks = normalizeTasks(graph.tasks || [], analysis, allowedTools, maxTasks);
-    tasks = ensureSynthesisTask(tasks, analysis, maxTasks);
+    tasks = stripSynthesisTasks(tasks);
     tasks = repairDependencies(tasks);
     tasks = enforceParallelism(tasks, analysis);
     validation = validatePlan(tasks, context.budgetCredits);
@@ -492,38 +498,22 @@ function repairDependencies(tasks: SubTask[]): SubTask[] {
   return normalized;
 }
 
-function ensureSynthesisTask(tasks: SubTask[], analysis: GoalAnalysis, maxTasks: number): SubTask[] {
-  if (tasks.length <= 1) return tasks;
-  if (tasks.some((task) => task.specialization === "synthesizer")) return tasks;
-  if (tasks.length >= maxTasks) return tasks;
-
-  const synthesisTask: SubTask = {
-    id: "task_synthesis",
-    description: "Synthesize the completed agent findings into the final user-facing deliverable.",
-    dependencies: tasks.map((task) => task.id).slice(0, 10),
-    config: {},
-    estimatedComplexity: "medium",
-    suggestedModelTier: "powerful",
-    tools: tasks.some((task) => task.outputFormat === "file" || task.tools?.includes("code_sandbox"))
-      ? ["code_sandbox"]
-      : ["web_search"],
-    modelPreference: "deep_reasoning",
-    outputFormat: defaultOutputFormat(analysis.outputType),
-    expectedOutput: analysis.outputType === "comparison_table"
-      ? "A structured comparison table with recommendation and limitations."
-      : "A structured final report with executive summary, findings, limitations, and recommendation.",
-    estimatedDurationSec: 45,
-    estimatedCredits: 8,
-    priority: "critical",
-    fallbackStrategy: "If synthesis is blocked, compile the top verified findings into a concise report with citations.",
-    optional: false,
-    specialization: "synthesizer",
-    taskType: analysis.taskType,
-    toolRouting: decideToolRouting("Synthesize findings into final answer", ["code_sandbox", "web_search"]),
-    successCriteria: "Return a complete final deliverable that preserves citations and limitations.",
-  };
-
-  return [...tasks, synthesisTask];
+/**
+ * Remove synthesizer/meta-tasks that the LLM may generate despite instructions.
+ * Merge handles synthesis automatically — these tasks waste credits.
+ */
+function stripSynthesisTasks(tasks: SubTask[]): SubTask[] {
+  const metaPatterns = /\b(synthesiz|compile|combine|merge|summariz|create table|write report|create report|final report)\b/i;
+  const filtered = tasks.filter((task) => {
+    if (task.specialization === "synthesizer") return false;
+    // Remove tasks whose ONLY purpose is to read other agents' output
+    if (task.dependencies.length > 0 && metaPatterns.test(task.description) && !task.tools?.includes("web_search") && !task.tools?.includes("computer_use")) {
+      return false;
+    }
+    return true;
+  });
+  // Never filter out everything — keep at least 1 task
+  return filtered.length > 0 ? filtered : tasks.slice(0, 1);
 }
 
 function enforceParallelism(tasks: SubTask[], analysis: GoalAnalysis): SubTask[] {

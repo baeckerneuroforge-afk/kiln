@@ -103,6 +103,32 @@ function detectRequiredTools(message: string, hasFiles: boolean): Array<"compute
   return Array.from(tools);
 }
 
+/**
+ * Smart routing: decide if a swarm is the right approach.
+ * - Simple single-entity questions → Deep Research (faster, cheaper)
+ * - Single entity research → single agent swarm (minimal overhead)
+ * - Multi-entity comparisons → full swarm
+ */
+function shouldUseSwarm(message: string): "swarm" | "single_agent" | "redirect_deep_research" {
+  const words = message.trim().split(/\s+/);
+  const isComparison = /\b(compare|vs\.?|versus|unterschied|vergleich|gegenüber)/i.test(message);
+  const isMultiEntity = /\b(and|und|,)\b/i.test(message) && words.length > 8;
+  const hasMultipleProperNouns = (message.match(/\b[A-Z][a-z]+(?:\.[a-z]+)*\b/g) || []).length >= 2;
+  const isSimpleQuestion = words.length < 12 && !isComparison && !isMultiEntity;
+
+  // Count distinct entities to research (proper nouns, quoted terms, listed items)
+  const quotedTerms = (message.match(/"[^"]+"/g) || []).length;
+  const entityIndicators = hasMultipleProperNouns || quotedTerms >= 2 || isComparison;
+
+  if (isSimpleQuestion && !entityIndicators) {
+    return "redirect_deep_research";
+  }
+  if (!isComparison && !isMultiEntity && !entityIndicators) {
+    return "single_agent";
+  }
+  return "swarm";
+}
+
 function buildToolDetectionConstraints(
   detectedTools: string[],
   hasFiles: boolean,
@@ -260,6 +286,25 @@ export async function POST(request: NextRequest) {
 
   const detectedTools = detectRequiredTools(message, hasFiles);
   const hasUrls = DOMAIN_REGEX.test(message);
+
+  // Smart routing: detect if swarm is overkill
+  const swarmDecision = shouldUseSwarm(message);
+  if (swarmDecision === "redirect_deep_research") {
+    // Simple question → proxy to Deep Research (faster, cheaper)
+    const deepResearchUrl = new URL("/api/quick-use/deep-research", request.url);
+    const deepResearchResponse = await fetch(deepResearchUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        cookie: request.headers.get("cookie") || "",
+      },
+      body: JSON.stringify({ message: body?.message, userId: body?.userId, files: body?.files, memoryIds: body?.memoryIds }),
+    });
+    return new Response(deepResearchResponse.body, {
+      headers: deepResearchResponse.headers,
+    });
+  }
+
   const decompositionModel = detectedTools.includes("computer_use")
     ? DECOMPOSITION_MODEL_BROWSER
     : DECOMPOSITION_MODEL_TEXT;
@@ -269,7 +314,7 @@ export async function POST(request: NextRequest) {
     .join("\n\n");
 
   const decomposition = await decomposeGoal(goalWithFiles, {
-    maxTasks: 8,
+    maxTasks: swarmDecision === "single_agent" ? 2 : 6,
     model: decompositionModel,
     availableTools: detectedTools,
     constraints: buildToolDetectionConstraints(detectedTools, hasFiles, hasUrls),

@@ -21,7 +21,6 @@ import type {
   QuickUseSource,
 } from "@/lib/quick-use/types";
 import {
-  formatUnverifiedClaims,
   normalizeDateValue,
   normalizePriceValue,
   summarizeVerification,
@@ -83,6 +82,84 @@ interface MergeNormalizationResult {
   sourceMap: Map<string, number>;
 }
 
+/* ── Quality Gate ── */
+
+interface AgentQualityResult {
+  agentId: string;
+  score: number;
+  issues: string[];
+  include: boolean;
+  confidence: "high" | "medium" | "low";
+}
+
+function validateAgentResult(result: SubAgentResult): AgentQualityResult {
+  const issues: string[] = [];
+  const agentId = result.id || "unknown";
+
+  // 1. Did the agent produce output?
+  const hasWorkspace = (result.workspaceEntries?.length ?? 0) > 0;
+  const hasResult = !!result.result && result.result.length > 50;
+  if (!hasWorkspace && !hasResult) {
+    issues.push("NO_OUTPUT");
+  }
+
+  // 2. Does the output contain source URLs?
+  const combined = [
+    result.result || "",
+    ...(result.workspaceEntries || []).map((e) => stringifyValue(e.value)),
+  ].join(" ");
+  const hasUrls = /https?:\/\/[^\s"'<>]+/.test(combined);
+  if (!hasUrls) {
+    issues.push("NO_SOURCE_URLS");
+  }
+
+  // 3. Is the output suspiciously short?
+  if (combined.length < 150) {
+    issues.push("TOO_SHORT");
+  }
+
+  // 4. Does it contain actual data vs generic statements?
+  const hasNumbers = /\d+[.,]\d+|\$\d+|€\d+|\d+%/.test(combined);
+  const hasSpecificData = /\b(pricing|price|feature|limitation|rating|review|pro|con)\b/i.test(combined);
+  if (!hasNumbers && !hasSpecificData) {
+    issues.push("NO_SPECIFIC_DATA");
+  }
+
+  // 5. Check for error indicators
+  if (result.stoppedReason === "error" || result.stoppedReason === "budget_exceeded") {
+    issues.push("AGENT_ERROR");
+  }
+
+  // Score: 1.0 minus 0.25 per issue, min 0
+  const score = Math.max(0, 1 - issues.length * 0.25);
+  const include = score >= 0.25; // Only exclude truly empty/broken results
+  const confidence: "high" | "medium" | "low" = score >= 0.75 ? "high" : score >= 0.5 ? "medium" : "low";
+
+  return { agentId, score, issues, include, confidence };
+}
+
+function applyQualityGate(
+  results: SubAgentResult[],
+  eventStream: SwarmEventStream,
+): { passed: SubAgentResult[]; quality: AgentQualityResult[] } {
+  const quality = results.map(validateAgentResult);
+
+  for (const q of quality) {
+    if (!q.include) {
+      eventStream.mergeConflict(
+        `Agent ${q.agentId} excluded from merge: ${q.issues.join(", ")}`,
+      );
+    } else if (q.confidence === "low") {
+      eventStream.mergeConflict(
+        `Agent ${q.agentId} low confidence (${q.score.toFixed(2)}): ${q.issues.join(", ")}`,
+      );
+    }
+  }
+
+  const passed = results.filter((_, i) => quality[i].include);
+  return { passed, quality };
+}
+
 /* ── Merge ── */
 
 export class IntelligentMerge {
@@ -110,10 +187,15 @@ export class IntelligentMerge {
     this.eventStream.mergeStarted(strategy);
 
     const completedResults = agentResults.filter((result) => result.stoppedReason !== "error" && result.result);
-    if (completedResults.length === 0) {
+
+    // Quality Gate: validate and filter agent results before merge
+    const { passed: qualityPassedResults, quality } = applyQualityGate(completedResults, this.eventStream);
+
+    if (qualityPassedResults.length === 0) {
       this.eventStream.mergeCompleted(0);
+      const failedAgents = quality.filter((q) => !q.include).map((q) => q.agentId).join(", ");
       return {
-        mergedResult: "No agents completed successfully.",
+        mergedResult: `No agents produced reliable data. Failed: ${failedAgents || "all agents"}. Issues: ${quality.flatMap((q) => q.issues).join(", ")}`,
         qualityScore: 0,
         conflicts: [],
         duplicatesRemoved: 0,
@@ -122,7 +204,7 @@ export class IntelligentMerge {
     }
 
     if (strategy === "first_success") {
-      const first = completedResults[0];
+      const first = qualityPassedResults[0];
       const verification = summarizeVerification(first.workspaceEntries || [], undefined, 1);
       this.eventStream.mergeCompleted(70);
       return {
@@ -135,7 +217,7 @@ export class IntelligentMerge {
       };
     }
 
-    return this.mergeWithSynthesis(strategy, workspace, originalGoal, completedResults, anthropicClient);
+    return this.mergeWithSynthesis(strategy, workspace, originalGoal, qualityPassedResults, anthropicClient);
   }
 
   private async mergeWithSynthesis(
@@ -175,11 +257,28 @@ export class IntelligentMerge {
         model: synthesisModel,
         max_tokens: 4096,
         system: [
-          "You are a synthesis specialist.",
-          "Create a final report from verified agent findings.",
-          "Every factual claim must keep a citation like [1] or [2].",
-          "Do not hide contradictions. Note them explicitly.",
-          "If evidence is missing, say so in Limitations instead of guessing.",
+          "You are a synthesis specialist creating a premium research report.",
+          "",
+          "SYNTHESIS RULES:",
+          "1. STRUCTURE: Start with a 2-sentence executive summary answering the user's question DIRECTLY.",
+          "2. COMPARISON: If comparing entities, create a markdown comparison TABLE with ALL data points aligned. Every cell must have data or explicitly say 'Not found'.",
+          "3. SOURCES: Preserve ALL [N] citations from agent findings. If agents cited the same source, merge into one citation number.",
+          "4. CONFLICTS: When agents found different data, show BOTH: 'Pricing ranges from €10/user [1] to €15/user [3]'.",
+          "5. GAPS: Explicitly state what could NOT be found: 'Note: Enterprise pricing was not publicly available.'",
+          "6. CONFIDENCE: End with a data quality assessment: sources count, data freshness, confidence level.",
+          "7. RECOMMENDATION: If comparing, end with: 'Best for budget: X. Best for features: Y. Best overall: Z.'",
+          "",
+          "FORMAT for comparison reports:",
+          "## Executive Summary",
+          "[2 sentences directly answering the question]",
+          "## Comparison",
+          "| Feature | Tool A | Tool B | Tool C |",
+          "| --- | --- | --- | --- |",
+          "| Free tier | ... [1] | ... [2] | ... [3] |",
+          "## Key Differences",
+          "## Recommendation",
+          "## Data Quality",
+          "",
           "Respond ONLY with valid JSON.",
         ].join("\n"),
         messages: [{ role: "user", content: synthesisPrompt }],
@@ -483,10 +582,29 @@ function buildSynthesisPrompt(
   conflicts: MergeConflict[],
   results: SubAgentResult[],
 ): string {
-  const verifiedFindings = normalization.findings
-    .filter((finding) => finding.verified)
-    .map((finding) => `- ${finding.key}: ${finding.value}${finding.citation ? ` ${finding.citation}` : ""}${finding.sourceUrl ? ` (${finding.sourceUrl})` : ""}`)
-    .join("\n");
+  // Group findings by agent for better context
+  const findingsByAgent = new Map<string, NormalizedFinding[]>();
+  for (const f of normalization.findings) {
+    const existing = findingsByAgent.get(f.agentId) || [];
+    existing.push(f);
+    findingsByAgent.set(f.agentId, existing);
+  }
+
+  const agentSections = Array.from(findingsByAgent.entries())
+    .map(([agentId, findings]) => {
+      const verified = findings.filter((f) => f.verified);
+      const unverified = findings.filter((f) => !f.verified);
+      return [
+        `### Agent: ${agentId}`,
+        verified.length > 0
+          ? "Verified:\n" + verified.map((f) => `- ${f.key}: ${f.value}${f.citation ? ` ${f.citation}` : ""}${f.sourceUrl ? ` (${f.sourceUrl})` : ""}`).join("\n")
+          : "No verified findings.",
+        unverified.length > 0
+          ? "Unverified:\n" + unverified.map((f) => `- ${f.key}: ${f.value} [unverified]`).join("\n")
+          : "",
+      ].filter(Boolean).join("\n");
+    })
+    .join("\n\n");
 
   const conflictsText = conflicts.length > 0
     ? conflicts
@@ -494,43 +612,41 @@ function buildSynthesisPrompt(
         .join("\n")
     : "None";
 
+  const sourceList = normalization.verification.sources
+    .map((s) => `[${s.id}] ${s.title || s.domain || "Source"} — ${s.url}`)
+    .join("\n");
+
   return [
-    `Original goal: ${originalGoal}`,
-    `Merge strategy: ${strategy}`,
+    `USER'S QUESTION: ${originalGoal}`,
+    "",
+    `Agents completed: ${results.length}`,
     `Data completeness: ${normalization.verification.completeness}`,
+    `Strategy: ${strategy}`,
     "",
-    "Verified findings:",
-    verifiedFindings || "- No verified findings were collected.",
+    "=== AGENT FINDINGS ===",
+    agentSections || "No findings collected.",
     "",
-    "Known conflicts:",
+    "=== CONFLICTS ===",
     conflictsText,
     "",
-    normalization.verification.unverifiedClaims.length > 0
-      ? `Unverified claims (mention only as unverified if needed):\n${formatUnverifiedClaims(normalization.verification.unverifiedClaims)}`
-      : "Unverified claims: none",
+    "=== SOURCE INDEX ===",
+    sourceList || "No sources.",
     "",
-    `Agent count: ${results.length}`,
+    "INSTRUCTIONS:",
+    "1. Answer the user's question DIRECTLY in the first 2 sentences.",
+    "2. If comparing entities: create a COMPLETE markdown comparison table. Every cell must have data or 'Not found'.",
+    "3. Every fact must keep its [N] citation.",
+    "4. Show contradictions: 'X ranges from A [1] to B [3]'.",
+    "5. List what was NOT found explicitly.",
+    "6. End with a clear recommendation if applicable.",
+    "7. Add 3-4 specific follow-up questions.",
     "",
-    "Write the final report in this structure:",
-    "Executive Summary",
-    "Key Findings",
-    "Detailed Comparison",
-    "Limitations",
-    "Recommendation",
-    "",
-    "Rules:",
-    "1. Every factual claim must have a citation [N].",
-    "2. Contradictions must be noted, not hidden.",
-    "3. Include data completeness and blocked/failed coverage if relevant.",
-    "4. End with a clear recommendation or conclusion.",
-    "5. Preserve source citations.",
-    "",
-    "Respond ONLY with valid JSON in this exact shape:",
+    "Respond ONLY with JSON:",
     "{",
-    '  "summary": "2-3 sentence executive summary",',
+    '  "summary": "2-3 sentence executive summary directly answering the question",',
     '  "resultType": "comparison|research|price_list|single_fact|list|general",',
-    '  "markdown": "Markdown report WITHOUT a Sources section or FOLLOW_UP_QUESTIONS block.",',
-    '  "followUpQuestions": ["Question 1", "Question 2", "Question 3"]',
+    '  "markdown": "Full markdown report with ## headers, comparison table, citations [N], recommendation",',
+    '  "followUpQuestions": ["Specific question 1", "Specific question 2", "Specific question 3"]',
     "}",
   ].join("\n");
 }

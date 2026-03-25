@@ -1233,6 +1233,9 @@ export class SubAgentExecutor {
 
     let stoppedReason: SubAgentResult["stoppedReason"] = "completed";
     let finalResult = "";
+    let usedWebSearch = false;
+    let usedFetchUrl = false;
+    const isResearcher = this.config.specialization === "researcher" || this.config.specialization === "price_extractor";
 
     for (let iteration = 0; iteration < maxIterations; iteration++) {
       // Budget-Check vor jeder Iteration
@@ -1320,6 +1323,8 @@ export class SubAgentExecutor {
           } else if (block.type === "tool_use") {
             hasToolUse = true;
             totalToolCalls++;
+            if (block.name === "web_search") usedWebSearch = true;
+            if (block.name === "fetch_url") usedFetchUrl = true;
 
             eventStream.agentToolCalled(this.config.id, block.name, block.input as Record<string, unknown>);
 
@@ -1406,6 +1411,29 @@ export class SubAgentExecutor {
         // Tool-Ergebnisse zur Konversation hinzufügen
         messages.push({ role: "assistant", content: response.content });
         messages.push({ role: "user", content: toolResults });
+
+        // Tool usage enforcement: nudge researchers to actually use tools
+        if (isResearcher && iteration === 0 && !usedWebSearch) {
+          // First iteration and no web_search — force it
+          messages.push({
+            role: "assistant",
+            content: [{ type: "text", text: "I'll search for current information now." }],
+          });
+          messages.push({
+            role: "user",
+            content: "You MUST use the web_search tool before providing findings. Search for current information now. Do NOT rely on training data.",
+          });
+        } else if (isResearcher && iteration >= 1 && usedWebSearch && !usedFetchUrl && iteration <= 3) {
+          // Has search results but hasn't read any pages — nudge fetch_url
+          messages.push({
+            role: "assistant",
+            content: [{ type: "text", text: "I should read the actual pages for detailed information." }],
+          });
+          messages.push({
+            role: "user",
+            content: "Good search results. Now use fetch_url on the top 2-3 results to get detailed information. Do NOT summarize from snippets alone.",
+          });
+        }
 
         // Letzte Iteration: force final answer
         if (iteration === maxIterations - 1) {
