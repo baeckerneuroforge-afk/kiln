@@ -956,116 +956,11 @@ async function executeSubAgentTool(
 
     case "web_search": {
       try {
+        const { webSearchWithFallbackChain } = await import("./web-search-chain");
         const query = String(toolInput.query || "");
         const numResults = Math.min(Number(toolInput.num_results) || 5, 10);
-
-        // Priority 1: Perplexity Search API — beste Qualität
-        const perplexityKey = process.env.PERPLEXITY_API_KEY;
-        if (perplexityKey) {
-          try {
-            const pplxRes = await fetch("https://api.perplexity.ai/chat/completions", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${perplexityKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "sonar",
-                messages: [
-                  {
-                    role: "system",
-                    content: "Return concise search results. For each result include the URL, title, and a brief snippet.",
-                  },
-                  { role: "user", content: query },
-                ],
-                max_tokens: 1024,
-                return_citations: true,
-                search_recency_filter: "month",
-              }),
-              signal: AbortSignal.timeout(15000),
-            });
-
-            if (pplxRes.ok) {
-              const pplxData = await pplxRes.json() as {
-                choices?: Array<{ message: { content: string } }>;
-                citations?: string[];
-              };
-              const citations = pplxData.citations || [];
-              const content = pplxData.choices?.[0]?.message?.content || "";
-
-              if (citations.length > 0) {
-                const items = citations.slice(0, numResults).map((url, i) => {
-                  let domain = url;
-                  try { domain = new URL(url).hostname; } catch { /* */ }
-                  return {
-                    title: domain,
-                    url,
-                    snippet: i === 0 ? content.slice(0, 300) : "",
-                    source: {
-                      source: "search_result",
-                      url,
-                      title: domain,
-                      snippet: content.slice(0, 200),
-                      tool: "web_search",
-                      provider: "perplexity",
-                      verified: true,
-                    },
-                  };
-                });
-                return JSON.stringify({
-                  success: true,
-                  query,
-                  results: items,
-                  synthesis: content.slice(0, 1000),
-                  provider: "perplexity",
-                });
-              }
-            }
-          } catch {
-            // Perplexity fehlgeschlagen — weiter zu Serper
-          }
-        }
-
-        // Priority 2: Serper.dev — Google Search API
-        const serperKey = process.env.SERPER_API_KEY;
-        if (serperKey) {
-          const res = await fetch("https://google.serper.dev/search", {
-            method: "POST",
-            headers: {
-              "X-API-KEY": serperKey,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ q: query, num: numResults }),
-            signal: AbortSignal.timeout(10000),
-          });
-
-          if (res.ok) {
-            const data = await res.json() as {
-              organic?: Array<{ title: string; link: string; snippet: string }>;
-            };
-            const items = (data.organic || []).slice(0, numResults).map((item) => ({
-              title: item.title,
-              url: item.link,
-              snippet: item.snippet,
-              source: {
-                source: "search_result",
-                url: item.link,
-                title: item.title,
-                snippet: item.snippet,
-                tool: "web_search",
-                provider: "serper",
-                verified: true,
-              },
-            }));
-            return JSON.stringify({ success: true, query, results: items, provider: "serper" });
-          }
-        }
-
-        // Kein Search-Provider verfügbar
-        return JSON.stringify({
-          success: false,
-          error: "Web search not configured (PERPLEXITY_API_KEY or SERPER_API_KEY required). Use fetch_url to check specific URLs directly.",
-        });
+        const result = await webSearchWithFallbackChain(query, numResults);
+        return JSON.stringify(result);
       } catch (err) {
         return JSON.stringify({ success: false, error: err instanceof Error ? err.message : "Search failed" });
       }
@@ -1074,6 +969,7 @@ async function executeSubAgentTool(
     case "fetch_url": {
       try {
         const { safeFetch } = await import("@/lib/url-validation");
+        const { learnSuccessfulUrl } = await import("./web-search-chain");
         const url = String(toolInput.url || "");
         const response = await safeFetch(url, { signal: AbortSignal.timeout(15000) });
         const text = await response.text();
@@ -1084,6 +980,10 @@ async function executeSubAgentTool(
           .replace(/\s+/g, " ")
           .trim()
           .slice(0, 8000);
+
+        // URL Learning: erfolgreiche Fetches in SiteIntelligence speichern
+        learnSuccessfulUrl(url, cleaned.length);
+
         return JSON.stringify({
           success: true,
           url,

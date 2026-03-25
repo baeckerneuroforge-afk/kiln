@@ -169,6 +169,7 @@ export type QuickUseStreamEvent =
         estimatedCredits?: number;
         executionId?: string;
         taskId?: string;
+        intelligenceId?: string;
       };
     }
   | {

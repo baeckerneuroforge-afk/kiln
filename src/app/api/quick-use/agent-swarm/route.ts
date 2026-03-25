@@ -17,6 +17,7 @@ import { enhanceQuickUseResult } from "@/lib/quick-use/result-presentation";
 import { processFiles, buildFileContext } from "@/lib/quick-use/file-processor";
 import { quickUseSessionMemory } from "@/lib/quick-use/session-memory";
 import { executeAgentSwarm } from "@/lib/workflow-nodes/agent-swarm-node";
+import { learnFromSwarmExecution } from "@/lib/execution/swarm-learning";
 import {
   createBackgroundTask,
   updateTaskProgress,
@@ -533,6 +534,52 @@ export async function POST(request: NextRequest) {
 
         // Hintergrund-Task abschließen (Notification wird gesendet)
         await completeTask(taskId, finalResult, finalCredits);
+
+        // Swarm Learning: Ausführungsdaten speichern
+        const goalAnalysis = (swarmMeta?.goalAnalysis as Record<string, string>) || {};
+        const intelligenceId = await learnFromSwarmExecution({
+          userId,
+          goal: message,
+          goalAnalysis: {
+            taskType: (goalAnalysis.taskType || "research") as import("@/lib/execution/task-decomposer").GoalTaskType,
+            scope: (goalAnalysis.scope || "medium") as import("@/lib/execution/task-decomposer").GoalScope,
+            outputType: (goalAnalysis.outputType || "text_summary") as import("@/lib/execution/task-decomposer").GoalOutputType,
+            requiredTools: (goalAnalysis.requiredTools || detectedTools) as import("@/lib/execution/sub-agent-executor").SubAgentTool[],
+            qualityRequirements: (goalAnalysis.qualityRequirements || "balanced") as import("@/lib/execution/task-decomposer").GoalQuality,
+            estimatedComplexity: (goalAnalysis.estimatedComplexity || "medium") as import("@/lib/execution/task-decomposer").GoalComplexity,
+            reasoning: String(goalAnalysis.reasoning || ""),
+          },
+          decomposition,
+          agentResults: ((swarmMeta?.agentResultsSummary as Array<Record<string, unknown>>) || []).map((r) => ({
+            id: String(r.id || ""),
+            result: "x".repeat(Number(r.resultLength) || 0), // Platzhalter für Längenmessung
+            toolCallsCount: Number(r.toolCalls) || 0,
+            tokensUsed: { input: 0, output: 0 },
+            modelUsed: "",
+            cost: Number(r.cost) || 0,
+            artifacts: [],
+            specialization: (r.specialization || "researcher") as import("@/lib/execution/agent-specializations").AgentSpecializationId,
+            sources: Array(Number(r.sourcesCount) || 0).fill({ url: "", title: "" }),
+            verification: { verifiedFacts: [], unverifiedClaims: [], sources: [], completeness: "" },
+            workspaceEntries: [],
+            stoppedReason: (r.stoppedReason || "completed") as "completed" | "budget_exceeded" | "max_iterations" | "error",
+          })),
+          mergeResult: {
+            mergedResult: "",
+            qualityScore: Number(swarmMeta?.mergeQualityScore) || 0,
+            conflicts: Array.isArray(swarmMeta?.mergeConflicts) ? swarmMeta.mergeConflicts as [] : [],
+            duplicatesRemoved: 0,
+            agentsContributed: Number(swarmMeta?.totalAgents) || 0,
+          },
+          mergeStrategy: String(swarmMeta?.mergeStrategy || "synthesize") as "synthesize",
+          executionTimeMs: Number(swarmMeta?.totalDurationMs) || 0,
+          creditsUsed: totalCreditsUsed + decompositionCreditCost,
+        }).catch(() => null);
+
+        if (intelligenceId) {
+          safeWrite({ type: "meta", meta: { intelligenceId } });
+        }
+
         void quickUseSessionMemory.saveTaskContext(userId, taskId, {
           type: "agent-swarm",
           inputMessage: message,

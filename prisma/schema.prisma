@@ -2224,3 +2224,39 @@ model SiteIntelligence {
   @@index([confidence])
   @@index([lastSeenAt])
 }
+
+// ── Feature: Swarm Intelligence (Learning from Executions) ──────────────────
+
+model SwarmIntelligence {
+  id                   String   @id @default(cuid())
+  userId               String
+  goalHash             String   // SHA-256 hash des normalisierten Goals
+  goalSnippet          String   // Erste 200 Zeichen des Goals (für Dashboard)
+  taskType             String   // research, comparison, analysis, etc.
+  scope                String   // narrow, medium, wide
+  complexity           String   // low, medium, high
+  agentCount           Int      // Anzahl der Sub-Agents
+  decompositionConfig  Json     // { maxTasks, phases, specializations[], tools[] }
+  promptVersionHash    String   // Hash der verwendeten System-Prompts
+  toolsUsed            String[] // ["web_search", "computer_use", ...]
+  mergeStrategy        String   // wait_all, synthesize, etc.
+
+  // Ergebnis-Metriken
+  qualityScore         Float    // 0-1 aus Quality Gate
+  userSignal           Int?     // +1 = thumbs up, -1 = thumbs down, null = kein Feedback
+  executionTimeMs      Int
+  creditsUsed          Float
+  agentResults         Json     // [{ id, specialization, qualityScore, toolCalls, stoppedReason }]
+  conflictCount        Int      @default(0)
+  sourcesFound         Int      @default(0)
+  errorCount           Int      @default(0)
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([goalHash])
+  @@index([taskType, qualityScore])
+  @@index([userId, createdAt])
+  @@index([promptVersionHash])
+  @@index([createdAt])
+}

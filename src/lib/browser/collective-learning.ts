@@ -673,3 +673,74 @@ export async function getIntelligenceStats(): Promise<{
     recentLearnings: recentCount,
   };
 }
+
+/* ── Known URL Seeds ── */
+
+const KNOWN_SAAS_URLS: Record<string, Record<string, string>> = {
+  "asana.com": { pricing: "https://asana.com/pricing", features: "https://asana.com/product" },
+  "monday.com": { pricing: "https://monday.com/pricing", features: "https://monday.com/product" },
+  "notion.so": { pricing: "https://www.notion.so/pricing", features: "https://www.notion.so/product" },
+  "trello.com": { pricing: "https://trello.com/pricing", features: "https://trello.com/tour" },
+  "clickup.com": { pricing: "https://clickup.com/pricing", features: "https://clickup.com/features" },
+  "jira.atlassian.com": { pricing: "https://www.atlassian.com/software/jira/pricing" },
+  "slack.com": { pricing: "https://slack.com/pricing", features: "https://slack.com/features" },
+  "hubspot.com": { pricing: "https://www.hubspot.com/pricing", features: "https://www.hubspot.com/products" },
+  "salesforce.com": { pricing: "https://www.salesforce.com/editions-pricing/overview/" },
+  "pipedrive.com": { pricing: "https://www.pipedrive.com/pricing", features: "https://www.pipedrive.com/features" },
+  "zoho.com": { pricing: "https://www.zoho.com/crm/zohocrm-pricing.html" },
+  "freshworks.com": { pricing: "https://www.freshworks.com/crm/pricing/" },
+  "stripe.com": { pricing: "https://stripe.com/pricing" },
+  "shopify.com": { pricing: "https://www.shopify.com/pricing" },
+  "mailchimp.com": { pricing: "https://mailchimp.com/pricing/" },
+  "intercom.com": { pricing: "https://www.intercom.com/pricing" },
+  "zendesk.com": { pricing: "https://www.zendesk.com/pricing/" },
+  "github.com": { pricing: "https://github.com/pricing" },
+  "gitlab.com": { pricing: "https://about.gitlab.com/pricing/" },
+  "vercel.com": { pricing: "https://vercel.com/pricing" },
+  "supabase.com": { pricing: "https://supabase.com/pricing" },
+  "airtable.com": { pricing: "https://airtable.com/pricing" },
+  "figma.com": { pricing: "https://www.figma.com/pricing/" },
+  "canva.com": { pricing: "https://www.canva.com/pricing/" },
+  "miro.com": { pricing: "https://miro.com/pricing/" },
+  "linear.app": { pricing: "https://linear.app/pricing" },
+};
+
+/**
+ * Seeds bekannte SaaS-URLs (Pricing/Features) in SiteIntelligence.
+ * Idempotent — erstellt nur neue Einträge, überschreibt keine vorhandenen.
+ */
+export async function seedKnownUrls(): Promise<number> {
+  let count = 0;
+  for (const [domain, pages] of Object.entries(KNOWN_SAAS_URLS)) {
+    for (const [pageType, url] of Object.entries(pages)) {
+      try {
+        await prisma.siteIntelligence.upsert({
+          where: {
+            domain_pathPattern_dataType_selectorKey: {
+              domain,
+              pathPattern: pageType,
+              dataType: "known_url",
+              selectorKey: `${pageType}_page`,
+            },
+          },
+          update: {}, // Nicht überschreiben
+          create: {
+            domain,
+            pathPattern: pageType,
+            dataType: "known_url",
+            selectorKey: `${pageType}_page`,
+            selectorValue: url,
+            successCount: 50,
+            failCount: 0,
+            confidence: 0.9,
+            source: "seeded",
+          },
+        });
+        count++;
+      } catch {
+        // Bereits vorhanden — skip
+      }
+    }
+  }
+  return count;
+}

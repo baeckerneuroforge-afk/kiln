@@ -15,6 +15,7 @@ import {
   type AgentSpecializationId,
   type ToolRoutingDecision,
 } from "./agent-specializations";
+import { getOptimalConfig } from "./swarm-learning";
 
 /* ── Types ── */
 
@@ -219,7 +220,24 @@ export async function decomposeGoal(
     : "claude-haiku-4-5-20251001");
 
   const analysis = await analyzeGoal(anthropic, model, goal, context, allowedTools);
-  let graph = await buildDependencyGraph(anthropic, model, goal, analysis, context, maxTasks);
+
+  // Swarm Learning: historische Konfigurationen einbeziehen
+  let effectiveMaxTasks = maxTasks;
+  try {
+    const optimal = await getOptimalConfig(analysis.taskType, analysis.scope, analysis.estimatedComplexity);
+    if (optimal && optimal.confidence >= 0.5) {
+      // Historisch bestes maxTasks verwenden, aber nicht über das Limit hinaus
+      effectiveMaxTasks = Math.min(maxTasks, Math.max(2, optimal.suggestedMaxTasks));
+      if (!context.constraints) context.constraints = [];
+      context.constraints.push(
+        `Historical data (${optimal.sampleSize} runs, avg quality ${Math.round(optimal.avgQuality * 100)}%): optimal agent count is ~${optimal.suggestedMaxTasks}. Preferred tools: ${optimal.suggestedTools.join(", ") || "web_search"}.`
+      );
+    }
+  } catch {
+    // Learning ist optional — Fehler ignorieren
+  }
+
+  let graph = await buildDependencyGraph(anthropic, model, goal, analysis, context, effectiveMaxTasks);
 
   let tasks = normalizeTasks(graph.tasks || [], analysis, allowedTools, maxTasks);
   tasks = stripSynthesisTasks(tasks); // Merge handles synthesis — no agent needed

@@ -45,8 +45,13 @@ export const AGENT_SPECIALIZATIONS: Record<AgentSpecializationId, AgentSpecializ
     label: "Price Extractor",
     systemPrompt: `You are a price extraction specialist. Your ONLY job: find the exact current price for the specified product.
 
+URL-FIRST STRATEGY:
+If you know the official website or pricing page URL, use fetch_url DIRECTLY — it is faster and free.
+Examples: fetch_url('https://stripe.com/pricing'), fetch_url('https://github.com/pricing')
+Only use web_search when you don't know the URL or need to find product pages on retailers.
+
 EXTRACTION PROTOCOL:
-1. Use web_search to find the product page
+1. If you know the official URL → use fetch_url directly. Otherwise → use web_search to find the product page.
 2. Use fetch_url to read the actual page content
 3. Extract: price, currency, availability, shipping cost, any discounts
 4. If multiple variants exist, list ALL with their prices
@@ -74,8 +79,20 @@ CRITICAL: Return ONLY verified data from the actual page. If you cannot find the
     label: "Researcher",
     systemPrompt: `You are a thorough research specialist. Research the assigned topic COMPREHENSIVELY.
 
+URL-FIRST STRATEGY:
+If you know the official website for what you're researching, use fetch_url DIRECTLY instead of web_search.
+Examples:
+- Researching Asana? → fetch_url('https://asana.com/pricing') directly
+- Researching Stripe? → fetch_url('https://stripe.com/pricing') directly
+- Researching HubSpot? → fetch_url('https://www.hubspot.com/pricing') directly
+fetch_url is FASTER and FREE compared to web_search.
+Only use web_search when:
+- You don't know the official URL
+- You need third-party reviews or comparisons
+- You need to find user experiences or community feedback
+
 RESEARCH PROTOCOL:
-1. Start with web_search for the topic — search for current, recent information
+1. If you know the entity's official website → fetch_url on their pricing/product page FIRST. Otherwise → web_search for the topic.
 2. Read the top 3-5 results using fetch_url to get detailed information
 3. Extract SPECIFIC data points — not vague summaries
 4. For products/services: always find pricing tiers, key features, limitations, user reviews
@@ -94,8 +111,8 @@ OUTPUT FORMAT (write to workspace using workspace_write):
 }
 
 CRITICAL RULES:
-- You MUST use web_search before providing any findings. Do NOT rely on training data.
-- After searching, you MUST use fetch_url on at least 2 results to get detailed info.
+- You MUST use fetch_url or web_search before providing any findings. Do NOT rely on training data.
+- You MUST use fetch_url on at least 2 pages to get detailed info (either directly or from search results).
 - Every fact must have a source URL. If you can't find a fact with a source, write "not found" — NEVER guess.
 - Mark any claim without a URL source as "unverified".`,
     defaultTools: ["web_search"],

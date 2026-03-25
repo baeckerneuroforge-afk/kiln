@@ -238,6 +238,17 @@ export async function executeAgentSwarm(
     const totalToolCalls = subAgentResults.reduce((sum, r) => sum + r.toolCallsCount, 0);
     const dynamicAgentsSpawned = executor.currentAgentCount - tasks.length;
 
+    // Kompakte Agent-Ergebnisse für Swarm Learning
+    const agentResultsSummary = subAgentResults.map((r) => ({
+      id: r.id,
+      specialization: r.specialization,
+      toolCalls: r.toolCallsCount,
+      stoppedReason: r.stoppedReason,
+      cost: r.cost,
+      sourcesCount: r.sources?.length || 0,
+      resultLength: r.result?.length || 0,
+    }));
+
     eventStream.swarmCompleted(
       costSummary.totalCostDollars,
       executor.currentAgentCount,
@@ -270,6 +281,7 @@ export async function executeAgentSwarm(
           goalAnalysis: decomposition.goalAnalysis,
           executionPlan: decomposition.executionPlan,
           workspaceSnapshot: workspace.getSnapshot(),
+          agentResultsSummary,
           eventLog: eventStream.getEventLog(),
         },
       },

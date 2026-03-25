@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import {
   getIntelligenceStats,
   seedFromStaticRecipes,
+  seedKnownUrls,
 } from "@/lib/browser/collective-learning";
 import { getRecipeForUrl } from "@/lib/browser/site-recipes";
 
@@ -75,11 +76,13 @@ export async function POST(request: NextRequest) {
     }
 
     const seeded = await seedFromStaticRecipes(recipes);
+    const knownUrlsSeeded = await seedKnownUrls();
     const stats = await getIntelligenceStats();
 
     return Response.json({
       success: true,
       seeded,
+      knownUrlsSeeded,
       stats,
     });
   } catch (error) {

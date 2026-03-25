@@ -98,38 +98,44 @@ function layerToDepth(layer: ResearchLayer): ResearchDepth {
 
 async function searchSerper(query: string, maxResults: number): Promise<ResearchSource[]> {
   const serperKey = process.env.SERPER_API_KEY;
-  if (!serperKey) {
-    throw new Error("Weder PERPLEXITY_API_KEY noch SERPER_API_KEY konfiguriert");
+  if (serperKey) {
+    try {
+      const res = await fetch("https://google.serper.dev/search", {
+        method: "POST",
+        headers: {
+          "X-API-KEY": serperKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ q: query, num: Math.min(maxResults, 10) }),
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (res.ok) {
+        const data = await res.json() as {
+          organic?: Array<{ title: string; link: string; snippet: string }>;
+        };
+        const results = (data.organic || []).slice(0, maxResults).map((item, i) => ({
+          url: item.link,
+          title: item.title || extractDomainTitle(item.link),
+          snippet: item.snippet || "",
+          relevanceScore: Math.max(0.5, 1 - i * 0.08),
+          domain: new URL(item.link).hostname,
+        }));
+        if (results.length > 0) return results;
+      }
+    } catch {
+      // Serper fehlgeschlagen — weiter zu Free-Fallback
+    }
   }
 
-  const res = await fetch("https://google.serper.dev/search", {
-    method: "POST",
-    headers: {
-      "X-API-KEY": serperKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ q: query, num: Math.min(maxResults, 10) }),
-    signal: AbortSignal.timeout(10000),
-  });
-
-  if (!res.ok) throw new Error(`Serper API: ${res.status} ${res.statusText}`);
-
-  const data = await res.json() as {
-    organic?: Array<{ title: string; link: string; snippet: string }>;
-  };
-
-  return (data.organic || []).slice(0, maxResults).map((item, i) => ({
-    url: item.link,
-    title: item.title || extractDomainTitle(item.link),
-    snippet: item.snippet || "",
-    relevanceScore: Math.max(0.5, 1 - i * 0.08),
-    domain: new URL(item.link).hostname,
-  }));
+  // Free Fallback: Google/DuckDuckGo scraping über web-search-chain
+  const { searchWithFallbackChainForResearch } = await import("@/lib/execution/web-search-chain");
+  return searchWithFallbackChainForResearch(query, maxResults);
 }
 
 async function searchPerplexity(query: string, maxResults: number): Promise<ResearchSource[]> {
   const apiKey = process.env.PERPLEXITY_API_KEY;
-  if (!apiKey) return searchSerper(query, maxResults);
+  if (!apiKey) return searchSerper(query, maxResults); // searchSerper hat jetzt eigene Free-Fallbacks
 
   const response = await fetch("https://api.perplexity.ai/chat/completions", {
     method: "POST",
@@ -350,9 +356,7 @@ export async function executeDeepResearch(
 
     // ═══ LAYER 2: Web Search + Page Reading ═══
     if (layer === "search" || layer === "extract") {
-      if (!process.env.PERPLEXITY_API_KEY && !process.env.SERPER_API_KEY) {
-        return { contextDelta: {}, success: false, error: "Weder PERPLEXITY_API_KEY noch SERPER_API_KEY konfiguriert" };
-      }
+      // Kein API-Key-Check mehr nötig — web-search-chain hat Free-Fallbacks
 
       // 2a. Generate queries
       onProgress?.("🔍 Searching the web...");
@@ -446,9 +450,7 @@ export async function executeDeepResearch(
     }
 
     // ═══ LAYER 3: Deep Dive ═══
-    if (!process.env.PERPLEXITY_API_KEY && !process.env.SERPER_API_KEY) {
-      return { contextDelta: {}, success: false, error: "Weder PERPLEXITY_API_KEY noch SERPER_API_KEY konfiguriert" };
-    }
+    // Kein API-Key-Check — web-search-chain hat Free-Fallbacks
 
     // 3a. Generate diverse search queries
     onProgress?.("📊 Deep research — planning analysis...");
