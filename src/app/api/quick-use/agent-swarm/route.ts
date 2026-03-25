@@ -355,7 +355,7 @@ export async function POST(request: NextRequest) {
   if (!affordability.affordable) {
     return Response.json(
       {
-        error: `Not enough credits. This run is estimated at ${estimatedCredits} credits and your balance is ${affordability.balance}.`,
+        error: `You have ${affordability.balance} credits, but this task needs ~${estimatedCredits} credits. Top up at /dashboard/settings?tab=billing or add your own API key.`,
       },
       { status: 402 }
     );
@@ -370,7 +370,7 @@ export async function POST(request: NextRequest) {
 
   if (!decompositionCharge.success) {
     return Response.json(
-      { error: "Not enough credits to start the swarm." },
+      { error: `Not enough credits to start the swarm (need ${decompositionCreditCost}, have ${decompositionCharge.newBalance}). Top up at /dashboard/settings?tab=billing` },
       { status: 402 }
     );
   }

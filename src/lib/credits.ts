@@ -184,6 +184,11 @@ export async function checkAndDeductCredits(
   agentId?: string,
   conversationId?: string
 ): Promise<{ success: boolean; remaining: number }> {
+  // Admin bypass
+  if (isAdmin(userId)) {
+    return { success: true, remaining: 999999 };
+  }
+
   const cost = getCreditCost(modelId);
   if (cost <= 0) return { success: true, remaining: 0 };
 
@@ -215,6 +220,11 @@ export async function deductCredits(
   agentId?: string,
   conversationId?: string
 ): Promise<{ newBalance: number; creditsLow?: boolean; totalCredits?: number }> {
+  // Admin bypass — keine Credits abziehen
+  if (isAdmin(userId)) {
+    return { newBalance: 999999, creditsLow: false, totalCredits: 999999 };
+  }
+
   const cost = getCreditCost(modelId);
   if (cost <= 0) return { newBalance: 0 };
 
@@ -291,6 +301,11 @@ export async function deductEmbeddingCredits(
   chunkCount: number,
   agentId?: string
 ): Promise<{ newBalance: number }> {
+  // Admin bypass
+  if (isAdmin(userId)) {
+    return { newBalance: 999999 };
+  }
+
   const cost = Math.max(1, Math.ceil(chunkCount / 10));
 
   // Atomic deduct with floor check
@@ -327,6 +342,11 @@ export async function deductCreditsByAmount(
   agentId?: string,
   conversationId?: string
 ): Promise<{ success: boolean; newBalance: number }> {
+  // Admin bypass — keine Credits abziehen
+  if (isAdmin(userId)) {
+    return { success: true, newBalance: 999999 };
+  }
+
   const cost = Math.max(0, Math.ceil(credits));
 
   if (cost <= 0) {

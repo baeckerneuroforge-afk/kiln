@@ -239,6 +239,12 @@ export async function canAffordExecution(
   }
 
   try {
+    // Admin bypass
+    const { isAdmin } = await import("@/lib/admin");
+    if (isAdmin(userId)) {
+      return { affordable: true, balance: 999999, shortfall: 0 };
+    }
+
     const { checkCredits } = await import("@/lib/credits");
     const result = await checkCredits(userId, "claude-haiku-4-5-20251001", hasByokKey);
 

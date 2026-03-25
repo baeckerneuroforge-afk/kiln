@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
 
     if (!affordability.affordable) {
       return Response.json(
-        { error: `Not enough credits. Estimated: ${estimatedCredits} credits, balance: ${affordability.balance}.` },
+        { error: `You have ${affordability.balance} credits, but this research needs ~${estimatedCredits} credits. Top up at /dashboard/settings?tab=billing or add your own API key.` },
         { status: 402 },
       );
     }
