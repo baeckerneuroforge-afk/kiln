@@ -132,8 +132,10 @@ const NAV_SECTIONS: NavSection[] = [
 
 const planBadgeStyles: Record<string, string> = {
   FREE: "bg-muted text-muted-foreground",
+  STARTER: "bg-blue-500/15 text-blue-400",
   PRO: "bg-kiln-orange/15 text-kiln-orange",
   AGENCY: "bg-purple-500/15 text-purple-400",
+  ENTERPRISE: "bg-emerald-500/15 text-emerald-400",
   ADMIN: "bg-purple-500/15 text-purple-400",
 };
 

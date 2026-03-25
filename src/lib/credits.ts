@@ -97,6 +97,17 @@ export async function ensureCreditsReset(userId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return null;
 
+  // Admin: nie Credits zurücksetzen, immer bei 999999 lassen
+  if (isAdmin(userId)) {
+    if (user.aiCreditsBalance < 999999) {
+      return prisma.user.update({
+        where: { id: userId },
+        data: { aiCreditsBalance: 999999, aiCreditsMonthly: 999999 },
+      });
+    }
+    return user;
+  }
+
   const now = new Date();
 
   if (!user.aiCreditsResetDate || now >= user.aiCreditsResetDate) {

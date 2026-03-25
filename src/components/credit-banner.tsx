@@ -11,6 +11,7 @@ export function CreditBanner() {
   const [total, setTotal] = useState(0);
   const [byokActive, setBYOKActive] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [plan, setPlan] = useState<string>("");
   const [dismissed, setDismissed] = useState(false);
   const { advancedMode } = useAdvancedMode();
 
@@ -23,12 +24,14 @@ export function CreditBanner() {
           setTotal(data.totalCredits);
           setBYOKActive(data.byokActive);
           setIsAdmin(data.isAdmin);
+          setPlan(data.plan || "");
         }
       })
       .catch(() => {});
   }, []);
 
-  if (dismissed || balance === null || isAdmin || byokActive) return null;
+  // Hide for admin, BYOK, or ENTERPRISE plan
+  if (dismissed || balance === null || isAdmin || byokActive || plan === "ENTERPRISE") return null;
 
   // Simple Mode: show "AI Chats remaining" instead of "credits"
   const isSimple = !advancedMode;
