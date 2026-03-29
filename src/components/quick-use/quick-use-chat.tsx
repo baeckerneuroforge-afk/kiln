@@ -1816,6 +1816,7 @@ export function QuickUseChat({
   const [isStreaming, setIsStreaming] = useState(false);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("idle");
   const [activeResultId, setActiveResultId] = useState<string | null>(null);
+  const preliminaryResultIdRef = useRef<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
@@ -1913,6 +1914,7 @@ export function QuickUseChat({
     setIsStreaming(false);
     setSavingState("idle");
     setActiveResultId(null);
+    preliminaryResultIdRef.current = null;
     setPendingFiles([]);
     setIsDragOver(false);
     setActiveTaskId(null);
@@ -1928,6 +1930,19 @@ export function QuickUseChat({
 
   function appendMessage(entry: ChatEntry) {
     setMessages((current) => [...current, entry]);
+  }
+
+  /** Update an existing message by ID, or append if not found */
+  function updateMessage(id: string, entry: ChatEntry) {
+    setMessages((current) => {
+      const idx = current.findIndex((m) => m.id === id);
+      if (idx >= 0) {
+        const updated = [...current];
+        updated[idx] = entry;
+        return updated;
+      }
+      return [...current, entry];
+    });
   }
 
   /* ── File handling ── */
@@ -2513,14 +2528,31 @@ export function QuickUseChat({
               );
             }
 
+            if (event.type === "preliminary_result") {
+              // Update existing preliminary card or create one
+              const existingId = preliminaryResultIdRef.current;
+              const entry: ChatEntry = {
+                id: existingId || createId(),
+                kind: "result",
+                result: event.result,
+                credits: { estimatedCredits: estimatedCredits ?? 0 },
+              };
+              if (existingId) {
+                updateMessage(existingId, entry);
+              } else {
+                preliminaryResultIdRef.current = entry.id;
+                appendMessage(entry);
+                setActiveResultId(entry.id);
+              }
+            }
+
             if (event.type === "result") {
               setActiveProgress(null);
               setBrowserView((prev) =>
                 prev ? { ...prev, status: "completed", thinkingText: null } : prev
               );
-              const id = createId();
-              appendMessage({
-                id,
+              const resultEntry: ChatEntry = {
+                id: preliminaryResultIdRef.current || createId(),
                 kind: "result",
                 result: event.result,
                 credits: {
@@ -2528,8 +2560,15 @@ export function QuickUseChat({
                   creditsUsed: event.credits?.creditsUsed,
                   creditsRemaining: event.credits?.creditsRemaining,
                 },
-              });
-              setActiveResultId(id);
+              };
+              // Replace preliminary card with final result, or append new
+              if (preliminaryResultIdRef.current) {
+                updateMessage(preliminaryResultIdRef.current, resultEntry);
+              } else {
+                appendMessage(resultEntry);
+              }
+              setActiveResultId(resultEntry.id);
+              preliminaryResultIdRef.current = null;
             }
 
             if (event.type === "error") {

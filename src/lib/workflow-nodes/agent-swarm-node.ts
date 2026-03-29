@@ -337,9 +337,9 @@ async function executeSwarmSubAgent(
     budgetCredits: swarmConfig.budgetCredits
       ? Math.max(
           (task.tools || []).includes("computer_use") ? 20 : 10,
-          Math.round((swarmConfig.budgetCredits / (swarmConfig.maxAgents || 5)) * 1.5)
+          Math.round((swarmConfig.budgetCredits / Math.max(1, swarmConfig.maxAgents || 5)) * 1.5)
         )
-      : undefined,
+      : undefined, // undefined = unlimited (admin/BYOK)
     specialization: task.specialization,
     taskType: task.taskType,
     expectedOutput: task.expectedOutput,

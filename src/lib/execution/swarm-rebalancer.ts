@@ -6,6 +6,7 @@ import type { SubAgentResult } from "./sub-agent-executor";
 
 interface AgentState {
   task: SubTask;
+  originalTaskId: string; // Tracks the root task even across retries
   status: "running" | "completed" | "failed";
   lastActivityAt: number;
   retriesScheduled: number;
@@ -21,7 +22,7 @@ interface RebalancerOptions {
 }
 
 const STUCK_AFTER_MS = 30_000;
-const MAX_RETRIES_PER_AGENT = 1;
+const MAX_RETRIES_PER_TASK = 2; // Original + 2 retries = 3 attempts max
 
 export class SwarmRebalancer {
   private readonly executor: ParallelExecutor;
@@ -30,6 +31,8 @@ export class SwarmRebalancer {
   private readonly costTracker: CostTracker;
   private readonly budgetCredits?: number;
   private readonly agentStates = new Map<string, AgentState>();
+  // Tracks total retries by ORIGINAL task ID (not retry IDs)
+  private readonly retryCountByOriginalTask = new Map<string, number>();
   private unsubscribeEvent?: () => void;
   private unsubscribeWorkspace?: () => void;
   private intervalId?: NodeJS.Timeout;
@@ -42,10 +45,17 @@ export class SwarmRebalancer {
     this.budgetCredits = options.budgetCredits;
   }
 
+  /** Extracts the root task ID, stripping all _retry_* suffixes */
+  private getOriginalTaskId(taskId: string): string {
+    return taskId.replace(/_retry_\d+/g, "");
+  }
+
   registerTask(task: SubTask): void {
     if (this.agentStates.has(task.id)) return;
+    const originalTaskId = this.getOriginalTaskId(task.id);
     this.agentStates.set(task.id, {
       task,
+      originalTaskId,
       status: "running",
       lastActivityAt: Date.now(),
       retriesScheduled: 0,
@@ -77,12 +87,14 @@ export class SwarmRebalancer {
     if (!state.qualityChecked) {
       state.qualityChecked = true;
       const lowQuality = this.isLowQuality(result, state.task);
-      if (lowQuality && state.retriesScheduled < MAX_RETRIES_PER_AGENT) {
+      const globalRetries = this.retryCountByOriginalTask.get(state.originalTaskId) || 0;
+      if (lowQuality && globalRetries < MAX_RETRIES_PER_TASK) {
+        this.retryCountByOriginalTask.set(state.originalTaskId, globalRetries + 1);
         this.scheduleReplacement(state.task, "Quality check failed — retry with fallback strategy.");
         state.retriesScheduled++;
         this.eventStream.qualityWarning(
           state.task.id,
-          "Low-quality result detected. Scheduling one fallback attempt."
+          `Low-quality result. Retry ${globalRetries + 1}/${MAX_RETRIES_PER_TASK}.`
         );
       }
     }
@@ -133,11 +145,13 @@ export class SwarmRebalancer {
     for (const state of this.agentStates.values()) {
       if (state.status !== "running") continue;
       if (now - state.lastActivityAt < STUCK_AFTER_MS) continue;
-      if (state.retriesScheduled >= MAX_RETRIES_PER_AGENT) continue;
+      const globalRetries = this.retryCountByOriginalTask.get(state.originalTaskId) || 0;
+      if (globalRetries >= MAX_RETRIES_PER_TASK) continue;
 
+      this.retryCountByOriginalTask.set(state.originalTaskId, globalRetries + 1);
       this.scheduleReplacement(
         state.task,
-        `Agent ${state.task.id} appears stuck. Retrying with fallback strategy.`
+        `Agent ${state.task.id} appears stuck. Retry ${globalRetries + 1}/${MAX_RETRIES_PER_TASK}.`
       );
       state.retriesScheduled++;
       state.lastActivityAt = now;

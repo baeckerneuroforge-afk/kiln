@@ -144,14 +144,16 @@ function applyQualityGate(
 ): { passed: SubAgentResult[]; quality: AgentQualityResult[] } {
   const quality = results.map(validateAgentResult);
 
+  // Only log quality issues for original tasks, not retries (internal detail)
   for (const q of quality) {
+    if (q.agentId.includes("_retry_")) continue;
     if (!q.include) {
       eventStream.mergeConflict(
-        `Agent ${q.agentId} excluded from merge: ${q.issues.join(", ")}`,
+        `Agent ${q.agentId} excluded: ${q.issues.join(", ")}`,
       );
     } else if (q.confidence === "low") {
       eventStream.mergeConflict(
-        `Agent ${q.agentId} low confidence (${q.score.toFixed(2)}): ${q.issues.join(", ")}`,
+        `Agent ${q.agentId} low confidence: ${q.issues.join(", ")}`,
       );
     }
   }
@@ -193,9 +195,24 @@ export class IntelligentMerge {
 
     if (qualityPassedResults.length === 0) {
       this.eventStream.mergeCompleted(0);
-      const failedAgents = quality.filter((q) => !q.include).map((q) => q.agentId).join(", ");
+      // Summarize issues: deduplicate, count by type, cap at 5
+      const issueCounts = new Map<string, number>();
+      for (const q of quality) {
+        for (const issue of q.issues) {
+          issueCounts.set(issue, (issueCounts.get(issue) || 0) + 1);
+        }
+      }
+      // Filter to only original tasks (not retries) for the summary
+      const originalFailed = quality
+        .filter((q) => !q.include && !q.agentId.includes("_retry_"))
+        .map((q) => q.agentId);
+      const issueSummary = [...issueCounts.entries()]
+        .slice(0, 5)
+        .map(([issue, count]) => `${issue} (${count}×)`)
+        .join(", ");
+
       return {
-        mergedResult: `No agents produced reliable data. Failed: ${failedAgents || "all agents"}. Issues: ${quality.flatMap((q) => q.issues).join(", ")}`,
+        mergedResult: `${originalFailed.length || quality.length} agents failed quality checks. Issues: ${issueSummary}`,
         qualityScore: 0,
         conflicts: [],
         duplicatesRemoved: 0,

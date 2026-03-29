@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
 import { canAffordExecution, estimateSwarmCost } from "@/lib/cost/cost-estimator";
 import { deductCreditsByAmount, getCreditCost } from "@/lib/credits";
+import { isAdmin } from "@/lib/admin";
 import { decomposeGoal } from "@/lib/execution/task-decomposer";
 import { SwarmEventStream, type SwarmEvent } from "@/lib/execution/swarm-event-stream";
 import { checkFeatureAccess } from "@/lib/feature-access";
@@ -428,8 +429,9 @@ export async function POST(request: NextRequest) {
             quickUseType: "agent-swarm",
           });
 
+          // Send as preliminary_result (updates existing card) instead of "result" (creates new card)
           safeWrite({
-            type: "result",
+            type: "preliminary_result",
             result: preliminaryResult,
           });
         }
@@ -487,7 +489,7 @@ export async function POST(request: NextRequest) {
             maxParallel: Math.max(2, Math.min(4, decomposition.tasks.length)),
             mergeStrategy: "synthesize",
             timeoutPerAgent: 180,
-            budgetCredits: Math.max(1, estimatedCredits - decompositionCreditCost),
+            budgetCredits: isAdmin(userId) ? undefined : Math.max(1, estimatedCredits - decompositionCreditCost),
             taskDecomposition: decomposition,
             eventStream,
             resultKey,

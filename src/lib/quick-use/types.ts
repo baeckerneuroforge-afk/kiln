@@ -196,6 +196,11 @@ export type QuickUseStreamEvent =
       credits?: QuickUseCreditInfo;
     }
   | {
+      /** Preliminary/progressive result — updates existing card instead of creating new */
+      type: "preliminary_result";
+      result: QuickUseResult;
+    }
+  | {
       type: "error";
       error: string;
       suggestions?: string[];
