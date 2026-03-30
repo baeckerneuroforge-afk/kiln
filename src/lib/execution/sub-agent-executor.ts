@@ -1155,6 +1155,13 @@ export class SubAgentExecutor {
     let usedWebSearch = false;
     let usedFetchUrl = false;
     let nudgeCount = 0;
+    let hasWrittenWorkspace = false;
+    let shouldStop = false;
+    let dataReceivedAtIter = -1;
+    let emptyWorkspaceReadCount = 0;
+    const usedSearchQueries = new Set<string>();
+    const usedFetchUrls = new Set<string>();
+    const accumulatedToolData: { tool: string; content: string }[] = [];
     const isResearcher = this.config.specialization === "researcher" || this.config.specialization === "price_extractor";
 
     for (let iteration = 0; iteration < maxIterations; iteration++) {
@@ -1252,8 +1259,41 @@ export class SubAgentExecutor {
             if (block.name === "fetch_url") usedFetchUrl = true;
 
             eventStream.agentToolCalled(this.config.id, block.name, block.input as Record<string, unknown>);
-            const toolInputStr = JSON.stringify(block.input).slice(0, 120);
+            const toolInput_ = block.input as Record<string, unknown>;
+            const toolInputStr = JSON.stringify(toolInput_).slice(0, 120);
             _debugLog.push(`[TOOL] iter=${iteration} ${block.name}(${toolInputStr})`);
+
+            // ── FIX 1: Block workspace_read spam ──
+            if (block.name === "workspace_read" && emptyWorkspaceReadCount >= 2) {
+              const shortCircuit = JSON.stringify({ success: true, findings: [], hint: "Workspace is empty. Use fetch_url or web_search to get data, then workspace_write to save it." });
+              _debugLog.push(`[BLOCK] workspace_read blocked (${emptyWorkspaceReadCount} empty reads)`);
+              toolResults.push({ type: "tool_result", tool_use_id: block.id, content: shortCircuit });
+              continue;
+            }
+
+            // ── FIX 3: Block duplicate web_search queries ──
+            if (block.name === "web_search") {
+              const q = String(toolInput_.query || "").toLowerCase().replace(/\d{4}/g, "").trim();
+              if (usedSearchQueries.has(q)) {
+                const dup = JSON.stringify({ success: true, results: [], hint: "Already searched for this. Use workspace_write to save your findings NOW." });
+                _debugLog.push(`[BLOCK] duplicate web_search: ${q}`);
+                toolResults.push({ type: "tool_result", tool_use_id: block.id, content: dup });
+                continue;
+              }
+              usedSearchQueries.add(q);
+            }
+
+            // ── FIX 3: Block duplicate fetch_url calls ──
+            if (block.name === "fetch_url") {
+              const u = String(toolInput_.url || "");
+              if (usedFetchUrls.has(u)) {
+                const dup = JSON.stringify({ success: true, content: "", hint: "Already fetched this URL. Use workspace_write to save your findings NOW." });
+                _debugLog.push(`[BLOCK] duplicate fetch_url: ${u}`);
+                toolResults.push({ type: "tool_result", tool_use_id: block.id, content: dup });
+                continue;
+              }
+              usedFetchUrls.add(u);
+            }
 
             // Tool ausführen
             let toolResult: string;
@@ -1270,6 +1310,29 @@ export class SubAgentExecutor {
                 this.mcpAgentId,
               );
               _debugLog.push(`[TOOL] ${block.name} OK ${toolResult.length} chars`);
+
+              // ── Track workspace_read emptiness ──
+              if (block.name === "workspace_read") {
+                if (toolResult.length < 100) emptyWorkspaceReadCount++;
+                else emptyWorkspaceReadCount = 0;
+              }
+
+              // ── FIX 5: Track workspace_write ──
+              if (block.name === "workspace_write") {
+                hasWrittenWorkspace = true;
+                _debugLog.push(`[WRITE] workspace_write successful`);
+                if (usedFetchUrl || usedWebSearch) {
+                  _debugLog.push(`[EARLY] Stopping after workspace_write (has web data)`);
+                  shouldStop = true;
+                }
+              }
+
+              // ── Track data received from web tools ──
+              if ((block.name === "fetch_url" || block.name === "web_search") && toolResult.length > 500) {
+                if (dataReceivedAtIter === -1) dataReceivedAtIter = iteration;
+                accumulatedToolData.push({ tool: block.name, content: toolResult.slice(0, 2000) });
+              }
+
             } catch (err) {
               const errorMsg = err instanceof Error ? err.message : "Tool execution failed";
               _debugLog.push(`[TOOL] ${block.name} FAILED: ${errorMsg.slice(0, 100)}`);
@@ -1356,17 +1419,70 @@ export class SubAgentExecutor {
         messages.push({ role: "assistant", content: response.content });
         messages.push({ role: "user", content: toolResults });
 
+        // ── FIX 5: Early exit after successful workspace_write ──
+        if (shouldStop) {
+          finalResult = trimmedText || "Data saved to workspace.";
+          stoppedReason = "completed";
+          break;
+        }
+
+        // ── FIX 2: Force workspace_write if agent has data but hasn't written ──
+        if (isResearcher && dataReceivedAtIter >= 0 && !hasWrittenWorkspace && iteration >= dataReceivedAtIter + 2) {
+          _debugLog.push(`[NUDGE] iter=${iteration} data received at ${dataReceivedAtIter} but no workspace_write yet`);
+          messages.push({
+            role: "user",
+            content: 'You have data from web sources but have not saved it. Call workspace_write NOW with your findings as JSON: {"entity":"Name","pricing":{"free":"...","starter":"$X/mo","pro":"$X/mo"},"key_features":["..."],"sources":[{"url":"...","title":"..."}]}',
+          });
+        }
+
+        // ── FIX 4: Auto-save at iteration 10 if agent never wrote ──
+        if (isResearcher && iteration >= 10 && !hasWrittenWorkspace && accumulatedToolData.length > 0) {
+          _debugLog.push(`[AUTO] iter=${iteration} force-extracting from ${accumulatedToolData.length} tool results`);
+          const rawData = accumulatedToolData
+            .map((d) => d.content.slice(0, 1500))
+            .join("\n---\n")
+            .slice(0, 4000);
+
+          try {
+            const extraction = await anthropicClient.messages.create({
+              model: "claude-haiku-4-5-20251001",
+              max_tokens: 1024,
+              messages: [
+                {
+                  role: "user",
+                  content: `Extract structured data from this raw web content. Return ONLY valid JSON:\n{"entity":"Name","pricing":{"free":"...","pro":"$X/mo"},"key_features":["..."],"limitations":["..."],"sources":[{"url":"..."}]}\n\nRaw data:\n${rawData}`,
+                },
+              ],
+            });
+            const extractedText = extraction.content
+              .filter((b): b is Anthropic.TextBlock => b.type === "text")
+              .map((b) => b.text)
+              .join("");
+
+            workspace.write(this.config.id, "findings_auto", safeJsonParse(extractedText) || extractedText, ["auto_extracted"], {
+              source: "extracted",
+              tool: "auto_save",
+              verified: false,
+            });
+            hasWrittenWorkspace = true;
+            _debugLog.push(`[AUTO] Force-extracted and saved ${extractedText.length} chars`);
+            finalResult = extractedText;
+            stoppedReason = "completed";
+            break;
+          } catch (autoErr) {
+            _debugLog.push(`[AUTO] Extraction failed: ${autoErr instanceof Error ? autoErr.message : "unknown"}`);
+          }
+        }
+
         // Tool usage enforcement: nudge researchers to use web tools specifically
         console.warn("[FORCE]", this.config.id, "iter", iteration, "— tools used: web_search=", usedWebSearch, "fetch_url=", usedFetchUrl, "totalToolCalls=", totalToolCalls);
         _debugLog.push(`[FORCE] iter=${iteration} web_search=${usedWebSearch} fetch_url=${usedFetchUrl} calls=${totalToolCalls}`);
         if (isResearcher && iteration === 0 && !usedFetchUrl && !usedWebSearch) {
-          // Used a tool (e.g. workspace_write) but not fetch_url or web_search
           messages.push({
             role: "user",
             content: "You MUST use fetch_url or web_search to get real data. Do NOT rely on training data.",
           });
         } else if (isResearcher && iteration >= 1 && usedWebSearch && !usedFetchUrl && iteration <= 3) {
-          // Has search results but hasn't read any pages — nudge fetch_url
           messages.push({
             role: "user",
             content: "Good search results. Now use fetch_url on the top 2-3 result URLs to get detailed information.",
