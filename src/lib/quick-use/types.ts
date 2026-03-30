@@ -243,7 +243,13 @@ export type QuickUseStreamEvent =
       success: boolean;
     }
   | {
-      /** Debug logs from sub-agents (admin only) */
+      /** Debug logs from sub-agents (admin only) — batch at end */
       type: "debug";
       debugLogs: Record<string, string[]>;
+    }
+  | {
+      /** Debug log from a single agent as it completes */
+      type: "agent_debug";
+      agentId: string;
+      debugLog: string[];
     };

@@ -22,7 +22,8 @@ export type SwarmEventType =
   | "merge.conflict"
   | "merge.completed"
   | "quality.warning"
-  | "swarm.completed";
+  | "swarm.completed"
+  | "agent.debug";
 
 export interface SwarmEvent {
   type: SwarmEventType;

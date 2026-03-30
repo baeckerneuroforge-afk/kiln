@@ -445,6 +445,15 @@ export async function POST(request: NextRequest) {
         if (finding) {
           safeWrite({ type: "finding", message: finding });
         }
+
+        // Stream debug log per agent as it completes (admin only)
+        if (event.type === "agent.debug" && isAdmin(userId)) {
+          const agentId = String(event.data.agentId || "");
+          const debugLog = event.data.debugLog as string[] | undefined;
+          if (agentId && debugLog?.length) {
+            safeWrite({ type: "agent_debug", agentId, debugLog });
+          }
+        }
       });
 
       try {

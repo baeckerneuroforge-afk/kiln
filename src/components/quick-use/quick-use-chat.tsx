@@ -2614,6 +2614,13 @@ export function QuickUseChat({
               setDebugLogs(event.debugLogs);
             }
 
+            if (event.type === "agent_debug") {
+              setDebugLogs((prev) => ({
+                ...prev,
+                [event.agentId]: event.debugLog,
+              }));
+            }
+
             if (event.type === "error") {
               setActiveProgress(null);
               setBrowserView((prev) =>
@@ -2646,6 +2653,33 @@ export function QuickUseChat({
       setActiveTaskId(null);
       setIsPaused(false);
       setIsStopping(false);
+
+      // Fallback: if stream ended with only a preliminary result (no final "result" event),
+      // promote the preliminary to a final result with a partial-data note
+      setMessages((prev) => {
+        const hasFinalResult = prev.some(
+          (m) => m.kind === "result" && !(m.result.meta as Record<string, unknown> | undefined)?.stage
+        );
+        if (hasFinalResult) return prev;
+
+        const prelimId = preliminaryResultIdRef.current;
+        if (!prelimId) return prev;
+
+        return prev.map((m) => {
+          if (m.id !== prelimId || m.kind !== "result") return m;
+          const r = m.result;
+          return {
+            ...m,
+            result: {
+              ...r,
+              title: r.title?.replace(/^Interim Findings/, "Results") || r.title,
+              summary: r.summary + "\n\n⚠️ Results based on partial agent data (stream ended before final merge).",
+              meta: { ...((r.meta as Record<string, unknown>) || {}), stage: undefined, partialResult: true },
+            },
+          };
+        });
+      });
+      preliminaryResultIdRef.current = null;
       // Refresh task history
       fetch("/api/quick-use/tasks")
         .then((r) => r.json())

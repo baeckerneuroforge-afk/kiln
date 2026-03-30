@@ -148,6 +148,14 @@ export async function executeAgentSwarm(
           subAgentResults.push(subResult);
           rebalancer.noteResult(subResult);
 
+          // Stream debug log immediately per agent
+          if (subResult._debugLog && subResult._debugLog.length > 0) {
+            eventStream.emit("agent.debug", {
+              agentId: subResult.id,
+              debugLog: subResult._debugLog,
+            });
+          }
+
           if (subAgentResults.length >= 1) {
             eventStream.swarmPreliminary(
               subAgentResults.some((item) => item.sources.some((source) => source.tool === "browse_url" || source.tool === "take_screenshot"))
