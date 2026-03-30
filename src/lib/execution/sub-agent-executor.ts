@@ -1426,18 +1426,10 @@ export class SubAgentExecutor {
           break;
         }
 
-        // ── FIX 2: Force workspace_write if agent has data but hasn't written ──
-        if (isResearcher && dataReceivedAtIter >= 0 && !hasWrittenWorkspace && iteration >= dataReceivedAtIter + 2) {
-          _debugLog.push(`[NUDGE] iter=${iteration} data received at ${dataReceivedAtIter} but no workspace_write yet`);
-          messages.push({
-            role: "user",
-            content: 'You have data from web sources but have not saved it. Call workspace_write NOW with your findings as JSON: {"entity":"Name","pricing":{"free":"...","starter":"$X/mo","pro":"$X/mo"},"key_features":["..."],"sources":[{"url":"...","title":"..."}]}',
-          });
-        }
-
-        // ── FIX 4: Auto-save at iteration 10 if agent never wrote ──
-        if (isResearcher && iteration >= 10 && !hasWrittenWorkspace && accumulatedToolData.length > 0) {
-          _debugLog.push(`[AUTO] iter=${iteration} force-extracting from ${accumulatedToolData.length} tool results`);
+        // ── FIX 2+4: Auto-save at iteration 3 if agent has web data but hasn't written ──
+        // Haiku ignores text nudges, so we extract and save the data ourselves.
+        if (isResearcher && iteration >= 3 && dataReceivedAtIter >= 0 && !hasWrittenWorkspace && accumulatedToolData.length > 0) {
+          _debugLog.push(`[AUTO] iter=${iteration} force-extracting from ${accumulatedToolData.length} tool results (data since iter ${dataReceivedAtIter})`);
           const rawData = accumulatedToolData
             .map((d) => d.content.slice(0, 1500))
             .join("\n---\n")

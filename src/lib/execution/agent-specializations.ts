@@ -53,7 +53,7 @@ RULES:
 4. NEVER guess prices. If not found: {"error":"Price not found","reason":"..."}`,
     defaultTools: ["computer_use", "web_search"],
     preferredModel: "claude-haiku-4-5-20251001",
-    maxIterations: 12,
+    maxIterations: 8,
     successCriteria: "Return a populated price field with numeric value, currency, and source URL.",
   },
   researcher: {
