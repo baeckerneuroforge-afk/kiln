@@ -958,11 +958,16 @@ async function executeSubAgentTool(
       try {
         const { webSearchWithFallbackChain } = await import("./web-search-chain");
         const query = String(toolInput.query || "");
+        console.log("[TOOL] web_search called with query:", query);
         const numResults = Math.min(Number(toolInput.num_results) || 5, 10);
         const result = await webSearchWithFallbackChain(query, numResults);
-        return JSON.stringify(result);
+        const resultStr = JSON.stringify(result);
+        console.log("[TOOL] web_search returned", resultStr.length, "chars");
+        return resultStr;
       } catch (err) {
-        return JSON.stringify({ success: false, error: err instanceof Error ? err.message : "Search failed" });
+        const msg = err instanceof Error ? err.message : "Search failed";
+        console.log("[TOOL] web_search FAILED:", msg);
+        return JSON.stringify({ success: false, error: msg });
       }
     }
 
@@ -971,6 +976,7 @@ async function executeSubAgentTool(
         const { safeFetch } = await import("@/lib/url-validation");
         const { learnSuccessfulUrl } = await import("./web-search-chain");
         const url = String(toolInput.url || "");
+        console.log("[TOOL] fetch_url called with url:", url);
         const response = await safeFetch(url, { signal: AbortSignal.timeout(15000) });
         const text = await response.text();
         const cleaned = text
@@ -980,6 +986,8 @@ async function executeSubAgentTool(
           .replace(/\s+/g, " ")
           .trim()
           .slice(0, 8000);
+
+        console.log("[TOOL] fetch_url returned", cleaned.length, "chars from", url);
 
         // URL Learning: erfolgreiche Fetches in SiteIntelligence speichern
         learnSuccessfulUrl(url, cleaned.length);
@@ -997,7 +1005,9 @@ async function executeSubAgentTool(
           },
         });
       } catch (err) {
-        return JSON.stringify({ success: false, error: err instanceof Error ? err.message : "Fetch failed" });
+        const msg = err instanceof Error ? err.message : "Fetch failed";
+        console.log("[TOOL] fetch_url FAILED:", msg);
+        return JSON.stringify({ success: false, error: msg });
       }
     }
 
@@ -1115,6 +1125,7 @@ export class SubAgentExecutor {
     // Step 2: Build tool definitions
     const enableSpawn = !!this.spawnHandler;
     const tools = buildToolDefinitions(this.config.tools, enableSpawn);
+    console.log("[AGENT]", this.config.id, "Tools available:", tools.map(t => t.name));
 
     // MCP-Tools hinzufügen wenn verfügbar
     if (this.config.tools.includes("mcp") && this.mcpAgentId) {
@@ -1145,6 +1156,7 @@ export class SubAgentExecutor {
       // Budget-Check vor jeder Iteration
       if (this.config.budgetCredits) {
         const budget = this.costTracker.checkBudget(this.config.budgetCredits);
+        console.log("[BUDGET]", this.config.id, "budget:", this.config.budgetCredits, "remaining:", budget.remainingCredits, "pctUsed:", budget.percentUsed, "withinBudget:", budget.withinBudget);
         if (!budget.withinBudget) {
           stoppedReason = "budget_exceeded";
           finalResult = finalResult || `Agent stopped: budget exceeded after ${totalToolCalls} tool calls. Partial results available in workspace.`;
@@ -1217,6 +1229,7 @@ export class SubAgentExecutor {
         await this.costTracker.trackUsage(model, inputTokens, outputTokens, `sub-agent:${this.config.id}:iter${iteration}`);
 
         // Response verarbeiten
+        console.log("[LLM]", this.config.id, "iter", iteration, "stop_reason:", response.stop_reason, "content types:", response.content.map(c => c.type));
         let hasToolUse = false;
         const toolResults: Anthropic.ToolResultBlockParam[] = [];
         let textContent = "";
@@ -1307,6 +1320,7 @@ export class SubAgentExecutor {
 
         if (!hasToolUse) {
           // Keine Tool-Calls → Agent ist fertig
+          console.log("[FORCE]", this.config.id, "iter", iteration, "— NO tool_use in response, agent stopping. Text:", trimmedText.slice(0, 200));
           finalResult = trimmedText;
           stoppedReason = "completed";
           break;
@@ -1317,6 +1331,7 @@ export class SubAgentExecutor {
         messages.push({ role: "user", content: toolResults });
 
         // Tool usage enforcement: nudge researchers to actually use tools
+        console.log("[FORCE]", this.config.id, "iter", iteration, "— tools used: web_search=", usedWebSearch, "fetch_url=", usedFetchUrl, "totalToolCalls=", totalToolCalls);
         if (isResearcher && iteration === 0 && !hasToolUse) {
           // First iteration produced NO tool calls — don't count it, force a tool call
           iteration--; // Re-do iteration 0
