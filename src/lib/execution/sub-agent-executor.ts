@@ -1082,7 +1082,11 @@ export class SubAgentExecutor {
           this.config.outputFormat
         );
     const toolRouting = this.config.toolRouting || decideToolRouting(this.config.description, this.config.tools);
-    const maxIterations = this.config.maxIterations || specialization.maxIterations;
+    const isResearchRole = this.config.specialization === "researcher" || this.config.specialization === "price_extractor";
+    const maxIterations = Math.max(
+      this.config.maxIterations || specialization.maxIterations,
+      isResearchRole ? 15 : 8, // Researchers need enough iterations for fetch+search+write
+    );
     const spawnCount = { current: 0 };
     let totalToolCalls = 0;
     let totalInputTokens = 0;
@@ -1313,25 +1317,24 @@ export class SubAgentExecutor {
         messages.push({ role: "user", content: toolResults });
 
         // Tool usage enforcement: nudge researchers to actually use tools
-        if (isResearcher && iteration === 0 && !usedWebSearch) {
-          // First iteration and no web_search — force it
-          messages.push({
-            role: "assistant",
-            content: [{ type: "text", text: "I'll search for current information now." }],
-          });
+        if (isResearcher && iteration === 0 && !hasToolUse) {
+          // First iteration produced NO tool calls — don't count it, force a tool call
+          iteration--; // Re-do iteration 0
           messages.push({
             role: "user",
-            content: "You MUST use the web_search tool before providing findings. Search for current information now. Do NOT rely on training data.",
+            content: "You MUST use a tool now. Use fetch_url on the official website or web_search. Do NOT reason without tools — act immediately.",
+          });
+        } else if (isResearcher && iteration === 0 && !usedFetchUrl && !usedWebSearch) {
+          // Used a tool but not fetch_url or web_search
+          messages.push({
+            role: "user",
+            content: "You MUST use fetch_url or web_search to get real data. Do NOT rely on training data.",
           });
         } else if (isResearcher && iteration >= 1 && usedWebSearch && !usedFetchUrl && iteration <= 3) {
           // Has search results but hasn't read any pages — nudge fetch_url
           messages.push({
-            role: "assistant",
-            content: [{ type: "text", text: "I should read the actual pages for detailed information." }],
-          });
-          messages.push({
             role: "user",
-            content: "Good search results. Now use fetch_url on the top 2-3 results to get detailed information. Do NOT summarize from snippets alone.",
+            content: "Good search results. Now use fetch_url on the top 2-3 result URLs to get detailed information.",
           });
         }
 

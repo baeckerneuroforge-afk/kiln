@@ -398,46 +398,74 @@ function OnDemandFileButton({
 }) {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleClick = async () => {
     if (loading || done) return;
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/quick-use/generate-file", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ kind, data, markdown, topic, title }),
       });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        setError(errJson.error || `Generation failed (${res.status})`);
+        return;
+      }
       const json = await res.json();
       if (json.file) {
         onGenerated(json.file);
         setDone(true);
+        // Auto-download
+        if (json.file.url) {
+          const a = document.createElement("a");
+          a.href = json.file.url;
+          a.download = json.file.name || `report.${kind}`;
+          a.target = "_blank";
+          a.rel = "noopener";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+      } else {
+        setError("No file returned");
       }
-    } catch {
-      // Silently fail
+    } catch (err) {
+      console.error("File generation error:", err);
+      setError(err instanceof Error ? err.message : "Generation failed");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={loading || done}
-      className={cn(
-        "flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
-        done
-          ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400"
-          : "border-white/8 bg-white/[0.02] text-zinc-400 hover:border-white/14 hover:text-zinc-200",
+    <div className="flex flex-col gap-1">
+      <button
+        onClick={handleClick}
+        disabled={loading || done}
+        className={cn(
+          "flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
+          error
+            ? "border-red-500/20 bg-red-500/[0.06] text-red-400"
+            : done
+              ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400"
+              : "border-white/8 bg-white/[0.02] text-zinc-400 hover:border-white/14 hover:text-zinc-200",
+        )}
+      >
+        {loading ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Icon className="h-3.5 w-3.5" />
+        )}
+        {error ? "Failed" : done ? "Created" : label}
+      </button>
+      {error && (
+        <span className="text-[10px] text-red-400/70">{error}</span>
       )}
-    >
-      {loading ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-      ) : (
-        <Icon className="h-3.5 w-3.5" />
-      )}
-      {done ? "Created" : label}
-    </button>
+    </div>
   );
 }
 
@@ -508,8 +536,12 @@ function FileOutputSection({
   ];
   const visibleOptions = onDemandOptions.filter((o) => o.show);
 
-  // Extract table data for preview
-  const tableData = hasTable ? extractPreviewTable(result.markdown!) : null;
+  // Extract table data for preview — but skip if markdown already has a rendered table
+  // (to avoid showing the same data twice: once in markdown, once in DataPreviewTable)
+  const markdownHasRenderedTable = result.markdown
+    ? /^\|.+\|$/m.test(result.markdown) && /^\|[-:| ]+\|$/m.test(result.markdown)
+    : false;
+  const tableData = hasTable && !markdownHasRenderedTable ? extractPreviewTable(result.markdown!) : null;
 
   const handleGenerated = (file: QuickUseGeneratedFile) => {
     setExtraFiles((prev) => [...prev, file]);
@@ -1390,7 +1422,7 @@ function ResultCard({
           ) : null}
 
           <div className="flex flex-wrap gap-2">
-            {typeof prepared.qualityScore === "number" ? (
+            {typeof prepared.qualityScore === "number" && prepared.sources && prepared.sources.length > 0 ? (
               <Badge className="bg-emerald-500/15 text-emerald-300">
                 Quality {Math.round(prepared.qualityScore)}
               </Badge>
@@ -2588,11 +2620,15 @@ export function QuickUseChat({
       }
     } catch (error) {
       setActiveProgress(null);
-      appendMessage({
-        id: createId(),
-        kind: "error",
-        content: error instanceof Error ? error.message : "Request failed",
-      });
+      // If we already have a result, suppress network errors (stream timed out but result was already delivered)
+      const hasResult = messages.some((m) => m.kind === "result") || preliminaryResultIdRef.current;
+      if (!hasResult) {
+        appendMessage({
+          id: createId(),
+          kind: "error",
+          content: error instanceof Error ? error.message : "Request failed",
+        });
+      }
     } finally {
       setIsStreaming(false);
       setPendingFiles([]);
