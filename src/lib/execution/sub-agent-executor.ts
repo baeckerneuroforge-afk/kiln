@@ -1150,6 +1150,7 @@ export class SubAgentExecutor {
     let finalResult = "";
     let usedWebSearch = false;
     let usedFetchUrl = false;
+    let nudgeCount = 0;
     const isResearcher = this.config.specialization === "researcher" || this.config.specialization === "price_extractor";
 
     for (let iteration = 0; iteration < maxIterations; iteration++) {
@@ -1319,8 +1320,20 @@ export class SubAgentExecutor {
         }
 
         if (!hasToolUse) {
-          // Keine Tool-Calls → Agent ist fertig
-          console.log("[FORCE]", this.config.id, "iter", iteration, "— NO tool_use in response, agent stopping. Text:", trimmedText.slice(0, 200));
+          // No tool calls — check if we should nudge before giving up
+          if (isResearcher && nudgeCount < 2) {
+            nudgeCount++;
+            console.log("[FORCE]", this.config.id, "iter", iteration, "— NO tool_use, injecting nudge #" + nudgeCount);
+            messages.push({ role: "assistant", content: response.content });
+            messages.push({
+              role: "user",
+              content: "You MUST use a tool now. Use fetch_url to visit the official website, or web_search to find information. Do NOT respond with just text — call a tool immediately.",
+            });
+            iteration--; // Don't count this as a real iteration
+            continue;
+          }
+          // Already nudged twice or not a researcher — agent is done
+          console.log("[FORCE]", this.config.id, "iter", iteration, "— NO tool_use, agent stopping (nudgeCount=" + nudgeCount + "). Text:", trimmedText.slice(0, 200));
           finalResult = trimmedText;
           stoppedReason = "completed";
           break;
@@ -1330,17 +1343,10 @@ export class SubAgentExecutor {
         messages.push({ role: "assistant", content: response.content });
         messages.push({ role: "user", content: toolResults });
 
-        // Tool usage enforcement: nudge researchers to actually use tools
+        // Tool usage enforcement: nudge researchers to use web tools specifically
         console.log("[FORCE]", this.config.id, "iter", iteration, "— tools used: web_search=", usedWebSearch, "fetch_url=", usedFetchUrl, "totalToolCalls=", totalToolCalls);
-        if (isResearcher && iteration === 0 && !hasToolUse) {
-          // First iteration produced NO tool calls — don't count it, force a tool call
-          iteration--; // Re-do iteration 0
-          messages.push({
-            role: "user",
-            content: "You MUST use a tool now. Use fetch_url on the official website or web_search. Do NOT reason without tools — act immediately.",
-          });
-        } else if (isResearcher && iteration === 0 && !usedFetchUrl && !usedWebSearch) {
-          // Used a tool but not fetch_url or web_search
+        if (isResearcher && iteration === 0 && !usedFetchUrl && !usedWebSearch) {
+          // Used a tool (e.g. workspace_write) but not fetch_url or web_search
           messages.push({
             role: "user",
             content: "You MUST use fetch_url or web_search to get real data. Do NOT rely on training data.",
