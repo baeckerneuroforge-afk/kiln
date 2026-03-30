@@ -40,6 +40,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/v1/(.*)",           // Public API (eigene Key-Auth)
   "/api/mcp(.*)",            // MCP Server (eigene Key-Auth)
   "/api/health",             // Health Check
+  "/api/test/(.*)",          // Test-Endpoints (temporär)
   "/api/automations/run",   // Cron-Endpoint (eigene Secret-Auth)
   "/api/cron/(.*)",         // Cron-Endpoints (eigene Secret-Auth)
   "/api/admin/site-intelligence", // Site Intelligence (dual auth: Clerk oder CRON_SECRET)
