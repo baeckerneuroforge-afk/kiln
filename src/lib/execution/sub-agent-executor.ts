@@ -958,15 +958,15 @@ async function executeSubAgentTool(
       try {
         const { webSearchWithFallbackChain } = await import("./web-search-chain");
         const query = String(toolInput.query || "");
-        console.log("[TOOL] web_search called with query:", query);
+        console.warn("[TOOL] web_search called with query:", query);
         const numResults = Math.min(Number(toolInput.num_results) || 5, 10);
         const result = await webSearchWithFallbackChain(query, numResults);
         const resultStr = JSON.stringify(result);
-        console.log("[TOOL] web_search returned", resultStr.length, "chars");
+        console.warn("[TOOL] web_search returned", resultStr.length, "chars");
         return resultStr;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Search failed";
-        console.log("[TOOL] web_search FAILED:", msg);
+        console.warn("[TOOL] web_search FAILED:", msg);
         return JSON.stringify({ success: false, error: msg });
       }
     }
@@ -976,7 +976,7 @@ async function executeSubAgentTool(
         const { safeFetch } = await import("@/lib/url-validation");
         const { learnSuccessfulUrl } = await import("./web-search-chain");
         const url = String(toolInput.url || "");
-        console.log("[TOOL] fetch_url called with url:", url);
+        console.warn("[TOOL] fetch_url called with url:", url);
         const response = await safeFetch(url, { signal: AbortSignal.timeout(15000) });
         const text = await response.text();
         const cleaned = text
@@ -987,7 +987,7 @@ async function executeSubAgentTool(
           .trim()
           .slice(0, 8000);
 
-        console.log("[TOOL] fetch_url returned", cleaned.length, "chars from", url);
+        console.warn("[TOOL] fetch_url returned", cleaned.length, "chars from", url);
 
         // URL Learning: erfolgreiche Fetches in SiteIntelligence speichern
         learnSuccessfulUrl(url, cleaned.length);
@@ -1006,7 +1006,7 @@ async function executeSubAgentTool(
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Fetch failed";
-        console.log("[TOOL] fetch_url FAILED:", msg);
+        console.warn("[TOOL] fetch_url FAILED:", msg);
         return JSON.stringify({ success: false, error: msg });
       }
     }
@@ -1125,7 +1125,7 @@ export class SubAgentExecutor {
     // Step 2: Build tool definitions
     const enableSpawn = !!this.spawnHandler;
     const tools = buildToolDefinitions(this.config.tools, enableSpawn);
-    console.log("[AGENT]", this.config.id, "Tools available:", tools.map(t => t.name));
+    console.warn("[AGENT]", this.config.id, "Tools available:", tools.map(t => t.name));
 
     // MCP-Tools hinzufügen wenn verfügbar
     if (this.config.tools.includes("mcp") && this.mcpAgentId) {
@@ -1157,7 +1157,7 @@ export class SubAgentExecutor {
       // Budget-Check vor jeder Iteration
       if (this.config.budgetCredits) {
         const budget = this.costTracker.checkBudget(this.config.budgetCredits);
-        console.log("[BUDGET]", this.config.id, "budget:", this.config.budgetCredits, "remaining:", budget.remainingCredits, "pctUsed:", budget.percentUsed, "withinBudget:", budget.withinBudget);
+        console.warn("[BUDGET]", this.config.id, "budget:", this.config.budgetCredits, "remaining:", budget.remainingCredits, "pctUsed:", budget.percentUsed, "withinBudget:", budget.withinBudget);
         if (!budget.withinBudget) {
           stoppedReason = "budget_exceeded";
           finalResult = finalResult || `Agent stopped: budget exceeded after ${totalToolCalls} tool calls. Partial results available in workspace.`;
@@ -1230,7 +1230,7 @@ export class SubAgentExecutor {
         await this.costTracker.trackUsage(model, inputTokens, outputTokens, `sub-agent:${this.config.id}:iter${iteration}`);
 
         // Response verarbeiten
-        console.log("[LLM]", this.config.id, "iter", iteration, "stop_reason:", response.stop_reason, "content types:", response.content.map(c => c.type));
+        console.warn("[LLM]", this.config.id, "iter", iteration, "stop_reason:", response.stop_reason, "content types:", response.content.map(c => c.type));
         let hasToolUse = false;
         const toolResults: Anthropic.ToolResultBlockParam[] = [];
         let textContent = "";
@@ -1323,7 +1323,7 @@ export class SubAgentExecutor {
           // No tool calls — check if we should nudge before giving up
           if (isResearcher && nudgeCount < 2) {
             nudgeCount++;
-            console.log("[FORCE]", this.config.id, "iter", iteration, "— NO tool_use, injecting nudge #" + nudgeCount);
+            console.warn("[FORCE]", this.config.id, "iter", iteration, "— NO tool_use, injecting nudge #" + nudgeCount);
             messages.push({ role: "assistant", content: response.content });
             messages.push({
               role: "user",
@@ -1333,7 +1333,7 @@ export class SubAgentExecutor {
             continue;
           }
           // Already nudged twice or not a researcher — agent is done
-          console.log("[FORCE]", this.config.id, "iter", iteration, "— NO tool_use, agent stopping (nudgeCount=" + nudgeCount + "). Text:", trimmedText.slice(0, 200));
+          console.warn("[FORCE]", this.config.id, "iter", iteration, "— NO tool_use, agent stopping (nudgeCount=" + nudgeCount + "). Text:", trimmedText.slice(0, 200));
           finalResult = trimmedText;
           stoppedReason = "completed";
           break;
@@ -1344,7 +1344,7 @@ export class SubAgentExecutor {
         messages.push({ role: "user", content: toolResults });
 
         // Tool usage enforcement: nudge researchers to use web tools specifically
-        console.log("[FORCE]", this.config.id, "iter", iteration, "— tools used: web_search=", usedWebSearch, "fetch_url=", usedFetchUrl, "totalToolCalls=", totalToolCalls);
+        console.warn("[FORCE]", this.config.id, "iter", iteration, "— tools used: web_search=", usedWebSearch, "fetch_url=", usedFetchUrl, "totalToolCalls=", totalToolCalls);
         if (isResearcher && iteration === 0 && !usedFetchUrl && !usedWebSearch) {
           // Used a tool (e.g. workspace_write) but not fetch_url or web_search
           messages.push({
