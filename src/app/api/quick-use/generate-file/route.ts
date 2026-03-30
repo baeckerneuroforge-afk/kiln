@@ -1,15 +1,22 @@
 /**
  * On-Demand File Generation API
  * Generates Excel, PDF, Word, or CSV from result data.
- * Called when user clicks "Create Excel" / "Create PDF" buttons.
+ * Returns the file directly as a blob response (no Supabase Storage needed).
  */
 
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
-import { generateFile, buildSmartFileName, extractTableFromMarkdown } from "@/lib/output/file-generator";
-import type { QuickUseGeneratedFile } from "@/lib/quick-use/types";
+import { generateFileBuffer, buildSmartFileName, extractTableFromMarkdown } from "@/lib/output/file-generator";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
+const MIME_TYPES: Record<string, string> = {
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  csv: "text/csv",
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+};
 
 export async function POST(request: NextRequest) {
   const { userId } = await auth();
@@ -36,10 +43,10 @@ export async function POST(request: NextRequest) {
   const { kind, data, markdown, topic, title } = body;
 
   try {
-    let file: QuickUseGeneratedFile;
+    let buffer: Buffer;
+    let fileName: string;
 
     if (kind === "xlsx" || kind === "csv") {
-      // For spreadsheets: use provided data or extract from markdown
       let rows = data;
       if (!rows && markdown) {
         rows = extractTableFromMarkdown(markdown) ?? undefined;
@@ -48,31 +55,42 @@ export async function POST(request: NextRequest) {
         return Response.json({ error: "No tabular data available for spreadsheet generation" }, { status: 400 });
       }
 
-      file = await generateFile({
+      fileName = buildSmartFileName(topic || title || "Export", kind === "xlsx" ? "Tabelle" : "Daten", kind);
+      buffer = await generateFileBuffer({
         kind,
-        fileName: buildSmartFileName(topic || title || "Export", kind === "xlsx" ? "Tabelle" : "Daten", kind),
+        fileName,
         data: rows,
         title: title || topic,
         userId,
       });
     } else {
-      // For documents: use markdown content
       if (!markdown) {
         return Response.json({ error: "No content available for document generation" }, { status: 400 });
       }
 
-      file = await generateFile({
+      fileName = buildSmartFileName(topic || title || "Document", kind === "pdf" ? "Report" : "Dokument", kind);
+      buffer = await generateFileBuffer({
         kind,
-        fileName: buildSmartFileName(topic || title || "Document", kind === "pdf" ? "Report" : "Dokument", kind),
+        fileName,
         content: markdown,
         title: title || topic?.slice(0, 80) || "Report",
         userId,
       });
     }
 
-    return Response.json({ file });
+    const mimeType = MIME_TYPES[kind] || "application/octet-stream";
+
+    return new Response(new Uint8Array(buffer), {
+      status: 200,
+      headers: {
+        "Content-Type": mimeType,
+        "Content-Disposition": `attachment; filename="${fileName}"`,
+        "Content-Length": String(buffer.length),
+      },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "File generation failed";
+    console.error("[generate-file] Error:", message);
     return Response.json({ error: message }, { status: 500 });
   }
 }

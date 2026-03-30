@@ -2,6 +2,8 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // PDFKit benötigt .afm Fontdateien zur Laufzeit — Vercel bundled sie nicht automatisch
+  serverExternalPackages: ["pdfkit"],
   async headers() {
     return [
       {

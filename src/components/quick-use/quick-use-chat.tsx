@@ -415,24 +415,29 @@ function OnDemandFileButton({
         setError(errJson.error || `Generation failed (${res.status})`);
         return;
       }
-      const json = await res.json();
-      if (json.file) {
-        onGenerated(json.file);
-        setDone(true);
-        // Auto-download
-        if (json.file.url) {
-          const a = document.createElement("a");
-          a.href = json.file.url;
-          a.download = json.file.name || `report.${kind}`;
-          a.target = "_blank";
-          a.rel = "noopener";
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        }
-      } else {
-        setError("No file returned");
-      }
+      // API returns blob directly — create object URL for download
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const fileNameMatch = disposition.match(/filename="([^"]+)"/);
+      const fileName = fileNameMatch?.[1] || `report.${kind}`;
+      const blobUrl = URL.createObjectURL(blob);
+
+      onGenerated({
+        kind,
+        name: fileName,
+        url: blobUrl,
+        size: blob.size,
+        mimeType: blob.type,
+      });
+      setDone(true);
+
+      // Auto-download
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     } catch (err) {
       console.error("File generation error:", err);
       setError(err instanceof Error ? err.message : "Generation failed");

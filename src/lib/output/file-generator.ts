@@ -46,6 +46,27 @@ export async function generateFile(
   }
 }
 
+/**
+ * Generates a file and returns the raw Buffer (no Supabase upload).
+ * Used by the generate-file API to return files as blob responses.
+ */
+export async function generateFileBuffer(
+  request: FileGenerationRequest
+): Promise<Buffer> {
+  switch (request.kind) {
+    case "csv":
+      return generateCsvBuffer(request);
+    case "xlsx":
+      return generateExcelBuffer(request);
+    case "pdf":
+      return generatePdfBuffer(request);
+    case "docx":
+      return generateDocxBuffer(request);
+    default:
+      throw new Error(`Nicht unterstützter Dateityp: ${request.kind}`);
+  }
+}
+
 /* ── Smart File Naming ── */
 
 const STOP_WORDS = new Set([
@@ -297,6 +318,154 @@ async function generateDocxLocal(req: FileGenerationRequest): Promise<QuickUseGe
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "docx", req.userId,
   );
+}
+
+/* ── Buffer-only generators (no Supabase upload) ── */
+
+async function generateCsvBuffer(req: FileGenerationRequest): Promise<Buffer> {
+  const rows = Array.isArray(req.data) ? req.data : [];
+  if (rows.length === 0) {
+    throw new Error("Keine Daten für CSV-Generierung vorhanden");
+  }
+  const headers = Object.keys(rows[0]);
+  const csvLines = [
+    headers.map(escapeCsvField).join(","),
+    ...rows.map((row) =>
+      headers.map((h) => escapeCsvField(String(row[h] ?? ""))).join(",")
+    ),
+  ];
+  return Buffer.from(csvLines.join("\n"), "utf-8");
+}
+
+async function generateExcelBuffer(req: FileGenerationRequest): Promise<Buffer> {
+  const ExcelJS = await import("exceljs");
+  const workbook = new ExcelJS.default.Workbook();
+
+  const sheetsData: Record<string, Record<string, unknown>[]> =
+    Array.isArray(req.data)
+      ? { Data: req.data }
+      : (req.data as Record<string, Record<string, unknown>[]>) || { Data: [] };
+
+  for (const [sheetName, rows] of Object.entries(sheetsData)) {
+    if (!Array.isArray(rows) || rows.length === 0) continue;
+    const sheet = workbook.addWorksheet(sheetName);
+    const headers = Object.keys(rows[0]);
+
+    sheet.columns = headers.map((h) => ({
+      header: h,
+      key: h,
+      width: Math.min(
+        Math.max(h.length + 2, ...rows.slice(0, 100).map((r) => String(r[h] ?? "").length), 10) + 2,
+        50,
+      ),
+    }));
+
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
+    headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF97316" } };
+    headerRow.alignment = { horizontal: "center" };
+
+    for (const row of rows.slice(0, 2000)) {
+      const values: Record<string, unknown> = {};
+      for (const h of headers) values[h] = row[h] ?? "";
+      sheet.addRow(values);
+    }
+
+    sheet.views = [{ state: "frozen", ySplit: 1 }];
+  }
+
+  const arrayBuffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
+async function generatePdfBuffer(req: FileGenerationRequest): Promise<Buffer> {
+  const PDFDocument = (await import("pdfkit")).default;
+  const title = req.title || "Report";
+  const content = req.content || "";
+
+  return new Promise<Buffer>((resolve, reject) => {
+    const doc = new PDFDocument({
+      size: "A4",
+      margins: { top: 72, bottom: 72, left: 72, right: 72 },
+      info: { Title: title, Creator: "KILN" },
+    });
+
+    const chunks: Buffer[] = [];
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    renderPdfContent(doc, title, content);
+    doc.end();
+  });
+}
+
+async function generateDocxBuffer(req: FileGenerationRequest): Promise<Buffer> {
+  const title = req.title || "Report";
+  const content = req.content || "";
+  const { createDocxBuffer } = await import("@/lib/output/docx-builder");
+  return createDocxBuffer(title, content);
+}
+
+/** Shared PDF content renderer — used by both buffer and upload paths */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderPdfContent(doc: any, title: string, content: string) {
+  // Title — KILN Orange
+  doc.fontSize(24).fillColor("#F97316").text(title, { align: "left" });
+  doc.moveDown(0.5);
+
+  // Thin orange line under title
+  doc.strokeColor("#F97316").lineWidth(1)
+    .moveTo(72, doc.y).lineTo(523, doc.y).stroke();
+  doc.moveDown(1);
+
+  doc.fillColor("#1a1613");
+
+  const lines = content.split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (!trimmed) { doc.moveDown(0.3); continue; }
+
+    if (trimmed.startsWith("### ")) {
+      doc.moveDown(0.5);
+      doc.fontSize(13).font("Helvetica-Bold").text(trimmed.slice(4));
+      doc.moveDown(0.2);
+      doc.font("Helvetica");
+    } else if (trimmed.startsWith("## ")) {
+      doc.moveDown(0.8);
+      doc.fontSize(15).font("Helvetica-Bold").fillColor("#F97316").text(trimmed.slice(3));
+      doc.fillColor("#1a1613");
+      doc.moveDown(0.3);
+      doc.font("Helvetica");
+    } else if (trimmed.startsWith("# ")) {
+      doc.moveDown(0.8);
+      doc.fontSize(18).font("Helvetica-Bold").text(trimmed.slice(2));
+      doc.moveDown(0.3);
+      doc.font("Helvetica");
+    } else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      doc.fontSize(11).font("Helvetica").text(`  •  ${trimmed.slice(2)}`, { lineGap: 3 });
+    } else if (trimmed.startsWith("> ")) {
+      doc.fontSize(11).font("Helvetica-Oblique").fillColor("#666666")
+        .text(trimmed.slice(2), { indent: 20 });
+      doc.fillColor("#1a1613").font("Helvetica");
+    } else if (/^\|/.test(trimmed)) {
+      doc.fontSize(9).font("Courier").text(trimmed);
+      doc.font("Helvetica");
+    } else {
+      const cleaned = trimmed
+        .replace(/\*\*([^*]+)\*\*/g, "$1")
+        .replace(/\*([^*]+)\*/g, "$1")
+        .replace(/\[(\d+)\]/g, "[$1]");
+      doc.fontSize(11).font("Helvetica").text(cleaned, { lineGap: 3 });
+    }
+
+    if (doc.y > 750) doc.addPage();
+  }
+
+  doc.moveDown(2);
+  doc.fontSize(8).fillColor("#999999")
+    .text(`Generated by KILN — ${new Date().toISOString().slice(0, 10)}`, { align: "center" });
 }
 
 /* ── Upload to Supabase ── */
