@@ -528,6 +528,12 @@ export async function POST(request: NextRequest) {
           creditsRemaining: finalCharge.newBalance,
         };
 
+        // Send debug logs before result (admin only)
+        const debugLogs = swarmMeta?._allDebugLogs as Record<string, string[]> | undefined;
+        if (debugLogs && Object.keys(debugLogs).length > 0 && isAdmin(userId)) {
+          safeWrite({ type: "debug", debugLogs });
+        }
+
         safeWrite({
           type: "result",
           result: finalResult,

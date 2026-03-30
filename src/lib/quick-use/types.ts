@@ -241,4 +241,9 @@ export type QuickUseStreamEvent =
       stepIndex: number;
       action: string;
       success: boolean;
+    }
+  | {
+      /** Debug logs from sub-agents (admin only) */
+      type: "debug";
+      debugLogs: Record<string, string[]>;
     };

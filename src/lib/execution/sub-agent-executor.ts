@@ -97,6 +97,7 @@ export interface SubAgentResult {
   verification: VerificationSummary;
   workspaceEntries: WorkspaceEntry[];
   stoppedReason?: "completed" | "budget_exceeded" | "max_iterations" | "error";
+  _debugLog?: string[];
 }
 
 export interface SpawnRequest {
@@ -1102,6 +1103,7 @@ export class SubAgentExecutor {
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
     const artifacts: SubAgentArtifact[] = [];
+    const _debugLog: string[] = [];
 
     // Step 1: Select model via smart-model-router
     const routingContext = this.config.modelPreference
@@ -1125,7 +1127,9 @@ export class SubAgentExecutor {
     // Step 2: Build tool definitions
     const enableSpawn = !!this.spawnHandler;
     const tools = buildToolDefinitions(this.config.tools, enableSpawn);
-    console.warn("[AGENT]", this.config.id, "Tools available:", tools.map(t => t.name));
+    const toolNames = tools.map(t => t.name);
+    console.warn("[AGENT]", this.config.id, "Tools available:", toolNames);
+    _debugLog.push(`[AGENT] ${this.config.id} tools: ${toolNames.join(", ")} | model: ${model} | spec: ${specialization.id} | maxIter: ${maxIterations}`);
 
     // MCP-Tools hinzufügen wenn verfügbar
     if (this.config.tools.includes("mcp") && this.mcpAgentId) {
@@ -1158,6 +1162,7 @@ export class SubAgentExecutor {
       if (this.config.budgetCredits) {
         const budget = this.costTracker.checkBudget(this.config.budgetCredits);
         console.warn("[BUDGET]", this.config.id, "budget:", this.config.budgetCredits, "remaining:", budget.remainingCredits, "pctUsed:", budget.percentUsed, "withinBudget:", budget.withinBudget);
+        if (iteration === 0) _debugLog.push(`[BUDGET] budget=${this.config.budgetCredits} remaining=${budget.remainingCredits} pct=${budget.percentUsed}`);
         if (!budget.withinBudget) {
           stoppedReason = "budget_exceeded";
           finalResult = finalResult || `Agent stopped: budget exceeded after ${totalToolCalls} tool calls. Partial results available in workspace.`;
@@ -1230,7 +1235,9 @@ export class SubAgentExecutor {
         await this.costTracker.trackUsage(model, inputTokens, outputTokens, `sub-agent:${this.config.id}:iter${iteration}`);
 
         // Response verarbeiten
-        console.warn("[LLM]", this.config.id, "iter", iteration, "stop_reason:", response.stop_reason, "content types:", response.content.map(c => c.type));
+        const contentTypes = response.content.map(c => c.type);
+        console.warn("[LLM]", this.config.id, "iter", iteration, "stop_reason:", response.stop_reason, "content types:", contentTypes);
+        _debugLog.push(`[LLM] iter=${iteration} stop=${response.stop_reason} types=${contentTypes.join(",")}`);
         let hasToolUse = false;
         const toolResults: Anthropic.ToolResultBlockParam[] = [];
         let textContent = "";
@@ -1245,6 +1252,8 @@ export class SubAgentExecutor {
             if (block.name === "fetch_url") usedFetchUrl = true;
 
             eventStream.agentToolCalled(this.config.id, block.name, block.input as Record<string, unknown>);
+            const toolInputStr = JSON.stringify(block.input).slice(0, 120);
+            _debugLog.push(`[TOOL] iter=${iteration} ${block.name}(${toolInputStr})`);
 
             // Tool ausführen
             let toolResult: string;
@@ -1260,8 +1269,10 @@ export class SubAgentExecutor {
                 spawnCount,
                 this.mcpAgentId,
               );
+              _debugLog.push(`[TOOL] ${block.name} OK ${toolResult.length} chars`);
             } catch (err) {
               const errorMsg = err instanceof Error ? err.message : "Tool execution failed";
+              _debugLog.push(`[TOOL] ${block.name} FAILED: ${errorMsg.slice(0, 100)}`);
               const errorType = detectErrorType(errorMsg);
               const recoveryStep = this.errorLibrary.getNextRecoveryStep(errorType, 0);
 
@@ -1324,6 +1335,7 @@ export class SubAgentExecutor {
           if (isResearcher && nudgeCount < 2) {
             nudgeCount++;
             console.warn("[FORCE]", this.config.id, "iter", iteration, "— NO tool_use, injecting nudge #" + nudgeCount);
+            _debugLog.push(`[FORCE] iter=${iteration} NO tool_use → nudge #${nudgeCount}`);
             messages.push({ role: "assistant", content: response.content });
             messages.push({
               role: "user",
@@ -1334,6 +1346,7 @@ export class SubAgentExecutor {
           }
           // Already nudged twice or not a researcher — agent is done
           console.warn("[FORCE]", this.config.id, "iter", iteration, "— NO tool_use, agent stopping (nudgeCount=" + nudgeCount + "). Text:", trimmedText.slice(0, 200));
+          _debugLog.push(`[FORCE] iter=${iteration} STOP nudges=${nudgeCount} text=${trimmedText.slice(0, 120)}`);
           finalResult = trimmedText;
           stoppedReason = "completed";
           break;
@@ -1345,6 +1358,7 @@ export class SubAgentExecutor {
 
         // Tool usage enforcement: nudge researchers to use web tools specifically
         console.warn("[FORCE]", this.config.id, "iter", iteration, "— tools used: web_search=", usedWebSearch, "fetch_url=", usedFetchUrl, "totalToolCalls=", totalToolCalls);
+        _debugLog.push(`[FORCE] iter=${iteration} web_search=${usedWebSearch} fetch_url=${usedFetchUrl} calls=${totalToolCalls}`);
         if (isResearcher && iteration === 0 && !usedFetchUrl && !usedWebSearch) {
           // Used a tool (e.g. workspace_write) but not fetch_url or web_search
           messages.push({
@@ -1421,6 +1435,7 @@ export class SubAgentExecutor {
       verification,
       workspaceEntries,
       stoppedReason,
+      _debugLog,
     };
   }
 }

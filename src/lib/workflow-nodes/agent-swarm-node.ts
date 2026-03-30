@@ -249,6 +249,14 @@ export async function executeAgentSwarm(
       resultLength: r.result?.length || 0,
     }));
 
+    // Collect debug logs from all agents
+    const _allDebugLogs: Record<string, string[]> = {};
+    for (const r of subAgentResults) {
+      if (r._debugLog && r._debugLog.length > 0) {
+        _allDebugLogs[r.id] = r._debugLog;
+      }
+    }
+
     eventStream.swarmCompleted(
       costSummary.totalCostDollars,
       executor.currentAgentCount,
@@ -282,6 +290,7 @@ export async function executeAgentSwarm(
           executionPlan: decomposition.executionPlan,
           workspaceSnapshot: workspace.getSnapshot(),
           agentResultsSummary,
+          _allDebugLogs,
           eventLog: eventStream.getEventLog(),
         },
       },

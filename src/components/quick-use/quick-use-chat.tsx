@@ -1864,6 +1864,7 @@ export function QuickUseChat({
   const [memorySuggestions, setMemorySuggestions] = useState<QuickUseMemoryPreview[]>([]);
   const [selectedMemoryIds, setSelectedMemoryIds] = useState<string[]>([]);
   const [dismissedMemoryKey, setDismissedMemoryKey] = useState<string | null>(null);
+  const [debugLogs, setDebugLogs] = useState<Record<string, string[]> | null>(null);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [browserView, setBrowserView] = useState<BrowserViewState | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1952,6 +1953,7 @@ export function QuickUseChat({
     setSavingState("idle");
     setActiveResultId(null);
     preliminaryResultIdRef.current = null;
+    setDebugLogs(null);
     setPendingFiles([]);
     setIsDragOver(false);
     setActiveTaskId(null);
@@ -2608,6 +2610,10 @@ export function QuickUseChat({
               preliminaryResultIdRef.current = null;
             }
 
+            if (event.type === "debug") {
+              setDebugLogs(event.debugLogs);
+            }
+
             if (event.type === "error") {
               setActiveProgress(null);
               setBrowserView((prev) =>
@@ -2806,6 +2812,26 @@ export function QuickUseChat({
                 />
               );
             })}
+
+            {debugLogs && Object.keys(debugLogs).length > 0 && (
+              <details className="mt-2 rounded-lg border border-stone-800 bg-stone-900/50 px-3 py-2">
+                <summary className="cursor-pointer text-xs font-mono text-stone-500 select-none">
+                  Debug Log ({Object.values(debugLogs).reduce((s, l) => s + l.length, 0)} entries)
+                </summary>
+                <div className="mt-2 max-h-64 overflow-y-auto space-y-2">
+                  {Object.entries(debugLogs).map(([agentId, lines]) => (
+                    <div key={agentId}>
+                      <div className="text-[10px] font-mono font-bold text-orange-400">{agentId}</div>
+                      {lines.map((line, i) => (
+                        <div key={i} className="text-[10px] font-mono text-stone-400 leading-tight pl-2">
+                          {line}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
 
             {activeProgress ? (
               <div className="space-y-3">
