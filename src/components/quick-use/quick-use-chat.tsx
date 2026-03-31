@@ -911,8 +911,8 @@ function ResultMarkdown({
           thead: ({ children }) => <thead className="bg-white/[0.04] text-zinc-100">{children}</thead>,
           tbody: ({ children }) => <tbody className="divide-y divide-white/6">{children}</tbody>,
           tr: ({ children }) => <tr className="odd:bg-white/[0.01]">{children}</tr>,
-          th: ({ children }) => <th className="border-b border-white/6 px-4 py-3 text-left font-medium">{children}</th>,
-          td: ({ children }) => <td className="px-4 py-3 align-top text-zinc-200">{children}</td>,
+          th: ({ children }) => <th className="border-b border-white/6 px-4 py-3 text-left font-medium [&_strong]:font-bold [&_strong]:text-white">{children}</th>,
+          td: ({ children }) => <td className="px-4 py-3 align-top text-zinc-200 [&_strong]:font-semibold [&_strong]:text-zinc-100">{children}</td>,
           code: ({ className, children }) => {
             const inline = !className;
             return inline ? (
