@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   BookOpen,
   Upload,
@@ -61,6 +61,26 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
 
   // FAQ State
   const [faqPairs, setFaqPairs] = useState([{ question: "", answer: "" }]);
+
+  // Poll for PROCESSING entries until they complete
+  const hasProcessing = entries.some((e) => e.embeddingStatus === "PROCESSING");
+
+  const pollEntries = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/agents/${agentId}/knowledge`);
+      if (!res.ok) return;
+      const data = (await res.json()) as KnowledgeEntry[];
+      setEntries(data);
+    } catch {
+      // Stille Fehlerbehandlung — nächster Poll versucht erneut
+    }
+  }, [agentId]);
+
+  useEffect(() => {
+    if (!hasProcessing) return;
+    const interval = setInterval(pollEntries, 3000);
+    return () => clearInterval(interval);
+  }, [hasProcessing, pollEntries]);
 
   async function handlePdfUpload(file: File) {
     setIsUploading(true);
