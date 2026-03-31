@@ -35,26 +35,38 @@ export async function GET(
 }
 
 /**
- * Fire-and-forget: trigger the embed endpoint as a separate HTTP request.
- * This runs as its own Vercel function invocation with its own timeout.
+ * Trigger the embed endpoint as a separate Vercel function invocation.
+ * Awaited with a 5s send-timeout so the request is guaranteed to leave
+ * before the POST handler returns its 202.
  */
-function triggerEmbedding(agentId: string, kbId: string, userId: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "http://localhost:3000";
+async function triggerEmbedding(agentId: string, kbId: string, userId: string) {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+    || "http://localhost:3000";
   const url = `${baseUrl}/api/agents/${agentId}/knowledge/${kbId}/embed`;
   const cronSecret = process.env.CRON_SECRET;
 
-  fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(cronSecret && { Authorization: `Bearer ${cronSecret}` }),
-    },
-    body: JSON.stringify({ userId }),
-  }).catch((err) => {
-    console.error(`Failed to trigger embedding for ${kbId}:`, err);
-  });
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(cronSecret && { Authorization: `Bearer ${cronSecret}` }),
+      },
+      body: JSON.stringify({ userId }),
+      // 5s to SEND the request — we don't wait for completion
+      signal: AbortSignal.timeout(5000),
+    });
+    console.warn(`[KB] triggerEmbedding ${kbId}: ${res.status}`);
+  } catch (err) {
+    // AbortError is expected (we abort after 5s, the embed endpoint runs for 50s)
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("abort") || msg.includes("timeout")) {
+      console.warn(`[KB] triggerEmbedding ${kbId}: request sent (aborted after 5s — expected)`);
+    } else {
+      console.error(`[KB] triggerEmbedding ${kbId} failed:`, msg);
+    }
+  }
 }
 
 // Create new knowledge base entry + trigger async embedding
@@ -159,8 +171,8 @@ export async function POST(
       },
     });
 
-    // Fire-and-forget: trigger embedding as a separate function invocation
-    triggerEmbedding(params.id, kb.id, userId);
+    // Trigger embedding as separate function — await to ensure request leaves
+    await triggerEmbedding(params.id, kb.id, userId);
 
     // Return immediately with 202
     return Response.json(

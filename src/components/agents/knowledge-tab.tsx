@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -78,9 +79,36 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
 
   useEffect(() => {
     if (!hasProcessing) return;
+
     const interval = setInterval(pollEntries, 3000);
-    return () => clearInterval(interval);
+
+    // Re-poll immediately when tab becomes visible (Chrome pauses intervals)
+    const onVisible = () => {
+      if (document.visibilityState === "visible") pollEntries();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [hasProcessing, pollEntries]);
+
+  // Retry embedding for stuck PROCESSING entries
+  async function handleRetryEmbed(kbId: string) {
+    // Update UI optimistically
+    setEntries((prev) =>
+      prev.map((e) => e.id === kbId ? { ...e, embeddingStatus: "PROCESSING", chunkCount: 0 } : e)
+    );
+    try {
+      await fetch(`/api/agents/${agentId}/knowledge/${kbId}/embed`, {
+        method: "POST",
+      });
+      // Poll will pick up the status change
+    } catch {
+      // Stille Fehlerbehandlung
+    }
+  }
 
   async function handlePdfUpload(file: File) {
     setIsUploading(true);
@@ -485,12 +513,25 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
                   </div>
                 </div>
               </div>
-              <button
-                onClick={() => handleDelete(entry.id)}
-                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                {(entry.embeddingStatus === "ERROR" ||
+                  (entry.embeddingStatus === "PROCESSING" &&
+                    Date.now() - new Date(entry.createdAt).getTime() > 60_000)) && (
+                  <button
+                    onClick={() => handleRetryEmbed(entry.id)}
+                    title="Retry embedding"
+                    className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-orange-500/10 hover:text-orange-400"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDelete(entry.id)}
+                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
