@@ -43,24 +43,57 @@ export function chunkText(
   return chunks;
 }
 
-// Embedding with OpenAI text-embedding-ada-002
+const EMBEDDING_MODEL = "text-embedding-3-small";
+const EMBEDDING_BATCH_SIZE = 20;
+
+// Embedding with OpenAI text-embedding-3-small
 export async function generateEmbedding(text: string): Promise<number[]> {
   const response = await getOpenAI().embeddings.create({
-    model: "text-embedding-ada-002",
+    model: EMBEDDING_MODEL,
     input: text.trim(),
   });
   return response.data[0].embedding;
 }
 
-// Embed multiple chunks (batch)
+// Embed multiple chunks (single API call — use for small sets)
 export async function generateEmbeddings(
   chunks: string[]
 ): Promise<number[][]> {
   const response = await getOpenAI().embeddings.create({
-    model: "text-embedding-ada-002",
+    model: EMBEDDING_MODEL,
     input: chunks.map((c) => c.trim()),
   });
   return response.data.map((d) => d.embedding);
+}
+
+/**
+ * Process chunks in batches with progressive callback.
+ * Each batch of up to 20 chunks is embedded in one API call, then
+ * onBatchDone is called so the caller can save immediately.
+ * Returns total chunks processed (may be less than chunks.length if aborted).
+ */
+export async function generateEmbeddingsBatched(
+  chunks: string[],
+  onBatchDone: (batchChunks: string[], batchEmbeddings: number[][], batchStartIndex: number) => Promise<void>,
+  abortSignal?: AbortSignal,
+): Promise<number> {
+  let processed = 0;
+
+  for (let i = 0; i < chunks.length; i += EMBEDDING_BATCH_SIZE) {
+    if (abortSignal?.aborted) break;
+
+    const batch = chunks.slice(i, i + EMBEDDING_BATCH_SIZE);
+    const response = await getOpenAI().embeddings.create({
+      model: EMBEDDING_MODEL,
+      input: batch.map((c) => c.trim()),
+    });
+    const embeddings = response.data.map((d) => d.embedding);
+
+    await onBatchDone(batch, embeddings, i);
+    processed += batch.length;
+  }
+
+  return processed;
 }
 
 // Store chunks with embeddings in Supabase pgvector

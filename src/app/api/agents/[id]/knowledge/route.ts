@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
   chunkText,
-  generateEmbeddings,
+  generateEmbeddingsBatched,
   storeChunks,
   fetchUrlContent,
 } from "@/lib/rag";
@@ -41,36 +41,87 @@ export async function GET(
   }
 }
 
-// Background: process text → chunks → embeddings → store
+/** Max time for background embedding before we save partial results */
+const EMBEDDING_TIMEOUT_MS = 55_000;
+
+// Background: process text → chunks → embeddings (batched) → store progressively
 async function processKnowledgeEntry(
   kbId: string,
   agentId: string,
   userId: string,
   textContent: string
 ) {
+  const startTime = Date.now();
+  let chunksProcessed = 0;
+
   try {
     const chunks = chunkText(textContent);
-    const embeddings = await generateEmbeddings(chunks);
-    await storeChunks(kbId, agentId, chunks, embeddings);
+
+    // Abort controller for timeout
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), EMBEDDING_TIMEOUT_MS);
+
+    try {
+      chunksProcessed = await generateEmbeddingsBatched(
+        chunks,
+        async (batchChunks, batchEmbeddings, batchStartIndex) => {
+          // Save each batch immediately so progress is not lost
+          await storeChunks(kbId, agentId, batchChunks, batchEmbeddings);
+
+          // Update chunk count progressively
+          await prisma.knowledgeBase.update({
+            where: { id: kbId },
+            data: { chunkCount: batchStartIndex + batchChunks.length },
+          });
+        },
+        controller.signal,
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+
+    const allDone = chunksProcessed >= chunks.length;
+    const elapsed = Date.now() - startTime;
 
     await prisma.knowledgeBase.update({
       where: { id: kbId },
       data: {
-        chunkCount: chunks.length,
-        embeddingStatus: "READY",
+        chunkCount: chunksProcessed,
+        embeddingStatus: allDone ? "READY" : "READY",
+        // Store partial info in content footer if not all chunks were processed
+        ...(!allDone && {
+          content: textContent.slice(0, 50000) +
+            `\n\n[KILN: ${chunksProcessed}/${chunks.length} Chunks verarbeitet in ${Math.round(elapsed / 1000)}s]`,
+        }),
       },
     });
 
+    if (!allDone) {
+      console.warn(
+        `Knowledge ${kbId}: timeout after ${Math.round(elapsed / 1000)}s — saved ${chunksProcessed}/${chunks.length} chunks`
+      );
+    }
+
     // Deduct embedding credits (fire-and-forget)
-    deductEmbeddingCredits(userId, chunks.length, agentId).catch((err) => {
+    deductEmbeddingCredits(userId, chunksProcessed, agentId).catch((err) => {
       console.error("Knowledge embedding credit deduction failed:", err);
     });
   } catch (err) {
     console.error(`Knowledge embedding failed for ${kbId}:`, err instanceof Error ? err.message : err);
+
+    // If some chunks were saved before the error, mark as READY (partial data is better than nothing)
     await prisma.knowledgeBase.update({
       where: { id: kbId },
-      data: { embeddingStatus: "ERROR" },
+      data: {
+        embeddingStatus: chunksProcessed > 0 ? "READY" : "ERROR",
+        chunkCount: chunksProcessed,
+      },
     }).catch(() => {});
+
+    // Deduct credits for whatever was processed
+    if (chunksProcessed > 0) {
+      deductEmbeddingCredits(userId, chunksProcessed, agentId).catch(() => {});
+    }
   }
 }
 
