@@ -1421,6 +1421,18 @@ export class SubAgentExecutor {
 
         // ── FIX 5: Early exit after successful workspace_write ──
         if (shouldStop) {
+          // Ensure fetched URLs are recorded as source entries
+          for (const url of usedFetchUrls) {
+            let domain = url;
+            try { domain = new URL(url).hostname.replace("www.", ""); } catch { /* keep raw */ }
+            workspace.write(this.config.id, `source_${domain}`, url, ["source"], {
+              source: "url",
+              url,
+              title: domain,
+              tool: "fetch_url",
+              verified: true,
+            });
+          }
           finalResult = trimmedText || "Data saved to workspace.";
           stoppedReason = "completed";
           break;
@@ -1429,11 +1441,24 @@ export class SubAgentExecutor {
         // ── FIX 2+4: Auto-save at iteration 3 if agent has web data but hasn't written ──
         // Haiku ignores text nudges, so we extract and save the data ourselves.
         if (isResearcher && iteration >= 3 && dataReceivedAtIter >= 0 && !hasWrittenWorkspace && accumulatedToolData.length > 0) {
-          _debugLog.push(`[AUTO] iter=${iteration} force-extracting from ${accumulatedToolData.length} tool results (data since iter ${dataReceivedAtIter})`);
+          // Collect real source URLs from fetched pages and search results
+          const sourceUrlSet = new Set(usedFetchUrls);
+          for (const d of accumulatedToolData) {
+            if (d.tool === "web_search") {
+              const urlMatches = d.content.match(/https?:\/\/[^\s)"]+/gi) || [];
+              for (const u of urlMatches) sourceUrlSet.add(u);
+            }
+          }
+          const uniqueSources = [...sourceUrlSet].slice(0, 8);
+
+          _debugLog.push(`[AUTO] iter=${iteration} force-extracting from ${accumulatedToolData.length} tool results, ${uniqueSources.length} source URLs`);
           const rawData = accumulatedToolData
             .map((d) => d.content.slice(0, 1500))
             .join("\n---\n")
             .slice(0, 4000);
+
+          // Include source URLs in extraction prompt so Haiku can reference them
+          const sourceList = uniqueSources.map((u, i) => `[${i + 1}] ${u}`).join("\n");
 
           try {
             const extraction = await anthropicClient.messages.create({
@@ -1442,7 +1467,7 @@ export class SubAgentExecutor {
               messages: [
                 {
                   role: "user",
-                  content: `Extract structured data from this raw web content. Return ONLY valid JSON:\n{"entity":"Name","pricing":{"free":"...","pro":"$X/mo"},"key_features":["..."],"limitations":["..."],"sources":[{"url":"..."}]}\n\nRaw data:\n${rawData}`,
+                  content: `Extract structured data from this raw web content. Use [N] citations referencing the source list.\n\nSOURCE LIST:\n${sourceList}\n\nReturn ONLY valid JSON:\n{"entity":"Name","pricing":{"free":"...","pro":"$X/mo"},"key_features":["..."],"limitations":["..."],"sources":[{"url":"...","title":"..."}]}\n\nRaw data:\n${rawData}`,
                 },
               ],
             });
@@ -1451,13 +1476,28 @@ export class SubAgentExecutor {
               .map((b) => b.text)
               .join("");
 
+            // Write the main findings
             workspace.write(this.config.id, "findings_auto", safeJsonParse(extractedText) || extractedText, ["auto_extracted"], {
               source: "extracted",
               tool: "auto_save",
               verified: false,
             });
+
+            // Write individual source entries so collectSources picks them up
+            for (const url of uniqueSources) {
+              let domain = url;
+              try { domain = new URL(url).hostname.replace("www.", ""); } catch { /* keep raw url */ }
+              workspace.write(this.config.id, `source_${domain}`, url, ["source"], {
+                source: "url",
+                url,
+                title: domain,
+                tool: "fetch_url",
+                verified: true,
+              });
+            }
+
             hasWrittenWorkspace = true;
-            _debugLog.push(`[AUTO] Force-extracted and saved ${extractedText.length} chars`);
+            _debugLog.push(`[AUTO] Force-extracted and saved ${extractedText.length} chars with ${uniqueSources.length} sources`);
             finalResult = extractedText;
             stoppedReason = "completed";
             break;
@@ -1492,6 +1532,24 @@ export class SubAgentExecutor {
         stoppedReason = "error";
         finalResult = `Agent error: ${errorMsg}. Partial results may be in workspace.`;
         break;
+      }
+    }
+
+    // Ensure all fetched URLs are recorded as workspace source entries
+    for (const url of usedFetchUrls) {
+      const existing = workspace.readByAgent(this.config.id).some(
+        (e) => e.source?.url === url
+      );
+      if (!existing) {
+        let domain = url;
+        try { domain = new URL(url).hostname.replace("www.", ""); } catch { /* keep raw */ }
+        workspace.write(this.config.id, `source_${domain}`, url, ["source"], {
+          source: "url",
+          url,
+          title: domain,
+          tool: "fetch_url",
+          verified: true,
+        });
       }
     }
 
