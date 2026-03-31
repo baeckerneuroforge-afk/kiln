@@ -1,15 +1,8 @@
 import { NextRequest } from "next/server";
-import { waitUntil } from "@vercel/functions";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import {
-  chunkText,
-  generateEmbeddingsBatched,
-  storeChunks,
-  fetchUrlContent,
-} from "@/lib/rag";
-import { deductEmbeddingCredits } from "@/lib/credits";
+import { fetchUrlContent } from "@/lib/rag";
 
 // Load knowledge base entries
 export async function GET(
@@ -41,91 +34,30 @@ export async function GET(
   }
 }
 
-/** Max time for background embedding before we save partial results */
-const EMBEDDING_TIMEOUT_MS = 55_000;
+/**
+ * Fire-and-forget: trigger the embed endpoint as a separate HTTP request.
+ * This runs as its own Vercel function invocation with its own timeout.
+ */
+function triggerEmbedding(agentId: string, kbId: string, userId: string) {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000";
+  const url = `${baseUrl}/api/agents/${agentId}/knowledge/${kbId}/embed`;
+  const cronSecret = process.env.CRON_SECRET;
 
-// Background: process text → chunks → embeddings (batched) → store progressively
-async function processKnowledgeEntry(
-  kbId: string,
-  agentId: string,
-  userId: string,
-  textContent: string
-) {
-  const startTime = Date.now();
-  let chunksProcessed = 0;
-
-  try {
-    const chunks = chunkText(textContent);
-
-    // Abort controller for timeout
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), EMBEDDING_TIMEOUT_MS);
-
-    try {
-      chunksProcessed = await generateEmbeddingsBatched(
-        chunks,
-        async (batchChunks, batchEmbeddings, batchStartIndex) => {
-          // Save each batch immediately so progress is not lost
-          await storeChunks(kbId, agentId, batchChunks, batchEmbeddings);
-
-          // Update chunk count progressively
-          await prisma.knowledgeBase.update({
-            where: { id: kbId },
-            data: { chunkCount: batchStartIndex + batchChunks.length },
-          });
-        },
-        controller.signal,
-      );
-    } finally {
-      clearTimeout(timer);
-    }
-
-    const allDone = chunksProcessed >= chunks.length;
-    const elapsed = Date.now() - startTime;
-
-    await prisma.knowledgeBase.update({
-      where: { id: kbId },
-      data: {
-        chunkCount: chunksProcessed,
-        embeddingStatus: allDone ? "READY" : "READY",
-        // Store partial info in content footer if not all chunks were processed
-        ...(!allDone && {
-          content: textContent.slice(0, 50000) +
-            `\n\n[KILN: ${chunksProcessed}/${chunks.length} Chunks verarbeitet in ${Math.round(elapsed / 1000)}s]`,
-        }),
-      },
-    });
-
-    if (!allDone) {
-      console.warn(
-        `Knowledge ${kbId}: timeout after ${Math.round(elapsed / 1000)}s — saved ${chunksProcessed}/${chunks.length} chunks`
-      );
-    }
-
-    // Deduct embedding credits (fire-and-forget)
-    deductEmbeddingCredits(userId, chunksProcessed, agentId).catch((err) => {
-      console.error("Knowledge embedding credit deduction failed:", err);
-    });
-  } catch (err) {
-    console.error(`Knowledge embedding failed for ${kbId}:`, err instanceof Error ? err.message : err);
-
-    // If some chunks were saved before the error, mark as READY (partial data is better than nothing)
-    await prisma.knowledgeBase.update({
-      where: { id: kbId },
-      data: {
-        embeddingStatus: chunksProcessed > 0 ? "READY" : "ERROR",
-        chunkCount: chunksProcessed,
-      },
-    }).catch(() => {});
-
-    // Deduct credits for whatever was processed
-    if (chunksProcessed > 0) {
-      deductEmbeddingCredits(userId, chunksProcessed, agentId).catch(() => {});
-    }
-  }
+  fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(cronSecret && { Authorization: `Bearer ${cronSecret}` }),
+    },
+    body: JSON.stringify({ userId }),
+  }).catch((err) => {
+    console.error(`Failed to trigger embedding for ${kbId}:`, err);
+  });
 }
 
-// Create new knowledge base entry + process async
+// Create new knowledge base entry + trigger async embedding
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -216,7 +148,7 @@ export async function POST(
       );
     }
 
-    // Create KB entry with PROCESSING status
+    // Create KB entry with PROCESSING status — save content for the embed endpoint to read
     const kb = await prisma.knowledgeBase.create({
       data: {
         agentId: params.id,
@@ -227,8 +159,8 @@ export async function POST(
       },
     });
 
-    // Run heavy embedding work in background via waitUntil
-    waitUntil(processKnowledgeEntry(kb.id, params.id, userId, textContent));
+    // Fire-and-forget: trigger embedding as a separate function invocation
+    triggerEmbedding(params.id, kb.id, userId);
 
     // Return immediately with 202
     return Response.json(
