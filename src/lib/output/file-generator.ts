@@ -284,10 +284,78 @@ async function generateExcelBuffer(req: FileGenerationRequest): Promise<Buffer> 
   return Buffer.from(arrayBuffer);
 }
 
+/** Replace emojis with ASCII equivalents — jsPDF/Helvetica cannot render them */
+function stripEmojis(text: string): string {
+  return text
+    .replace(/✅/g, "[Yes]")
+    .replace(/❌/g, "[No]")
+    .replace(/⚠️/g, "[!]")
+    .replace(/💰/g, "$")
+    .replace(/🔥/g, "*")
+    .replace(/👉/g, ">")
+    .replace(/[\u{1F600}-\u{1F9FF}\u{1F300}-\u{1F5FF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu, "")
+    .replace(/[^\x00-\x7F\xA0-\xFF\u0100-\u017F]/g, "");
+}
+
+/**
+ * Render a line of text with inline **bold** segments.
+ * Splits on ** markers: even segments are normal, odd segments are bold.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderPdfLine(doc: any, text: string, x: number, y: number, maxW: number, fontSize: number): number {
+  // Strip italic markers first
+  const cleaned = text.replace(/\*([^*]+)\*/g, "$1");
+  const segments = cleaned.split(/\*\*/);
+  if (segments.length <= 1) {
+    // No bold — simple render
+    const plain = cleaned.replace(/\*\*/g, "");
+    const wrapped = doc.splitTextToSize(plain, maxW) as string[];
+    doc.text(wrapped, x, y);
+    return wrapped.length * (fontSize * 0.5);
+  }
+
+  // Measure and render segment by segment (single-line approach for most cases)
+  // For multi-line, fall back to concatenated text with bold markers stripped
+  let curX = x;
+  let totalHeight = fontSize * 0.5;
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (!seg) continue;
+    const isBold = i % 2 === 1;
+    doc.setFont("helvetica", isBold ? "bold" : "normal");
+    const segW = doc.getTextWidth(seg);
+    if (curX + segW > x + maxW) {
+      // Wrap: render remaining as simple text
+      const remaining = segments.slice(i).join("");
+      doc.setFont("helvetica", "normal");
+      const wrapped = doc.splitTextToSize(remaining, maxW) as string[];
+      doc.text(wrapped, x, y + totalHeight);
+      totalHeight += wrapped.length * (fontSize * 0.5);
+      break;
+    }
+    doc.text(seg, curX, y);
+    curX += segW;
+  }
+  doc.setFont("helvetica", "normal");
+  return totalHeight;
+}
+
+/** Parse markdown table lines into headers and row data */
+function parseTableBlock(lines: string[]): { headers: string[]; rows: string[][] } | null {
+  if (lines.length < 3) return null;
+  const parseRow = (line: string) =>
+    line.split("|").map((c) => c.trim()).filter((_, i, arr) => i > 0 && i < arr.length);
+  const headers = parseRow(lines[0]);
+  if (headers.length === 0) return null;
+  // Skip separator (line 1)
+  const rows = lines.slice(2).map(parseRow).filter((r) => r.length > 0);
+  return { headers, rows };
+}
+
 async function generatePdfBuffer(req: FileGenerationRequest): Promise<Buffer> {
   const { jsPDF } = await import("jspdf");
-  const title = req.title || "Report";
-  const content = req.content || "";
+  const title = stripEmojis(req.title || "Report");
+  const content = stripEmojis(req.content || "");
 
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageW = 210;
@@ -315,17 +383,99 @@ async function generatePdfBuffer(req: FileGenerationRequest): Promise<Buffer> {
   doc.setTextColor(26, 22, 19);
   const lines = content.split("\n");
 
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) { y += 3; continue; }
+  // Collect table blocks
+  let i = 0;
+  while (i < lines.length) {
+    const trimmed = lines[i].trim();
 
+    // Accumulate consecutive table lines
+    if (/^\|/.test(trimmed)) {
+      const tableLines: string[] = [];
+      while (i < lines.length && /^\|/.test(lines[i].trim())) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+      const table = parseTableBlock(tableLines);
+      if (table && table.headers.length > 0) {
+        // Render proper table
+        const colCount = table.headers.length;
+        const colW = maxW / colCount;
+        const cellPad = 2;
+        const rowH = 7;
+
+        checkPage(rowH * (table.rows.length + 2));
+
+        // Header row — orange background
+        doc.setFillColor(249, 115, 22);
+        doc.rect(marginL, y - 4, maxW, rowH, "F");
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(255, 255, 255);
+        for (let c = 0; c < colCount; c++) {
+          const cellText = stripEmojis(table.headers[c] || "").replace(/\*\*([^*]+)\*\*/g, "$1");
+          doc.text(cellText, marginL + c * colW + cellPad, y, { maxWidth: colW - cellPad * 2 });
+        }
+        y += rowH;
+
+        // Data rows — alternating background
+        doc.setTextColor(26, 22, 19);
+        for (let r = 0; r < table.rows.length; r++) {
+          checkPage(rowH);
+          if (r % 2 === 0) {
+            doc.setFillColor(245, 245, 244);
+            doc.rect(marginL, y - 4, maxW, rowH, "F");
+          }
+          doc.setFontSize(8);
+          for (let c = 0; c < colCount; c++) {
+            const raw = stripEmojis(table.rows[r][c] || "");
+            // Render bold segments in cells
+            const hasBold = /\*\*/.test(raw);
+            if (hasBold) {
+              const segs = raw.split(/\*\*/);
+              let cx = marginL + c * colW + cellPad;
+              for (let s = 0; s < segs.length; s++) {
+                if (!segs[s]) continue;
+                doc.setFont("helvetica", s % 2 === 1 ? "bold" : "normal");
+                doc.text(segs[s], cx, y, { maxWidth: colW - cellPad * 2 });
+                cx += doc.getTextWidth(segs[s]);
+              }
+              doc.setFont("helvetica", "normal");
+            } else {
+              doc.setFont("helvetica", "normal");
+              doc.text(raw, marginL + c * colW + cellPad, y, { maxWidth: colW - cellPad * 2 });
+            }
+          }
+          y += rowH;
+        }
+
+        // Table bottom line
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.2);
+        doc.line(marginL, y - 4, marginL + maxW, y - 4);
+        y += 3;
+      } else {
+        // Fallback: render as plain text
+        for (const tl of tableLines) {
+          checkPage(5);
+          doc.setFontSize(8);
+          doc.setFont("helvetica", "normal");
+          doc.text(tl, marginL, y);
+          y += 4;
+        }
+      }
+      continue;
+    }
+
+    i++;
+
+    if (!trimmed) { y += 3; continue; }
     checkPage(8);
 
     if (trimmed.startsWith("### ")) {
       y += 3;
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
-      doc.text(trimmed.slice(4), marginL, y, { maxWidth: maxW });
+      doc.text(stripEmojis(trimmed.slice(4)), marginL, y, { maxWidth: maxW });
       y += 6;
       doc.setFont("helvetica", "normal");
     } else if (trimmed.startsWith("## ")) {
@@ -333,7 +483,7 @@ async function generatePdfBuffer(req: FileGenerationRequest): Promise<Buffer> {
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(249, 115, 22);
-      doc.text(trimmed.slice(3), marginL, y, { maxWidth: maxW });
+      doc.text(stripEmojis(trimmed.slice(3)), marginL, y, { maxWidth: maxW });
       y += 7;
       doc.setTextColor(26, 22, 19);
       doc.setFont("helvetica", "normal");
@@ -341,40 +491,28 @@ async function generatePdfBuffer(req: FileGenerationRequest): Promise<Buffer> {
       y += 5;
       doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
-      doc.text(trimmed.slice(2), marginL, y, { maxWidth: maxW });
+      doc.text(stripEmojis(trimmed.slice(2)), marginL, y, { maxWidth: maxW });
       y += 8;
       doc.setFont("helvetica", "normal");
     } else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
       doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      const wrapped = doc.splitTextToSize(`  •  ${trimmed.slice(2)}`, maxW);
-      doc.text(wrapped, marginL, y);
-      y += wrapped.length * 5;
+      const bulletText = stripEmojis(trimmed.slice(2));
+      const h = renderPdfLine(doc, `  •  ${bulletText}`, marginL, y, maxW, 10);
+      y += h;
     } else if (trimmed.startsWith("> ")) {
       doc.setFontSize(10);
       doc.setFont("helvetica", "italic");
       doc.setTextColor(102, 102, 102);
-      const wrapped = doc.splitTextToSize(trimmed.slice(2), maxW - 10);
+      const wrapped = doc.splitTextToSize(stripEmojis(trimmed.slice(2)), maxW - 10) as string[];
       doc.text(wrapped, marginL + 10, y);
       y += wrapped.length * 5;
       doc.setTextColor(26, 22, 19);
       doc.setFont("helvetica", "normal");
-    } else if (/^\|/.test(trimmed)) {
-      doc.setFontSize(8);
-      doc.setFont("courier", "normal");
-      doc.text(trimmed, marginL, y);
-      y += 4;
-      doc.setFont("helvetica", "normal");
     } else {
-      const cleaned = trimmed
-        .replace(/\*\*([^*]+)\*\*/g, "$1")
-        .replace(/\*([^*]+)\*/g, "$1")
-        .replace(/\[(\d+)\]/g, "[$1]");
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      const wrapped = doc.splitTextToSize(cleaned, maxW);
-      doc.text(wrapped, marginL, y);
-      y += wrapped.length * 5;
+      const h = renderPdfLine(doc, trimmed, marginL, y, maxW, 10);
+      y += h;
     }
   }
 
