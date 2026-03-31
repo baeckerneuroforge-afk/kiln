@@ -67,6 +67,15 @@ export async function generateFileBuffer(
   }
 }
 
+/* ── Cell Value Cleaning (strip markdown for Excel/CSV) ── */
+
+function cleanCellValue(value: unknown): string {
+  const str = String(value ?? "");
+  return str
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+}
+
 /* ── Smart File Naming ── */
 
 const STOP_WORDS = new Set([
@@ -116,7 +125,7 @@ async function generateCsv(req: FileGenerationRequest): Promise<QuickUseGenerate
   const csvLines = [
     headers.map(escapeCsvField).join(","),
     ...rows.map((row) =>
-      headers.map((h) => escapeCsvField(String(row[h] ?? ""))).join(",")
+      headers.map((h) => escapeCsvField(cleanCellValue(row[h]))).join(",")
     ),
   ];
   const csvContent = csvLines.join("\n");
@@ -179,7 +188,7 @@ async function generateExcelLocal(req: FileGenerationRequest): Promise<QuickUseG
     for (const row of rows.slice(0, 2000)) {
       const values: Record<string, unknown> = {};
       for (const h of headers) {
-        values[h] = row[h] ?? "";
+        values[h] = cleanCellValue(row[h]);
       }
       sheet.addRow(values);
     }
@@ -237,7 +246,7 @@ async function generateCsvBuffer(req: FileGenerationRequest): Promise<Buffer> {
   const csvLines = [
     headers.map(escapeCsvField).join(","),
     ...rows.map((row) =>
-      headers.map((h) => escapeCsvField(String(row[h] ?? ""))).join(",")
+      headers.map((h) => escapeCsvField(cleanCellValue(row[h]))).join(",")
     ),
   ];
   return Buffer.from(csvLines.join("\n"), "utf-8");
@@ -273,7 +282,7 @@ async function generateExcelBuffer(req: FileGenerationRequest): Promise<Buffer> 
 
     for (const row of rows.slice(0, 2000)) {
       const values: Record<string, unknown> = {};
-      for (const h of headers) values[h] = row[h] ?? "";
+      for (const h of headers) values[h] = cleanCellValue(row[h]);
       sheet.addRow(values);
     }
 
@@ -293,6 +302,8 @@ function stripEmojis(text: string): string {
     .replace(/💰/g, "$")
     .replace(/🔥/g, "*")
     .replace(/👉/g, ">")
+    .replace(/🏆/g, "[Winner]").replace(/🎯/g, "[Target]").replace(/🎨/g, "[Design]").replace(/👥/g, "[Team]")
+    .replace(/🟢/g, "[+]").replace(/🟡/g, "[~]").replace(/🔵/g, "[i]")
     .replace(/[\u{1F600}-\u{1F9FF}\u{1F300}-\u{1F5FF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu, "")
     .replace(/[^\x00-\x7F\xA0-\xFF\u0100-\u017F]/g, "");
 }
