@@ -82,12 +82,23 @@ function uniqueSources(sources: QuickUseSource[]): QuickUseSource[] {
     });
   }
 
-  return normalized;
+  return normalized.map((s, i) => ({ ...s, id: i + 1 }));
 }
 
 function safeDomain(url: string): string | undefined {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return undefined;
+  }
+}
+
+function safeDomainWithPath(url: string): string | undefined {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    const path = u.pathname.replace(/\/+$/, "");
+    return path && path !== "/" ? `${host}${path}` : host;
   } catch {
     return undefined;
   }
@@ -106,7 +117,7 @@ function sourceToQuickUseSource(source: EvidenceSourceMeta, fallbackIndex: numbe
   if (!source.url) return null;
   return {
     id: fallbackIndex,
-    title: source.title || safeDomain(source.url) || `Source ${fallbackIndex}`,
+    title: source.title || safeDomainWithPath(source.url) || `Source ${fallbackIndex}`,
     url: source.url,
     domain: safeDomain(source.url),
     snippet: source.snippet,

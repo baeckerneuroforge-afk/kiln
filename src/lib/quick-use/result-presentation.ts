@@ -45,7 +45,10 @@ function normalizeUrl(url: string): string {
 
 function sourceTitleFromUrl(url: string): string {
   try {
-    return new URL(url).hostname.replace(/^www\./, "");
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    const path = u.pathname.replace(/\/+$/, "");
+    return path && path !== "/" ? `${host}${path}` : host;
   } catch {
     return url;
   }
@@ -110,7 +113,7 @@ function dedupeSources(sources: QuickUseSource[]): QuickUseSource[] {
 
   return Array.from(seen.values()).map((source, index) => ({
     ...source,
-    id: source.id ?? index + 1,
+    id: index + 1,
   }));
 }
 
