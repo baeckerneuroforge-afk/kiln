@@ -111,6 +111,7 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
   }
 
   async function handlePdfUpload(file: File) {
+    console.warn("[KB] handlePdfUpload fired, file:", file.name, "agentId:", agentId);
     setIsUploading(true);
     setError(null);
 
@@ -118,10 +119,13 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch(`/api/agents/${agentId}/knowledge`, {
+      const endpoint = `/api/agents/${agentId}/knowledge`;
+      console.warn("[KB] About to fetch:", endpoint);
+      const res = await fetch(endpoint, {
         method: "POST",
         body: formData,
       });
+      console.warn("[KB] Response:", res.status, res.statusText);
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
@@ -129,6 +133,7 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
       setEntries((prev) => [data, ...prev]);
       setUploadMode(null);
     } catch (err) {
+      console.warn("[KB] PDF error:", err);
       setError(err instanceof Error ? err.message : "Upload error");
     } finally {
       setIsUploading(false);
@@ -136,24 +141,34 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
   }
 
   async function handleUrlSubmit() {
-    if (!urlInput.trim()) return;
+    console.warn("[KB] handleUrlSubmit fired, url:", urlInput, "agentId:", agentId);
+    if (!urlInput.trim()) {
+      console.warn("[KB] URL empty, aborting");
+      return;
+    }
     setIsUploading(true);
     setError(null);
 
     try {
-      const res = await fetch(`/api/agents/${agentId}/knowledge`, {
+      const endpoint = `/api/agents/${agentId}/knowledge`;
+      const body = { type: "URL", url: urlInput.trim() };
+      console.warn("[KB] About to fetch:", endpoint, body);
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "URL", url: urlInput.trim() }),
+        body: JSON.stringify(body),
       });
+      console.warn("[KB] Response:", res.status, res.statusText);
 
       const data = await res.json();
+      console.warn("[KB] Response data:", data);
       if (!res.ok) throw new Error(data.error || "URL import failed");
 
       setEntries((prev) => [data, ...prev]);
       setUrlInput("");
       setUploadMode(null);
     } catch (err) {
+      console.warn("[KB] URL error:", err);
       setError(err instanceof Error ? err.message : "Import error");
     } finally {
       setIsUploading(false);

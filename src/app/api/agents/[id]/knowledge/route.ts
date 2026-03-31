@@ -135,8 +135,9 @@ export async function POST(
       if (body.type === "URL") {
         type = "URL";
         sourceName = body.url;
-        // URL fetch happens synchronously so we can validate content before creating the KB entry
+        console.warn(`[KB] URL import: fetching ${body.url}`);
         textContent = await fetchUrlContent(body.url);
+        console.warn(`[KB] URL import: fetched ${textContent.length} chars`);
       } else if (body.type === "FAQ") {
         type = "FAQ";
         sourceName = body.title || "FAQ";
@@ -175,12 +176,14 @@ export async function POST(
     await triggerEmbedding(params.id, kb.id, userId);
 
     // Return immediately with 202
+    console.warn(`[KB] Created ${kb.id}, returning 202`);
     return Response.json(
       { ...kb, status: "processing", id: kb.id },
       { status: 202 }
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
+    console.warn(`[KB] POST error:`, message);
     return Response.json({ error: message }, { status: 500 });
   }
 }
