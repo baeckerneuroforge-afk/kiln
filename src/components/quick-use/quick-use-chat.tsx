@@ -929,6 +929,30 @@ function ResultMarkdown({
   );
 }
 
+/** Render markdown fragments inside table cells: **bold**, [text](url) → text, [N] → superscript */
+function renderCellContent(text: string): React.ReactNode {
+  // Split on **bold** segments, markdown links, and citation refs
+  const parts = text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\)|\[\d+\])/g);
+  return parts.map((part, i) => {
+    // Bold
+    const boldMatch = part.match(/^\*\*(.+)\*\*$/);
+    if (boldMatch) {
+      return <strong key={i} className="font-semibold text-zinc-100">{boldMatch[1]}</strong>;
+    }
+    // Markdown link — show text only
+    const linkMatch = part.match(/^\[([^\]]+)\]\([^)]+\)$/);
+    if (linkMatch) {
+      return <span key={i}>{linkMatch[1]}</span>;
+    }
+    // Citation [N]
+    const citeMatch = part.match(/^\[(\d+)\]$/);
+    if (citeMatch) {
+      return <span key={i} className="ml-0.5 text-[10px] text-orange-400/70 align-super">[{citeMatch[1]}]</span>;
+    }
+    return part;
+  });
+}
+
 function ComparisonTable({ table }: { table: ParsedMarkdownTable }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-white/8 bg-black/20">
@@ -937,7 +961,7 @@ function ComparisonTable({ table }: { table: ParsedMarkdownTable }) {
           <tr>
             {table.headers.map((header) => (
               <th key={header} className="border-b border-white/8 px-4 py-3 text-left font-medium text-zinc-100">
-                {header}
+                {renderCellContent(header)}
               </th>
             ))}
           </tr>
@@ -947,7 +971,7 @@ function ComparisonTable({ table }: { table: ParsedMarkdownTable }) {
             const winners = winnerIndexes(row.label, row.cells);
             return (
               <tr key={row.label} className="border-b border-white/6 last:border-b-0">
-                <td className="px-4 py-3 font-medium text-zinc-100">{row.label}</td>
+                <td className="px-4 py-3 font-medium text-zinc-100">{renderCellContent(row.label)}</td>
                 {row.cells.map((cell, index) => {
                   const isWinner = winners.includes(index);
                   const rowLower = row.label.toLowerCase();
@@ -964,7 +988,7 @@ function ComparisonTable({ table }: { table: ParsedMarkdownTable }) {
                           <span className={cn("h-2.5 w-2.5 rounded-full", availabilityTone(cell))} />
                         ) : null}
                         <span className={cn(/price|cost/.test(rowLower) && "font-semibold text-white")}>
-                          {cell}
+                          {renderCellContent(cell)}
                         </span>
                         {isWinner ? <Sparkles className="h-3.5 w-3.5 text-orange-300" /> : null}
                       </div>
