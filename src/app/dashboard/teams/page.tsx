@@ -276,11 +276,33 @@ function defaultAgentMode(role: RoleType, name?: string): AgentMode {
   return "TASK";
 }
 
+function defaultMemberName(role: RoleType): string {
+  const names: Record<string, string> = {
+    HEAD: "Team Lead",
+    COORDINATOR: "Task Coordinator",
+    EXECUTOR: "",
+    REPORTER: "Report Writer",
+    APPROVAL_GATE: "Quality Reviewer",
+  };
+  return names[role] ?? "";
+}
+
+function generateMemberPrompt(role: string, taskDescription: string, teamGoal: string): string {
+  const roleInstructions: Record<string, string> = {
+    HEAD: `You are the team lead. Your job is to coordinate the team and ensure the overall goal is met.\n\nTeam Goal: ${teamGoal}\n\nYour specific responsibility: ${taskDescription}\n\nDelegate tasks to team members and synthesize their results.`,
+    COORDINATOR: `You coordinate tasks between team members.\n\nTeam Goal: ${teamGoal}\n\nYour responsibility: ${taskDescription}\n\nPlan the execution order and ensure smooth handoffs between members.`,
+    EXECUTOR: `You are a specialist executor. Complete your assigned task thoroughly and accurately.\n\nTeam Goal: ${teamGoal}\n\nYour specific task: ${taskDescription}\n\nUse your available tools to accomplish this task. Write findings to the shared context when done.`,
+    REPORTER: `You synthesize and summarize results from the team.\n\nTeam Goal: ${teamGoal}\n\nYour responsibility: ${taskDescription}\n\nCreate a clear, structured summary of all findings and results.`,
+    APPROVAL_GATE: `You review work before it proceeds. Check for quality, accuracy and completeness.\n\nTeam Goal: ${teamGoal}\n\nReview criteria: ${taskDescription}`,
+  };
+  return roleInstructions[role] || `Team Goal: ${teamGoal}\n\nYour task: ${taskDescription}`;
+}
+
 function newManualMember(overrides: Partial<ManualMember> = {}): ManualMember {
   const role = overrides.role || "EXECUTOR";
   return {
     id: Math.random().toString(36).slice(2),
-    name: "",
+    name: defaultMemberName(role),
     role,
     agentMode: defaultAgentMode(role, overrides.name),
     provider: "ANTHROPIC",
@@ -695,17 +717,21 @@ function ManualStep1({
 /* ---------- Manual Step 2: Define Roles ---------- */
 function ManualStep2({
   members,
+  teamGoal,
   onUpdate,
   onAdd,
   onRemove,
   onToggleExpand,
 }: {
   members: ManualMember[];
+  teamGoal: string;
   onUpdate: (id: string, field: keyof ManualMember, value: string | boolean) => void;
   onAdd: () => void;
   onRemove: (id: string) => void;
   onToggleExpand: (id: string) => void;
 }) {
+  const [enhancingIds, setEnhancingIds] = useState<Set<string>>(new Set());
+  const [taskDescs, setTaskDescs] = useState<Record<string, string>>({});
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
@@ -874,16 +900,78 @@ function ManualStep2({
                   </select>
                 </div>
 
-                {/* System Prompt */}
+                {/* Task Description + Auto-generate prompt */}
                 <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    System Prompt
+                    Task Description <span className="text-gray-400">*</span>
                   </label>
+                  <input
+                    type="text"
+                    value={taskDescs[member.id] ?? ""}
+                    placeholder="e.g. Reads emails and extracts action items"
+                    onChange={(e) => {
+                      const taskDesc = e.target.value;
+                      setTaskDescs((prev) => ({ ...prev, [member.id]: taskDesc }));
+                      const prompt = taskDesc.trim()
+                        ? generateMemberPrompt(member.role, taskDesc, teamGoal)
+                        : "";
+                      onUpdate(member.id, "systemPrompt", prompt);
+                      // Auto-fill name for executors based on task description
+                      if (member.role === "EXECUTOR" && !member.name && taskDesc.trim()) {
+                        const words = taskDesc.trim().split(/\s+/).slice(0, 3).join(" ");
+                        onUpdate(member.id, "name", words);
+                      }
+                    }}
+                    className="w-full rounded border border-border bg-card px-2 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-kiln-orange focus:outline-none"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Briefly describe what this agent does — a system prompt will be generated automatically.
+                  </p>
+                </div>
+
+                {/* System Prompt (generated or manual) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                      System Prompt
+                    </label>
+                    <button
+                      type="button"
+                      disabled={!member.name && !member.systemPrompt || enhancingIds.has(member.id)}
+                      onClick={async () => {
+                        setEnhancingIds((prev) => new Set(prev).add(member.id));
+                        try {
+                          const res = await fetch("/api/teams/suggest-structure", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              goal: `Generate ONLY a detailed system prompt for a single ${member.role} agent named "${member.name || "Agent"}" in a team. The team goal is: ${teamGoal || "General purpose"}. The agent's task: ${member.systemPrompt || member.name || "General tasks"}. Return JSON with a single roles array containing one object with a systemPrompt field.`,
+                              teamName: "prompt-gen",
+                            }),
+                          });
+                          if (res.ok) {
+                            const data = await res.json();
+                            const enhanced = data.roles?.[0]?.systemPrompt;
+                            if (enhanced) onUpdate(member.id, "systemPrompt", enhanced);
+                          }
+                        } catch { /* ignore */ }
+                        setEnhancingIds((prev) => {
+                          const next = new Set(prev);
+                          next.delete(member.id);
+                          return next;
+                        });
+                      }}
+                      className="flex items-center gap-1 text-[10px] text-kiln-orange hover:text-kiln-orange/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      {enhancingIds.has(member.id) ? "Generating..." : "Enhance with AI"}
+                    </button>
+                  </div>
                   <textarea
                     value={member.systemPrompt}
                     onChange={(e) => onUpdate(member.id, "systemPrompt", e.target.value)}
-                    rows={3}
-                    placeholder="Describe this agent's instructions and behavior..."
+                    rows={4}
+                    placeholder="Auto-generated from task description, or write your own..."
                     className="w-full rounded border border-border bg-card px-2 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-kiln-orange focus:outline-none resize-none"
                   />
                 </div>
@@ -1225,9 +1313,15 @@ function CreateTeamModal({
         prev.map((m) => {
           if (m.id !== id) return m;
           const updated = { ...m, [field]: value };
-          // Auto-adjust agentMode when role changes
+          // Auto-adjust agentMode and name when role changes
           if (field === "role") {
-            updated.agentMode = defaultAgentMode(value as RoleType, m.name);
+            const newRole = value as RoleType;
+            updated.agentMode = defaultAgentMode(newRole, m.name);
+            // Pre-fill name if empty or was a default name
+            const prevDefault = defaultMemberName(m.role);
+            if (!m.name || m.name === prevDefault) {
+              updated.name = defaultMemberName(newRole);
+            }
           }
           return updated;
         })
@@ -1416,6 +1510,7 @@ function CreateTeamModal({
           {mode === "manual" && manualStep === 2 && (
             <ManualStep2
               members={manualMembers}
+              teamGoal={goal}
               onUpdate={updateMember}
               onAdd={addMember}
               onRemove={removeMember}

@@ -7,7 +7,6 @@ import {
   Activity,
   Bot,
   Building2,
-  Zap,
   LayoutDashboard,
   Settings,
   X,
