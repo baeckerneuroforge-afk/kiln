@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getClaudeClient } from "@/lib/ai";
 import { checkCredits, deductCredits } from "@/lib/credits";
 import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
+import { suggestToolsForTask } from "@/app/api/teams/suggest-structure/route";
 import crypto from "crypto";
 
 function generateSlug(name: string): string {
@@ -24,6 +25,7 @@ interface RoleInput {
   responsibilities: string;
   systemPrompt: string;
   reportsTo?: string;
+  enabledActions?: string[];
 }
 
 // POST: Generate members for an existing team (from goal or provided roles)
@@ -147,6 +149,14 @@ JSON format:
       create: { id: userId, email: userEmail },
     });
 
+    // Auto-assign tools if not provided
+    for (const role of roles) {
+      if (!role.enabledActions || role.enabledActions.length === 0) {
+        const taskText = `${role.responsibilities} ${role.systemPrompt} ${role.name}`;
+        role.enabledActions = suggestToolsForTask(taskText);
+      }
+    }
+
     // Create agents and members
     const memberMap = new Map<string, string>();
     const levelMap = { HEAD: 0, COORDINATOR: 1, EXECUTOR: 2, REPORTER: 2 } as const;
@@ -190,6 +200,7 @@ JSON format:
           role: role.role,
           level: levelMap[role.role],
           responsibilities: role.responsibilities,
+          enabledActions: role.enabledActions || [],
         },
       });
 

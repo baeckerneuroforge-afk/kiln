@@ -77,6 +77,7 @@ interface SuggestedRole {
   suggestedModel?: string;
   suggestedProvider?: string;
   reportsTo?: string;
+  enabledActions?: string[];
 }
 
 type RoleType = "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER";
@@ -619,6 +620,16 @@ function ReviewStep({
                       {role.systemPrompt.slice(0, 80)}
                       {role.systemPrompt.length > 80 ? "…" : ""}
                     </p>
+                  )}
+                  {role.enabledActions && role.enabledActions.length > 0 && (
+                    <div className="flex items-center gap-1 mt-1 flex-wrap">
+                      <span className="text-[10px] text-muted-foreground/50">Tools:</span>
+                      {role.enabledActions.map((tool) => (
+                        <span key={tool} className="text-[9px] bg-kiln-orange/10 text-kiln-orange px-1.5 py-0.5 rounded font-mono">
+                          {tool}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1371,14 +1382,14 @@ function CreateTeamModal({
         ? "Define your workflow's name and goal. KILN will design the optimal agent structure."
         : `${suggestedRoles.length} agents suggested. Review, edit, then create.`;
   } else if (mode === "manual") {
-    const manualStepLabels = ["Workflow Basics", "Define Roles", "Configure I/O", "Review"];
-    headerTitle = `Build Manually — ${manualStepLabels[manualStep - 1]}`;
-    headerSub = [
-      "Set the name, goal, and optional template for your workflow.",
-      "Add and configure each agent member.",
-      "Set triggers and outputs for Task Agents.",
-      "Review the full workflow structure before creating.",
-    ][manualStep - 1];
+    const manualStepLabels: Record<number, string> = { 1: "Workflow Basics", 2: "Define Roles", 4: "Review" };
+    headerTitle = `Build Manually — ${manualStepLabels[manualStep] || "Review"}`;
+    const manualStepSubs: Record<number, string> = {
+      1: "Set the name, goal, and optional template for your workflow.",
+      2: "Add and configure each agent member. Tools and data flow are auto-configured.",
+      4: "Review the full workflow structure before creating.",
+    };
+    headerSub = manualStepSubs[manualStep] || "Review your workflow.";
   }
 
   /* ---- Validation helpers ---- */
@@ -1417,8 +1428,8 @@ function CreateTeamModal({
         )}
         {mode === "manual" && (
           <StepIndicator
-            steps={["Basics", "Roles", "I/O Config", "Review"]}
-            current={manualStep}
+            steps={["Basics", "Roles", "Review"]}
+            current={manualStep <= 2 ? manualStep : 3}
           />
         )}
 
@@ -1581,7 +1592,7 @@ function CreateTeamModal({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setManualStep((s) => (s - 1) as ManualStep)}
+                onClick={() => setManualStep((s) => (s === 4 ? 2 : (s - 1)) as ManualStep)}
                 className="text-muted-foreground"
                 disabled={submitting}
               >
@@ -1675,17 +1686,17 @@ function CreateTeamModal({
               </Button>
             )}
 
-            {/* Manual steps 1–3: Next */}
-            {mode === "manual" && manualStep < 4 && (
+            {/* Manual steps 1–2: Next (skip step 3 — I/O is auto-configured) */}
+            {mode === "manual" && manualStep < 4 && manualStep !== 3 && (
               <Button
                 size="sm"
-                onClick={() => setManualStep((s) => (s + 1) as ManualStep)}
+                onClick={() => setManualStep((s) => (s === 2 ? 4 : (s + 1)) as ManualStep)}
                 disabled={
                   (manualStep === 1 && !manualStep1Valid) ||
                   (manualStep === 2 && !manualStep2Valid)
                 }
               >
-                Next
+                {manualStep === 2 ? "Review" : "Next"}
                 <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
             )}

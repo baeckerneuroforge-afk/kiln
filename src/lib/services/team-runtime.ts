@@ -103,6 +103,7 @@ interface PriorExecutionOutput {
   taskIndex: number;
   title: string;
   output: string;
+  memberName?: string;
 }
 
 interface TeamTaskResult {
@@ -282,6 +283,7 @@ function buildTaskInput(
       taskIndex: item.taskIndex,
       title: item.title,
       output: item.output,
+      memberName: item.memberName,
     })),
   };
 }
@@ -299,10 +301,14 @@ export function buildTaskMessage(
       ? previousOutputs
           .sort((a, b) => a.taskIndex - b.taskIndex)
           .map(
-            (output) =>
-              `Task ${output.taskIndex + 1}: ${output.title}\n${output.output.slice(0, 2000)}`
+            (output) => {
+              const label = output.memberName
+                ? `=== Results from ${output.memberName} (Task ${output.taskIndex + 1}: ${output.title}) ===`
+                : `=== Task ${output.taskIndex + 1}: ${output.title} ===`;
+              return `${label}\n${output.output.slice(0, 2000)}`;
+            }
           )
-          .join("\n\n---\n\n")
+          .join("\n\n")
       : "No previous task outputs yet.";
 
   const sharedContextText =
@@ -331,10 +337,10 @@ ${previousOutputText}
 
 Instructions:
 - Complete only the current sub-task.
-- Use the shared team context and previous outputs when helpful.
-- Return a practical result another team member can build on.
-- Be concrete and concise.
-- After completing the task, include any new factual information you learned so it can be shared with the team.
+- IMPORTANT: Read and use the outputs from previous team members above. Build on their work — do not repeat what they already did.
+- Return a practical, detailed result that the next team member can immediately build on.
+- Be concrete and concise. Include all relevant data, findings, or artifacts.
+- After completing your task, clearly state the key facts and data you produced so downstream agents can use them.
 - If the task cannot be completed, clearly explain what is blocking it.`;
 }
 
@@ -1149,6 +1155,7 @@ async function executeTaskWithFallback({
 
 interface ParallelBranchResult {
   memberId: string;
+  memberName?: string;
   taskIndex: number;
   taskTitle: string;
   output: string;
@@ -1355,6 +1362,7 @@ export async function executeTeamExecution({
 
             return {
               memberId: pMember.id,
+              memberName: getMemberDisplayName(pMember),
               taskIndex: pTask.taskIndex,
               taskTitle: pTask.title,
               output: result.output || "",
@@ -1394,7 +1402,7 @@ export async function executeTeamExecution({
         for (const result of branchResults) {
           if (result.succeeded) {
             completedTasks += 1;
-            previousOutputs.push({ taskIndex: result.taskIndex, title: result.taskTitle, output: result.output });
+            previousOutputs.push({ taskIndex: result.taskIndex, title: result.taskTitle, output: result.output, memberName: result.memberName });
           } else {
             failedTasks += 1;
             await emitEvent("task.failed", userId, undefined, {
@@ -1546,6 +1554,7 @@ export async function executeTeamExecution({
         taskIndex: task.taskIndex,
         title: task.title,
         output: result.output || "",
+        memberName: getMemberDisplayName(member),
       });
 
       await updateExecutionProgress(
