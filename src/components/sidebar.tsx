@@ -89,7 +89,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: "Build",
     defaultOpen: true,
     items: [
-      { name: "Workflows", href: "/dashboard/teams", icon: Zap, minAgents: 0, requiresPro: true, tourId: "workflows" },
+      { name: "Agent Teams", href: "/dashboard/teams", icon: Users, minAgents: 0, tourId: "workflows" },
       { name: "Orchestration", href: "/dashboard/orchestration", icon: Network, minAgents: 2 },
       { name: "Knowledge", href: "/dashboard/knowledge", icon: Waypoints, minAgents: 1 },
       { name: "Integrations", href: "/dashboard/integrations", icon: Plug, minAgents: 1, tourId: "integrations" },
