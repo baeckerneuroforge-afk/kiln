@@ -80,14 +80,25 @@ export async function generateEmbeddingsBatched(
   let processed = 0;
 
   for (let i = 0; i < chunks.length; i += EMBEDDING_BATCH_SIZE) {
-    if (abortSignal?.aborted) break;
+    if (abortSignal?.aborted) {
+      console.warn(`[RAG] Batch loop aborted at index ${i}`);
+      break;
+    }
 
     const batch = chunks.slice(i, i + EMBEDDING_BATCH_SIZE);
-    const response = await getOpenAI().embeddings.create({
-      model: EMBEDDING_MODEL,
-      input: batch.map((c) => c.trim()),
-    });
-    const embeddings = response.data.map((d) => d.embedding);
+    let embeddings: number[][];
+
+    try {
+      const response = await getOpenAI().embeddings.create({
+        model: EMBEDDING_MODEL,
+        input: batch.map((c) => c.trim()),
+      });
+      embeddings = response.data.map((d) => d.embedding);
+    } catch (apiErr) {
+      const msg = apiErr instanceof Error ? apiErr.message : String(apiErr);
+      console.warn(`[RAG] OpenAI embedding API error at batch ${i}: ${msg}`);
+      throw apiErr;
+    }
 
     await onBatchDone(batch, embeddings, i);
     processed += batch.length;

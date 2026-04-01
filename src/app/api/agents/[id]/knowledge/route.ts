@@ -40,11 +40,15 @@ export async function GET(
  * before the POST handler returns its 202.
  */
 async function triggerEmbedding(agentId: string, kbId: string, userId: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL
-    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const vercelUrl = process.env.VERCEL_URL;
+  const baseUrl = appUrl
+    || (vercelUrl ? `https://${vercelUrl}` : null)
     || "http://localhost:3000";
   const url = `${baseUrl}/api/agents/${agentId}/knowledge/${kbId}/embed`;
   const cronSecret = process.env.CRON_SECRET;
+
+  console.warn(`[KB] triggerEmbedding: url=${url} (APP_URL=${appUrl || "unset"}, VERCEL_URL=${vercelUrl || "unset"}, CRON_SECRET=${cronSecret ? "set" : "MISSING"})`);
 
   try {
     const res = await fetch(url, {
