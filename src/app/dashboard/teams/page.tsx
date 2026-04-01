@@ -1195,6 +1195,10 @@ function CreateTeamModal({
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        console.warn("[TEAMS] Generate error:", data);
+        if (data.rawResponse) {
+          throw new Error(`Parse error: ${data.parseError}\n\nRaw LLM response:\n${data.rawResponse.slice(0, 500)}`);
+        }
         throw new Error(data.error || `HTTP ${res.status}`);
       }
 
@@ -1246,6 +1250,10 @@ function CreateTeamModal({
 
         if (!membersRes.ok) {
           const data = await membersRes.json().catch(() => ({}));
+          console.warn("[TEAMS] Generate members error:", data);
+          if (data.rawResponse) {
+            throw new Error(`Parse error: ${data.parseError}\n\nRaw LLM response:\n${data.rawResponse.slice(0, 500)}`);
+          }
           throw new Error(data.error || `HTTP ${membersRes.status}`);
         }
       }
@@ -1570,7 +1578,7 @@ function CreateTeamModal({
           )}
 
           {error && (
-            <p className="mt-4 text-sm text-destructive">{error}</p>
+            <pre className="mt-4 text-sm text-destructive whitespace-pre-wrap break-all max-h-48 overflow-y-auto font-mono bg-destructive/5 rounded p-2">{error}</pre>
           )}
         </div>
 

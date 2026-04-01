@@ -142,10 +142,15 @@ JSON format:
           throw new Error("Unexpected JSON structure");
         }
       } catch (parseErr) {
+        const errMsg = parseErr instanceof Error ? parseErr.message : "Unknown parse error";
         console.error("[TEAMS] Failed to parse generate-members response:", textBlock.text.slice(0, 500), parseErr);
         return Response.json(
-          { error: "Failed to parse AI response." },
-          { status: 500 }
+          {
+            error: "Failed to parse AI response.",
+            rawResponse: textBlock.text.slice(0, 1500),
+            parseError: errMsg,
+          },
+          { status: 422 }
         );
       }
 
