@@ -132,6 +132,7 @@ export function AgentPreview({ config, streamingText }: AgentPreviewProps) {
           if (data === "[DONE]") break;
           try {
             const parsed = JSON.parse(data);
+            if (parsed.error) { throw new Error(parsed.error); }
             if (parsed.text) {
               fullText += parsed.text;
               setMessages((prev) =>

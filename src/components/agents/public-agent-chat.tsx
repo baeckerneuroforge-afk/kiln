@@ -417,6 +417,9 @@ export function PublicAgentChat({
           if (data === "[DONE]") break;
           try {
             const parsed = JSON.parse(data);
+            if (parsed.error) {
+              throw new Error(parsed.error);
+            }
             if (parsed.intentRouting) {
               const ir = parsed.intentRouting as { intent: string; confidence: number; targetAgent: string };
               setMessages((prev) => [

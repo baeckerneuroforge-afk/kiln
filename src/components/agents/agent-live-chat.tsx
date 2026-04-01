@@ -221,6 +221,9 @@ export function AgentLiveChat({
 
           try {
             const parsed = JSON.parse(data);
+            if (parsed.error) {
+              throw new Error(parsed.error);
+            }
             if (parsed.text) {
               fullText += parsed.text;
               setMessages((prev) =>

@@ -485,11 +485,12 @@ export async function POST(
 
     if (agent.knowledgeBases.length > 0 && lastUserText) {
       try {
-        ragChunks = await searchRelevantChunks(
-          params.id,
-          lastUserText,
-          5
+        // 5s timeout to avoid blocking the chat response on slow OpenAI/Supabase calls
+        const ragPromise = searchRelevantChunks(params.id, lastUserText, 5);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("RAG search timeout (5s)")), 5000)
         );
+        ragChunks = await Promise.race([ragPromise, timeoutPromise]);
 
         if (ragChunks.length > 0) {
           knowledgeContext =
@@ -499,8 +500,8 @@ export async function POST(
               .join("\n\n") +
             "\n---\nUse the above knowledge to answer the question. If the knowledge is not relevant, answer from your general knowledge. Do not make up information.";
         }
-      } catch {
-        // RAG search failed — continue without context
+      } catch (ragErr) {
+        console.warn(`[CHAT] RAG search failed for agent ${params.id}:`, ragErr instanceof Error ? ragErr.message : ragErr);
       }
     }
 
@@ -1671,6 +1672,10 @@ export async function POST(
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         } catch (err) {
+          const streamErrMsg = err instanceof Error ? err.message : String(err);
+          const streamErrStack = err instanceof Error ? err.stack?.split("\n").slice(0, 3).join(" | ") : "";
+          console.warn(`[CHAT] Stream error for agent ${params.id}: ${streamErrMsg}`);
+          if (streamErrStack) console.warn(`[CHAT] Stack: ${streamErrStack}`);
           Sentry.captureException(err, {
             tags: { component: "chat-stream", agentId: params.id },
             extra: { model: selectedModel, provider: modelProvider },
@@ -1707,12 +1712,15 @@ export async function POST(
       },
     });
   } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const errStack = err instanceof Error ? err.stack?.split("\n").slice(0, 4).join(" | ") : "";
+    console.warn(`[CHAT] Outer error for agent ${params.id}: ${errMsg}`);
+    if (errStack) console.warn(`[CHAT] Stack: ${errStack}`);
     Sentry.captureException(err, {
       tags: { component: "chat-endpoint", agentId: params.id },
     });
-    const message = err instanceof Error ? err.message : "Server error";
     return Response.json(
-      { error: message },
+      { error: errMsg },
       { status: 500, headers: corsHeaders }
     );
   }
