@@ -16,6 +16,12 @@ import { safeEval } from "@/lib/safe-eval";
 import { validateUrl } from "@/lib/url-validation";
 import { logHandoff } from "@/lib/orchestration-logger";
 import { isMCPToolName, executeMCPTool } from "@/lib/mcp/mcp-tool-bridge";
+import {
+  buildIntegrationTools,
+  executeIntegrationTool,
+  isIntegrationToolName,
+  type AgentIntegrationInfo,
+} from "@/lib/services/integration-tools";
 
 // Custom Tool Definition Typ
 export interface CustomToolDef {
@@ -107,11 +113,12 @@ function formatSlotList(slots: { label: string }[]) {
   return slots.map((slot, index) => `${index + 1}. ${slot.label}`).join("\n");
 }
 
-// Tool definitions based on enabled actions + custom tools
+// Tool definitions based on enabled actions + custom tools + integrations
 export function buildTools(
   actions: { type: string; enabled: boolean; config: unknown }[],
   customTools: CustomToolDef[] = [],
-  stripeEnabled = false
+  stripeEnabled = false,
+  integrations: AgentIntegrationInfo[] = []
 ): Anthropic.Tool[] {
   const tools: Anthropic.Tool[] = [];
 
@@ -361,6 +368,11 @@ export function buildTools(
 
   tools.push(...buildAgentStripeTools(stripeEnabled));
 
+  // Integration tools (Gmail, Sheets, Slack, Notion, HubSpot, Airtable)
+  if (integrations.length > 0) {
+    tools.push(...buildIntegrationTools(integrations));
+  }
+
   return tools;
 }
 
@@ -371,8 +383,14 @@ export async function executeChatTool(
   agentId: string,
   actions: { type: string; config: unknown }[],
   customTools: CustomToolDef[] = [],
-  context: ChatToolExecutionContext = {}
+  context: ChatToolExecutionContext = {},
+  integrations: AgentIntegrationInfo[] = []
 ): Promise<string> {
+  // Integration tools (Gmail, Sheets, Slack, etc.)
+  if (isIntegrationToolName(toolName)) {
+    return executeIntegrationTool(toolName, toolInput, agentId, integrations);
+  }
+
   // MCP Tool?
   if (isMCPToolName(toolName)) {
     return executeMCPTool(agentId, toolName, toolInput);

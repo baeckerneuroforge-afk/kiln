@@ -24,6 +24,7 @@ import { Redis } from "@upstash/redis";
 import { extractTextContent, hashSession, extractAndSaveMemories, evaluateOrchestrationHandoff } from "@/lib/services/chat-service";
 import { detectIntent, hasTopicShifted, loadTeamAgentsForRouting } from "@/lib/intent-router";
 import { buildTools, executeChatTool } from "@/lib/services/action-service";
+import type { AgentIntegrationInfo } from "@/lib/services/integration-tools";
 import { getOrCreateVisitor, generateMemoryPrefix, updateVisitorMemory, linkEmailToVisitor } from "@/lib/visitor-memory";
 import { triggerLeadWorkflows } from "@/lib/services/workflow-lead-trigger";
 import {
@@ -184,12 +185,25 @@ export async function POST(
         actions: true,
         customTools: { where: { enabled: true } },
         channels: { where: { type: "STRIPE", isActive: true } },
+        integrations: {
+          where: { enabled: true },
+          include: { integration: { select: { id: true, provider: true, config: true, isActive: true } } },
+        },
       },
     });
 
     if (!originalAgent) {
       return Response.json({ error: "Agent not found" }, { status: 404 });
     }
+
+    // Build integration info for tool execution
+    const agentIntegrations: AgentIntegrationInfo[] = (originalAgent.integrations || [])
+      .filter((ai) => ai.integration.isActive)
+      .map((ai) => ({
+        provider: ai.integration.provider,
+        connectionId: ai.integration.id,
+        encryptedConfig: ai.integration.config,
+      }));
 
     const schedule = getAgentScheduleFromWhiteLabel(originalAgent.whiteLabel);
     const scheduleStatus = getAgentScheduleStatus(schedule);
@@ -273,6 +287,10 @@ export async function POST(
           actions: true,
           customTools: { where: { enabled: true } },
           channels: { where: { type: "STRIPE", isActive: true } },
+          integrations: {
+            where: { enabled: true },
+            include: { integration: { select: { id: true, provider: true, config: true, isActive: true } } },
+          },
         },
       });
       if (handoffAgent) {
@@ -316,6 +334,10 @@ export async function POST(
                 actions: true,
                 customTools: { where: { enabled: true } },
                 channels: { where: { type: "STRIPE", isActive: true } },
+                integrations: {
+                  where: { enabled: true },
+                  include: { integration: { select: { id: true, provider: true, config: true, isActive: true } } },
+                },
               },
             });
             if (targetAgent) {
@@ -658,7 +680,7 @@ export async function POST(
       systemPrompt += "\n---";
     }
 
-    const tools = buildTools(agent.actions, agent.customTools, agent.channels.length > 0);
+    const tools = buildTools(agent.actions, agent.customTools, agent.channels.length > 0, agentIntegrations);
 
     // Client erstellen: BYOK oder KILN's Key
     const isAnthropic = modelProvider === "ANTHROPIC";
@@ -858,7 +880,8 @@ export async function POST(
                     visitorName: conversation.visitorName,
                     visitorEmail: conversation.visitorEmail,
                     agentName: agent.name,
-                  }
+                  },
+                  agentIntegrations
                 );
                 const parsedToolResult = parseToolResult(result);
 
@@ -1071,9 +1094,46 @@ export async function POST(
                     visitorName: conversation.visitorName,
                     visitorEmail: conversation.visitorEmail,
                     agentName: agent.name,
-                  }
+                  },
+                  agentIntegrations
                 );
                 const parsedToolResult = parseToolResult(result);
+
+                // Approval flow: write tools return requiresApproval
+                if (parsedToolResult?.requiresApproval) {
+                  // Send approval request to client
+                  controller.enqueue(
+                    encoder.encode(
+                      `data: ${JSON.stringify({
+                        approval: {
+                          toolUseId: block.id,
+                          toolName: block.name,
+                          action: parsedToolResult.action,
+                          params: parsedToolResult.params,
+                        },
+                      })}\n\n`
+                    )
+                  );
+
+                  // Tell Claude the action is pending approval
+                  toolResults.push({
+                    type: "tool_result",
+                    tool_use_id: block.id,
+                    content: JSON.stringify({
+                      success: true,
+                      pendingApproval: true,
+                      message: "The action requires user approval. Tell the user what you want to do and that they need to approve it using the button shown above.",
+                    }),
+                  });
+
+                  debugToolCalls.push({
+                    name: block.name,
+                    input: block.input as Record<string, unknown>,
+                    result: "pending_approval",
+                  });
+                  hasToolUse = true;
+                  continue;
+                }
 
                 debugToolCalls.push({
                   name: block.name,

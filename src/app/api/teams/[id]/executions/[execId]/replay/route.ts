@@ -401,11 +401,33 @@ export async function GET(
                 agent: {
                   include: {
                     knowledgeBases: { where: { embeddingStatus: "READY" } },
+                    actions: true,
+                    customTools: true,
+                    channels: { select: { id: true } },
+                    integrations: {
+                      where: { enabled: true },
+                      include: {
+                        integration: {
+                          select: { id: true, provider: true, config: true, isActive: true },
+                        },
+                      },
+                    },
                   },
                 },
                 fallbackAgent: {
                   include: {
                     knowledgeBases: { where: { embeddingStatus: "READY" } },
+                    actions: true,
+                    customTools: true,
+                    channels: { select: { id: true } },
+                    integrations: {
+                      where: { enabled: true },
+                      include: {
+                        integration: {
+                          select: { id: true, provider: true, config: true, isActive: true },
+                        },
+                      },
+                    },
                   },
                 },
               },

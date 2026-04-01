@@ -14,6 +14,9 @@ import {
   Cpu,
   ImageIcon,
   X,
+  CheckCircle2,
+  XCircle,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,12 +32,21 @@ interface DebugInfo {
   model: string;
 }
 
+interface ApprovalRequest {
+  toolUseId: string;
+  toolName: string;
+  action: string;
+  params: Record<string, unknown>;
+  status?: "pending" | "approved" | "rejected";
+}
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   imageUrl?: string; // Base64 data URL für Thumbnail-Anzeige
   debug?: DebugInfo;
+  approval?: ApprovalRequest;
 }
 
 interface AgentLiveChatProps {
@@ -112,6 +124,55 @@ export function AgentLiveChat({
       else next.add(id);
       return next;
     });
+  }
+
+  async function handleApproval(messageId: string, approved: boolean) {
+    const msg = messages.find((m) => m.id === messageId);
+    if (!msg?.approval) return;
+
+    // Update status immediately
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId
+          ? { ...m, approval: { ...m.approval!, status: approved ? "approved" : "rejected" } }
+          : m
+      )
+    );
+
+    if (!approved) return;
+
+    try {
+      const res = await fetch(`/api/agents/${agentId}/chat/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          toolName: msg.approval.toolName,
+          params: msg.approval.params,
+        }),
+      });
+      const result = await res.json();
+
+      // Add result as a new message
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `result-${Date.now()}`,
+          role: "assistant" as const,
+          content: result.success
+            ? `✓ ${msg.approval!.action} — erfolgreich ausgeführt.`
+            : `✗ Fehler: ${result.error || "Unbekannter Fehler"}`,
+        },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `result-${Date.now()}`,
+          role: "assistant" as const,
+          content: "✗ Fehler beim Ausführen der Aktion.",
+        },
+      ]);
+    }
   }
 
   function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -232,6 +293,19 @@ export function AgentLiveChat({
                 )
               );
             }
+            if (parsed.approval) {
+              const approvalReq = parsed.approval as ApprovalRequest;
+              const approvalId = `approval-${Date.now()}`;
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: approvalId,
+                  role: "assistant" as const,
+                  content: "",
+                  approval: { ...approvalReq, status: "pending" },
+                },
+              ]);
+            }
             if (parsed.debug) {
               setMessages((prev) =>
                 prev.map((m) =>
@@ -328,15 +402,74 @@ export function AgentLiveChat({
                     />
                   </div>
                 )}
+                {/* Approval Card */}
+                {msg.approval && (
+                  <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ShieldAlert className="h-4 w-4 text-orange-400" />
+                      <span className="text-xs font-semibold text-orange-400 uppercase tracking-wide">
+                        Aktion genehmigen
+                      </span>
+                    </div>
+                    <p className="text-sm text-foreground mb-3">
+                      {msg.approval.action}
+                    </p>
+                    {msg.approval.params && Object.keys(msg.approval.params).length > 0 && (
+                      <div className="mb-3 rounded bg-black/20 p-2 text-xs font-mono text-muted-foreground space-y-0.5">
+                        {Object.entries(msg.approval.params).map(([k, v]) => (
+                          <div key={k}>
+                            <span className="text-zinc-500">{k}:</span>{" "}
+                            {typeof v === "string" && v.length > 80
+                              ? v.slice(0, 80) + "..."
+                              : String(v)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {msg.approval.status === "pending" ? (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-7 bg-kiln-green hover:bg-kiln-green/80 text-xs"
+                          onClick={() => handleApproval(msg.id, true)}
+                        >
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Genehmigen
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs border-red-500/30 text-red-400 hover:bg-red-500/10"
+                          onClick={() => handleApproval(msg.id, false)}
+                        >
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Ablehnen
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className={cn(
+                        "flex items-center gap-1.5 text-xs font-medium",
+                        msg.approval.status === "approved" ? "text-kiln-green" : "text-red-400"
+                      )}>
+                        {msg.approval.status === "approved" ? (
+                          <><CheckCircle2 className="h-3 w-3" /> Genehmigt</>
+                        ) : (
+                          <><XCircle className="h-3 w-3" /> Abgelehnt</>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {msg.content ? (
                   <MarkdownMessage content={msg.content} />
-                ) : (
+                ) : !msg.approval ? (
                   <span className="inline-flex items-center gap-1.5 py-1">
                     <span className="typing-dot" />
                     <span className="typing-dot" />
                     <span className="typing-dot" />
                   </span>
-                )}
+                ) : null}
               </div>
               {msg.role === "user" && (
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted mt-0.5">

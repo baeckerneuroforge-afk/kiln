@@ -31,6 +31,18 @@ import {
 import {
   normalizeApprovalGateConfig,
 } from "@/lib/team-approval";
+import {
+  buildTools,
+  executeChatTool,
+  type CustomToolDef,
+} from "@/lib/services/action-service";
+import {
+  type AgentIntegrationInfo,
+  isWriteTool,
+  executeApprovedWriteTool,
+} from "@/lib/services/integration-tools";
+// TODO: Wire getRoleMCPTools for MCP tool filtering per team role
+// import { getRoleMCPTools } from "@/lib/mcp/team-mcp-config";
 
 const teamExecutionRuntimeInclude = {
   members: {
@@ -38,11 +50,33 @@ const teamExecutionRuntimeInclude = {
       agent: {
         include: {
           knowledgeBases: { where: { embeddingStatus: "READY" } },
+          actions: true,
+          customTools: true,
+          channels: { select: { id: true } },
+          integrations: {
+            where: { enabled: true },
+            include: {
+              integration: {
+                select: { id: true, provider: true, config: true, isActive: true },
+              },
+            },
+          },
         },
       },
       fallbackAgent: {
         include: {
           knowledgeBases: { where: { embeddingStatus: "READY" } },
+          actions: true,
+          customTools: true,
+          channels: { select: { id: true } },
+          integrations: {
+            where: { enabled: true },
+            include: {
+              integration: {
+                select: { id: true, provider: true, config: true, isActive: true },
+              },
+            },
+          },
         },
       },
     },
@@ -381,6 +415,49 @@ ${JSON.stringify(visibleContext, null, 2)}`,
   }
 }
 
+/** Baut Tools für ein Team-Mitglied basierend auf Agent-Daten + enabledActions */
+function buildMemberTools(
+  member: TeamExecutionRuntimeTeam["members"][number],
+  agent: NonNullable<TeamExecutionRuntimeTeam["members"][number]["agent"]>
+): { tools: Anthropic.Tool[]; integrations: AgentIntegrationInfo[] } {
+  const agentIntegrations: AgentIntegrationInfo[] = (agent.integrations || [])
+    .filter((ai) => ai.integration.isActive)
+    .map((ai) => ({
+      provider: ai.integration.provider,
+      connectionId: ai.integration.id,
+      encryptedConfig: ai.integration.config,
+    }));
+
+  const customTools: CustomToolDef[] = (agent.customTools || []).map((ct) => ({
+    id: ct.id,
+    name: ct.name,
+    description: ct.description,
+    method: ct.method,
+    url: ct.url,
+    headers: ct.headers,
+    bodyTemplate: ct.bodyTemplate,
+    responseMapping: ct.responseMapping,
+  }));
+
+  const stripeEnabled = (agent.channels || []).length > 0;
+
+  let tools = buildTools(
+    agent.actions || [],
+    customTools,
+    stripeEnabled,
+    agentIntegrations
+  );
+
+  // Filter nach enabledActions falls konfiguriert
+  const enabledActions = member.enabledActions || [];
+  if (enabledActions.length > 0) {
+    const allowed = new Set(enabledActions);
+    tools = tools.filter((t) => allowed.has(t.name));
+  }
+
+  return { tools, integrations: agentIntegrations };
+}
+
 async function runTeamMemberTask(
   team: TeamExecutionRuntimeTeam,
   member: TeamExecutionRuntimeTeam["members"][number],
@@ -461,6 +538,10 @@ You are working inside the team "${team.name}".
 Shared team context: ${JSON.stringify(visibleExecutionContext, null, 2)}.
 Use this information. After completing your task, include any new information you learned.
 Respond with the execution result only.${knowledgeContext}`;
+
+  // Tools für dieses Team-Mitglied bauen
+  const { tools: memberTools, integrations: agentIntegrations } =
+    buildMemberTools(member, agent);
 
   let output = "";
   let tokensIn = 0;
@@ -543,19 +624,99 @@ Respond with the execution result only.${knowledgeContext}`;
     const client = userApiKey
       ? getClaudeClientWithKey(userApiKey)
       : getClaudeClient();
-    const response = await client.messages.create({
-      model: selectedModel,
-      max_tokens: 2048,
-      system: systemPrompt,
-      messages: [{ role: "user", content: taskMessage }],
-    });
 
-    output = response.content
-      .filter((block): block is Anthropic.TextBlock => block.type === "text")
-      .map((block) => block.text)
-      .join("\n");
-    tokensIn = response.usage?.input_tokens || 0;
-    tokensOut = response.usage?.output_tokens || 0;
+    const messages: Anthropic.MessageParam[] = [
+      { role: "user", content: taskMessage },
+    ];
+
+    const maxToolRounds = 10;
+    let round = 0;
+
+    while (round < maxToolRounds) {
+      round++;
+      const response = await client.messages.create({
+        model: selectedModel,
+        max_tokens: 2048,
+        system: systemPrompt,
+        messages,
+        ...(memberTools.length > 0 ? { tools: memberTools } : {}),
+      });
+
+      tokensIn += response.usage?.input_tokens || 0;
+      tokensOut += response.usage?.output_tokens || 0;
+
+      // Text-Output sammeln
+      const textParts = response.content
+        .filter((block): block is Anthropic.TextBlock => block.type === "text")
+        .map((block) => block.text);
+      if (textParts.length > 0) {
+        output += (output ? "\n" : "") + textParts.join("\n");
+      }
+
+      // Prüfen ob Tool-Calls vorhanden
+      const toolUseBlocks = response.content.filter(
+        (block): block is Anthropic.ToolUseBlock => block.type === "tool_use"
+      );
+
+      if (toolUseBlocks.length === 0 || response.stop_reason !== "tool_use") {
+        break;
+      }
+
+      // Tool-Calls ausführen
+      messages.push({ role: "assistant", content: response.content });
+
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+      for (const toolBlock of toolUseBlocks) {
+        try {
+          const toolInput = toolBlock.input as Record<string, unknown>;
+
+          // Write-Tools direkt ausführen (Team-Kontext hat keine interaktive Approval-UI)
+          let result: string;
+          if (isWriteTool(toolBlock.name)) {
+            result = await executeApprovedWriteTool(
+              toolBlock.name,
+              toolInput,
+              agent.id,
+              agentIntegrations
+            );
+          } else {
+            result = await executeChatTool(
+              toolBlock.name,
+              toolInput,
+              agent.id,
+              agent.actions || [],
+              (agent.customTools || []).map((ct) => ({
+                id: ct.id,
+                name: ct.name,
+                description: ct.description,
+                method: ct.method,
+                url: ct.url,
+                headers: ct.headers,
+                bodyTemplate: ct.bodyTemplate,
+                responseMapping: ct.responseMapping,
+              })),
+              {},
+              agentIntegrations
+            );
+          }
+
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolBlock.id,
+            content: result,
+          });
+        } catch (toolErr) {
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: toolBlock.id,
+            content: `Error: ${toolErr instanceof Error ? toolErr.message : "Tool execution failed"}`,
+            is_error: true,
+          });
+        }
+      }
+
+      messages.push({ role: "user", content: toolResults });
+    }
   }
 
   if (!output.trim()) {
