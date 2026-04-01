@@ -192,12 +192,53 @@ Design the optimal team structure. Each agent must have the right tools to do th
 
     let roles: SuggestedRole[];
     try {
+      // Strip markdown code fences (```json ... ``` or ``` ... ```)
       const jsonText = textBlock.text
-        .replace(/```json?\n?/g, "")
-        .replace(/```/g, "")
+        .replace(/```json?\s*/g, "")
+        .replace(/```\s*/g, "")
         .trim();
-      roles = JSON.parse(jsonText);
-    } catch {
+
+      // Try direct parse first
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(jsonText);
+      } catch {
+        // LLM may have added text around JSON — extract the array or object
+        const arrayMatch = jsonText.match(/\[[\s\S]*\]/);
+        const objectMatch = jsonText.match(/\{[\s\S]*\}/);
+        const extracted = arrayMatch?.[0] || objectMatch?.[0];
+        if (!extracted) {
+          throw new Error("No JSON found in response");
+        }
+        parsed = JSON.parse(extracted);
+      }
+
+      // Handle both { roles: [...] } wrapper and bare array
+      if (Array.isArray(parsed)) {
+        roles = parsed;
+      } else if (
+        parsed &&
+        typeof parsed === "object" &&
+        "roles" in (parsed as Record<string, unknown>) &&
+        Array.isArray((parsed as Record<string, unknown>).roles)
+      ) {
+        roles = (parsed as { roles: SuggestedRole[] }).roles;
+      } else if (
+        parsed &&
+        typeof parsed === "object" &&
+        "members" in (parsed as Record<string, unknown>) &&
+        Array.isArray((parsed as Record<string, unknown>).members)
+      ) {
+        roles = (parsed as { members: SuggestedRole[] }).members;
+      } else {
+        throw new Error("Unexpected JSON structure");
+      }
+    } catch (parseErr) {
+      console.error(
+        "[TEAMS] Failed to parse suggest-structure response:",
+        textBlock.text.slice(0, 500),
+        parseErr
+      );
       return Response.json(
         { error: "Failed to parse AI response." },
         { status: 500 }

@@ -117,11 +117,32 @@ JSON format:
 
       try {
         const jsonText = textBlock.text
-          .replace(/```json?\n?/g, "")
-          .replace(/```/g, "")
+          .replace(/```json?\s*/g, "")
+          .replace(/```\s*/g, "")
           .trim();
-        roles = JSON.parse(jsonText);
-      } catch {
+
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(jsonText);
+        } catch {
+          const arrayMatch = jsonText.match(/\[[\s\S]*\]/);
+          const objectMatch = jsonText.match(/\{[\s\S]*\}/);
+          const extracted = arrayMatch?.[0] || objectMatch?.[0];
+          if (!extracted) throw new Error("No JSON found in response");
+          parsed = JSON.parse(extracted);
+        }
+
+        if (Array.isArray(parsed)) {
+          roles = parsed;
+        } else if (parsed && typeof parsed === "object" && "roles" in (parsed as Record<string, unknown>) && Array.isArray((parsed as Record<string, unknown>).roles)) {
+          roles = (parsed as { roles: RoleInput[] }).roles;
+        } else if (parsed && typeof parsed === "object" && "members" in (parsed as Record<string, unknown>) && Array.isArray((parsed as Record<string, unknown>).members)) {
+          roles = (parsed as { members: RoleInput[] }).members;
+        } else {
+          throw new Error("Unexpected JSON structure");
+        }
+      } catch (parseErr) {
+        console.error("[TEAMS] Failed to parse generate-members response:", textBlock.text.slice(0, 500), parseErr);
         return Response.json(
           { error: "Failed to parse AI response." },
           { status: 500 }
