@@ -14,7 +14,7 @@ import {
   getModelDef,
   MODEL_PROVIDER_MAP,
 } from "@/lib/ai";
-import { deductCredits } from "@/lib/credits";
+import { deductCredits, getCreditCost } from "@/lib/credits";
 import { decrypt } from "@/lib/encryption";
 import { sendTeamApprovalRequestEmail } from "@/lib/email-notifications";
 import { emitEvent } from "@/lib/events";
@@ -485,6 +485,17 @@ async function runTeamMemberTask(
     options?.modelOverride || agent.llmModel || "claude-sonnet-4-6";
   const modelProvider =
     MODEL_PROVIDER_MAP[selectedModel] || agent.modelProvider || "ANTHROPIC";
+
+  // Per-Agent Budget Cap prüfen (maxCreditsPerRun)
+  const maxCreditsPerRun = (agent as Record<string, unknown>).maxCreditsPerRun;
+  if (typeof maxCreditsPerRun === "number" && maxCreditsPerRun > 0) {
+    const estimatedCost = getCreditCost(selectedModel) * 3; // ~3 rounds avg
+    if (estimatedCost > maxCreditsPerRun) {
+      throw new Error(
+        `Agent "${agent.name}" budget cap exceeded. Estimated cost: ${estimatedCost} credits, limit: ${maxCreditsPerRun} credits.`
+      );
+    }
+  }
 
   let userApiKey: string | null = null;
   try {

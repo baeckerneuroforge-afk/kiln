@@ -2134,7 +2134,7 @@ function TeamDetailInner() {
     if (!assignGoal.trim() || debugRunning) return;
     setDebugRunning(true);
     try {
-      const res = await fetch(`/api/teams/${teamId}/execute-debug`, {
+      const res = await fetch(`/api/teams/${teamId}/execute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ goal: assignGoal.trim() }),
@@ -2328,7 +2328,7 @@ function TeamDetailInner() {
 
   // handleWorkflowNodeClick, Save, Delete, LabelChange are now handled inside VisualTeamEditor
 
-  // Run workflow from canvas — calls execute-debug API and polls for results
+  // Run workflow from canvas — calls execute API and polls for results
   const handleRunWorkflow = useCallback(async () => {
     if (wfExecStatus === "running") return;
 
@@ -2355,7 +2355,7 @@ function TeamDetailInner() {
     const startTime = Date.now();
 
     try {
-      const res = await fetch(`/api/teams/${teamId}/execute-debug`, {
+      const res = await fetch(`/api/teams/${teamId}/execute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ goal: team?.goal || "Run Workflow" }),

@@ -3,7 +3,7 @@ import { waitUntil } from "@vercel/functions";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getClaudeClient } from "@/lib/ai";
-import { deductCredits } from "@/lib/credits";
+import { deductCredits, checkTeamExecutionCredits } from "@/lib/credits";
 import { setExecutionContextMeta } from "@/lib/team-execution-metadata";
 import {
   executeTeamExecution,
@@ -39,6 +39,20 @@ export async function POST(
       return Response.json(
         { error: "Goal is required." },
         { status: 400 }
+      );
+    }
+
+    // Pre-flight credit check for full team execution
+    const creditCheck = await checkTeamExecutionCredits(userId, team.members);
+    if (!creditCheck.allowed) {
+      return Response.json(
+        {
+          error: creditCheck.message,
+          creditExhausted: true,
+          estimated: creditCheck.estimated,
+          balance: creditCheck.balance,
+        },
+        { status: 402 }
       );
     }
 

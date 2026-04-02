@@ -113,9 +113,8 @@ export async function ensureCreditsReset(userId: string) {
   if (!user.aiCreditsResetDate || now >= user.aiCreditsResetDate) {
     const newBalance = user.aiCreditsMonthly || getPlanCredits(user.plan, user.creditTier);
 
-    const nextReset = new Date(now);
-    nextReset.setMonth(nextReset.getMonth() + 1);
-    nextReset.setHours(0, 0, 0, 0);
+    // Reset am 1. des nächsten Monats (vermeidet Overflow: Jan 31 + 1 Monat → Mar 3)
+    const nextReset = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
 
     return prisma.user.update({
       where: { id: userId },
@@ -403,6 +402,58 @@ export async function deductCreditsByAmount(
   };
 }
 
+// ─── Team Execution Cost Estimation ────────────────────────
+
+/**
+ * Schätzt die Gesamtkosten einer Team-Execution vorab.
+ * HEAD/COORDINATOR/REPORTER = 1 LLM-Call, EXECUTOR = ~3 (Tool-Loop).
+ */
+export function estimateTeamExecutionCost(
+  members: Array<{ role: string; agent?: { llmModel?: string | null } | null }>
+): number {
+  return members.reduce((total, member) => {
+    const model = member.agent?.llmModel || "claude-haiku-4-5-20251001";
+    const costPerCall = getCreditCost(model);
+    // HEAD = 1 call (delegation), EXECUTOR = ~3 (tool loop avg), others = 1
+    const estimatedCalls = member.role === "EXECUTOR" ? 3 : 1;
+    return total + costPerCall * estimatedCalls;
+  }, 0);
+}
+
+/**
+ * Pre-flight check: hat der User genug Credits für eine komplette Team-Execution?
+ */
+export async function checkTeamExecutionCredits(
+  userId: string,
+  members: Array<{ role: string; agent?: { llmModel?: string | null } | null }>
+): Promise<{ allowed: boolean; estimated: number; balance: number; message?: string }> {
+  if (isAdmin(userId)) {
+    return { allowed: true, estimated: 0, balance: 999999 };
+  }
+
+  const user = await ensureCreditsReset(userId);
+  if (!user) {
+    return { allowed: false, estimated: 0, balance: 0, message: "User not found" };
+  }
+
+  const estimated = estimateTeamExecutionCost(members);
+  const balance = user.aiCreditsBalance;
+
+  // Zusätzlich +2 Credits für die Task-Decomposition (Claude Sonnet Call)
+  const totalEstimated = estimated + getCreditCost("claude-sonnet-4-6");
+
+  if (balance >= totalEstimated) {
+    return { allowed: true, estimated: totalEstimated, balance };
+  }
+
+  return {
+    allowed: false,
+    estimated: totalEstimated,
+    balance,
+    message: `Insufficient credits. This team needs ~${totalEstimated} credits, you have ${balance}. Top up or add your own API key.`,
+  };
+}
+
 // ─── Credit Top-up Packages ─────────────────────────────────
 export const CREDIT_PACKAGES = [
   { id: "credits_500", credits: 500, price: 9, label: "500 Credits", description: "€9 one-time" },
@@ -546,12 +597,19 @@ export async function checkAutoTopUp(userId: string, currentBalance: number): Pr
       }),
     ]);
 
-    console.log(`Auto top-up successful: ${config.creditAmount} credits for user ${userId}`);
+    const newTopUpCount = config.topUpsThisMonth + 1;
+    console.log(`Auto top-up successful: ${config.creditAmount} credits for user ${userId} (${newTopUpCount}/${config.maxPerMonth} this month)`);
 
-    // Bestätigungs-Email senden
+    // Bestätigungs-Email senden mit Zähler-Info
     const priceFmt = (amountCents / 100).toFixed(0);
     if (user.email) {
-      sendAutoTopUpNotification(user.email, config.creditAmount, Number(priceFmt)).catch(() => {});
+      sendAutoTopUpNotification(
+        user.email,
+        config.creditAmount,
+        Number(priceFmt),
+        newTopUpCount,
+        config.maxPerMonth
+      ).catch(() => {});
     }
   } catch (err) {
     console.error(`Auto top-up failed for user ${userId}:`, err);
@@ -569,20 +627,31 @@ export async function checkAutoTopUp(userId: string, currentBalance: number): Pr
   }
 }
 
-async function sendAutoTopUpNotification(email: string, credits: number, priceEur: number): Promise<void> {
+async function sendAutoTopUpNotification(
+  email: string,
+  credits: number,
+  priceEur: number,
+  topUpNumber: number,
+  maxPerMonth: number
+): Promise<void> {
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey) return;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
+  const maxMonthlySpend = maxPerMonth * priceEur;
+  const remaining = maxPerMonth - topUpNumber;
   await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       from: "KILN <noreply@kilnbase.com>",
       to: [email],
-      subject: `KILN: Auto top-up — ${credits} credits added (€${priceEur})`,
+      subject: `KILN: Auto top-up ${topUpNumber}/${maxPerMonth} — ${credits} credits added (€${priceEur})`,
       html: `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px">
         <h2 style="color:#22C55E">Auto Top-Up Successful</h2>
         <p><strong>${credits} credits</strong> have been added to your account (€${priceEur}).</p>
-        <p style="color:#888;font-size:12px">You can manage auto top-up in your <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com"}/dashboard/settings?tab=billing">billing settings</a>.</p>
+        <p style="color:#666;font-size:13px">This is auto top-up <strong>${topUpNumber} of ${maxPerMonth}</strong> this month.${remaining > 0 ? ` ${remaining} remaining.` : " This was your last auto top-up this month."}</p>
+        <p style="color:#666;font-size:13px">Maximum monthly auto-charge: ${maxPerMonth} × €${priceEur} = €${maxMonthlySpend}</p>
+        <p style="color:#888;font-size:12px">You can manage auto top-up in your <a href="${appUrl}/dashboard/settings?tab=billing">billing settings</a>.</p>
         <p style="color:#888;font-size:12px">— The KILN Team</p>
       </div>`,
     }),

@@ -92,10 +92,12 @@ export async function POST(
       );
     }
 
-    // Billing — Credit Check
+    // Billing — Credit Check (mit BYOK-Support)
     const creditCost = agent.a2aCreditCost || 1;
+    let a2aByokActive = false;
     if (callerUserId) {
-      const billing = await checkA2ACredits(callerUserId, creditCost);
+      const billing = await checkA2ACredits(callerUserId, creditCost, agent.modelProvider);
+      a2aByokActive = billing.byokActive || false;
       if (!billing.allowed) {
         return Response.json(
           {
@@ -170,10 +172,10 @@ export async function POST(
 
     const durationMs = Date.now() - startTime;
 
-    // Billing — Credits abziehen
+    // Billing — Credits abziehen (BYOK-User werden nicht belastet)
     if (callerUserId) {
       waitUntil(
-        deductA2ACredits(callerUserId, params.id, creditCost, sourceIp, replyTo).catch(
+        deductA2ACredits(callerUserId, params.id, creditCost, sourceIp, replyTo, a2aByokActive).catch(
           (err) => console.error("A2A billing failed:", err)
         )
       );
