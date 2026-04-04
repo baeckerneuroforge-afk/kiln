@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     const claude = getClaudeClient();
     const response = await claude.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 4000,
+      max_tokens: 8192,
       system: `You are KILN's Team Architect AI. Given a team name and goal, you design the optimal hierarchical agent team structure that is IMMEDIATELY EXECUTABLE.
 
 RULES:
@@ -129,7 +129,7 @@ RULES:
   - REPORTER → always "TASK"
   - EXECUTOR → "TASK" by default, "CHAT" only if direct customer/user interaction
 - Each agent must have a "suggestedModel" and "suggestedProvider" for the optimal LLM:
-  - HEAD (strategy/delegation): "claude-opus-4-6" (ANTHROPIC) or "gpt-4o" (OPENAI)
+  - HEAD (strategy/delegation): "claude-sonnet-4-6" (ANTHROPIC) — cost-effective for coordination
   - COORDINATOR (balanced): "claude-sonnet-4-6" (ANTHROPIC)
   - EXECUTOR doing research: "sonar-pro" (PERPLEXITY) — has built-in web search
   - EXECUTOR doing writing/content: "claude-sonnet-4-6" (ANTHROPIC) — best writing quality
@@ -192,10 +192,11 @@ Design the optimal team structure. Each agent must have the right tools to do th
 
     let roles: SuggestedRole[];
     try {
-      // Strip markdown code fences (```json ... ``` or ``` ... ```)
+      // Strip markdown fences, fix JS-style undefined → null
       const jsonText = textBlock.text
         .replace(/```json?\s*/g, "")
         .replace(/```\s*/g, "")
+        .replace(/:\s*undefined\b/g, ": null")
         .trim();
 
       // Try direct parse first
