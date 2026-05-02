@@ -6,7 +6,7 @@ import { checkCredits, deductCredits } from "@/lib/credits";
 export interface SuggestedRole {
   name: string;
   role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER";
-  agentMode?: "CHAT" | "TASK";
+  mode?: "CHAT" | "TASK";
   suggestedModel?: string;
   suggestedProvider?: string;
   responsibilities: string;
@@ -123,7 +123,7 @@ RULES:
 - HEAD has no reportsTo
 - Each agent needs a detailed systemPrompt (at least 3 sentences describing their specific behavior, what data they read from shared context, and what data they write back)
 - Each agent needs clear responsibilities
-- Each agent must have an "agentMode": either "CHAT" or "TASK"
+- Each agent must have an "mode": either "CHAT" or "TASK"
   - HEAD → always "TASK" (autonomous background execution)
   - COORDINATOR → always "TASK"
   - REPORTER → always "TASK"
@@ -163,7 +163,7 @@ JSON format per role:
 {
   "name": "Agent Name",
   "role": "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER",
-  "agentMode": "CHAT" | "TASK",
+  "mode": "CHAT" | "TASK",
   "suggestedModel": "model-id",
   "suggestedProvider": "ANTHROPIC" | "OPENAI" | "PERPLEXITY" | "GOOGLE" | "GROQ",
   "responsibilities": "What this agent is responsible for",

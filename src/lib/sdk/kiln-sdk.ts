@@ -65,7 +65,7 @@ export interface AgentDetail {
   welcomeMessage: string | null;
   model: string;
   status: string;
-  agentMode: string;
+  mode: string;
   actions: Array<{ type: string; enabled: boolean }>;
   createdAt: string;
 }
@@ -75,7 +75,7 @@ export interface CreateAgentInput {
   systemPrompt: string;
   description?: string;
   llmModel?: string;
-  agentMode?: "CHAT" | "TASK";
+  mode?: "CHAT" | "TASK";
   welcomeMessage?: string;
   status?: "DRAFT" | "LIVE" | "PAUSED";
   actions?: string[];

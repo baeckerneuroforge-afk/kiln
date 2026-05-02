@@ -24,7 +24,7 @@ const ALLOWED_FIELDS = [
   "systemPrompt",
   "welcomeMessage",
   "llmModel",
-  "agentMode",
+  "mode",
   "whiteLabel",
   "status",
 ] as const;
@@ -123,7 +123,9 @@ export async function GET(
         systemPrompt: agent.systemPrompt,
         welcomeMessage: agent.welcomeMessage,
         llmModel: agent.llmModel,
-        agentMode: agent.agentMode,
+        mode: agent.mode,
+        // Backward-compat: legacy field name in response.
+        agentMode: agent.mode,
         status: agent.status,
         whiteLabel: agent.whiteLabel,
         actions: agent.actions.map((action) => action.type),
@@ -188,6 +190,10 @@ export async function PUT(
     }
 
     const body = await request.json();
+    // Backward-compat: translate legacy field name agentMode → mode before filtering.
+    if (body.agentMode !== undefined && body.mode === undefined) {
+      body.mode = body.agentMode;
+    }
     const actions = parseActions(body.actions);
     const sanitizedData = Object.fromEntries(
       Object.entries(body).filter(([key]) => ALLOWED_FIELDS.includes(key as (typeof ALLOWED_FIELDS)[number]))
@@ -229,12 +235,14 @@ export async function PUT(
         name: updated.name,
         slug: updated.slug,
         status: updated.status,
-        agentMode: updated.agentMode,
+        mode: updated.mode,
+        // Backward-compat: legacy field name in response.
+        agentMode: updated.mode,
         updatedFields: [
           ...Object.keys(sanitizedData),
           ...(actions !== undefined ? ["actions"] : []),
         ],
-        publicUrl: updated.agentMode === "CHAT" ? `/embed/${updated.slug}` : undefined,
+        publicUrl: updated.mode === "CHAT" ? `/embed/${updated.slug}` : undefined,
       },
       {
         headers: {

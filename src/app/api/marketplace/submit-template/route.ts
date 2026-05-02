@@ -34,7 +34,7 @@ export async function POST(request: Request) {
                 name: true,
                 description: true,
                 systemPrompt: true,
-                agentMode: true,
+                mode: true,
                 welcomeMessage: true,
                 suggestedQuestions: true,
                 actions: { where: { enabled: true }, select: { type: true, enabled: true } },
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     // Build sanitized agent config snapshot (strip sensitive data)
     const workflowAgents = team.members.map((m) => ({
       name: m.agent?.name || (m.role === "APPROVAL_GATE" ? "Approval Gate" : "Agent"),
-      agentMode: m.role === "APPROVAL_GATE" ? "APPROVAL" as const : (m.agent?.agentMode || "CHAT") as "CHAT" | "TASK",
+      mode: m.role === "APPROVAL_GATE" ? "APPROVAL" as const : (m.agent?.mode || "CHAT") as "CHAT" | "TASK",
       role: m.role,
       description: m.agent?.description || m.responsibilities || undefined,
     }));

@@ -151,7 +151,7 @@ export async function exportTeamAsYaml(teamId: string): Promise<string> {
       name: agent.name,
       role: member.role,
       model: agent.llmModel,
-      mode: agent.agentMode,
+      mode: agent.mode,
       systemPrompt: agent.systemPrompt,
     };
 
@@ -305,7 +305,7 @@ export async function importTeamFromYaml(
         continue;
       }
 
-      const agentMode = (agentDef.mode || "CHAT") as AgentMode;
+      const mode = (agentDef.mode || "CHAT") as AgentMode;
       const actions = normalizeActions(agentDef.actions);
 
       const agent = await tx.agent.create({
@@ -322,12 +322,12 @@ export async function importTeamFromYaml(
             MODEL_PROVIDER_MAP[agentDef.model || "claude-sonnet-4-6"] ||
             "ANTHROPIC",
           status: "DRAFT",
-          agentMode,
-          temperature: agentMode === "CHAT" ? 0.7 : 0.4,
+          mode,
+          temperature: mode === "CHAT" ? 0.7 : 0.4,
           personality: {
             tone: "professional",
             language: "de",
-            style: agentMode === "CHAT" ? "customer-facing" : "operator",
+            style: mode === "CHAT" ? "customer-facing" : "operator",
           },
         },
       });

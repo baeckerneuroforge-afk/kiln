@@ -20,7 +20,7 @@ type TeamTemplateAgent = {
   description: string;
   responsibilities: string;
   systemPrompt: string;
-  agentMode: AgentMode;
+  mode: AgentMode;
   role: AgentTeamRole;
   reportsTo?: string;
   llmModel: string;
@@ -158,7 +158,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Open the conversation, ask focused qualification questions, capture contact details, and decide whether the lead is hot or cold.",
         systemPrompt:
           "You are the lead qualifier for {{businessName}}, a {{industry}} company. Greet new prospects, ask concise qualifying questions about need, urgency, budget, authority, and timeline, then assign a lead score from 1 to 100 with a short rationale. Capture the prospect's email when appropriate and hand off with a crisp summary.",
-        agentMode: "CHAT",
+        mode: "CHAT",
         role: "COORDINATOR",
         llmModel: PRIMARY_MODEL,
         welcomeMessage:
@@ -182,7 +182,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Review the qualification summary, confirm the lead should move forward, and approve or reject the closing handoff.",
         systemPrompt:
           "This is a human approval gate for {{businessName}} in {{industry}}. It should never run as an AI agent. Pause execution and wait for a human approver to confirm whether the closer should engage.",
-        agentMode: "TASK",
+        mode: "TASK",
         role: "APPROVAL_GATE",
         reportsTo: "qualifier",
         llmModel: FAST_MODEL,
@@ -203,7 +203,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Move qualified prospects toward commitment, explain the offer, and secure the next action without friction.",
         systemPrompt:
           "You are the closer for {{businessName}} in {{industry}}. You receive hot leads with context and score. Present the offer clearly, answer objections with confidence, reinforce business value, and move the lead toward a booked call or a concrete buying next step.",
-        agentMode: "CHAT",
+        mode: "CHAT",
         role: "EXECUTOR",
         reportsTo: "approval-gate",
         llmModel: PRIMARY_MODEL,
@@ -228,7 +228,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Nurture lower-intent leads with helpful guidance, strong content angles, and a clear path back into the sales process.",
         systemPrompt:
           "You are the follow-up specialist for {{businessName}} in {{industry}}. You receive colder leads or lower-fit prospects. Keep the conversation helpful, deliver relevant education, suggest the most useful next resource, and look for the right moment to re-qualify later.",
-        agentMode: "CHAT",
+        mode: "CHAT",
         role: "EXECUTOR",
         reportsTo: "qualifier",
         llmModel: FAST_MODEL,
@@ -315,7 +315,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Answer common support questions quickly, keep conversations calm, and identify when deeper troubleshooting is required.",
         systemPrompt:
           "You are Tier 1 support for {{businessName}}, a {{industry}} business. Resolve frequent questions clearly and quickly using approved knowledge. If the issue requires technical troubleshooting, system access, or repeated back-and-forth, escalate to Tier 2 with a concise summary.",
-        agentMode: "CHAT",
+        mode: "CHAT",
         role: "COORDINATOR",
         llmModel: PRIMARY_MODEL,
         welcomeMessage:
@@ -335,7 +335,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Handle deeper troubleshooting, isolate root causes, and decide when a human team member must take over.",
         systemPrompt:
           "You are Tier 2 technical support for {{businessName}} in {{industry}}. Troubleshoot methodically, ask for the minimum information needed, propose precise next steps, and only escalate when the issue is out of scope, risky, or still unresolved.",
-        agentMode: "CHAT",
+        mode: "CHAT",
         role: "EXECUTOR",
         reportsTo: "tier-1",
         llmModel: PRIMARY_MODEL,
@@ -356,7 +356,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Prepare a human-ready handoff with the issue summary, urgency, impact, and customer expectations.",
         systemPrompt:
           "You are the escalation specialist for {{businessName}} in {{industry}}. Collect the final details required for a human support team to take over, summarize the issue, capture business impact, and set the right expectation for follow-up.",
-        agentMode: "TASK",
+        mode: "TASK",
         role: "EXECUTOR",
         reportsTo: "tier-2",
         llmModel: FAST_MODEL,
@@ -431,7 +431,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Frame the topic, collect useful facts, identify audience angles, and produce a strong brief for the writer.",
         systemPrompt:
           "You are the researcher for {{businessName}} in {{industry}}. Collect the context needed for high-quality content: target audience, business angle, core facts, objections, examples, and a recommended structure for the writer.",
-        agentMode: "TASK",
+        mode: "TASK",
         role: "HEAD",
         llmModel: PRIMARY_MODEL,
       },
@@ -444,7 +444,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Write a strong first draft with clear structure, compelling flow, and alignment to brand voice.",
         systemPrompt:
           "You are the writer for {{businessName}} in {{industry}}. Turn the research brief into a clear, useful, and well-structured draft. Keep the tone professional, the structure logical, and the content specific enough to be genuinely valuable.",
-        agentMode: "TASK",
+        mode: "TASK",
         role: "EXECUTOR",
         reportsTo: "researcher",
         llmModel: PRIMARY_MODEL,
@@ -458,7 +458,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Tighten the draft, improve clarity, strengthen pacing, and make the content publication-ready.",
         systemPrompt:
           "You are the editor for {{businessName}} in {{industry}}. Improve clarity, structure, phrasing, formatting, and readability without diluting the original intent. Return a final polished asset with short edit notes.",
-        agentMode: "TASK",
+        mode: "TASK",
         role: "EXECUTOR",
         reportsTo: "writer",
         llmModel: FAST_MODEL,
@@ -521,7 +521,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Qualify the lead, capture email, assess fit, and summarize why the prospect should or should not be booked.",
         systemPrompt:
           "You are the sales qualifier for {{businessName}} in {{industry}}. Ask BANT questions about budget, authority, need, and timeline. Capture email details, decide if the lead is qualified, and prepare a concise booking handoff only when the fit is clear.",
-        agentMode: "CHAT",
+        mode: "CHAT",
         role: "COORDINATOR",
         llmModel: PRIMARY_MODEL,
         welcomeMessage:
@@ -545,7 +545,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Offer available times, book the meeting, and confirm the next step cleanly and efficiently.",
         systemPrompt:
           "You are the appointment booker for {{businessName}} in {{industry}}. You only engage with qualified prospects. Offer clear scheduling options, use the connected Google Calendar setup when available, and confirm the meeting with concise next-step guidance.",
-        agentMode: "CHAT",
+        mode: "CHAT",
         role: "EXECUTOR",
         reportsTo: "qualifier",
         llmModel: FAST_MODEL,
@@ -626,7 +626,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Anfrage qualifizieren, Kontaktdaten erfassen, Lead-Score vergeben und an den richtigen nächsten Schritt weiterleiten.",
         systemPrompt:
           "Sie sind ein freundlicher Assistent für einen SHK-Betrieb ({{businessName}}). Fragen Sie nach: Art der Arbeit (Heizung, Sanitär, Klima), Dringlichkeit, PLZ-Gebiet, Gebäudetyp (Einfamilienhaus, Mehrfamilienhaus, Gewerbe). Bewerten Sie den Lead 1-100. Notfälle wie Rohrbruch oder Heizungsausfall im Winter erhalten automatisch Score 90+. Standard-Installationen liegen bei 50-70. Reine Informationsanfragen bei 20-40. Erfassen Sie die E-Mail-Adresse des Kunden.",
-        agentMode: "CHAT",
+        mode: "CHAT",
         role: "COORDINATOR",
         llmModel: PRIMARY_MODEL,
         welcomeMessage:
@@ -651,7 +651,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Verfügbare Zeitfenster anbieten, Adresse bestätigen, Termin buchen und Bestätigung senden.",
         systemPrompt:
           "Sie sind der Terminplaner von {{businessName}}, einem SHK-Betrieb. Vereinbaren Sie einen Besichtigungstermin. Fragen Sie nach dem bevorzugten Zeitfenster (vormittags/nachmittags). Bestätigen Sie die vollständige Adresse. Bei Notfällen betonen Sie, dass ein Techniker schnellstmöglich kommt. Fassen Sie den Termin am Ende zusammen.",
-        agentMode: "CHAT",
+        mode: "CHAT",
         role: "EXECUTOR",
         reportsTo: "qualifier",
         llmModel: FAST_MODEL,
@@ -673,7 +673,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Anfrage zusammenfassen, hilfreiche Informationen zu Förderungen oder Kosten mitgeben und zum Rückruf einladen.",
         systemPrompt:
           "Sie sind der Follow-Up-Spezialist von {{businessName}}, einem SHK-Betrieb. Senden Sie eine freundliche Nachfass-Email. Fassen Sie das Anliegen des Kunden zusammen, geben Sie erste Informationen zu Kosten oder Fördermöglichkeiten (z.B. BAFA/KfW bei Wärmepumpen) und laden Sie zum Rückruf oder zur Terminvereinbarung ein.",
-        agentMode: "TASK",
+        mode: "TASK",
         role: "EXECUTOR",
         reportsTo: "qualifier",
         llmModel: FAST_MODEL,
@@ -755,7 +755,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Suchprofil erstellen, Kontaktdaten erfassen und Interessenten an den Matcher weiterleiten.",
         systemPrompt:
           "Sie sind Assistent eines Immobilienmaklers ({{businessName}}). Fragen Sie nach: Kauf oder Miete, Budget-Rahmen (monatlich oder Kaufpreis), gewünschte Lage/Stadtteil, Zimmeranzahl und Mindestgröße, gewünschter Einzugszeitpunkt. Erfassen Sie die E-Mail-Adresse. Bewerten Sie den Lead: Klares Budget + zeitnaher Einzug = hoher Score. Nur Informationssuche = niedriger Score.",
-        agentMode: "CHAT",
+        mode: "CHAT",
         role: "COORDINATOR",
         llmModel: PRIMARY_MODEL,
         welcomeMessage:
@@ -780,7 +780,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Kriterien auswerten, 2-3 passende Objekte vorschlagen, Highlights beschreiben und Interesse abfragen.",
         systemPrompt:
           "Sie sind der Objekt-Matching-Spezialist von {{businessName}}. Basierend auf den Kriterien des Interessenten (Kauf/Miete, Budget, Lage, Zimmer, Einzug), schlagen Sie 2-3 passende Objekte vor. Beschreiben Sie die Highlights jedes Objekts: Lage-Vorteile, Ausstattung, Preis-Leistung. Fragen Sie, welches Objekt besichtigt werden soll.",
-        agentMode: "TASK",
+        mode: "TASK",
         role: "EXECUTOR",
         reportsTo: "qualifier",
         llmModel: PRIMARY_MODEL,
@@ -794,7 +794,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Terminwünsche erfassen, Besichtigung koordinieren und Bestätigung mit Objekt-Details senden.",
         systemPrompt:
           "Sie sind der Besichtigungs-Planer von {{businessName}}. Vereinbaren Sie einen Besichtigungstermin für das gewünschte Objekt. Fragen Sie nach bevorzugtem Tag und Uhrzeit. Bestätigen Sie Objekt-Adresse, Zeitpunkt und was der Interessent mitbringen sollte (Ausweis, ggf. Einkommensnachweise bei Miete).",
-        agentMode: "CHAT",
+        mode: "CHAT",
         role: "EXECUTOR",
         reportsTo: "matcher",
         llmModel: FAST_MODEL,
@@ -868,7 +868,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Bedarf analysieren, Erfahrung mit Coaching erfragen, Budget-Vorstellung klären und zum Erstgespräch einladen.",
         systemPrompt:
           "Sie sind Assistent eines Business-Coaches ({{businessName}}). Fragen Sie nach: Aktuelle Herausforderung (Führung, Skalierung, Work-Life-Balance, Karriere), Unternehmensgröße (Solo/KMU/Konzern), bisherige Erfahrung mit Coaching, Budget-Vorstellung (grober Rahmen). Hören Sie aktiv zu. Zeigen Sie Verständnis für die Situation. Betonen Sie, dass ein kostenloses 15-Minuten Erstgespräch der beste nächste Schritt ist, um zu prüfen ob Coaching passt.",
-        agentMode: "CHAT",
+        mode: "CHAT",
         role: "COORDINATOR",
         llmModel: PRIMARY_MODEL,
         welcomeMessage:
@@ -893,7 +893,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Erstgespräch buchen, Vorteile des Gesprächs betonen, Erwartungen setzen und Bestätigung senden.",
         systemPrompt:
           "Sie sind der Erstgespräch-Planer von {{businessName}}. Vereinbaren Sie ein kostenloses 15-Minuten Erstgespräch. Betonen Sie den Mehrwert: Im Gespräch wird die aktuelle Situation analysiert, erste Impulse gegeben und geprüft ob ein Coaching-Programm sinnvoll ist — alles unverbindlich. Fragen Sie nach bevorzugtem Tag und Uhrzeit. Bestätigen Sie den Termin mit einer kurzen Zusammenfassung der besprochenen Herausforderung.",
-        agentMode: "CHAT",
+        mode: "CHAT",
         role: "EXECUTOR",
         reportsTo: "qualifier",
         llmModel: FAST_MODEL,
@@ -971,7 +971,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Bedarf analysieren, Kontaktdaten erfassen und an den Küchen-Designer weiterleiten.",
         systemPrompt:
           "Sie sind Berater in einem Küchenstudio ({{businessName}}). Fragen Sie nach: Küchentyp (Neubau oder Renovierung), Budget-Rahmen (grobe Vorstellung reicht), Stil-Vorstellung (modern, klassisch, Landhausstil, minimalistisch), gewünschter Zeitrahmen für Umsetzung, besondere Wünsche (Kochinsel, bestimmte Geräte, Stauraum). Seien Sie begeistert und inspirierend. Erfassen Sie die E-Mail-Adresse.",
-        agentMode: "CHAT",
+        mode: "CHAT",
         role: "COORDINATOR",
         llmModel: PRIMARY_MODEL,
         welcomeMessage:
@@ -996,7 +996,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Konzepte erstellen, Preisrahmen kommunizieren, Highlights hervorheben und Interesse für Showroom-Besuch wecken.",
         systemPrompt:
           "Sie sind der Küchen-Design-Spezialist von {{businessName}}. Basierend auf den Wünschen des Kunden (Typ, Budget, Stil, Zeitrahmen), beschreiben Sie 2-3 passende Küchen-Konzepte. Für jedes Konzept: Name/Stil, Highlights (Materialien, Geräte, besondere Features), realistischer Preisrahmen, Umsetzungsdauer. Empfehlen Sie einen Showroom-Besuch für die persönliche Beratung und haptische Erfahrung der Materialien.",
-        agentMode: "TASK",
+        mode: "TASK",
         role: "EXECUTOR",
         reportsTo: "qualifier",
         llmModel: PRIMARY_MODEL,
@@ -1010,7 +1010,7 @@ const RAW_TEAM_TEMPLATES: TeamTemplate[] = [
           "Termin koordinieren, Erwartungen setzen und Bestätigung mit Anfahrt und Vorbereitung senden.",
         systemPrompt:
           "Sie sind der Showroom-Planer von {{businessName}}. Vereinbaren Sie einen Showroom-Besuch mit persönlicher Beratung. Fragen Sie nach bevorzugtem Tag und Uhrzeit. Erwähnen Sie: Im Showroom können Materialien und Geräte live erlebt werden, ein Küchenplaner erstellt ein 3D-Konzept, und es gibt unverbindliche Angebote. Senden Sie eine Bestätigung mit Adresse und Parkmöglichkeiten.",
-        agentMode: "CHAT",
+        mode: "CHAT",
         role: "EXECUTOR",
         reportsTo: "designer",
         llmModel: FAST_MODEL,
@@ -1085,7 +1085,7 @@ export function getTeamTemplateSummaries() {
       key: agent.key,
       name: agent.name,
       role: agent.role,
-      agentMode: agent.agentMode,
+      mode: agent.mode,
     })),
     orchestration: {
       mode: template.orchestration.mode,
@@ -1172,7 +1172,7 @@ export const TEAM_MARKETPLACE_TEMPLATES = TEAM_TEMPLATES.map((template) => ({
     actions: uniqueActions(template),
     workflowAgents: template.agents.map((agent) => ({
       name: agent.name,
-      agentMode: agent.role === "APPROVAL_GATE" ? "APPROVAL" : agent.agentMode,
+      mode: agent.role === "APPROVAL_GATE" ? "APPROVAL" : agent.mode,
       role: agent.role,
     })),
     orchestration: {
@@ -1267,7 +1267,7 @@ export async function deployTeamTemplate(
           description: agentDef.description,
           systemPrompt: agentDef.systemPrompt,
           welcomeMessage:
-            agentDef.agentMode === "CHAT"
+            agentDef.mode === "CHAT"
               ? agentDef.welcomeMessage ||
                 `Hi! I'm ${agentDef.name}. How can I help you today?`
               : "",
@@ -1276,13 +1276,13 @@ export async function deployTeamTemplate(
           modelProvider:
             MODEL_PROVIDER_MAP[agentDef.llmModel] || "ANTHROPIC",
           status: "DRAFT",
-          agentMode: agentDef.agentMode,
-          temperature: agentDef.agentMode === "CHAT" ? 0.7 : 0.4,
+          mode: agentDef.mode,
+          temperature: agentDef.mode === "CHAT" ? 0.7 : 0.4,
           personality: {
             tone: "professional",
             language: "en",
             style:
-              agentDef.agentMode === "CHAT" ? "customer-facing" : "operator",
+              agentDef.mode === "CHAT" ? "customer-facing" : "operator",
           },
         },
       });

@@ -56,14 +56,14 @@ function createMcpServer(userId: string) {
   // ── kiln_list_agents ──
   server.tool(
     "kiln_list_agents",
-    "List all AI agents for the authenticated user. Returns id, name, slug, status, agentMode (CHAT or TASK), model, conversation/run count, and public URL.",
+    "List all AI agents for the authenticated user. Returns id, name, slug, status, mode (CHAT or TASK), model, conversation/run count, and public URL.",
     {},
     async () => {
       const agents = await prisma.agent.findMany({
         where: { userId },
         select: {
           id: true, name: true, slug: true, description: true,
-          llmModel: true, status: true, agentMode: true, createdAt: true,
+          llmModel: true, status: true, mode: true, createdAt: true,
           _count: { select: { conversations: true, runs: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -71,10 +71,10 @@ function createMcpServer(userId: string) {
 
       return ok(agents.map((a) => ({
         id: a.id, name: a.name, slug: a.slug, description: a.description,
-        model: a.llmModel, status: a.status, agentMode: a.agentMode,
+        model: a.llmModel, status: a.status, mode: a.mode,
         conversationCount: a._count.conversations,
         runCount: a._count.runs,
-        publicUrl: a.agentMode === "CHAT" ? `/embed/${a.slug}` : undefined,
+        publicUrl: a.mode === "CHAT" ? `/embed/${a.slug}` : undefined,
         createdAt: a.createdAt.toISOString(),
       })));
     }
@@ -83,14 +83,14 @@ function createMcpServer(userId: string) {
   // ── kiln_create_agent ──
   server.tool(
     "kiln_create_agent",
-    "Create a new AI agent. Set agentMode to CHAT for conversational agents or TASK for autonomous background agents. Returns the agent ID, slug, and public URL.",
+    "Create a new AI agent. Set mode to CHAT for conversational agents or TASK for autonomous background agents. Returns the agent ID, slug, and public URL.",
     {
       name: z.string().describe("Name of the agent"),
       description: z.string().describe("What the agent does"),
       industry: z.string().optional().describe("Industry context (e.g. 'real estate', 'saas', 'ecommerce')"),
-      agentMode: z.enum(["CHAT", "TASK"]).optional().describe("Agent mode: CHAT (conversational, default) or TASK (autonomous background execution)"),
+      mode: z.enum(["CHAT", "TASK"]).optional().describe("Agent mode: CHAT (conversational, default) or TASK (autonomous background execution)"),
     },
-    async ({ name, description, industry, agentMode }) => {
+    async ({ name, description, industry, mode = "CHAT" }) => {
       const agentCheck = await canCreateAgent(userId);
       if (!agentCheck.allowed) {
         return err(`Agent limit reached (${agentCheck.current}/${agentCheck.limit}). Please upgrade your plan.`);
@@ -103,7 +103,6 @@ function createMcpServer(userId: string) {
         create: { id: userId, email: userEmail },
       });
 
-      const mode = agentMode || "CHAT";
       const slug = generateSlug(name);
       const systemPrompt = industry
         ? `You are ${name}, an AI assistant for the ${industry} industry. ${description || ""}\n\nBe helpful, professional, and concise.`
@@ -114,7 +113,7 @@ function createMcpServer(userId: string) {
           userId, name, slug,
           description: description || null,
           systemPrompt,
-          agentMode: mode,
+          mode: mode,
           personality: { tone: "professional", language: "en", formality: "balanced" },
           welcomeMessage: mode === "CHAT" ? `Hi! I'm ${name}. How can I help you today?` : "",
           suggestedQuestions: [],
@@ -125,7 +124,7 @@ function createMcpServer(userId: string) {
       });
 
       return ok({
-        id: agent.id, slug: agent.slug, agentMode: mode,
+        id: agent.id, slug: agent.slug, mode: mode,
         publicUrl: mode === "CHAT" ? `/embed/${agent.slug}` : undefined,
         status: agent.status,
         message: mode === "TASK"
@@ -1091,7 +1090,7 @@ function createMcpServer(userId: string) {
         name: agent.name,
         slug: agent.slug,
         description: agent.description,
-        agentMode: agent.agentMode,
+        mode: agent.mode,
         systemPrompt: agent.systemPrompt,
         personality: agent.personality,
         welcomeMessage: agent.welcomeMessage,
@@ -1101,7 +1100,7 @@ function createMcpServer(userId: string) {
         memoryEnabled: agent.memoryEnabled,
         imageAnalysisEnabled: agent.imageAnalysisEnabled,
         showAiDisclaimer: agent.showAiDisclaimer,
-        agentType: agent.agentType,
+        visibility: agent.visibility,
         whiteLabel: agent.whiteLabel,
         showPoweredBy: agent.showPoweredBy,
         promptBranches: agent.promptBranches,
@@ -1113,7 +1112,7 @@ function createMcpServer(userId: string) {
         })),
       };
 
-      if (agent.agentMode === "TASK") {
+      if (agent.mode === "TASK") {
         exportData.triggerType = agent.triggerType;
         exportData.triggerConfig = agent.triggerConfig;
         exportData.outputType = agent.outputType;
@@ -1140,7 +1139,7 @@ function createMcpServer(userId: string) {
         name: z.string().describe("Agent name"),
         systemPrompt: z.string().describe("System prompt"),
         description: z.string().optional(),
-        agentMode: z.enum(["CHAT", "TASK"]).optional(),
+        mode: z.enum(["CHAT", "TASK"]).optional(),
         personality: z.record(z.unknown()).optional(),
         welcomeMessage: z.string().optional(),
         suggestedQuestions: z.array(z.string()).optional(),
@@ -1149,7 +1148,7 @@ function createMcpServer(userId: string) {
         memoryEnabled: z.boolean().optional(),
         imageAnalysisEnabled: z.boolean().optional(),
         showAiDisclaimer: z.boolean().optional(),
-        agentType: z.string().optional(),
+        visibility: z.string().optional(),
         whiteLabel: z.record(z.unknown()).optional(),
         showPoweredBy: z.boolean().optional(),
         promptBranches: z.array(z.record(z.unknown())).optional(),
@@ -1175,14 +1174,14 @@ function createMcpServer(userId: string) {
       });
 
       const slug = generateSlug(cfg.name);
-      const mode = cfg.agentMode || "CHAT";
+      const mode = cfg.mode || "CHAT";
 
       const agent = await prisma.agent.create({
         data: {
           userId, name: cfg.name, slug,
           description: cfg.description || null,
           systemPrompt: cfg.systemPrompt,
-          agentMode: mode,
+          mode: mode,
           personality: (cfg.personality || { tone: "professional", language: "en", formality: "balanced" }) as object,
           welcomeMessage: cfg.welcomeMessage || "",
           suggestedQuestions: cfg.suggestedQuestions || [],
@@ -1191,7 +1190,7 @@ function createMcpServer(userId: string) {
           memoryEnabled: cfg.memoryEnabled ?? false,
           imageAnalysisEnabled: cfg.imageAnalysisEnabled ?? false,
           showAiDisclaimer: cfg.showAiDisclaimer ?? true,
-          agentType: (cfg.agentType === "INTERNAL" ? "INTERNAL" : "PUBLIC") as "PUBLIC" | "INTERNAL",
+          visibility: (cfg.visibility === "INTERNAL" ? "INTERNAL" : "PUBLIC") as "PUBLIC" | "INTERNAL",
           whiteLabel: (cfg.whiteLabel || { primaryColor: "#F97316", position: "bottom-right" }) as object,
           showPoweredBy: cfg.showPoweredBy ?? true,
           promptBranches: cfg.promptBranches ? (cfg.promptBranches as object[]) : undefined,
@@ -1241,7 +1240,7 @@ function createMcpServer(userId: string) {
       }
 
       return ok({
-        id: agent.id, slug: agent.slug, agentMode: mode,
+        id: agent.id, slug: agent.slug, mode: mode,
         publicUrl: mode === "CHAT" ? `/embed/${agent.slug}` : undefined,
         status: "DRAFT",
         message: `Agent "${cfg.name}" imported successfully. Deploy with kiln_deploy_agent to make it live.`,
@@ -1461,7 +1460,7 @@ function createMcpServer(userId: string) {
           userId, name, slug,
           description: description || null,
           systemPrompt: finalPrompt + schemaHint,
-          agentMode: "TASK",
+          mode: "TASK",
           personality: { tone: "professional", language: "en", formality: "balanced" },
           welcomeMessage: "",
           suggestedQuestions: [],
@@ -1506,7 +1505,7 @@ function createMcpServer(userId: string) {
 
       return ok({
         id: agent.id, slug: agent.slug, name: agent.name,
-        agentMode: "TASK",
+        mode: "TASK",
         model: agent.llmModel,
         inputSchema: inputSchema || null,
         outputFormat: outputFormat || "text",
@@ -1537,7 +1536,7 @@ function createMcpServer(userId: string) {
         },
       });
       if (!agent) return err("Agent not found or unauthorized.");
-      if (agent.agentMode !== "TASK") return err("This tool only works for Task Agents (agentMode=TASK). Use kiln_chat for Chat Agents.");
+      if (agent.mode !== "TASK") return err("This tool only works for Task Agents (mode=TASK). Use kiln_chat for Chat Agents.");
 
       const startTime = Date.now();
       const selectedModel = agent.llmModel || "claude-sonnet-4-6";
@@ -1787,7 +1786,7 @@ function createMcpServer(userId: string) {
         where: { id: teamId, userId },
         include: {
           members: {
-            include: { agent: { select: { id: true, name: true, systemPrompt: true, agentMode: true, llmModel: true } } },
+            include: { agent: { select: { id: true, name: true, systemPrompt: true, mode: true, llmModel: true } } },
             orderBy: { level: "asc" },
           },
         },
@@ -1990,7 +1989,7 @@ Return ONLY a JSON array: [{"title": "...", "description": "...", "assignTo": "A
       const [automations, teams, orchestrations] = await Promise.all([
         prisma.automationRule.findMany({
           where: { agent: { userId } },
-          include: { agent: { select: { id: true, name: true, agentMode: true } } },
+          include: { agent: { select: { id: true, name: true, mode: true } } },
           orderBy: { createdAt: "desc" },
         }),
         prisma.agentTeam.findMany({
@@ -2067,7 +2066,7 @@ Return ONLY a JSON array: [{"title": "...", "description": "...", "assignTo": "A
   // ── kiln_run_agent (legacy) ──
   server.tool(
     "kiln_run_agent",
-    "Manually trigger a Task Agent and return the execution result. Only works for agents with agentMode=TASK.",
+    "Manually trigger a Task Agent and return the execution result. Only works for agents with mode=TASK.",
     {
       agentId: z.string().describe("Agent ID of the task agent to run"),
       input: z.string().optional().describe("Input text or instructions for the task (defaults to 'Run your configured task.')"),
@@ -2082,7 +2081,7 @@ Return ONLY a JSON array: [{"title": "...", "description": "...", "assignTo": "A
         },
       });
       if (!agent) return err("Agent not found or unauthorized.");
-      if (agent.agentMode !== "TASK") return err("This tool only works for Task Agents (agentMode=TASK). Use kiln_chat for Chat Agents.");
+      if (agent.mode !== "TASK") return err("This tool only works for Task Agents (mode=TASK). Use kiln_chat for Chat Agents.");
 
       const startTime = Date.now();
       const selectedModel = agent.llmModel || "claude-sonnet-4-6";
@@ -2187,7 +2186,7 @@ Return ONLY a JSON array: [{"title": "...", "description": "...", "assignTo": "A
       });
 
       return ok({
-        agentId, agentName: agent.name, agentMode: agent.agentMode,
+        agentId, agentName: agent.name, mode: agent.mode,
         totalRuns: runs.length,
         runs: runs.map((r) => ({
           id: r.id,

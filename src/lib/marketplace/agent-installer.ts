@@ -102,7 +102,7 @@ export async function installAgent(
       llmModel: agentConfig.llmModel ?? "claude-sonnet-4-6",
       temperature: agentConfig.temperature ?? 0.7,
       modelProvider: agentConfig.modelProvider ?? "ANTHROPIC",
-      agentMode: agentConfig.agentMode ?? "CHAT",
+      mode: agentConfig.mode ?? "CHAT",
       status: "DRAFT",
       clonedFromName: template.name,
     },

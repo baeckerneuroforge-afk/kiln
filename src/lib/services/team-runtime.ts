@@ -275,7 +275,7 @@ function buildTaskInput(
           responsibilities: member.responsibilities,
           agentId: member.agent?.id || null,
           agentName: getMemberDisplayName(member),
-          agentMode: member.agent?.agentMode || null,
+          mode: member.agent?.mode || null,
         }
       : null,
     sharedContext,

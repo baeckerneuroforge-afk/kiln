@@ -26,7 +26,7 @@ export async function GET() {
         slug: true,
         status: true,
         description: true,
-        agentMode: true,
+        mode: true,
         triggerType: true,
         _count: { select: { conversations: true, runs: true } },
       },

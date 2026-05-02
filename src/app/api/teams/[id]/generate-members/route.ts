@@ -19,7 +19,7 @@ function generateSlug(name: string): string {
 interface RoleInput {
   name: string;
   role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER";
-  agentMode?: "CHAT" | "TASK";
+  mode?: "CHAT" | "TASK";
   suggestedModel?: string;
   suggestedProvider?: string;
   responsibilities: string;
@@ -84,7 +84,7 @@ RULES:
 - 0-1 REPORTER (optional)
 - Every non-HEAD must have "reportsTo" pointing to a manager's name
 - Each agent needs a detailed systemPrompt (at least 2 sentences)
-- Each agent must have an "agentMode": "CHAT" or "TASK"
+- Each agent must have an "mode": "CHAT" or "TASK"
   - HEAD, COORDINATOR, REPORTER → always "TASK"
   - EXECUTOR → "TASK" by default, "CHAT" only if the role involves direct customer/user interaction
 - Each agent must have a "suggestedModel" and "suggestedProvider" for the optimal LLM:
@@ -98,7 +98,7 @@ RULES:
 Respond ONLY with a valid JSON array. No other text.
 
 JSON format:
-{ "name": "Agent Name", "role": "HEAD"|"COORDINATOR"|"EXECUTOR"|"REPORTER", "agentMode": "CHAT"|"TASK", "suggestedModel": "model-id", "suggestedProvider": "PROVIDER", "responsibilities": "...", "systemPrompt": "...", "reportsTo": "Manager Name" }`,
+{ "name": "Agent Name", "role": "HEAD"|"COORDINATOR"|"EXECUTOR"|"REPORTER", "mode": "CHAT"|"TASK", "suggestedModel": "model-id", "suggestedProvider": "PROVIDER", "responsibilities": "...", "systemPrompt": "...", "reportsTo": "Manager Name" }`,
         messages: [
           {
             role: "user",
@@ -192,7 +192,7 @@ JSON format:
       r === "HEAD" || r === "COORDINATOR" || r === "REPORTER" ? "TASK" : "TASK";
 
     for (const role of roles) {
-      const agentMode = role.agentMode || defaultModeForRole(role.role);
+      const mode = role.mode || defaultModeForRole(role.role);
       // Auto-include team role context in system prompt
       const reportsToName = role.reportsTo || null;
       const roleContext = [
@@ -214,7 +214,7 @@ JSON format:
           systemPrompt: fullPrompt,
           description: role.responsibilities,
           status: "DRAFT",
-          agentMode,
+          mode,
           ...(role.suggestedModel ? { llmModel: role.suggestedModel } : {}),
           ...(role.suggestedProvider ? { modelProvider: role.suggestedProvider as "ANTHROPIC" | "OPENAI" | "PERPLEXITY" | "GOOGLE" | "GROQ" } : {}),
         },
@@ -254,7 +254,7 @@ JSON format:
       include: {
         members: {
           include: {
-            agent: { select: { id: true, name: true, slug: true, description: true, llmModel: true, modelProvider: true, agentMode: true } },
+            agent: { select: { id: true, name: true, slug: true, description: true, llmModel: true, modelProvider: true, mode: true } },
             reportsTo: { include: { agent: { select: { id: true, name: true } } } },
             subordinates: { include: { agent: { select: { id: true, name: true } } } },
           },

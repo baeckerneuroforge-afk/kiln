@@ -55,7 +55,7 @@ export async function POST(
     }
 
     // 3. Guard: must be TASK mode
-    if (agent.agentMode !== "TASK") {
+    if (agent.mode !== "TASK") {
       return Response.json(
         { error: "This endpoint is only for Task Agents. Use the chat endpoint for Chat Agents." },
         { status: 400 }

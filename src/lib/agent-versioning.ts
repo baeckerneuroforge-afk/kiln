@@ -5,7 +5,7 @@ import type {
   Agent,
   AgentAction,
   AgentStatus,
-  AgentType,
+  AgentVisibility,
   ModelProvider,
 } from "@prisma/client";
 
@@ -35,7 +35,7 @@ export type AgentVersionConfig = {
   imageAnalysisEnabled: boolean;
   showAiDisclaimer: boolean;
   promptBranches: Prisma.JsonValue | null;
-  agentType: AgentType;
+  visibility: AgentVisibility;
   customDomain: string | null;
   actions: SnapshotAction[];
 };
@@ -59,7 +59,7 @@ type VersionableAgent = Pick<
   | "imageAnalysisEnabled"
   | "showAiDisclaimer"
   | "promptBranches"
-  | "agentType"
+  | "visibility"
   | "customDomain"
 > & {
   actions: Pick<AgentAction, "type" | "enabled" | "config">[];
@@ -225,7 +225,7 @@ export function snapshotAgentConfig(agent: VersionableAgent): AgentVersionConfig
     imageAnalysisEnabled: agent.imageAnalysisEnabled,
     showAiDisclaimer: agent.showAiDisclaimer,
     promptBranches: (agent.promptBranches as Prisma.JsonValue | null) ?? null,
-    agentType: agent.agentType,
+    visibility: agent.visibility,
     customDomain: agent.customDomain,
     actions: sanitizeActions(agent.actions),
   };
@@ -293,8 +293,8 @@ export function applyAgentUpdateToVersionConfig(
     ...(updates.promptBranches !== undefined
       ? { promptBranches: (updates.promptBranches as Prisma.JsonValue | null) ?? null }
       : {}),
-    ...(typeof updates.agentType === "string"
-      ? { agentType: updates.agentType as AgentType }
+    ...(typeof updates.visibility === "string"
+      ? { visibility: updates.visibility as AgentVisibility }
       : {}),
     ...(updates.customDomain !== undefined
       ? { customDomain: (updates.customDomain as string | null) ?? null }
@@ -482,8 +482,8 @@ function parseVersionConfig(raw: Prisma.JsonValue | null | undefined): AgentVers
     showAiDisclaimer:
       typeof snapshot.showAiDisclaimer === "boolean" ? snapshot.showAiDisclaimer : true,
     promptBranches: (snapshot.promptBranches as Prisma.JsonValue | null) ?? null,
-    agentType:
-      typeof snapshot.agentType === "string" ? (snapshot.agentType as AgentType) : "PUBLIC",
+    visibility:
+      typeof snapshot.visibility === "string" ? (snapshot.visibility as AgentVisibility) : "PUBLIC",
     customDomain:
       snapshot.customDomain === null || typeof snapshot.customDomain === "string"
         ? (snapshot.customDomain as string | null)
@@ -532,7 +532,7 @@ async function restoreAgentConfig(
       promptBranches:
         (config.promptBranches as Prisma.InputJsonValue | Prisma.JsonNullValueInput | undefined) ??
         Prisma.JsonNull,
-      agentType: config.agentType,
+      visibility: config.visibility,
       customDomain: config.customDomain,
     },
   });

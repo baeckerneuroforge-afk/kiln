@@ -59,7 +59,7 @@ export interface ReplayMember {
   role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER" | "APPROVAL_GATE";
   level: number;
   responsibilities: string | null;
-  agentMode: ReplayAgentMode;
+  mode: ReplayAgentMode;
   llmModel: string | null;
   modelProvider: string | null;
   systemPrompt: string | null;

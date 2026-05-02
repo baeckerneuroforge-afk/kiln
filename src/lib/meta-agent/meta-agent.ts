@@ -287,7 +287,7 @@ class MetaAgent {
             id: true,
             name: true,
             status: true,
-            agentMode: true,
+            mode: true,
             _count: {
               select: { conversations: true },
             },
@@ -298,7 +298,7 @@ class MetaAgent {
           id: a.id,
           name: a.name,
           status: a.status,
-          mode: a.agentMode,
+          mode: a.mode,
           conversations: a._count.conversations,
         }));
 

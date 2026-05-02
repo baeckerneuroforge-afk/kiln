@@ -724,10 +724,10 @@ export async function GET(
       role: member.role,
       level: member.level,
       responsibilities: member.responsibilities || null,
-      agentMode:
+      mode:
         member.role === "APPROVAL_GATE"
           ? "APPROVAL"
-          : member.agent?.agentMode || "TASK",
+          : member.agent?.mode || "TASK",
       llmModel: member.agent?.llmModel || null,
       modelProvider: member.agent?.modelProvider || null,
       systemPrompt: member.agent?.systemPrompt || null,

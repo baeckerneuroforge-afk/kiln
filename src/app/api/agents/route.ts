@@ -52,12 +52,15 @@ export async function POST(request: NextRequest) {
       suggestedActions,
       modelProvider,
       llmModel: bodyLlmModel,
-      agentMode,
       triggerType,
       triggerConfig,
       outputType,
       outputConfig,
     } = body;
+    // Backward-compat: accept legacy field names (agentMode, agentType) from
+    // older API consumers; prefer the new names (mode, visibility) when present.
+    const mode = body.mode ?? body.agentMode;
+    const visibility = body.visibility ?? body.agentType;
 
     if (!name || !slug || !systemPrompt) {
       return Response.json(
@@ -100,7 +103,8 @@ export async function POST(request: NextRequest) {
         llmModel: bodyLlmModel || "claude-sonnet-4-6",
         modelProvider: modelProvider || "ANTHROPIC",
         status: "DRAFT",
-        agentMode: agentMode || "CHAT",
+        mode: mode || "CHAT",
+        ...(visibility ? { visibility } : {}),
         triggerType: triggerType || "MANUAL",
         triggerConfig: triggerConfig || undefined,
         outputType: outputType || "NONE",

@@ -183,11 +183,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const systemPrompt = typeof body.systemPrompt === "string" ? body.systemPrompt.trim() : "";
-    const agentMode = body.agentMode === "TASK" ? "TASK" : "CHAT";
+    // Backward-compat: accept legacy field name agentMode from older API consumers.
+    const rawMode = body.mode ?? body.agentMode;
+    const mode = rawMode === "TASK" ? "TASK" : "CHAT";
     const llmModel = typeof body.llmModel === "string" ? body.llmModel : "claude-sonnet-4-6";
     const welcomeMessage = typeof body.welcomeMessage === "string"
       ? body.welcomeMessage
-      : agentMode === "CHAT"
+      : mode === "CHAT"
         ? `Hi! I'm ${name}. How can I help you today?`
         : "";
     const status = body.status === "PAUSED" ? "PAUSED" : body.status === "DRAFT" ? "DRAFT" : "LIVE";
@@ -232,7 +234,7 @@ export async function POST(request: NextRequest) {
         llmModel,
         modelProvider: modelDef?.provider || MODEL_PROVIDER_MAP[llmModel] || "ANTHROPIC",
         status,
-        agentMode,
+        mode,
         whiteLabel: body.whiteLabel && typeof body.whiteLabel === "object"
           ? body.whiteLabel
           : { primaryColor: "#F97316", position: "bottom-right" },
@@ -256,9 +258,12 @@ export async function POST(request: NextRequest) {
         name: agent.name,
         slug: agent.slug,
         status: agent.status,
-        agentMode: agent.agentMode,
+        mode: agent.mode,
+        // Backward-compat: also expose legacy field name in response so existing
+        // SDK consumers keep working without code changes.
+        agentMode: agent.mode,
         created: true,
-        publicUrl: agent.agentMode === "CHAT" ? `/embed/${agent.slug}` : undefined,
+        publicUrl: agent.mode === "CHAT" ? `/embed/${agent.slug}` : undefined,
       },
       {
         status: 201,

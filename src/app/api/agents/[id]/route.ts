@@ -69,7 +69,21 @@ export async function PATCH(
       return Response.json({ error: "Agent not found" }, { status: 404 });
     }
 
-    const body = await request.json();
+    const rawBody = await request.json();
+    // Backward-compat: translate legacy field names from older API consumers
+    // before the rest of the pipeline runs.
+    const body = {
+      ...rawBody,
+      ...(rawBody?.agentMode !== undefined && rawBody?.mode === undefined
+        ? { mode: rawBody.agentMode }
+        : {}),
+      ...(rawBody?.agentType !== undefined && rawBody?.visibility === undefined
+        ? { visibility: rawBody.agentType }
+        : {}),
+    };
+    delete body.agentMode;
+    delete body.agentType;
+
     const whiteLabelRecord =
       body?.whiteLabel && typeof body.whiteLabel === "object"
         ? (body.whiteLabel as Record<string, unknown>)
