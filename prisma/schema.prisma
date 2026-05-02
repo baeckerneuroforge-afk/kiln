@@ -15,6 +15,11 @@ model User {
   firstName        String?
   lastName         String?
   imageUrl         String?
+  // Clerk Organization ID for the user's auto-created Personal workspace.
+  // Populated by the user.created webhook or the backfill script. All
+  // user-owned data created before Clerk Organizations were enabled is
+  // mapped to this org during backfill.
+  personalOrgId    String?  @unique
   plan             Plan     @default(FREE)
   stripeCustomerId String?  @unique
   companyName      String?
@@ -50,6 +55,7 @@ model User {
 model ReferralCredit {
   id             String   @id @default(cuid())
   userId         String   // Der Referrer, der den Credit bekommt
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   referredUserId String   // Wer hat sich angemeldet
   referredEmail  String?
@@ -58,6 +64,7 @@ model ReferralCredit {
   createdAt      DateTime @default(now())
 
   @@index([userId])
+  @@index([orgId])
 }
 
 enum Plan {
@@ -90,6 +97,7 @@ enum CreditUsageType {
 model Agent {
   id                 String        @id @default(cuid())
   userId             String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   name               String
@@ -227,6 +235,7 @@ model Agent {
   workflowApprovals    WorkflowApproval[]
 
   @@index([userId])
+  @@index([orgId])
 }
 
 enum AgentVisibility {
@@ -314,6 +323,7 @@ model AgentCustomTool {
 
 // Knowledge Base Einträge
 model KnowledgeBase {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id              String      @id @default(cuid())
   agentId         String?
   agent           Agent?      @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -329,6 +339,7 @@ model KnowledgeBase {
 
   @@index([agentId])
   @@index([teamId])
+  @@index([orgId])
 }
 
 enum KBType {
@@ -351,6 +362,7 @@ model Conversation {
   agentId     String
   agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
   userId      String?
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   user        User?    @relation(fields: [userId], references: [id])
   sessionId   String
   leadScore   Int?
@@ -382,6 +394,7 @@ model Conversation {
 
   @@index([agentId])
   @@index([sessionId])
+  @@index([orgId])
 }
 
 // Chat-Nachrichten
@@ -425,6 +438,7 @@ enum Channel {
 
 // Gesammelte Leads
 model Lead {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id        String   @id @default(cuid())
   agentId   String
   email     String
@@ -435,10 +449,12 @@ model Lead {
 
   @@index([agentId])
   @@index([email])
+  @@index([orgId])
 }
 
 // Agent Memory — persistent user memories across conversations
 model AgentMemory {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id          String   @id @default(cuid())
   agentId     String
   agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -450,10 +466,12 @@ model AgentMemory {
 
   @@unique([agentId, sessionHash, key])
   @@index([agentId, sessionHash])
+  @@index([orgId])
 }
 
 // Visitor Memory — persistent visitor profiles with enriched context
 model VisitorMemory {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id                String   @id @default(cuid())
   agentId           String
   agent             Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -470,12 +488,14 @@ model VisitorMemory {
   @@unique([agentId, visitorId])
   @@index([agentId])
   @@index([agentId, email])
+  @@index([orgId])
 }
 
 // API Access Keys — programmatischer Zugang zu KILN API
 model ApiAccessKey {
   id         String    @id @default(cuid())
   userId     String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   name       String    // z.B. "Production Key", "Dev Key"
   hashedKey  String    @unique // SHA-256 Hash des Keys
   keyPrefix  String    // "sk-kiln-xxxx" — letzte 4 Zeichen für Anzeige
@@ -489,6 +509,7 @@ model ApiAccessKey {
   @@index([userId])
   @@index([hashedKey])
   @@index([expiresAt])
+  @@index([orgId])
 }
 
 model ApiAccessKeyUsage {
@@ -510,6 +531,7 @@ model ApiAccessKeyUsage {
 model ApiKey {
   id           String   @id @default(cuid())
   userId       String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   provider     String   // "anthropic" | "openai"
   encryptedKey String   @db.Text
   createdAt    DateTime @default(now())
@@ -517,10 +539,12 @@ model ApiKey {
 
   @@unique([userId, provider])
   @@index([userId])
+  @@index([orgId])
 }
 
 // Agent Analytics (täglich aggregiert)
 model AgentAnalytics {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id                 String   @id @default(cuid())
   agentId            String
   agent              Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -534,10 +558,12 @@ model AgentAnalytics {
 
   @@unique([agentId, date])
   @@index([agentId])
+  @@index([orgId])
 }
 
 // Scheduled Automations — proaktive Agent-Tasks per Cron
 model AutomationRule {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id                   String    @id @default(cuid())
   agentId              String
   agent                Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -554,10 +580,12 @@ model AutomationRule {
 
   @@index([agentId])
   @@index([enabled])
+  @@index([orgId])
 }
 
 // Agent Version History — Config-Snapshots bei jedem Speichern
 model AgentVersion {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id        String   @id @default(cuid())
   agentId   String
   agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -569,10 +597,12 @@ model AgentVersion {
 
   @@unique([agentId, version])
   @@index([agentId])
+  @@index([orgId])
 }
 
 // Workflow Version History — Snapshot bei jedem Workflow-Speichern
 model TeamVersion {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id        String   @id @default(cuid())
   teamId    String
   team      AgentTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -585,6 +615,7 @@ model TeamVersion {
 
   @@unique([teamId, version])
   @@index([teamId])
+  @@index([orgId])
 }
 
 // Agent Test Cases — Eval-Suite für Agent-Antworten
@@ -646,6 +677,7 @@ model TestComparison {
 model WebhookEndpoint {
   id         String     @id @default(cuid())
   userId     String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   agentId    String?    // Optional: agent-spezifische Subscriptions
   teamId     String?    // Optional: team-spezifische Subscriptions
   team       AgentTeam? @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -661,6 +693,7 @@ model WebhookEndpoint {
   @@index([agentId])
   @@index([teamId])
   @@index([active])
+  @@index([orgId])
 }
 
 // Webhook Delivery Log — Zustellungsprotokoll
@@ -680,6 +713,7 @@ model WebhookDelivery {
 
 // Agent Orchestration — agent-to-agent handoff rules
 model AgentOrchestration {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id              String   @id @default(cuid())
   sourceAgentId   String
   sourceAgent     Agent    @relation("OrchestrationSource", fields: [sourceAgentId], references: [id], onDelete: Cascade)
@@ -692,6 +726,7 @@ model AgentOrchestration {
 
   @@index([sourceAgentId])
   @@index([targetAgentId])
+  @@index([orgId])
 }
 
 // Orchestration Handoff Log — records each agent-to-agent handoff
@@ -714,6 +749,7 @@ model OrchestrationHandoff {
 model IntegrationConnection {
   id        String   @id @default(cuid())
   userId    String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   provider  String   // "google-calendar", "slack", "hubspot", etc.
   name      String   // Display name (auto or custom)
   config    String   @db.Text // Encrypted JSON: { apiKey, webhookUrl, etc. }
@@ -727,6 +763,7 @@ model IntegrationConnection {
 
   @@unique([userId, provider])
   @@index([userId])
+  @@index([orgId])
 }
 
 // Per-Agent Integration assignment
@@ -748,6 +785,7 @@ model AgentIntegration {
 
 // Agent Channels — Telegram, Email, WhatsApp, Slack connections
 model AgentChannel {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id        String      @id @default(cuid())
   agentId   String
   agent     Agent       @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -759,6 +797,7 @@ model AgentChannel {
 
   @@unique([agentId, type])
   @@index([agentId])
+  @@index([orgId])
 }
 
 enum ChannelType {
@@ -968,6 +1007,7 @@ enum ApprovalRequestStatus {
 model AgentTeam {
   id            String          @id @default(cuid())
   userId        String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   name          String
   description   String?         @db.Text
@@ -990,6 +1030,7 @@ model AgentTeam {
   abTestsAsB     TeamABTest[]     @relation("ABTestTeamB")
 
   @@index([userId])
+  @@index([orgId])
 }
 
 model TeamPermission {
@@ -1066,6 +1107,7 @@ model TeamExecution {
   teamId         String
   team           AgentTeam           @relation(fields: [teamId], references: [id], onDelete: Cascade)
   userId         String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   goal           String?             @db.Text
   status         TeamExecutionStatus @default(RUNNING)
@@ -1087,6 +1129,7 @@ model TeamExecution {
   @@index([teamId])
   @@index([userId])
   @@index([startedAt])
+  @@index([orgId])
 }
 
 model TeamExecutionLog {
@@ -1155,6 +1198,7 @@ enum TeamABTestStatus {
 model TeamABTest {
   id                String           @id @default(cuid())
   userId            String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   name              String
   teamAId           String
   teamA             AgentTeam        @relation("ABTestTeamA", fields: [teamAId], references: [id], onDelete: Cascade)
@@ -1173,6 +1217,7 @@ model TeamABTest {
   @@index([userId])
   @@index([teamAId])
   @@index([teamBId])
+  @@index([orgId])
 }
 
 model TeamABTestResult {
@@ -1211,6 +1256,7 @@ model WebhookExecution {
 model AiCreditUsage {
   id             String          @id @default(cuid())
   userId         String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   agentId        String?
   conversationId String?
@@ -1223,12 +1269,14 @@ model AiCreditUsage {
   @@index([agentId])
   @@index([userId, createdAt])
   @@index([type])
+  @@index([orgId])
 }
 
 // Quick Use background tasks — persists execution state across tab close/reconnect
 model QuickUseTask {
   id               String             @id @default(cuid())
   userId           String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   type             String             // "computer_use" | "agent_swarm" | "deep_research"
   status           QuickUseTaskStatus @default(RUNNING)
@@ -1249,11 +1297,13 @@ model QuickUseTask {
   @@index([userId])
   @@index([userId, createdAt])
   @@index([status])
+  @@index([orgId])
 }
 
 model QuickUseMemory {
   id             String       @id @default(cuid())
   userId         String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   taskId         String       @unique
   task           QuickUseTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -1270,6 +1320,7 @@ model QuickUseMemory {
 
   @@index([userId, createdAt])
   @@index([userId, expiresAt])
+  @@index([orgId])
 }
 
 enum QuickUseTaskStatus {
@@ -1281,6 +1332,7 @@ enum QuickUseTaskStatus {
 }
 
 model AgentRun {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id            String    @id @default(cuid())
   agentId       String
   agent         Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -1296,6 +1348,7 @@ model AgentRun {
 
   @@index([agentId])
   @@index([agentId, createdAt])
+  @@index([orgId])
 }
 
 // Orchestration Log — structured training data for every workflow decision
@@ -1325,6 +1378,7 @@ enum ResearchStatus {
 }
 
 model AgentResearchEntry {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id              String         @id @default(cuid())
   agentId         String
   agent           Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -1341,6 +1395,7 @@ model AgentResearchEntry {
 
   @@index([agentId])
   @@index([agentId, status])
+  @@index([orgId])
 }
 
 // ── A2A Protocol — Agent-to-Agent Interaction Logs ──
@@ -1464,6 +1519,7 @@ enum CodeSandboxStatus {
 
 // Model Routing Configuration — per-Agent custom model routing
 model ModelRoutingConfig {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id        String              @id @default(cuid())
   agentId   String              @unique
   agent     Agent               @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -1473,6 +1529,7 @@ model ModelRoutingConfig {
   updatedAt DateTime            @updatedAt
 
   @@index([agentId])
+  @@index([orgId])
 }
 
 enum ModelRoutingStrategy {
@@ -1505,6 +1562,7 @@ model ParallelExecution {
 model AutoTopUpConfig {
   id                     String   @id @default(cuid())
   userId                 String   @unique
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   isEnabled              Boolean  @default(false)
   creditAmount           Int      @default(500)    // Wie viele Credits nachgeladen werden
   triggerThreshold       Int      @default(50)     // Trigger wenn Balance unter diesen Wert fällt
@@ -1517,6 +1575,7 @@ model AutoTopUpConfig {
   updatedAt              DateTime @updatedAt
 
   @@index([userId])
+  @@index([orgId])
 }
 
 // Action Metric — Strategie-Erfolgsraten für Computer Use
@@ -1584,6 +1643,7 @@ model WatchLearnSession {
   agentId            String
   agent              Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
   userId             String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   videoUrl           String?  // Supabase Storage URL
   status             String   @default("UPLOADING") // UPLOADING | EXTRACTING | ANALYZING | GENERATING | COMPLETED | FAILED
   taskDescription    String?
@@ -1600,6 +1660,7 @@ model WatchLearnSession {
 
   @@index([agentId])
   @@index([userId])
+  @@index([orgId])
 }
 
 // ═══ API Autodiscovery — Agent reads docs, builds integration ═══
@@ -1609,6 +1670,7 @@ model ApiDiscovery {
   agentId          String
   agent            Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
   userId           String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   serviceName      String
   docsUrl          String?
   status           String   @default("SEARCHING") // SEARCHING | READING_DOCS | GENERATING | TESTING | COMPLETED | FAILED
@@ -1623,6 +1685,7 @@ model ApiDiscovery {
 
   @@index([agentId])
   @@index([userId])
+  @@index([orgId])
 }
 
 // Diff Detection — Website Change Monitoring Snapshots
@@ -1704,6 +1767,7 @@ model AgentWorkspaceFile {
   id                String    @id @default(cuid())
   agentId           String
   userId            String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   path              String    // z.B. "reports/weekly-comparison.csv"
   mimeType          String    @default("application/octet-stream")
   version           Int       @default(1)
@@ -1717,10 +1781,12 @@ model AgentWorkspaceFile {
   @@unique([agentId, path, version])
   @@index([agentId, isDeleted])
   @@index([userId])
+  @@index([orgId])
 }
 
 // MCP Client Connections — Verbindungen zu externen MCP Servern
 model MCPConnection {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id                String    @id @default(cuid())
   agentId           String
   agent             Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -1740,6 +1806,7 @@ model MCPConnection {
 
   @@unique([agentId, serverUrl])
   @@index([agentId])
+  @@index([orgId])
 }
 
 // MCP Team Role Config — Welche Rollen welche MCP-Server nutzen dürfen
@@ -1757,6 +1824,7 @@ model MCPTeamRoleConfig {
 
 // ROI Config — per-agent ROI tracking configuration
 model ROIConfig {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id                 String   @id @default(cuid())
   agentId            String   @unique
   agent              Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
@@ -1768,6 +1836,7 @@ model ROIConfig {
   updatedAt          DateTime @updatedAt
 
   @@index([agentId])
+  @@index([orgId])
 }
 
 // ── Feature 1: Approval Workflows ──────────────────────────────
@@ -1786,6 +1855,7 @@ model WorkflowApproval {
   agentId         String
   agent           Agent                  @relation(fields: [agentId], references: [id], onDelete: Cascade)
   userId          String                 // Agent-Besitzer
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   executionId     String?                // Optional: TeamExecution-Referenz
   actionType      String                 // z.B. "send_email", "http_request", "fire_webhook"
   actionPayload   Json                   // Vollständige Action-Daten zur Prüfung
@@ -1805,6 +1875,7 @@ model WorkflowApproval {
   @@index([userId])
   @@index([status])
   @@index([token])
+  @@index([orgId])
 }
 
 // ── Feature 2: Client Portal ───────────────────────────────────
@@ -1812,6 +1883,7 @@ model WorkflowApproval {
 model ClientPortal {
   id              String   @id @default(cuid())
   userId          String   // Agency-Besitzer
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   name            String   // Portal-Name (z.B. "Kunde X Dashboard")
   slug            String   @unique // URL-Pfad
   clientEmail     String   // Kunde-Email
@@ -1832,6 +1904,7 @@ model ClientPortal {
   @@index([clientEmail])
   @@index([slug])
   @@index([accessToken])
+  @@index([orgId])
 }
 
 // ── Feature 3: Audit Trail ─────────────────────────────────────
@@ -1839,6 +1912,7 @@ model ClientPortal {
 model AuditEvent {
   id          String   @id @default(cuid())
   userId      String   // Wer hat die Aktion ausgeführt
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   category    String   // "agent" | "workflow" | "mcp" | "approval" | "settings" | "portal" | "export"
   action      String   // z.B. "agent.created", "workflow.executed", "approval.approved"
   resourceId  String?  // ID der betroffenen Ressource
@@ -1856,6 +1930,7 @@ model AuditEvent {
   @@index([resourceId])
   @@index([createdAt])
   @@index([severity])
+  @@index([orgId])
 }
 
 // ── Feature 4: Notification Preferences ────────────────────────
@@ -1900,6 +1975,7 @@ model PushSubscription {
 model ResellerAccount {
   id                      String   @id @default(cuid())
   userId                  String   @unique
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   stripeConnectAccountId  String   @unique
   stripeConnectStatus     String   @default("pending") // "pending" | "active" | "disabled"
   defaultMonthlyPriceCents Int?
@@ -1912,9 +1988,11 @@ model ResellerAccount {
   clientSubscriptions     ClientSubscription[]
 
   @@index([userId])
+  @@index([orgId])
 }
 
 model ClientSubscription {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id                   String   @id @default(cuid())
   clientPortalId       String
   clientPortal         ClientPortal @relation(fields: [clientPortalId], references: [id], onDelete: Cascade)
@@ -1934,6 +2012,7 @@ model ClientSubscription {
   @@index([clientPortalId])
   @@index([resellerAccountId])
   @@index([status])
+  @@index([orgId])
 }
 
 // ── Feature: Onboarding State ──────────────────────────────────
@@ -1987,6 +2066,7 @@ model AgentHealthAlert {
 model KnowledgeEntity {
   id         String   @id @default(cuid())
   userId     String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   type       String   // Company, Person, Product, Website, Price, Event, Document, Insight
   name       String
   properties Json     // Freiform-Eigenschaften
@@ -2001,6 +2081,7 @@ model KnowledgeEntity {
   @@unique([userId, type, name])
   @@index([userId, type])
   @@index([userId])
+  @@index([orgId])
 }
 
 model KnowledgeRelation {
@@ -2039,6 +2120,7 @@ model KnowledgeEvent {
 // ── Agent Collaboration ──────────────────────────────────────
 
 model CollaborationLink {
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   id             String    @id @default(cuid())
   ownerUserId    String
   ownerAgentId   String
@@ -2054,12 +2136,14 @@ model CollaborationLink {
   @@index([ownerUserId])
   @@index([targetUserId])
   @@index([status])
+  @@index([orgId])
 }
 
 model AgentPublication {
   id                String   @id @default(cuid())
   agentId           String   @unique
   userId            String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   visibility        String   @default("private") // private, public
   publicName        String
   publicDescription String   @db.Text
@@ -2069,6 +2153,7 @@ model AgentPublication {
   @@index([userId])
   @@index([visibility])
   @@index([category])
+  @@index([orgId])
 }
 
 // ── Developer Platform ──────────────────────────────────────
@@ -2113,6 +2198,7 @@ model CustomNodeInstallation {
 model EmbedToken {
   id        String    @id @default(cuid())
   userId    String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   agentId   String
   token     String    @unique
   label     String?
@@ -2125,6 +2211,7 @@ model EmbedToken {
   @@index([userId])
   @@index([agentId])
   @@index([token])
+  @@index([orgId])
 }
 
 model SandboxAPISession {
@@ -2171,6 +2258,7 @@ model WorkspaceMember {
 model DataConnection {
   id                   String    @id @default(cuid())
   userId               String
+  orgId            String?  // Clerk Org ID, nullable during multi-tenancy migration
   name                 String
   type                 String    // postgresql, mysql, snowflake, bigquery, supabase, sqlite, rest_api
   encryptedConfig      String    // AES-256-GCM encrypted JSON with connection details
@@ -2185,6 +2273,7 @@ model DataConnection {
 
   @@index([userId])
   @@index([userId, type])
+  @@index([orgId])
 }
 
 model DataQueryLog {
