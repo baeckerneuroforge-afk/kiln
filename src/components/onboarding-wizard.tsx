@@ -62,35 +62,21 @@ export function OnboardingWizard({ onSkip }: { onSkip?: () => void } = {}) {
         ? customDescription
         : industry?.prompt || customDescription;
 
-      // Use the agent generation endpoint
-      const res = await fetch("/api/ai/generate-agent", {
+      // /api/ai/generate-agent is a streaming SSE endpoint for the conversational
+      // builder, not a CRUD create — onboarding goes straight to /api/agents.
+      const res = await fetch("/api/agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          description,
+          name: industry?.label ? `${industry.label} Assistant` : "My First Agent",
+          systemPrompt: description || "You are a helpful AI assistant.",
+          description: description?.slice(0, 200) || "Created during onboarding",
           agentMode: agentType || "CHAT",
+          status: "LIVE",
         }),
       });
-
-      if (!res.ok) {
-        // Fallback: create a simple agent directly
-        const fallbackRes = await fetch("/api/agents", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: industry?.label ? `${industry.label} Assistant` : "My First Agent",
-            systemPrompt: description || "You are a helpful AI assistant.",
-            description: description?.slice(0, 200) || "Created during onboarding",
-            agentMode: agentType || "CHAT",
-            status: "LIVE",
-          }),
-        });
-        const data = await fallbackRes.json();
-        setCreatedAgent({ id: data.id, slug: data.slug, name: data.name });
-      } else {
-        const data = await res.json();
-        setCreatedAgent({ id: data.id, slug: data.slug, name: data.name });
-      }
+      const data = await res.json();
+      setCreatedAgent({ id: data.id, slug: data.slug, name: data.name });
 
       // Mark onboarding as completed
       await fetch("/api/user/preferences", {
