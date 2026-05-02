@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, FileJson, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { validateSchema } from "@/lib/agents/io-schema-validator";
+import { SCHEMA_TEMPLATES, getSchemaTemplate } from "@/lib/agents/schema-templates";
 
 type JsonObject = Record<string, unknown>;
 
@@ -79,6 +80,20 @@ function SchemaPane({ label, description, value, onChange }: SchemaPaneProps) {
   const [parseError, setParseError] = useState<string | null>(null);
   const [showInferInput, setShowInferInput] = useState(false);
   const [inferDraft, setInferDraft] = useState("");
+
+  // Sync the textarea when the parent replaces the schema (e.g. template
+  // applied). Compare stringified forms so user typing — which round-trips
+  // through draft → parse → onChange → same reference — doesn't trigger.
+  const lastSyncedRef = useRef<string>(stringify(value));
+  useEffect(() => {
+    const next = stringify(value);
+    if (next !== lastSyncedRef.current) {
+      lastSyncedRef.current = next;
+      setDraft(next);
+      setStatus({ kind: "idle" });
+      setParseError(null);
+    }
+  }, [value]);
 
   function commit(next: string) {
     setDraft(next);
@@ -230,17 +245,46 @@ export function IoSchemaEditor({
     [inputSchema, outputSchema]
   );
 
+  function applyTemplate(id: string) {
+    if (!id) return;
+    const tpl = getSchemaTemplate(id);
+    if (!tpl) return;
+    onChange({
+      inputSchema: tpl.inputSchema,
+      outputSchema: tpl.outputSchema,
+      strictOutputValidation,
+    });
+  }
+
   return (
     <div className="rounded-xl border border-border bg-card p-5 space-y-5">
-      <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-foreground">
-          <FileJson className="h-3.5 w-3.5 text-kiln-orange" />
-          {heading}
-        </h2>
-        <p className="text-[11px] text-muted-foreground">
-          JSON Schema describing input/output. Workflows use this for typed
-          connections; the run endpoint validates against it.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-foreground">
+            <FileJson className="h-3.5 w-3.5 text-kiln-orange" />
+            {heading}
+          </h2>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            JSON Schema describing input/output. Workflows use this for typed
+            connections; the run endpoint validates against it.
+          </p>
+        </div>
+        <select
+          defaultValue=""
+          onChange={(e) => {
+            applyTemplate(e.target.value);
+            e.target.value = "";
+          }}
+          className="rounded-lg border border-border bg-card/50 px-2.5 py-1.5 text-xs text-foreground focus:border-kiln-orange/50 focus:outline-none"
+          title="Use a pre-built schema template"
+        >
+          <option value="">Use template…</option>
+          {SCHEMA_TEMPLATES.map((t) => (
+            <option key={t.id} value={t.id} title={t.description}>
+              {t.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <SchemaPane
