@@ -65,7 +65,7 @@ interface AgentData {
   slug: string;
   status: string;
   description?: string;
-  agentMode?: "CHAT" | "TASK";
+  mode?: "CHAT" | "TASK";
   triggerType?: "MANUAL" | "SCHEDULE" | "WEBHOOK" | "EVENT";
   _count?: { conversations: number; runs?: number };
 }
@@ -98,10 +98,10 @@ const triggerIcons: Record<string, React.ElementType> = {
 
 /* ---------- Custom Node: Agent ---------- */
 function AgentNode({ data, selected }: NodeProps) {
-  const d = data as { label: string; status: string; description: string; conversations: number; agentMode?: string; triggerType?: string; runs?: number };
+  const d = data as { label: string; status: string; description: string; conversations: number; mode?: string; triggerType?: string; runs?: number };
   const sc = statusConfig[d.status] || statusConfig.DRAFT;
   const isLive = d.status === "LIVE";
-  const isTask = d.agentMode === "TASK";
+  const isTask = d.mode === "TASK";
   const TriggerIcon = isTask ? (triggerIcons[d.triggerType || "MANUAL"] || Hand) : null;
 
   return (
@@ -570,7 +570,7 @@ function OrchestrationCanvas() {
         label: agent.name,
         status: agent.status,
         description: agent.description || "",
-        agentMode: agent.agentMode || "CHAT",
+        mode: agent.mode || "CHAT",
         triggerType: agent.triggerType || "MANUAL",
         conversations: agent._count?.conversations || 0,
         runs: agent._count?.runs || 0,
@@ -636,7 +636,7 @@ function OrchestrationCanvas() {
 
         // Auto-set outputType to NEXT_AGENT for Task Agents when connected
         const sourceAgent = agents.find((a) => a.id === params.source);
-        if (sourceAgent?.agentMode === "TASK") {
+        if (sourceAgent?.mode === "TASK") {
           fetch(`/api/agents/${params.source}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },

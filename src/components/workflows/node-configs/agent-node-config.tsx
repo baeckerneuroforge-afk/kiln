@@ -11,7 +11,7 @@ interface AgentSummary {
   slug: string;
   llmModel?: string;
   modelProvider?: string;
-  agentMode?: string;
+  mode?: string;
   status?: string;
   _count?: { knowledgeEntries: number };
 }
@@ -63,7 +63,7 @@ export function AgentNodeConfig({
             <option value="">Select an agent...</option>
             {agents.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.name} ({a.agentMode === "CHAT" ? "Chat" : "Task"})
+                {a.name} ({a.mode === "CHAT" ? "Chat" : "Task"})
               </option>
             ))}
           </select>
@@ -93,7 +93,7 @@ export function AgentNodeConfig({
               </span>
             )}
             <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded border border-zinc-700/50">
-              {selectedAgent.agentMode === "CHAT" ? "Chat" : "Task"}
+              {selectedAgent.mode === "CHAT" ? "Chat" : "Task"}
             </span>
             {selectedAgent._count?.knowledgeEntries ? (
               <span className="text-[10px] bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded border border-cyan-500/20">

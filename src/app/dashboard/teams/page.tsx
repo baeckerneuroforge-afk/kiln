@@ -71,7 +71,7 @@ interface Team {
 interface SuggestedRole {
   name: string;
   role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER";
-  agentMode?: "CHAT" | "TASK";
+  mode?: "CHAT" | "TASK";
   responsibilities: string;
   systemPrompt: string;
   suggestedModel?: string;
@@ -89,7 +89,7 @@ interface ManualMember {
   id: string;
   name: string;
   role: RoleType;
-  agentMode: AgentMode;
+  mode: AgentMode;
   provider: ProviderKey;
   model: string;
   systemPrompt: string;
@@ -305,7 +305,7 @@ function newManualMember(overrides: Partial<ManualMember> = {}): ManualMember {
     id: Math.random().toString(36).slice(2),
     name: defaultMemberName(role),
     role,
-    agentMode: defaultAgentMode(role, overrides.name),
+    mode: defaultAgentMode(role, overrides.name),
     provider: "ANTHROPIC",
     model: "claude-sonnet-4-6",
     systemPrompt: "",
@@ -499,8 +499,8 @@ function ReviewStep({
                   <div className="flex gap-2 items-center">
                     <span className="text-xs text-muted-foreground min-w-[60px]">Mode:</span>
                     <select
-                      value={role.agentMode ?? "TASK"}
-                      onChange={(e) => onUpdate(idx, "agentMode", e.target.value)}
+                      value={role.mode ?? "TASK"}
+                      onChange={(e) => onUpdate(idx, "mode", e.target.value)}
                       className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground outline-none"
                     >
                       <option value="TASK">Task Agent</option>
@@ -593,9 +593,9 @@ function ReviewStep({
                     <span className="text-sm font-medium text-foreground truncate">
                       {role.name || <span className="text-muted-foreground italic">Unnamed</span>}
                     </span>
-                    {(role.suggestedProvider || role.agentMode) && (
+                    {(role.suggestedProvider || role.mode) && (
                       <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono">
-                        {role.agentMode === "TASK" ? "Task" : "Chat"}
+                        {role.mode === "TASK" ? "Task" : "Chat"}
                       </span>
                     )}
                     {role.suggestedModel && (
@@ -772,9 +772,9 @@ function ManualStep2({
                 {!member.expanded && displayModel && (
                   <ModelBadge provider={member.provider} model={displayModel.id} />
                 )}
-                {!member.expanded && member.agentMode && (
+                {!member.expanded && member.mode && (
                   <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
-                    {member.agentMode === "TASK" ? "Task" : "Chat"}
+                    {member.mode === "TASK" ? "Task" : "Chat"}
                   </span>
                 )}
               </div>
@@ -837,8 +837,8 @@ function ManualStep2({
                       Agent Type
                     </label>
                     <select
-                      value={member.agentMode}
-                      onChange={(e) => onUpdate(member.id, "agentMode", e.target.value)}
+                      value={member.mode}
+                      onChange={(e) => onUpdate(member.id, "mode", e.target.value)}
                       className="w-full rounded border border-border bg-card px-2 py-1.5 text-xs text-foreground focus:border-kiln-orange focus:outline-none"
                     >
                       <option value="TASK">Task Agent</option>
@@ -1011,8 +1011,8 @@ function ManualStep3({
   members: ManualMember[];
   onUpdate: (id: string, field: keyof ManualMember, value: string) => void;
 }) {
-  const taskAgents = members.filter((m) => m.agentMode === "TASK");
-  const chatAgents = members.filter((m) => m.agentMode === "CHAT");
+  const taskAgents = members.filter((m) => m.mode === "TASK");
+  const chatAgents = members.filter((m) => m.mode === "CHAT");
 
   return (
     <div className="space-y-4">
@@ -1203,13 +1203,13 @@ function CreateTeamModal({
       }
 
       const data = await res.json();
-      // Ensure suggested roles have agentMode and model fields
+      // Ensure suggested roles have mode and model fields
       const roles: SuggestedRole[] = (data.roles || []).map((r: SuggestedRole) => ({
         suggestedProvider: "ANTHROPIC",
         suggestedModel: "claude-sonnet-4-6",
         ...r,
         // Default to Task unless Claude already set it or role name is customer-facing
-        agentMode: r.agentMode || defaultAgentMode(r.role, r.name),
+        mode: r.mode || defaultAgentMode(r.role, r.name),
       }));
       setSuggestedRoles(roles);
       setAutoStep(2);
@@ -1316,7 +1316,7 @@ function CreateTeamModal({
       {
         name: "",
         role: "EXECUTOR",
-        agentMode: "TASK",
+        mode: "TASK",
         responsibilities: "",
         systemPrompt: "",
         suggestedProvider: "ANTHROPIC",
@@ -1332,10 +1332,10 @@ function CreateTeamModal({
         prev.map((m) => {
           if (m.id !== id) return m;
           const updated = { ...m, [field]: value };
-          // Auto-adjust agentMode and name when role changes
+          // Auto-adjust mode and name when role changes
           if (field === "role") {
             const newRole = value as RoleType;
-            updated.agentMode = defaultAgentMode(newRole, m.name);
+            updated.mode = defaultAgentMode(newRole, m.name);
             // Pre-fill name if empty or was a default name
             const prevDefault = defaultMemberName(m.role);
             if (!m.name || m.name === prevDefault) {
@@ -1368,7 +1368,7 @@ function CreateTeamModal({
     return manualMembers.map((m) => ({
       name: m.name || `Agent ${manualMembers.indexOf(m) + 1}`,
       role: m.role,
-      agentMode: m.agentMode,
+      mode: m.mode,
       suggestedModel: m.model,
       suggestedProvider: m.provider,
       responsibilities: m.systemPrompt,
@@ -1556,7 +1556,7 @@ function CreateTeamModal({
                 const fieldMap: Partial<Record<keyof SuggestedRole, keyof ManualMember>> = {
                   name: "name",
                   role: "role",
-                  agentMode: "agentMode",
+                  mode: "mode",
                   suggestedModel: "model",
                   suggestedProvider: "provider",
                   systemPrompt: "systemPrompt",

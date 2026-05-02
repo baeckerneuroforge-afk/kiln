@@ -23,7 +23,7 @@ export default async function PublicAgentPage({ params }: Props) {
       showAiDisclaimer: true,
       status: true,
       imageAnalysisEnabled: true,
-      agentType: true,
+      visibility: true,
       userId: true,
     },
   });
@@ -33,7 +33,7 @@ export default async function PublicAgentPage({ params }: Props) {
   }
 
   // Internal agent: require authentication and team membership
-  if (agent.agentType === "INTERNAL") {
+  if (agent.visibility === "INTERNAL") {
     const { userId } = await auth();
 
     if (!userId) {
@@ -109,7 +109,7 @@ export default async function PublicAgentPage({ params }: Props) {
   return (
     <div className="flex min-h-screen flex-col items-center bg-background">
       {/* Internal badge */}
-      {agent.agentType === "INTERNAL" && (
+      {agent.visibility === "INTERNAL" && (
         <div className="w-full bg-purple-500/10 py-2 text-center">
           <span className="text-xs font-medium text-purple-400">
             Internal Agent — Team access only

@@ -59,7 +59,7 @@ export default function NewAgentPage() {
           welcomeMessage: config.welcome_message,
           suggestedQuestions: config.suggested_questions,
           suggestedActions: config.suggested_actions,
-          agentMode: "CHAT",
+          mode: "CHAT",
         }),
       });
 
@@ -97,7 +97,7 @@ export default function NewAgentPage() {
           welcomeMessage: "",
           suggestedQuestions: [],
           suggestedActions: [],
-          agentMode: "TASK",
+          mode: "TASK",
           triggerType,
           triggerConfig: triggerType === "SCHEDULE" ? { cron: cronExpression } : null,
           outputType,
@@ -209,7 +209,7 @@ export default function NewAgentPage() {
         if (data.system_prompt && !data.systemPrompt) data.systemPrompt = data.system_prompt;
         if (data.welcome_message && !data.welcomeMessage) data.welcomeMessage = data.welcome_message;
         if (data.suggested_questions && !data.suggestedQuestions) data.suggestedQuestions = data.suggested_questions;
-        if (data.agent_mode && !data.agentMode) data.agentMode = data.agent_mode;
+        if (data.agent_mode && !data.mode) data.mode = data.agent_mode;
         if (data.llm_model && !data.llmModel) data.llmModel = data.llm_model;
         if (data.model_provider && !data.modelProvider) data.modelProvider = data.model_provider;
         if (data.trigger_type && !data.triggerType) data.triggerType = data.trigger_type;
@@ -219,7 +219,7 @@ export default function NewAgentPage() {
         if (data.memory_enabled && !data.memoryEnabled) data.memoryEnabled = data.memory_enabled;
         if (data.image_analysis_enabled && !data.imageAnalysisEnabled) data.imageAnalysisEnabled = data.image_analysis_enabled;
         if (data.show_ai_disclaimer !== undefined && data.showAiDisclaimer === undefined) data.showAiDisclaimer = data.show_ai_disclaimer;
-        if (data.agent_type && !data.agentType) data.agentType = data.agent_type;
+        if (data.agent_type && !data.visibility) data.visibility = data.agent_type;
         if (data.show_powered_by !== undefined && data.showPoweredBy === undefined) data.showPoweredBy = data.show_powered_by;
       } else {
         data = JSON.parse(text);
@@ -231,7 +231,7 @@ export default function NewAgentPage() {
       }
 
       const slug = data.slug || data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40);
-      const agentMode = data.agentMode === "TASK" ? "TASK" : "CHAT";
+      const mode = data.mode === "TASK" ? "TASK" : "CHAT";
 
       // Map action types to suggested actions format
       const actionTypeMap: Record<string, string> = {
@@ -260,7 +260,7 @@ export default function NewAgentPage() {
           welcomeMessage: data.welcomeMessage || "",
           suggestedQuestions: data.suggestedQuestions || [],
           suggestedActions,
-          agentMode,
+          mode,
         }),
       });
 
@@ -280,7 +280,7 @@ export default function NewAgentPage() {
       if (data.modelProvider) updateFields.modelProvider = data.modelProvider;
       if (data.whiteLabel) updateFields.whiteLabel = data.whiteLabel;
       if (data.promptBranches) updateFields.promptBranches = data.promptBranches;
-      if (data.agentType === "INTERNAL") updateFields.agentType = "INTERNAL";
+      if (data.visibility === "INTERNAL") updateFields.visibility = "INTERNAL";
       if (data.showPoweredBy === false) updateFields.showPoweredBy = false;
       // Task agent fields
       if (data.triggerType) updateFields.triggerType = data.triggerType;

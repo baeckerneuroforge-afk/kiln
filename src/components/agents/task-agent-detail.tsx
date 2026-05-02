@@ -64,8 +64,8 @@ interface Agent {
   showAiDisclaimer: boolean;
   customDomain: string | null;
   promptBranches: { name: string; keywords: string[]; promptSnippet: string; enabled: boolean }[] | null;
-  agentType: "PUBLIC" | "INTERNAL";
-  agentMode: "CHAT" | "TASK";
+  visibility: "PUBLIC" | "INTERNAL";
+  mode: "CHAT" | "TASK";
   triggerType?: "MANUAL" | "SCHEDULE" | "WEBHOOK" | "EVENT";
   outputType?: "NONE" | "HTTP_REQUEST" | "EMAIL" | "NEXT_AGENT" | "WEBHOOK" | "CUSTOM_CODE";
   triggerConfig?: Record<string, unknown> | null;

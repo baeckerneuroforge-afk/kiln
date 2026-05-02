@@ -291,7 +291,7 @@ export function AgentWizard({ onBack }: { onBack: () => void }) {
           welcomeMessage,
           suggestedQuestions,
           suggestedActions: actions,
-          agentMode: "CHAT",
+          mode: "CHAT",
           autoDetectLanguage: language === "auto",
         }),
       });

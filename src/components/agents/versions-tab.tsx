@@ -29,7 +29,7 @@ type ConfigSnapshot = {
   imageAnalysisEnabled?: boolean;
   showAiDisclaimer?: boolean;
   promptBranches?: unknown;
-  agentType?: string;
+  visibility?: string;
   customDomain?: string | null;
   actions?: SnapshotAction[];
 };

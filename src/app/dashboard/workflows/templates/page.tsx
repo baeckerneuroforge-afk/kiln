@@ -65,7 +65,7 @@ type TemplateSummary = {
     key: string;
     name: string;
     role: string;
-    agentMode: string;
+    mode: string;
   }[];
   orchestration: {
     mode: string;
@@ -423,7 +423,7 @@ function PreviewModal({
                       {agent.role}
                     </span>
                     <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-500">
-                      {agent.agentMode}
+                      {agent.mode}
                     </span>
                   </button>
                   {expandedAgents.has(agent.key) && (
@@ -433,7 +433,7 @@ function PreviewModal({
                       </p>
                       <p className="mt-1 text-xs text-zinc-500">
                         Modus:{" "}
-                        <span className="text-zinc-400">{agent.agentMode}</span>
+                        <span className="text-zinc-400">{agent.mode}</span>
                       </p>
                     </div>
                   )}

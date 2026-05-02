@@ -40,7 +40,7 @@ interface Template {
     actions?: { type: string; enabled: boolean }[];
     workflowTemplateId?: string;
     teamTemplateId?: string;
-    workflowAgents?: { name: string; agentMode: "CHAT" | "TASK" | "APPROVAL"; role?: string }[];
+    workflowAgents?: { name: string; mode: "CHAT" | "TASK" | "APPROVAL"; role?: string }[];
     orchestration?: { mode?: string; description?: string };
   };
   createdAt: string;
@@ -109,7 +109,7 @@ function StarRating({ rating, size = "sm", interactive, onRate }: {
   );
 }
 
-function MiniFlowDiagram({ agents }: { agents: { name: string; agentMode: string; role?: string }[] }) {
+function MiniFlowDiagram({ agents }: { agents: { name: string; mode: string; role?: string }[] }) {
   if (!agents || agents.length === 0) return null;
 
   const roleColors: Record<string, string> = {
@@ -231,7 +231,7 @@ export default function MarketplacePage() {
   };
 
   const agentCount = (t: Template) =>
-    t.agentConfigSnapshot.workflowAgents?.filter((a) => a.agentMode !== "APPROVAL").length || 0;
+    t.agentConfigSnapshot.workflowAgents?.filter((a) => a.mode !== "APPROVAL").length || 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -483,22 +483,22 @@ export default function MarketplacePage() {
               {previewTemplate.agentConfigSnapshot.workflowAgents && previewTemplate.agentConfigSnapshot.workflowAgents.length > 0 && (
                 <div>
                   <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                    Agents ({previewTemplate.agentConfigSnapshot.workflowAgents.filter(a => a.agentMode !== "APPROVAL").length})
+                    Agents ({previewTemplate.agentConfigSnapshot.workflowAgents.filter(a => a.mode !== "APPROVAL").length})
                   </h4>
                   <div className="space-y-2">
                     {previewTemplate.agentConfigSnapshot.workflowAgents.map((agent, i) => (
                       <div key={i} className="flex items-center gap-3 rounded-lg border border-border bg-zinc-800/50 px-3 py-2.5">
                         <div className={cn(
                           "flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-bold",
-                          agent.agentMode === "APPROVAL" ? "bg-amber-500/10 text-amber-400"
-                            : agent.agentMode === "TASK" ? "bg-green-500/10 text-green-400"
+                          agent.mode === "APPROVAL" ? "bg-amber-500/10 text-amber-400"
+                            : agent.mode === "TASK" ? "bg-green-500/10 text-green-400"
                             : "bg-blue-500/10 text-blue-400"
                         )}>
-                          {agent.agentMode === "APPROVAL" ? "AG" : agent.agentMode === "TASK" ? "T" : "C"}
+                          {agent.mode === "APPROVAL" ? "AG" : agent.mode === "TASK" ? "T" : "C"}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-medium text-foreground">{agent.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{agent.role} · {agent.agentMode === "APPROVAL" ? "Approval Gate" : agent.agentMode}</p>
+                          <p className="text-[10px] text-muted-foreground">{agent.role} · {agent.mode === "APPROVAL" ? "Approval Gate" : agent.mode}</p>
                         </div>
                       </div>
                     ))}

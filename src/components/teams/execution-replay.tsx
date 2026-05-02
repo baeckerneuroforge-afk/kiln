@@ -366,10 +366,10 @@ export function ExecutionReplay({
                             slug: "",
                             llmModel: member.llmModel || undefined,
                             modelProvider: member.modelProvider || undefined,
-                            agentMode:
-                              member.agentMode === "APPROVAL"
+                            mode:
+                              member.mode === "APPROVAL"
                                 ? "TASK"
-                                : member.agentMode,
+                                : member.mode,
                           }
                         : null,
                       role: member.role,

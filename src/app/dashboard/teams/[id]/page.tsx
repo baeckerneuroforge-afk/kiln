@@ -104,7 +104,7 @@ interface TeamAgent {
   description?: string;
   llmModel?: string;
   modelProvider?: string;
-  agentMode?: "CHAT" | "TASK";
+  mode?: "CHAT" | "TASK";
   systemPrompt?: string;
   triggerType?: string;
   outputType?: string;
@@ -246,7 +246,7 @@ type TeamMemberNodeData = {
   responsibilities: string;
   taskCount: number;
   llmModel?: string;
-  agentMode?: string;
+  mode?: string;
   enabledActionsCount?: number;
   hasOutputSchema?: boolean;
   sharedContextCount?: number;
@@ -294,28 +294,28 @@ function TeamMemberNode({ data }: NodeProps<Node<TeamMemberNodeData>>) {
 
       {/* Agent mode badge */}
       <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-        {data.agentMode && (
+        {data.mode && (
           <span
             className={cn(
               "inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full",
-              data.agentMode === "APPROVAL"
+              data.mode === "APPROVAL"
                 ? "bg-amber-500/15 text-gray-400"
                 :
-              data.agentMode === "CHAT"
+              data.mode === "CHAT"
                 ? "bg-blue-500/15 text-gray-400"
                 : "bg-green-500/15 text-gray-400"
             )}
           >
-            {data.agentMode === "APPROVAL" ? (
+            {data.mode === "APPROVAL" ? (
               <AlertCircle className="h-2.5 w-2.5" />
-            ) : data.agentMode === "CHAT" ? (
+            ) : data.mode === "CHAT" ? (
               <MessageSquare className="h-2.5 w-2.5" />
             ) : (
               <Zap className="h-2.5 w-2.5" />
             )}
-            {data.agentMode === "APPROVAL"
+            {data.mode === "APPROVAL"
               ? "Approval"
-              : data.agentMode === "CHAT"
+              : data.mode === "CHAT"
                 ? "Chat"
                 : "Task"}
           </span>
@@ -464,7 +464,7 @@ function buildHierarchyGraph(
       responsibilities: m.responsibilities || "",
       taskCount: taskCounts[m.id] || 0,
       llmModel: m.agent?.llmModel || undefined,
-      agentMode: m.role === "APPROVAL_GATE" ? "APPROVAL" : (m.agent?.agentMode || undefined),
+      mode: m.role === "APPROVAL_GATE" ? "APPROVAL" : (m.agent?.mode || undefined),
       enabledActionsCount: m.enabledActions?.length || 0,
       hasOutputSchema: Array.isArray(m.outputSchema) && m.outputSchema.length > 0,
       sharedContextCount: sharedContextKeys.length,
@@ -777,10 +777,10 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
     }
   };
 
-  const agentMode =
+  const mode =
     role === "APPROVAL_GATE"
       ? "APPROVAL"
-      : (agentData?.agentMode || member?.agent?.agentMode);
+      : (agentData?.mode || member?.agent?.mode);
   const rc = member ? (roleColors[member.role] || roleColors.EXECUTOR) : roleColors.EXECUTOR;
 
   return (
@@ -857,31 +857,31 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
               </div>
 
               {/* Agent mode badge (read-only) */}
-              {agentMode && (
+              {mode && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-zinc-400">Agent Mode</label>
                   <div>
                     <span
                       className={cn(
                         "inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full",
-                        agentMode === "APPROVAL"
+                        mode === "APPROVAL"
                           ? "bg-amber-500/15 text-gray-400 border border-amber-500/30"
                           :
-                        agentMode === "CHAT"
+                        mode === "CHAT"
                           ? "bg-blue-500/15 text-gray-400 border border-blue-500/30"
                           : "bg-green-500/15 text-gray-400 border border-green-500/30"
                       )}
                     >
-                      {agentMode === "APPROVAL" ? (
+                      {mode === "APPROVAL" ? (
                         <AlertCircle className="h-3 w-3" />
-                      ) : agentMode === "CHAT" ? (
+                      ) : mode === "CHAT" ? (
                         <MessageSquare className="h-3 w-3" />
                       ) : (
                         <Zap className="h-3 w-3" />
                       )}
-                      {agentMode === "APPROVAL"
+                      {mode === "APPROVAL"
                         ? "Approval Gate"
-                        : agentMode === "CHAT"
+                        : mode === "CHAT"
                           ? "Chat Agent"
                           : "Task Agent"}
                     </span>
@@ -1019,7 +1019,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
               </div>
 
               {/* Task-agent specific fields */}
-              {agentMode === "TASK" && (
+              {mode === "TASK" && (
                 <>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-zinc-400">Trigger Type</label>
@@ -1563,7 +1563,7 @@ interface AddMemberModalProps {
 function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModalProps) {
   const [agentName, setAgentName] = useState("");
   const [role, setRole] = useState<"HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER" | "APPROVAL_GATE">("EXECUTOR");
-  const [agentMode, setAgentMode] = useState<"CHAT" | "TASK">("CHAT");
+  const [mode, setMode] = useState<"CHAT" | "TASK">("CHAT");
   const [provider, setProvider] = useState<ProviderKey>("ANTHROPIC");
   const [llmModel, setLlmModel] = useState("claude-sonnet-4-6");
   const [systemPrompt, setSystemPrompt] = useState("");
@@ -1602,7 +1602,7 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
             systemPrompt: systemPrompt.trim(),
             llmModel,
             modelProvider: provider,
-            agentMode,
+            mode,
           }),
         });
         if (!agentRes.ok) {
@@ -1698,21 +1698,21 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-zinc-400">Agent Mode</label>
             <div className="flex gap-2">
-              {(["CHAT", "TASK"] as const).map((mode) => (
+              {(["CHAT", "TASK"] as const).map((m) => (
                 <button
-                  key={mode}
-                  onClick={() => setAgentMode(mode)}
+                  key={m}
+                  onClick={() => setMode(m)}
                   className={cn(
                     "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-colors",
-                    agentMode === mode
-                      ? mode === "CHAT"
+                    mode === m
+                      ? m === "CHAT"
                         ? "bg-blue-500/20 border-blue-500/40 text-blue-300"
                         : "bg-green-500/20 border-green-500/40 text-green-300"
                       : "bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300"
                   )}
                 >
-                  {mode === "CHAT" ? <MessageSquare className="h-3.5 w-3.5" /> : <Zap className="h-3.5 w-3.5" />}
-                  {mode === "CHAT" ? "Chat" : "Task"}
+                  {m === "CHAT" ? <MessageSquare className="h-3.5 w-3.5" /> : <Zap className="h-3.5 w-3.5" />}
+                  {m === "CHAT" ? "Chat" : "Task"}
                 </button>
               ))}
             </div>
@@ -2179,7 +2179,7 @@ function TeamDetailInner() {
   const chatModeWarning = useMemo(() => {
     if (!team) return false;
     return team.members.some((m) => {
-      const mode = m.agent?.agentMode;
+      const mode = m.agent?.mode;
       const role = m.role;
       // HEAD, COORDINATOR, REPORTER should always be Task
       if ((role === "HEAD" || role === "COORDINATOR" || role === "REPORTER") && mode === "CHAT") return true;
@@ -2195,7 +2195,7 @@ function TeamDetailInner() {
       const toConvert = team.members.filter(
         (m) =>
           (m.role === "HEAD" || m.role === "COORDINATOR" || m.role === "REPORTER") &&
-          m.agent?.agentMode === "CHAT" &&
+          m.agent?.mode === "CHAT" &&
           m.agentId
       );
       await Promise.all(
@@ -2203,7 +2203,7 @@ function TeamDetailInner() {
           fetch(`/api/agents/${m.agentId}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ agentMode: "TASK" }),
+            body: JSON.stringify({ mode: "TASK" }),
           })
         )
       );

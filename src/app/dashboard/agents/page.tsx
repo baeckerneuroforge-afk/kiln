@@ -28,8 +28,8 @@ interface AgentWithCount {
   slug: string;
   description: string | null;
   status: "DRAFT" | "LIVE" | "PAUSED";
-  agentType?: "PUBLIC" | "INTERNAL";
-  agentMode?: "CHAT" | "TASK";
+  visibility?: "PUBLIC" | "INTERNAL";
+  mode?: "CHAT" | "TASK";
   llmModel?: string;
   welcomeMessage: string | null;
   createdAt: string;
@@ -176,11 +176,11 @@ export default function AgentsPage() {
                   <div className="flex items-center gap-3">
                     <div className={cn(
                       "flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
-                      agent.agentMode === "TASK"
+                      agent.mode === "TASK"
                         ? "bg-orange-500/[0.08] group-hover:bg-orange-500/[0.12]"
                         : "bg-blue-500/[0.08] group-hover:bg-blue-500/[0.12]"
                     )}>
-                      {agent.agentMode === "TASK" ? (
+                      {agent.mode === "TASK" ? (
                         <Zap className="h-5 w-5 text-orange-300/50 group-hover:text-orange-300/70 transition-colors" />
                       ) : (
                         <MessageSquare className="h-5 w-5 text-blue-300/50 group-hover:text-blue-300/70 transition-colors" />
@@ -188,10 +188,10 @@ export default function AgentsPage() {
                     </div>
                     <div className="flex flex-col gap-1">
                       <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium tracking-wide w-fit text-gray-400">
-                        {agent.agentMode === "TASK" ? <><Zap className="h-2.5 w-2.5" />Task</> : <><MessageSquare className="h-2.5 w-2.5" />Chat</>}
+                        {agent.mode === "TASK" ? <><Zap className="h-2.5 w-2.5" />Task</> : <><MessageSquare className="h-2.5 w-2.5" />Chat</>}
                       </span>
                       <div className="flex items-center gap-1.5">
-                        {agent.agentType === "INTERNAL" ? (
+                        {agent.visibility === "INTERNAL" ? (
                           <>
                             <div className="h-2 w-2 rounded-full bg-[#7c6f9b]" />
                             <span className="text-[11px] font-medium text-[#7c6f9b]">Internal</span>
@@ -240,7 +240,7 @@ export default function AgentsPage() {
                     ) : null;
                   })()}
                   <div className="flex items-center gap-1">
-                    {agent.agentMode === "TASK" ? (
+                    {agent.mode === "TASK" ? (
                       <><Play className="h-3 w-3" /><span>{agent._count.runs || 0} runs</span></>
                     ) : (
                       <><MessageSquare className="h-3 w-3" /><span>{agent._count.conversations}</span></>

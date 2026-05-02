@@ -27,7 +27,7 @@ type TemplateAgent = {
   key: string;
   name: string;
   role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER" | "APPROVAL_GATE";
-  agentMode: "CHAT" | "TASK";
+  mode: "CHAT" | "TASK";
 };
 
 type TemplateConnection = {
@@ -171,7 +171,7 @@ function TemplateFlowPreview({
               <span className="ml-2 text-muted-foreground">
                 {agent.role === "APPROVAL_GATE"
                   ? "Approval"
-                  : agent.agentMode === "CHAT"
+                  : agent.mode === "CHAT"
                     ? "Chat"
                     : "Task"}
               </span>
@@ -527,7 +527,7 @@ export default function NewTeamTemplatePage() {
                               {ROLE_LABELS[agent.role]} ·{" "}
                               {agent.role === "APPROVAL_GATE"
                                 ? "Human Approval Gate"
-                                : agent.agentMode === "CHAT"
+                                : agent.mode === "CHAT"
                                   ? "Chat Agent"
                                   : "Task Agent"}
                             </span>

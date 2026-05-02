@@ -110,8 +110,8 @@ interface Agent {
   showAiDisclaimer: boolean;
   customDomain: string | null;
   promptBranches: { name: string; keywords: string[]; promptSnippet: string; enabled: boolean }[] | null;
-  agentType: "PUBLIC" | "INTERNAL";
-  agentMode: "CHAT" | "TASK";
+  visibility: "PUBLIC" | "INTERNAL";
+  mode: "CHAT" | "TASK";
   triggerType?: "MANUAL" | "SCHEDULE" | "WEBHOOK" | "EVENT";
   outputType?: "NONE" | "HTTP_REQUEST" | "EMAIL" | "NEXT_AGENT" | "WEBHOOK" | "CUSTOM_CODE";
   triggerConfig?: Record<string, unknown> | null;
@@ -290,7 +290,7 @@ export default function AgentDetailPage() {
   const [imageAnalysisEnabled, setImageAnalysisEnabled] = useState(false);
   const [a2aEnabled, setA2aEnabled] = useState(false);
   const [showAiDisclaimer, setShowAiDisclaimer] = useState(true);
-  const [agentType, setAgentType] = useState<"PUBLIC" | "INTERNAL">("PUBLIC");
+  const [visibility, setVisibility] = useState<"PUBLIC" | "INTERNAL">("PUBLIC");
   const [teamRoutingEnabled, setTeamRoutingEnabled] = useState(false);
   const [teamRoutingTeamId, setTeamRoutingTeamId] = useState<string | null>(null);
   const [availableTeams, setAvailableTeams] = useState<{id: string; name: string}[]>([]);
@@ -350,7 +350,7 @@ export default function AgentDetailPage() {
     setImageAnalysisEnabled(data.imageAnalysisEnabled || false);
     setA2aEnabled(data.a2aEnabled || false);
     setShowAiDisclaimer(data.showAiDisclaimer !== false);
-    setAgentType(data.agentType || "PUBLIC");
+    setVisibility(data.visibility || "PUBLIC");
     setTeamRoutingEnabled(data.teamRoutingEnabled || false);
     setTeamRoutingTeamId(data.teamRoutingTeamId || null);
     setPromptBranches(Array.isArray(data.promptBranches) ? data.promptBranches : []);
@@ -434,7 +434,7 @@ export default function AgentDetailPage() {
           imageAnalysisEnabled,
           a2aEnabled,
           showAiDisclaimer,
-          agentType,
+          visibility,
           teamRoutingEnabled,
           teamRoutingTeamId,
           promptBranches: promptBranches.length > 0 ? promptBranches : null,
@@ -664,7 +664,7 @@ export default function AgentDetailPage() {
       name: agent.name,
       slug: agent.slug,
       description: agent.description,
-      agentMode: agent.agentMode,
+      mode: agent.mode,
       systemPrompt: agent.systemPrompt,
       personality: agent.personality,
       welcomeMessage: agent.welcomeMessage,
@@ -677,7 +677,7 @@ export default function AgentDetailPage() {
       imageAnalysisEnabled: agent.imageAnalysisEnabled,
       a2aEnabled: agent.a2aEnabled,
       showAiDisclaimer: agent.showAiDisclaimer,
-      agentType: agent.agentType,
+      visibility: agent.visibility,
       whiteLabel: agent.whiteLabel,
       showPoweredBy: agent.showPoweredBy,
       promptBranches: agent.promptBranches,
@@ -688,7 +688,7 @@ export default function AgentDetailPage() {
       })),
     };
     // Task Agent fields
-    if (agent.agentMode === "TASK") {
+    if (agent.mode === "TASK") {
       exportData.triggerType = agent.triggerType;
       exportData.triggerConfig = agent.triggerConfig;
       exportData.outputType = agent.outputType;
@@ -753,7 +753,7 @@ export default function AgentDetailPage() {
   }
 
   // Task Agents get their own visual flow-based layout
-  if (agent?.agentMode === "TASK") {
+  if (agent?.mode === "TASK") {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return <TaskAgentDetail agent={agent as any} />;
   }
@@ -1400,21 +1400,21 @@ export default function AgentDetailPage() {
                     </div>
                   </div>
                   <button
-                    onClick={() => setAgentType(agentType === "INTERNAL" ? "PUBLIC" : "INTERNAL")}
+                    onClick={() => setVisibility(visibility === "INTERNAL" ? "PUBLIC" : "INTERNAL")}
                     className={cn(
                       "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                      agentType === "INTERNAL" ? "bg-purple-500" : "bg-muted"
+                      visibility === "INTERNAL" ? "bg-purple-500" : "bg-muted"
                     )}
                   >
                     <span
                       className={cn(
                         "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform",
-                        agentType === "INTERNAL" ? "translate-x-5" : "translate-x-0"
+                        visibility === "INTERNAL" ? "translate-x-5" : "translate-x-0"
                       )}
                     />
                   </button>
                 </div>
-                {agentType === "INTERNAL" && (
+                {visibility === "INTERNAL" && (
                   <div className="mt-4">
                     <div className="mb-3 flex items-start gap-2 rounded-lg bg-white/[0.05] p-3">
                       <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
@@ -1684,7 +1684,7 @@ export default function AgentDetailPage() {
                 imageAnalysisEnabled,
                 showAiDisclaimer,
                 promptBranches: promptBranches.length > 0 ? promptBranches : null,
-                agentType,
+                visibility,
                 customDomain: customDomain.trim() || null,
                 actions: agent.actions.map((action) => ({
                   type: action.type,

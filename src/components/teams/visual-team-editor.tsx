@@ -110,7 +110,7 @@ interface TeamAgent {
   description?: string;
   llmModel?: string;
   modelProvider?: string;
-  agentMode?: "CHAT" | "TASK";
+  mode?: "CHAT" | "TASK";
 }
 
 interface TeamMember {
@@ -255,7 +255,7 @@ type VisualNodeData = {
   agentName: string;
   responsibilities: string;
   llmModel?: string;
-  agentMode?: string;
+  mode?: string;
   enabledActionsCount?: number;
   hasOutputSchema?: boolean;
   hasFeedbackLoop?: boolean;
@@ -988,7 +988,7 @@ function membersToFlowElements(
 
   const nodes: Node[] = members.map((m) => {
     const schemaFields = (m.outputSchema as OutputSchemaField[] | null)?.map((s) => s.field) || [];
-    const agentMode = m.role === "APPROVAL_GATE" ? "APPROVAL" : (m.agent?.agentMode || undefined);
+    const mode = m.role === "APPROVAL_GATE" ? "APPROVAL" : (m.agent?.mode || undefined);
 
     return {
       id: m.id,
@@ -1000,7 +1000,7 @@ function membersToFlowElements(
         agentName: getNodeName(m),
         responsibilities: m.responsibilities || "",
         llmModel: m.agent?.llmModel || undefined,
-        agentMode,
+        mode,
         enabledActionsCount: m.enabledActions?.length || 0,
         hasOutputSchema: Array.isArray(m.outputSchema) && m.outputSchema.length > 0,
         isParallel: m.executionMode === "parallel",

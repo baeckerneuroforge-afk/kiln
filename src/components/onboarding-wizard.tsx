@@ -28,7 +28,7 @@ const INDUSTRIES = [
 export function OnboardingWizard({ onSkip }: { onSkip?: () => void } = {}) {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [agentType, setAgentType] = useState<"CHAT" | "TASK" | null>(null);
+  const [mode, setMode] = useState<"CHAT" | "TASK" | null>(null);
   const [selectedIndustry, setSelectedIndustry] = useState<string | null>(null);
   const [customDescription, setCustomDescription] = useState("");
   const [creating, setCreating] = useState(false);
@@ -71,7 +71,7 @@ export function OnboardingWizard({ onSkip }: { onSkip?: () => void } = {}) {
           name: industry?.label ? `${industry.label} Assistant` : "My First Agent",
           systemPrompt: description || "You are a helpful AI assistant.",
           description: description?.slice(0, 200) || "Created during onboarding",
-          agentMode: agentType || "CHAT",
+          mode: mode || "CHAT",
           status: "LIVE",
         }),
       });
@@ -85,7 +85,7 @@ export function OnboardingWizard({ onSkip }: { onSkip?: () => void } = {}) {
         body: JSON.stringify({ onboardingCompleted: true }),
       });
 
-      setStep(agentType === "CHAT" ? 5 : 6);
+      setStep(mode === "CHAT" ? 5 : 6);
     } catch {
       // Mark onboarding completed even on error so user isn't stuck
       await fetch("/api/user/preferences", {
@@ -159,9 +159,9 @@ export function OnboardingWizard({ onSkip }: { onSkip?: () => void } = {}) {
             </p>
             <div className="mt-8 grid grid-cols-2 gap-4">
               <button
-                onClick={() => { setAgentType("CHAT"); setStep(3); }}
+                onClick={() => { setMode("CHAT"); setStep(3); }}
                 className={`group flex flex-col items-center rounded-xl border-2 p-6 transition-all hover:border-blue-500/50 hover:bg-blue-500/5 ${
-                  agentType === "CHAT" ? "border-blue-500 bg-blue-500/5" : "border-border"
+                  mode === "CHAT" ? "border-blue-500 bg-blue-500/5" : "border-border"
                 }`}
               >
                 <Bot className="mb-3 h-10 w-10 text-blue-400" />
@@ -171,9 +171,9 @@ export function OnboardingWizard({ onSkip }: { onSkip?: () => void } = {}) {
                 </span>
               </button>
               <button
-                onClick={() => { setAgentType("TASK"); setStep(4); }}
+                onClick={() => { setMode("TASK"); setStep(4); }}
                 className={`group flex flex-col items-center rounded-xl border-2 p-6 transition-all hover:border-kiln-orange/50 hover:bg-kiln-orange/5 ${
-                  agentType === "TASK" ? "border-kiln-orange bg-kiln-orange/5" : "border-border"
+                  mode === "TASK" ? "border-kiln-orange bg-kiln-orange/5" : "border-border"
                 }`}
               >
                 <Zap className="mb-3 h-10 w-10 text-kiln-orange" />

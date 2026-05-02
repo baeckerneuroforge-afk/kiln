@@ -52,7 +52,7 @@ interface Template {
     customTools?: unknown[];
     workflowTemplateId?: string;
     teamTemplateId?: string;
-    workflowAgents?: { name: string; agentMode: "CHAT" | "TASK" | "APPROVAL"; role?: string; description?: string }[];
+    workflowAgents?: { name: string; mode: "CHAT" | "TASK" | "APPROVAL"; role?: string; description?: string }[];
     orchestration?: { mode?: string; description?: string };
   };
   createdAt: string;
@@ -299,7 +299,7 @@ export default function TemplateDetailPage() {
                             </div>
                             <p className="text-xs font-medium text-foreground">{agent.name}</p>
                             <p className="text-[10px] text-muted-foreground">
-                              {agent.agentMode === "APPROVAL" ? "Approval Gate" : agent.agentMode}
+                              {agent.mode === "APPROVAL" ? "Approval Gate" : agent.mode}
                             </p>
                           </div>
                         </div>
@@ -325,7 +325,7 @@ export default function TemplateDetailPage() {
                     return (
                       <div key={i} className="rounded-xl border border-border bg-card/50 p-4 flex items-start gap-3">
                         <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg shrink-0", rc.bg)}>
-                          {agent.agentMode === "APPROVAL"
+                          {agent.mode === "APPROVAL"
                             ? <Sparkles className={cn("h-4 w-4", rc.text)} />
                             : <Bot className={cn("h-4 w-4", rc.text)} />
                           }
@@ -338,7 +338,7 @@ export default function TemplateDetailPage() {
                             </span>
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            Modus: {agent.agentMode === "APPROVAL" ? "Approval Gate" : agent.agentMode}
+                            Modus: {agent.mode === "APPROVAL" ? "Approval Gate" : agent.mode}
                           </p>
                         </div>
                       </div>
@@ -558,7 +558,7 @@ export default function TemplateDetailPage() {
                 {isTeam && (
                   <div className="flex items-center justify-between py-2 border-b border-border">
                     <span>Agents</span>
-                    <span className="font-semibold text-foreground">{agents.filter(a => a.agentMode !== "APPROVAL").length}</span>
+                    <span className="font-semibold text-foreground">{agents.filter(a => a.mode !== "APPROVAL").length}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between py-2">
@@ -575,7 +575,7 @@ export default function TemplateDetailPage() {
                 {isTeam && (
                   <div className="flex items-center gap-2.5 text-xs text-zinc-300">
                     <Users className="h-4 w-4 text-blue-400 shrink-0" />
-                    <span>{agents.filter(a => a.agentMode !== "APPROVAL").length} konfigurierte Agents</span>
+                    <span>{agents.filter(a => a.mode !== "APPROVAL").length} konfigurierte Agents</span>
                   </div>
                 )}
                 {enabledActions.length > 0 && (
