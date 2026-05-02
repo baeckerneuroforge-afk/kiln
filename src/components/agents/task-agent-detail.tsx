@@ -44,6 +44,7 @@ import {
   type PreProcessConfig,
   type PostProcessConfig,
 } from "@/components/agents/logic-block-editor";
+import { IoSchemaEditor } from "@/components/agents/io-schema-editor";
 
 interface Agent {
   id: string;
@@ -72,6 +73,9 @@ interface Agent {
   preProcessConfig?: PreProcessConfig | null;
   postProcessConfig?: PostProcessConfig | null;
   outputConfig?: Record<string, unknown> | null;
+  inputSchema?: Record<string, unknown> | null;
+  outputSchema?: Record<string, unknown> | null;
+  strictOutputValidation?: boolean;
   lastRunAt?: string | null;
   lastRunResult?: Record<string, unknown> | null;
   clonedFromId: string | null;
@@ -187,6 +191,15 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
   );
   const [memoryEnabled, setMemoryEnabled] = useState(initialAgent.memoryEnabled);
   const [showAiDisclaimer, setShowAiDisclaimer] = useState(initialAgent.showAiDisclaimer !== false);
+  const [inputSchema, setInputSchema] = useState<Record<string, unknown> | null>(
+    initialAgent.inputSchema ?? null
+  );
+  const [outputSchema, setOutputSchema] = useState<Record<string, unknown> | null>(
+    initialAgent.outputSchema ?? null
+  );
+  const [strictOutputValidation, setStrictOutputValidation] = useState(
+    initialAgent.strictOutputValidation === true
+  );
   const [saving, setSaving] = useState(false);
 
   // Runs state
@@ -252,6 +265,9 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
           outputConfig: Object.keys(outputConfig).length > 0 ? outputConfig : undefined,
           memoryEnabled,
           showAiDisclaimer,
+          inputSchema,
+          outputSchema,
+          strictOutputValidation,
         }),
       });
       if (res.ok) {
@@ -861,6 +877,18 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
               </div>
             </div>
           </div>
+
+          {/* ── I/O Schema Editor ── */}
+          <IoSchemaEditor
+            inputSchema={inputSchema}
+            outputSchema={outputSchema}
+            strictOutputValidation={strictOutputValidation}
+            onChange={(next) => {
+              setInputSchema(next.inputSchema);
+              setOutputSchema(next.outputSchema);
+              setStrictOutputValidation(next.strictOutputValidation);
+            }}
+          />
 
           {/* ── Runs Timeline ── */}
           <div className="rounded-xl border border-border bg-card/50">
