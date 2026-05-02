@@ -116,6 +116,13 @@ model Agent {
   lastRunAt          DateTime?
   lastRunResult      Json?
 
+  // Action Agent I/O typing — JSON Schema describing expected input / produced output.
+  // Both nullable: agents without schemas are passthrough (no validation).
+  inputSchema        Json?
+  outputSchema       Json?
+  // When true, output validation failures are 4xx errors instead of warnings.
+  strictOutputValidation Boolean @default(false)
+
   // White-Label
   whiteLabel         Json?       // { logo, primaryColor, position, customCss }
   customDomain       String?
