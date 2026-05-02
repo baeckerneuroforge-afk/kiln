@@ -36,7 +36,7 @@ export async function GET(
       include: {
         members: {
           include: {
-            agent: { select: { id: true, name: true, slug: true, description: true, llmModel: true, modelProvider: true, mode: true, systemPrompt: true } },
+            agent: { select: { id: true, name: true, slug: true, description: true, llmModel: true, modelProvider: true, mode: true, systemPrompt: true, inputSchema: true, outputSchema: true } },
             fallbackAgent: { select: { id: true, name: true, slug: true, description: true, llmModel: true, modelProvider: true } },
             reportsTo: {
               include: {

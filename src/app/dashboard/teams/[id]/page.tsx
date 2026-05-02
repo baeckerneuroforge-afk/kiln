@@ -110,6 +110,8 @@ interface TeamAgent {
   outputType?: string;
   outputConfig?: Record<string, unknown> | null;
   triggerConfig?: Record<string, unknown> | null;
+  inputSchema?: Record<string, unknown> | null;
+  outputSchema?: Record<string, unknown> | null;
 }
 
 interface OutputSchemaField {
@@ -3458,6 +3460,8 @@ function TeamDetailInner() {
             sourceLabel={sourceLabel}
             targetLabel={targetLabel}
             mappings={edge?.mappings || []}
+            sourceAgentOutputSchema={sourceMember?.agent?.outputSchema ?? undefined}
+            targetAgentInputSchema={targetMember?.agent?.inputSchema ?? undefined}
             onSave={handleDataMapperSave}
             onClose={() => setDataMapperEdgeId(null)}
           />

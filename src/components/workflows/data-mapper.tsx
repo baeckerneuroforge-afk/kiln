@@ -66,10 +66,23 @@ interface DataMapperProps {
   targetLabel: string;
   /** Current field mappings on this edge */
   mappings: FieldMapping[];
-  /** Custom output fields from source's outputSchema */
+  /** Custom output fields from source's outputSchema (legacy, see sourceAgentOutputSchema). */
   sourceSchemaFields?: string[];
+  /** Source agent's outputSchema (JSON Schema) — top-level properties surface as typed fields. */
+  sourceAgentOutputSchema?: unknown;
+  /** Target agent's inputSchema (JSON Schema) — top-level properties surface as typed input slots. */
+  targetAgentInputSchema?: unknown;
   onSave: (edgeId: string, mappings: FieldMapping[]) => void;
   onClose: () => void;
+}
+
+/** Extracts top-level property names from a JSON Schema object. Returns [] for
+ *  schemas without `properties` or non-object schemas. */
+function topLevelSchemaFields(schema: unknown): string[] {
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) return [];
+  const props = (schema as { properties?: unknown }).properties;
+  if (!props || typeof props !== "object" || Array.isArray(props)) return [];
+  return Object.keys(props as Record<string, unknown>);
 }
 
 /* ========== SVG Connection Line ========== */
@@ -144,6 +157,8 @@ export function DataMapper({
   targetLabel,
   mappings: initialMappings,
   sourceSchemaFields,
+  sourceAgentOutputSchema,
+  targetAgentInputSchema,
   onSave,
   onClose,
 }: DataMapperProps) {
@@ -170,15 +185,31 @@ export function DataMapper({
 
   const sourceFields = useMemo(() => {
     const base = OUTPUT_FIELDS[sourceNodeType] || ["output"];
+    // Prefer top-level fields from the source agent's outputSchema when present
+    // — they show as direct fields (e.g. "score", "category") instead of being
+    // nested under structuredData. Falls back to the legacy sourceSchemaFields
+    // shape ("structuredData.field") for backwards compatibility.
+    const schemaTop = topLevelSchemaFields(sourceAgentOutputSchema);
+    if (schemaTop.length > 0) {
+      return [...base, ...schemaTop];
+    }
     if (sourceSchemaFields?.length) {
       return [...base, ...sourceSchemaFields.map((f) => `structuredData.${f}`)];
     }
     return base;
-  }, [sourceNodeType, sourceSchemaFields]);
+  }, [sourceNodeType, sourceAgentOutputSchema, sourceSchemaFields]);
 
   const targetFields = useMemo(() => {
-    return INPUT_FIELDS[targetNodeType] || ["input"];
-  }, [targetNodeType]);
+    const base = INPUT_FIELDS[targetNodeType] || ["input"];
+    // When the target is an agent with an inputSchema, surface its top-level
+    // properties as typed input slots so users can map directly to the
+    // expected fields instead of dumping everything into "input".
+    const schemaTop = topLevelSchemaFields(targetAgentInputSchema);
+    if (schemaTop.length > 0) {
+      return [...base, ...schemaTop];
+    }
+    return base;
+  }, [targetNodeType, targetAgentInputSchema]);
 
   const sourceDef = getNodeDefinition(sourceNodeType);
   const targetDef = getNodeDefinition(targetNodeType);
