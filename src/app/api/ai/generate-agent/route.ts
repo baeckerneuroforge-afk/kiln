@@ -1,8 +1,10 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getClaudeClient, AGENT_GENERATION_SYSTEM_PROMPT } from "@/lib/ai";
-import { deductCredits } from "@/lib/credits";
+import { checkCredits, deductCredits } from "@/lib/credits";
 import { checkRateLimit } from "@/lib/rate-limit";
+
+const MODEL = "claude-sonnet-4-6";
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,11 +31,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Pre-flight credit check — admin bypass + BYOK handled inside checkCredits
+    const creditCheck = await checkCredits(userId, MODEL, false);
+    if (!creditCheck.allowed) {
+      return Response.json(
+        {
+          error: creditCheck.message,
+          creditExhausted: true,
+          balance: creditCheck.balance,
+          cost: creditCheck.cost,
+        },
+        { status: 402 }
+      );
+    }
+
     const client = getClaudeClient();
 
     // Streaming response
     const stream = await client.messages.stream({
-      model: "claude-sonnet-4-6",
+      model: MODEL,
       max_tokens: 4096,
       system: AGENT_GENERATION_SYSTEM_PROMPT,
       messages: messages.map((m: { role: string; content: string }) => ({
@@ -43,7 +59,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Deduct credits (fire-and-forget)
-    deductCredits(userId, "claude-sonnet-4-6", "CHAT").catch((err) => {
+    deductCredits(userId, MODEL, "CHAT").catch((err) => {
       console.error("Agent generation credit deduction failed:", err);
     });
 
