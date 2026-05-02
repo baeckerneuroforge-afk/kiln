@@ -103,8 +103,8 @@ model Agent {
   temperature        Float         @default(0.7)
   modelProvider      ModelProvider @default(ANTHROPIC)
   status             AgentStatus   @default(DRAFT)
-  agentType          AgentType     @default(PUBLIC)
-  agentMode          AgentMode   @default(CHAT)
+  visibility         AgentVisibility @default(PUBLIC) @map("agentType")
+  mode               AgentMode       @default(CHAT)   @map("agentMode")
 
   // Task Agent fields
   triggerType        TriggerType @default(MANUAL)
@@ -222,9 +222,11 @@ model Agent {
   @@index([userId])
 }
 
-enum AgentType {
+enum AgentVisibility {
   PUBLIC
   INTERNAL
+
+  @@map("AgentType")
 }
 
 enum AgentMode {
