@@ -14,6 +14,7 @@ import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
 import { canCreateAgent } from "@/lib/plan-limits";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
+import { validateSchema } from "@/lib/agents/io-schema-validator";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -195,6 +196,33 @@ export async function POST(request: NextRequest) {
     const status = body.status === "PAUSED" ? "PAUSED" : body.status === "DRAFT" ? "DRAFT" : "LIVE";
     const actions = parseActions(body.actions);
 
+    // Validate optional I/O schemas before persisting.
+    const inputSchema = body.inputSchema ?? null;
+    const outputSchema = body.outputSchema ?? null;
+    const strictOutputValidation = body.strictOutputValidation === true;
+    if (inputSchema !== null) {
+      const r = validateSchema(inputSchema);
+      if (!r.valid) {
+        return apiKeyJson(
+          request,
+          authResult,
+          { error: "Invalid inputSchema", details: r.errors },
+          { status: 400, headers: corsHeaders },
+        );
+      }
+    }
+    if (outputSchema !== null) {
+      const r = validateSchema(outputSchema);
+      if (!r.valid) {
+        return apiKeyJson(
+          request,
+          authResult,
+          { error: "Invalid outputSchema", details: r.errors },
+          { status: 400, headers: corsHeaders },
+        );
+      }
+    }
+
     if (!name || !systemPrompt) {
       return apiKeyJson(
         request,
@@ -235,6 +263,9 @@ export async function POST(request: NextRequest) {
         modelProvider: modelDef?.provider || MODEL_PROVIDER_MAP[llmModel] || "ANTHROPIC",
         status,
         mode,
+        ...(inputSchema !== null ? { inputSchema } : {}),
+        ...(outputSchema !== null ? { outputSchema } : {}),
+        strictOutputValidation,
         whiteLabel: body.whiteLabel && typeof body.whiteLabel === "object"
           ? body.whiteLabel
           : { primaryColor: "#F97316", position: "bottom-right" },

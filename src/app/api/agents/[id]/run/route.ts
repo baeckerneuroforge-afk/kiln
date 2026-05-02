@@ -15,6 +15,7 @@ import { safeEval } from "@/lib/safe-eval";
 import { executeTaskTool, evalCondition, executeOutputAction, executeBranchOutputs } from "@/lib/services/task-service";
 import { emitEvent } from "@/lib/events";
 import { AgentHealthMonitor } from "@/lib/monitoring/agent-health-monitor";
+import { validateAgentInput, validateAgentOutput } from "@/lib/agents/io-schema-validator";
 
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
@@ -69,6 +70,22 @@ export async function POST(
       input = body.input;
     } catch {
       // Kein Body — ist ok, Task kann auch ohne Input laufen
+    }
+
+    // 4a. Validate input against agent.inputSchema (if any). Fail-fast on
+    // mismatch — caller passed wrong shape, no point burning credits.
+    if (agent.inputSchema) {
+      const inputResult = validateAgentInput(agent, input);
+      if (!inputResult.valid) {
+        return Response.json(
+          {
+            error: "Input does not match agent inputSchema.",
+            details: inputResult.errors,
+          },
+          { status: 400 }
+        );
+      }
+      input = inputResult.data as typeof input;
     }
 
     // 4b. Pre-Process: conditions + transform (no LLM, no credits)
@@ -532,6 +549,48 @@ export async function POST(
       );
     }
 
+    // 13b. Validate output against agent.outputSchema (if any). When set, the
+    // agent is expected to return structured JSON — try to parse responseText
+    // before validating. Default behavior is fail-soft (warn-only); enable
+    // agent.strictOutputValidation to make schema mismatches a 4xx error.
+    let outputWarnings: string[] | undefined;
+    let parsedOutput: unknown = undefined;
+    if (agent.outputSchema) {
+      try {
+        parsedOutput = JSON.parse(responseText);
+      } catch {
+        const msg = "outputSchema is set but agent did not return valid JSON.";
+        if (agent.strictOutputValidation) {
+          return Response.json(
+            { error: msg, output: responseText, runId: run.id },
+            { status: 422 }
+          );
+        }
+        outputWarnings = [msg];
+      }
+      if (parsedOutput !== undefined) {
+        const outputResult = validateAgentOutput(agent, parsedOutput);
+        if (!outputResult.valid) {
+          if (agent.strictOutputValidation) {
+            return Response.json(
+              {
+                error: "Output does not match agent outputSchema.",
+                details: outputResult.errors,
+                output: parsedOutput,
+                runId: run.id,
+              },
+              { status: 422 }
+            );
+          }
+          outputWarnings = outputResult.errors;
+          console.warn(
+            `[agent-run] outputSchema violation for agent ${agent.id}:`,
+            outputResult.errors
+          );
+        }
+      }
+    }
+
     // 14. Return result
     return Response.json({
       runId: run.id,
@@ -540,6 +599,7 @@ export async function POST(
       duration,
       actionsExecuted,
       outputAction: outputActionResult,
+      ...(outputWarnings ? { outputWarnings } : {}),
     });
 
   } catch (err) {

@@ -6,6 +6,7 @@ import { fireWebhookEvent } from "@/lib/webhooks";
 import { emitEvent } from "@/lib/events";
 import { sanitizeCss } from "@/lib/css-sanitizer";
 import { normalizeAgentSchedule } from "@/lib/agent-scheduling";
+import { validateSchema } from "@/lib/agents/io-schema-validator";
 import {
   applyAgentUpdateToVersionConfig,
   createVersion,
@@ -83,6 +84,26 @@ export async function PATCH(
     };
     delete body.agentMode;
     delete body.agentType;
+
+    // Validate I/O schemas if the client is updating them.
+    if (body.inputSchema !== undefined && body.inputSchema !== null) {
+      const r = validateSchema(body.inputSchema);
+      if (!r.valid) {
+        return Response.json(
+          { error: "Invalid inputSchema", details: r.errors },
+          { status: 400 }
+        );
+      }
+    }
+    if (body.outputSchema !== undefined && body.outputSchema !== null) {
+      const r = validateSchema(body.outputSchema);
+      if (!r.valid) {
+        return Response.json(
+          { error: "Invalid outputSchema", details: r.errors },
+          { status: 400 }
+        );
+      }
+    }
 
     const whiteLabelRecord =
       body?.whiteLabel && typeof body.whiteLabel === "object"

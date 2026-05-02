@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { canCreateAgent } from "@/lib/plan-limits";
 import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
+import { validateSchema } from "@/lib/agents/io-schema-validator";
 
 // Load all agents for the user
 export async function GET() {
@@ -69,6 +70,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate optional I/O schemas before persisting.
+    const inputSchema = body.inputSchema ?? null;
+    const outputSchema = body.outputSchema ?? null;
+    const strictOutputValidation = body.strictOutputValidation === true;
+    if (inputSchema !== null) {
+      const r = validateSchema(inputSchema);
+      if (!r.valid) {
+        return Response.json(
+          { error: "Invalid inputSchema", details: r.errors },
+          { status: 400 }
+        );
+      }
+    }
+    if (outputSchema !== null) {
+      const r = validateSchema(outputSchema);
+      if (!r.valid) {
+        return Response.json(
+          { error: "Invalid outputSchema", details: r.errors },
+          { status: 400 }
+        );
+      }
+    }
+
     // Check plan limit
     const agentCheck = await canCreateAgent(userId);
     if (!agentCheck.allowed) {
@@ -109,6 +133,9 @@ export async function POST(request: NextRequest) {
         triggerConfig: triggerConfig || undefined,
         outputType: outputType || "NONE",
         outputConfig: outputConfig || undefined,
+        ...(inputSchema !== null ? { inputSchema } : {}),
+        ...(outputSchema !== null ? { outputSchema } : {}),
+        strictOutputValidation,
         whiteLabel: { primaryColor: "#F97316", position: "bottom-right" },
         // Create actions from suggested_actions
         actions: {
