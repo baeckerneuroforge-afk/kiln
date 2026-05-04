@@ -3,6 +3,9 @@ import crypto from "crypto";
 
 export interface CreatePortalInput {
   userId: string;
+  /** Active org of the agency owner. Stamped on the portal so org-scoped
+   *  reads can see it; nullable for callers that haven't migrated yet. */
+  orgId?: string | null;
   name: string;
   clientEmail: string;
   clientName?: string;
@@ -39,6 +42,7 @@ export class ClientPortal {
     return prisma.clientPortal.create({
       data: {
         userId: input.userId,
+        ...(input.orgId ? { orgId: input.orgId } : {}),
         name: input.name,
         slug,
         clientEmail: input.clientEmail,
@@ -98,11 +102,20 @@ export class ClientPortal {
   }
 
   /**
-   * Lädt alle Portale eines Users.
+   * Lädt alle Portale eines Users. When orgId is supplied, scopes to that
+   * org plus legacy { userId, orgId: null } portals so unmigrated portals
+   * stay visible to their owner.
    */
-  static async listByUser(userId: string) {
+  static async listByUser(userId: string, orgId?: string | null) {
     return prisma.clientPortal.findMany({
-      where: { userId },
+      where: orgId
+        ? {
+            OR: [
+              { orgId },
+              { userId, orgId: null },
+            ],
+          }
+        : { userId },
       orderBy: { createdAt: "desc" },
     });
   }

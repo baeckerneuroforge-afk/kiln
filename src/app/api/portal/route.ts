@@ -1,27 +1,43 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { ClientPortal } from "@/lib/portal/client-portal";
 import { checkFeatureAccess } from "@/lib/feature-access";
 import { AuditLogger } from "@/lib/audit/audit-logger";
+import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
 
-// GET /api/portal — Alle Portale des Users
+// GET /api/portal — Alle Portale der aktiven Org (mit Legacy-Fallback)
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let scope;
+  try {
+    scope = await requireOrgId();
+  } catch (err) {
+    if (err instanceof OrgContextError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    throw err;
+  }
+  const { userId, orgId } = scope;
 
   const access = await checkFeatureAccess(userId, "clientPortal");
   if (!access.allowed) {
     return NextResponse.json({ error: access.upgradeMessage, portals: [] }, { status: 403 });
   }
 
-  const portals = await ClientPortal.listByUser(userId);
+  const portals = await ClientPortal.listByUser(userId, orgId);
   return NextResponse.json({ portals });
 }
 
 // POST /api/portal — Neues Portal erstellen
 export async function POST(req: Request) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let scope;
+  try {
+    scope = await requireOrgId();
+  } catch (err) {
+    if (err instanceof OrgContextError) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    throw err;
+  }
+  const { userId, orgId } = scope;
 
   const access = await checkFeatureAccess(userId, "clientPortal");
   if (!access.allowed) {
@@ -37,6 +53,7 @@ export async function POST(req: Request) {
 
   const portal = await ClientPortal.create({
     userId,
+    orgId,
     name,
     clientEmail,
     clientName,
