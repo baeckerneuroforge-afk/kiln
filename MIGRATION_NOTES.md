@@ -2,11 +2,11 @@
 
 Dieses Dokument listet bewusste Diskrepanzen zwischen `prisma/schema.prisma` und der Live-Datenbank, die NICHT durch reguläre Prisma-Migrations aufgelöst werden sollen.
 
-## 1. `User.byokEnabled` (Spalte existiert in DB, nicht im Schema)
+## 1. `User.byokEnabled` (RESOLVED 2026-05-04)
 
-- Die Spalte wurde in Commit `2c6ac84` aus `schema.prisma` entfernt, ist aber weiterhin in der Production-DB vorhanden.
-- Status: **intentional drift, nicht aktiv genutzt**. Kein Code referenziert die Spalte, ein DROP würde keinen funktionalen Schaden verursachen, aber zur Vermeidung von Datenverlust wurde sie zunächst belassen.
-- Aufräumen frühestens in Phase 2.2 (sobald sicher ist, dass kein historischer Restore-Pfad sie noch braucht).
+- Die Spalte wurde in Commit `2c6ac84` aus `schema.prisma` entfernt, blieb aber bis 2026-05-04 in der Production-DB als dead column.
+- Migration `20260504130000_drop_byok_enabled` droppt die Spalte offiziell mit `ALTER TABLE "User" DROP COLUMN IF EXISTS "byokEnabled"`. Idempotent (IF EXISTS), kein Code referenziert die Spalte (verifiziert per grep über src/).
+- Apply via `npx prisma migrate deploy`. Nach Apply ist die schema/DB-Drift weg.
 
 ## 2. `knowledge_chunks` Table (Tabelle existiert in DB, nicht im Schema)
 
@@ -28,8 +28,8 @@ Das frühere `DROP TABLE "knowledge_chunks"` ist seit der `@@ignore`-Stub-Aufnah
 
 ## Phase-2.2-TODO
 
-- Entscheidung über finalen DROP von `byokEnabled` (mit DB-Backup vorher).
-- Evaluieren, ob `knowledge_chunks` per `@@ignore` Stub im Schema verewigt werden kann, sobald Prisma `vector` unterstützt oder ein `Unsupported("vector")`-Workaround tragfähig ist.
+- ~~Entscheidung über finalen DROP von `byokEnabled`~~ ✅ erledigt 2026-05-04 via `20260504130000_drop_byok_enabled`.
+- ~~Evaluieren, ob `knowledge_chunks` per `@@ignore` Stub im Schema verewigt werden kann~~ ✅ erledigt 2026-05-04 — Stub mit `Unsupported("vector")` im Schema.
 
 ---
 
