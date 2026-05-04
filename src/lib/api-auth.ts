@@ -15,6 +15,13 @@ type ApiKeyRequestLike = {
 export type ApiKeyAuthSuccess = {
   ok: true;
   userId: string;
+  /**
+   * The org id this API key belongs to. Falls back to the user's
+   * personalOrgId when the key was issued before Phase 2.1 (orgId is
+   * still null on the row). Routes that org-scope reads/writes should
+   * use this directly.
+   */
+  orgId: string | null;
   keyId: string;
   scopes: ApiAccessScope[];
   expiresAt: Date | null;
@@ -68,6 +75,17 @@ export async function authenticateApiKey(
 
   const scopes = normalizeApiAccessScopes(apiKey.scopes);
 
+  // Resolve org for this key. Pre-Phase-2.1 rows have orgId=null; fall back
+  // to the user's personalOrgId so older keys keep working unchanged.
+  let orgId = apiKey.orgId ?? null;
+  if (!orgId) {
+    const user = await prisma.user.findUnique({
+      where: { id: apiKey.userId },
+      select: { personalOrgId: true },
+    });
+    orgId = user?.personalOrgId ?? null;
+  }
+
   const touchLastUsed = prisma.apiAccessKey.update({
     where: { id: apiKey.id },
     data: { lastUsed: new Date() },
@@ -78,6 +96,7 @@ export async function authenticateApiKey(
   return {
     ok: true,
     userId: apiKey.userId,
+    orgId,
     keyId: apiKey.id,
     scopes,
     expiresAt: apiKey.expiresAt,

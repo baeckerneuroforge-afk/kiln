@@ -101,8 +101,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Scope to the API key's org with legacy fallback for unmigrated rows.
     const agents = await prisma.agent.findMany({
-      where: { userId: authResult.userId },
+      where: authResult.orgId
+        ? {
+            OR: [
+              { orgId: authResult.orgId },
+              { userId: authResult.userId, orgId: null },
+            ],
+          }
+        : { userId: authResult.userId },
       select: {
         id: true,
         name: true,
@@ -253,6 +261,7 @@ export async function POST(request: NextRequest) {
     const agent = await prisma.agent.create({
       data: {
         userId: authResult.userId,
+        ...(authResult.orgId ? { orgId: authResult.orgId } : {}),
         name,
         slug: generateSlug(name),
         description: typeof body.description === "string" ? body.description : null,

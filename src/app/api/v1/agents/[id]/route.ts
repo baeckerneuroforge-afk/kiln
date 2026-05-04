@@ -106,7 +106,15 @@ export async function GET(
     }
 
     const agent = await prisma.agent.findFirst({
-      where: { id: params.id, userId: authResult.userId },
+      where: authResult.orgId
+        ? {
+            id: params.id,
+            OR: [
+              { orgId: authResult.orgId },
+              { userId: authResult.userId, orgId: null },
+            ],
+          }
+        : { id: params.id, userId: authResult.userId },
       include: {
         actions: true,
       },
@@ -187,7 +195,15 @@ export async function PUT(
     }
 
     const existing = await prisma.agent.findFirst({
-      where: { id: params.id, userId: authResult.userId },
+      where: authResult.orgId
+        ? {
+            id: params.id,
+            OR: [
+              { orgId: authResult.orgId },
+              { userId: authResult.userId, orgId: null },
+            ],
+          }
+        : { id: params.id, userId: authResult.userId },
     });
     if (!existing) {
       return apiKeyJson(request, authResult, { error: "Agent not found or unauthorized" }, { status: 404, headers: corsHeaders });
