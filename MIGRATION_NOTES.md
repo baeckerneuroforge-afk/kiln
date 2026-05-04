@@ -161,3 +161,25 @@ WHERE kc.knowledge_base_id::text = kb.id
 
 Idempotent — re-runs skip rows already stamped because of the
 `WHERE kc.org_id IS NULL` guard.
+
+---
+
+## 2026-05-04 — Phase 2.4: Admin credit-bypass
+
+`ADMIN_USER_IDS` (comma-separated Clerk user ids in env) bypass
+credit, plan, and feature gates. The bypass is *library-internal*
+in six modules — route handlers should not add their own
+`isAdmin` short-circuit before calling these helpers:
+
+- `lib/credits.ts` (7 functions, all admin-aware)
+- `lib/plan-limits.ts` (`canCreateAgent`)
+- `lib/feature-access.ts` (`checkFeatureAccess`)
+- `lib/a2a-billing.ts` (`checkA2ACredits`, `deductA2ACredits`)
+- `lib/cost/cost-estimator.ts`
+
+Admins do NOT bypass: auth, org membership, org-scope filters,
+rate limits. See `src/lib/admin.ts` for the canonical doc.
+
+**Production checklist**: ensure `ADMIN_USER_IDS` is set in the
+Vercel project env (Production *and* Preview). Verify with
+`vercel env ls`.
