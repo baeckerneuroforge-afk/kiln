@@ -502,6 +502,17 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                     <Settings className="h-4 w-4" />
                     Settings
                   </Link>
+                  <Link
+                    href="/dashboard/organization/settings"
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      onClose?.();
+                    }}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <Building2 className="h-4 w-4" />
+                    Organization
+                  </Link>
                   {/* Advanced Mode toggle */}
                   <button
                     onClick={() => setAdvancedMode(!advancedMode)}
