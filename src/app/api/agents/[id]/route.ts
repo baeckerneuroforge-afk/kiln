@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import { waitUntil } from "@vercel/functions";
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { fireWebhookEvent } from "@/lib/webhooks";
 import { emitEvent } from "@/lib/events";
