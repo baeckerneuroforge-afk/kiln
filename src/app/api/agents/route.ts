@@ -1,20 +1,28 @@
 import { NextRequest } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { canCreateAgent } from "@/lib/plan-limits";
 import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
 import { validateSchema } from "@/lib/agents/io-schema-validator";
+import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
+import { orgScopeFilter } from "@/lib/auth/org-scope";
 
-// Load all agents for the user
+function unauthorized() {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+// Load all agents in the active org (with legacy fallback for unmigrated rows)
 export async function GET() {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
 
     const agents = await prisma.agent.findMany({
-      where: { userId },
+      where: orgScopeFilter(scope),
       include: {
         _count: { select: { conversations: true, runs: true } },
         agentTeamMembers: {
@@ -36,10 +44,14 @@ export async function GET() {
 // Create new agent
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
+    const { userId, orgId } = scope;
 
     const body = await request.json();
     const {
@@ -117,6 +129,7 @@ export async function POST(request: NextRequest) {
     const agent = await prisma.agent.create({
       data: {
         userId,
+        orgId,
         name,
         slug: finalSlug,
         description,

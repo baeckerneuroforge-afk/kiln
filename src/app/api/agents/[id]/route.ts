@@ -7,6 +7,12 @@ import { emitEvent } from "@/lib/events";
 import { sanitizeCss } from "@/lib/css-sanitizer";
 import { normalizeAgentSchedule } from "@/lib/agent-scheduling";
 import { validateSchema } from "@/lib/agents/io-schema-validator";
+import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
+import { orgScopeFilter } from "@/lib/auth/org-scope";
+
+function unauthorized() {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
 import {
   applyAgentUpdateToVersionConfig,
   createVersion,
@@ -20,13 +26,16 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
 
     const agent = await prisma.agent.findFirst({
-      where: { id: params.id, userId },
+      where: { id: params.id, ...orgScopeFilter(scope) },
       include: {
         actions: true,
         knowledgeBases: true,
@@ -56,14 +65,18 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
+    const { userId } = scope;
 
     // Check ownership — mit Actions für Snapshot
     const existing = await prisma.agent.findFirst({
-      where: { id: params.id, userId },
+      where: { id: params.id, ...orgScopeFilter(scope) },
       include: { actions: true },
     });
     if (!existing) {
@@ -174,13 +187,16 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
 
     const existing = await prisma.agent.findFirst({
-      where: { id: params.id, userId },
+      where: { id: params.id, ...orgScopeFilter(scope) },
     });
     if (!existing) {
       return Response.json({ error: "Agent not found" }, { status: 404 });
