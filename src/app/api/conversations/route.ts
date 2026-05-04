@@ -1,7 +1,12 @@
 import { NextRequest } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
+import { orgScopeFilter } from "@/lib/auth/org-scope";
+
+function unauthorized() {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
 
 export const dynamic = "force-dynamic";
 
@@ -45,9 +50,12 @@ function escapeCsvCell(value: string) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
 
     const url = new URL(request.url);
@@ -59,8 +67,10 @@ export async function GET(request: NextRequest) {
     const search = url.searchParams.get("search")?.trim();
     const format = url.searchParams.get("format");
 
+    // Conversations are reachable through their agent — listing scope is
+    // therefore "agents in the active org (+ legacy fallback)".
     const agents = await prisma.agent.findMany({
-      where: { userId },
+      where: orgScopeFilter(scope),
       select: {
         id: true,
         name: true,
