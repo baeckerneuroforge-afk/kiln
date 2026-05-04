@@ -261,10 +261,22 @@ export function getPendingInterventions(taskId: string): QuickUseIntervention[] 
 
 export async function listUserTasks(
   userId: string,
-  limit = 20
+  limit = 20,
+  orgId?: string | null
 ): Promise<QuickUseTaskSummary[]> {
+  // When an orgId is supplied (Phase 2.2 callers), scope to that org plus
+  // legacy { userId, orgId: null } rows so unmigrated history stays visible.
+  // Without it, fall back to the original user-only filter.
+  const where = orgId
+    ? {
+        OR: [
+          { orgId },
+          { userId, orgId: null },
+        ],
+      }
+    : { userId };
   const tasks = await prisma.quickUseTask.findMany({
-    where: { userId },
+    where,
     orderBy: { createdAt: "desc" },
     take: limit,
     select: {
@@ -296,10 +308,19 @@ export async function listUserTasks(
 
 export async function getTaskDetail(
   taskId: string,
-  userId: string
+  userId: string,
+  orgId?: string | null
 ): Promise<QuickUseTaskDetail | null> {
   const t = await prisma.quickUseTask.findFirst({
-    where: { id: taskId, userId },
+    where: orgId
+      ? {
+          id: taskId,
+          OR: [
+            { orgId },
+            { userId, orgId: null },
+          ],
+        }
+      : { id: taskId, userId },
   });
 
   if (!t) return null;
