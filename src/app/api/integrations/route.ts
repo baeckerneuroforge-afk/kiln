@@ -1,14 +1,24 @@
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
+import { orgScopeFilter } from "@/lib/auth/org-scope";
 
-// GET: Load all integration connections for the user
+function unauthorized() {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+// GET: Load all integration connections in the active org (with legacy fallback)
 export async function GET() {
   try {
-    const { userId } = await auth();
-    if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
+    }
 
     const connections = await prisma.integrationConnection.findMany({
-      where: { userId },
+      where: orgScopeFilter(scope),
       include: {
         agentIntegrations: {
           select: { id: true, agentId: true, enabled: true },
@@ -27,8 +37,14 @@ export async function GET() {
 // POST: Create or update an integration connection
 export async function POST(request: Request) {
   try {
-    const { userId } = await auth();
-    if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
+    }
+    const { userId, orgId } = scope;
 
     const { provider, name, config, isCustom } = await request.json();
     if (!provider || !name) {
@@ -40,6 +56,7 @@ export async function POST(request: Request) {
       where: { userId_provider: { userId, provider } },
       create: {
         userId,
+        orgId,
         provider,
         name,
         config: JSON.stringify(config || {}),
@@ -51,6 +68,8 @@ export async function POST(request: Request) {
         config: JSON.stringify(config || {}),
         isActive: true,
         isCustom: isCustom || false,
+        // Stamp orgId on legacy rows that didn't have one yet.
+        orgId,
       },
     });
 
@@ -64,14 +83,19 @@ export async function POST(request: Request) {
 // PATCH: Toggle active status
 export async function PATCH(request: Request) {
   try {
-    const { userId } = await auth();
-    if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
+    }
 
     const { id, isActive } = await request.json();
     if (!id) return Response.json({ error: "Connection ID required" }, { status: 400 });
 
     const existing = await prisma.integrationConnection.findFirst({
-      where: { id, userId },
+      where: { id, ...orgScopeFilter(scope) },
     });
     if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
 
@@ -90,14 +114,19 @@ export async function PATCH(request: Request) {
 // DELETE: Remove an integration connection
 export async function DELETE(request: Request) {
   try {
-    const { userId } = await auth();
-    if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
+    }
 
     const { id } = await request.json();
     if (!id) return Response.json({ error: "Connection ID required" }, { status: 400 });
 
     const existing = await prisma.integrationConnection.findFirst({
-      where: { id, userId },
+      where: { id, ...orgScopeFilter(scope) },
     });
     if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
 
