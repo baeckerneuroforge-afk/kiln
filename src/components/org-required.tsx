@@ -22,7 +22,25 @@ import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth, useOrganizationList } from "@clerk/nextjs";
 
-const ONBOARDING_PATH = "/onboarding/create-organization";
+export const ONBOARDING_PATH = "/onboarding/create-organization";
+
+export type OrgGuardState = {
+  authLoaded: boolean;
+  orgsLoaded: boolean;
+  userId: string | null | undefined;
+  membershipCount: number;
+  pathname: string;
+};
+
+/** Pure decision: should the dashboard guard push the user to the onboarding
+ *  create-org flow? Exported for unit testing — the React component just
+ *  threads its hooks into this. */
+export function shouldRedirectToOnboarding(state: OrgGuardState): boolean {
+  if (!state.authLoaded || !state.orgsLoaded) return false;
+  if (!state.userId) return false; // unauthenticated, Clerk middleware handles
+  if (state.pathname === ONBOARDING_PATH) return false; // already there
+  return state.membershipCount === 0;
+}
 
 export function OrgRequired() {
   const router = useRouter();
@@ -35,10 +53,15 @@ export function OrgRequired() {
   });
 
   useEffect(() => {
-    if (!authLoaded || !orgsLoaded) return;
-    if (!userId) return; // unauthenticated — Clerk middleware handles this
-    if (pathname === ONBOARDING_PATH) return; // already there
-    if ((userMemberships?.count ?? 0) === 0) {
+    if (
+      shouldRedirectToOnboarding({
+        authLoaded,
+        orgsLoaded,
+        userId,
+        membershipCount: userMemberships?.count ?? 0,
+        pathname,
+      })
+    ) {
       router.replace(ONBOARDING_PATH);
     }
   }, [authLoaded, orgsLoaded, userId, userMemberships?.count, pathname, router]);

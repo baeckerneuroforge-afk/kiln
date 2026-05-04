@@ -6,6 +6,9 @@ const mockCanCreateAgent = vi.hoisted(() => vi.fn());
 const mockPrisma = vi.hoisted(() => ({
   user: {
     upsert: vi.fn(),
+    // requireOrgId() falls back to User.personalOrgId when auth() has no
+    // active org. Mocked here so the route consistently resolves a scope.
+    findUnique: vi.fn(),
   },
   agent: {
     findUnique: vi.fn(),
@@ -37,13 +40,18 @@ function makeRequest(body: Record<string, unknown>) {
 
 describe("POST /api/agents", () => {
   beforeEach(() => {
-    mockAuth.mockResolvedValue({ userId: "user_123" });
+    // Phase 2.2: routes resolve scope via requireOrgId(). Provide an active
+    // org directly so the route doesn't need to fall back through
+    // user.personalOrgId — keeps the mock surface minimal.
+    mockAuth.mockResolvedValue({ userId: "user_123", orgId: "org_123" });
     mockCanCreateAgent.mockResolvedValue({ allowed: true, current: 0, limit: 1 });
     mockPrisma.user.upsert.mockResolvedValue({ id: "user_123" });
+    mockPrisma.user.findUnique.mockResolvedValue({ personalOrgId: "org_123" });
     mockPrisma.agent.findUnique.mockResolvedValue(null);
     mockPrisma.agent.create.mockResolvedValue({
       id: "agent_123",
       userId: "user_123",
+      orgId: "org_123",
       name: "Support Agent",
       slug: "support-agent",
       systemPrompt: "You are helpful.",
