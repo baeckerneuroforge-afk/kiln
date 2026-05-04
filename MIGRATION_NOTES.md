@@ -11,21 +11,20 @@ Dieses Dokument listet bewusste Diskrepanzen zwischen `prisma/schema.prisma` und
 ## 2. `knowledge_chunks` Table (Tabelle existiert in DB, nicht im Schema)
 
 - Wird **außerhalb von Prisma** verwaltet — Supabase pgvector-Migrations erstellen sie mit Raw-SQL inkl. `vector(N)`-Spalten.
-- Prisma unterstützt den `vector`-Typ nicht; ein Re-Import ins Schema würde die pgvector-Definition zerstören.
-- Status: **permanent drift by design**. Tabelle muss erhalten bleiben — sie hält alle RAG-Embeddings.
+- Seit 2026-05-04 als `@@ignore`-Stub im Prisma-Schema (mit `Unsupported("vector")` für die embedding-Spalte). Damit weiß Prisma von der Tabelle und produziert kein DROP TABLE mehr im migrate-diff, **versucht aber nicht, das Schema zu managen** — alle Schema-Änderungen weiterhin via `supabase/migrations/*.sql`.
+- DO NOT use the generated Prisma client to read/write knowledge_chunks. Verwende `getSupabaseAdmin()`. (Der Client würde wegen `@@ignore` ohnehin keine Methoden für die Tabelle generieren.)
 
 ## Verfahren bei `prisma migrate diff`
 
-Ein `prisma migrate diff --from-url $DATABASE_URL --to-schema-datamodel prisma/schema.prisma --script` produziert immer mindestens diese zwei Statements:
+Ein `prisma migrate diff --from-url $DATABASE_URL --to-schema-datamodel prisma/schema.prisma --script` produziert seit 2026-05-04 nur noch ein erwartbares Drift-Statement:
 
 ```sql
 ALTER TABLE "User" DROP COLUMN "byokEnabled";
-DROP TABLE "knowledge_chunks";
 ```
 
-Vor dem Apply einer aus diesem Diff generierten Migration **müssen beide Statements entfernt werden**. Spezialfall: wenn `byokEnabled`-DROP im selben `ALTER TABLE`-Block mit anderen `ADD COLUMN`-Statements steht (combined statement), darf nur der `DROP COLUMN`-Teil entfernt werden — die `ADD COLUMN`-Statements bleiben.
+Spezialfall: wenn `byokEnabled`-DROP im selben `ALTER TABLE`-Block mit anderen `ADD COLUMN`-Statements steht (combined statement), darf nur der `DROP COLUMN`-Teil entfernt werden — die `ADD COLUMN`-Statements bleiben.
 
-Alternative: `knowledge_chunks` per `@@ignore` ins Schema aufzunehmen würde den DROP aus dem Diff eliminieren, ist aber wegen des fehlenden `vector`-Type-Supports in Prisma derzeit nicht praktikabel.
+Das frühere `DROP TABLE "knowledge_chunks"` ist seit der `@@ignore`-Stub-Aufnahme aus dem Diff verschwunden.
 
 ## Phase-2.2-TODO
 
