@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/unsubscribe/weekly-report?userId=xxx&token=xxx — One-click Unsubscribe
 export async function GET(request: NextRequest) {
   const userId = request.nextUrl.searchParams.get("userId");

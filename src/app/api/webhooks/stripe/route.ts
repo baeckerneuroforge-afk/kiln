@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import type { Plan } from "@prisma/client";
 import type Stripe from "stripe";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
   const body = await request.text();
   const headersList = await headers();

@@ -12,6 +12,8 @@ import { chunkText, generateEmbeddings, storeChunks } from "@/lib/rag";
 import { deductEmbeddingCredits } from "@/lib/credits";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+
 interface NotionAgentConfig {
   kbPageIds?: { id: string; title: string }[];
   leadDatabaseId?: string | null;

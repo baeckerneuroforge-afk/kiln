@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/encryption";
 import { exchangeSlackCode } from "@/lib/integrations/slack";
 
+export const dynamic = "force-dynamic";
+
 // GET: Slack OAuth callback — exchanges code for tokens, saves connection
 export async function GET(request: NextRequest) {
   try {

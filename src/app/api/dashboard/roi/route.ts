@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { roiTracker } from "@/lib/analytics/roi-tracker";
 
+export const dynamic = "force-dynamic";
+
 // ROI-Dashboard-Zusammenfassung laden
 export async function GET(request: NextRequest) {
   try {

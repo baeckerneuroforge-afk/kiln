@@ -4,6 +4,8 @@ import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/prisma";
 import { analyzeConversations, DeepDiveResult } from "@/lib/conversation-analytics";
 
+export const dynamic = "force-dynamic";
+
 // In-memory cache (per serverless instance)
 const cache = new Map<string, { data: DeepDiveResult; expiresAt: number }>();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 Stunde

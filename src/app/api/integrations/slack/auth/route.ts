@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 
+export const dynamic = "force-dynamic";
+
 // GET: Redirect to Slack OAuth — starts the install flow
 export async function GET(request: NextRequest) {
   const { userId } = await auth();

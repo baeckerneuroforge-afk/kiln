@@ -3,6 +3,8 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/images — Returns all images with metadata, paginated.
  * ?page=1&limit=20&agentId=xxx&type=documents|photos

@@ -6,6 +6,8 @@ import { deployTeamTemplate } from "@/lib/team-templates";
 import { NextRequest } from "next/server";
 import crypto from "crypto";
 
+export const dynamic = "force-dynamic";
+
 function generateSlug(name: string): string {
   const base = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
   return `${base}-${crypto.randomBytes(3).toString("hex")}`;

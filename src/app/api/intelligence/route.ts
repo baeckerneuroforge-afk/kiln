@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getBusinessIntelligence } from "@/lib/enterprise-memory";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const { userId } = await auth();

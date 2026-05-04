@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 // GET — Liste aller Automations für einen Agent
 export async function GET(
   _request: NextRequest,

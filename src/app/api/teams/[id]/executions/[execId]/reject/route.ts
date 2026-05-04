@@ -5,6 +5,8 @@ import {
   resolveTimedOutApprovalIfNeeded,
 } from "@/lib/services/team-approval-runtime";
 
+export const dynamic = "force-dynamic";
+
 async function readPayload(request: NextRequest) {
   const urlToken = request.nextUrl.searchParams.get("token");
   const contentType = request.headers.get("content-type") || "";

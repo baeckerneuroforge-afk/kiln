@@ -3,6 +3,8 @@ import { getStripe } from "@/lib/stripe";
 import { ResellerBilling } from "@/lib/billing/reseller-billing";
 import type Stripe from "stripe";
 
+export const dynamic = "force-dynamic";
+
 // Separater Webhook-Endpoint für Stripe Connect Events
 // NICHT den bestehenden /api/webhooks/stripe Endpoint verändern!
 export async function POST(request: Request) {

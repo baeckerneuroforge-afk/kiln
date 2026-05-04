@@ -14,6 +14,8 @@ import {
 } from "@/lib/integrations/whatsapp";
 import crypto from "crypto";
 
+export const dynamic = "force-dynamic";
+
 function hashSession(sessionId: string): string {
   return crypto.createHash("sha256").update(sessionId).digest("hex").slice(0, 32);
 }

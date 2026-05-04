@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/agents/[id]/conversations?visitorId=xxx
 // Returns conversations for a specific visitor (matched by visitorId stored in session)
 export async function GET(

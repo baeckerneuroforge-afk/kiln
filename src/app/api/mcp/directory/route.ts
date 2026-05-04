@@ -1,6 +1,8 @@
 import { getMCPDirectory, getMCPCategories, type MCPCategory } from "@/lib/mcp/mcp-directory";
 import { NextRequest } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/mcp/directory — Kuratierte MCP Server Liste
  */

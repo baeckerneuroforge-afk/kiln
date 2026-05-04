@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/agents/[id]/research — list research entries
  * ?status=DRAFT|APPROVED|REJECTED|CONFLICT (optional filter)

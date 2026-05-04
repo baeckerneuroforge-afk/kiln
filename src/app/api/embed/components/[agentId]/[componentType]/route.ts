@@ -6,6 +6,8 @@ import {
   type EmbedComponentType,
 } from "@/lib/embeds/embed-manager";
 
+export const dynamic = "force-dynamic";
+
 // Rate-Limit-Cache: token → { count, windowStart }
 const rateLimitCache = new Map<
   string,

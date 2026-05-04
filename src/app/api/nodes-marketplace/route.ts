@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getPublishedNodes } from "@/lib/nodes-sdk/node-publisher";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/nodes-marketplace
  * Browse veroeffentlichte Custom Nodes mit optionalem Filter.

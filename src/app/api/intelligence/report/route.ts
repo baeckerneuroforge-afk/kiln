@@ -3,6 +3,8 @@ import { auth } from "@clerk/nextjs/server";
 import { getBusinessIntelligence } from "@/lib/enterprise-memory";
 import { generateReportHtml } from "@/lib/intelligence-pdf-report";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/intelligence/report?format=pdf&from=X&to=Y
 export async function GET(request: NextRequest) {
   try {

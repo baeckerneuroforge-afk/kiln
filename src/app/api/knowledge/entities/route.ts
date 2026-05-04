@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { PLAN_LIMITS, PlanType } from "@/lib/stripe";
 import { knowledgeGraph } from "@/lib/knowledge/knowledge-graph";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const { userId } = await auth();

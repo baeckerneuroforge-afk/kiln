@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/encryption";
 import { exchangeNotionCode } from "@/lib/integrations/notion";
 
+export const dynamic = "force-dynamic";
+
 // GET: Notion OAuth callback — exchanges code for tokens, saves connection
 export async function GET(request: NextRequest) {
   try {

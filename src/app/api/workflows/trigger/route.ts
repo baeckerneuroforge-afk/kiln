@@ -13,6 +13,8 @@ import {
   extractWorkflowDefinition,
 } from "@/lib/services/workflow-runtime";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     const teamId = request.nextUrl.searchParams.get("teamId");

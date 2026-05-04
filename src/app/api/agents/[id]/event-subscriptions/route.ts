@@ -5,6 +5,8 @@ import { validateUrl } from "@/lib/url-validation";
 import { ALL_EVENT_TYPES, type EventType } from "@/lib/event-types";
 import crypto from "crypto";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/agents/[id]/event-subscriptions — Liste aller Event-Subscriptions für diesen Agent
 export async function GET(
   request: NextRequest,

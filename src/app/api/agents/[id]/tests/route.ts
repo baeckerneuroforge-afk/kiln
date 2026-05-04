@@ -8,6 +8,8 @@ import { searchRelevantChunks } from "@/lib/rag";
 import { decrypt } from "@/lib/encryption";
 import { deductCredits } from "@/lib/credits";
 
+export const dynamic = "force-dynamic";
+
 // GET — Test Cases und Test Runs laden
 export async function GET(
   request: NextRequest,

@@ -6,6 +6,8 @@ import {
 } from "@/lib/services/team-approval-runtime";
 import { loadApprovalExecutionByToken } from "@/lib/services/team-runtime";
 
+export const dynamic = "force-dynamic";
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")

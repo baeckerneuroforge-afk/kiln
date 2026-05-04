@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 // Universal widget script — single <script> tag embed for any agent
 export async function GET(request: NextRequest) {
   const origin = request.nextUrl.origin;
