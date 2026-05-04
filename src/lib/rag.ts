@@ -131,11 +131,15 @@ export async function storeChunks(
   }
 }
 
-// Search relevant chunks (semantic search)
+// Search relevant chunks (semantic search). orgId is optional — when set,
+// the org-aware RPC variant filters chunks to the active org plus legacy
+// (org_id IS NULL) rows. Server-side admin callers without an org context
+// (cron, migrations) pass null/undefined and get the original behaviour.
 export async function searchRelevantChunks(
   agentId: string,
   query: string,
-  limit: number = 5
+  limit: number = 5,
+  orgId?: string | null
 ): Promise<{ content: string; similarity: number }[]> {
   const supabase = getSupabaseAdmin();
   const queryEmbedding = await generateEmbedding(query);
@@ -145,6 +149,7 @@ export async function searchRelevantChunks(
     match_agent_id: agentId,
     match_threshold: 0.7,
     match_count: limit,
+    target_org_id: orgId ?? null,
   });
 
   if (error) {
@@ -158,15 +163,18 @@ export async function searchRelevantChunks(
   }));
 }
 
-// Search chunks from both agent KB and team KB (combined, deduplicated)
+// Search chunks from both agent KB and team KB (combined, deduplicated).
+// orgId behaves the same as in searchRelevantChunks — passes through to
+// the org-aware RPC when set.
 export async function searchRelevantChunksMulti(
   agentId: string,
   teamId: string | null,
   query: string,
-  limit: number = 8
+  limit: number = 8,
+  orgId?: string | null
 ): Promise<{ content: string; similarity: number; sourceType: "agent" | "team" }[]> {
   if (!teamId) {
-    const results = await searchRelevantChunks(agentId, query, limit);
+    const results = await searchRelevantChunks(agentId, query, limit, orgId);
     return results.map((r) => ({ ...r, sourceType: "agent" as const }));
   }
 
@@ -179,6 +187,7 @@ export async function searchRelevantChunksMulti(
     match_team_id: teamId,
     match_threshold: 0.7,
     match_count: limit,
+    target_org_id: orgId ?? null,
   });
 
   if (error) {
