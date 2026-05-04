@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { isAdmin } from "@/lib/admin";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
   startWatchLearnSession,
@@ -33,9 +34,13 @@ export async function POST(
     return Response.json({ error: "Agent nicht gefunden" }, { status: 404 });
   }
 
-  // Plan-Check: Pro+ erforderlich
+  // Plan-Check: Pro+ erforderlich (Admins bypass — siehe lib/admin.ts).
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (user && !["PRO", "AGENCY", "ENTERPRISE"].includes(user.plan)) {
+  if (
+    user &&
+    !["PRO", "AGENCY", "ENTERPRISE"].includes(user.plan) &&
+    !isAdmin(userId)
+  ) {
     return Response.json(
       { error: "Watch & Learn ist ab dem Pro-Plan verfügbar" },
       { status: 403 }

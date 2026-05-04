@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { isAdmin } from "@/lib/admin";
 import crypto from "crypto";
 
 function generateSlug(name: string): string {
@@ -110,12 +111,13 @@ export async function POST(
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Plan prüfen — nur Pro/Agency/Admin
+    // Plan prüfen — nur Pro/Agency/Admin (Admins bypass — siehe lib/admin.ts).
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { plan: true },
     });
-    if (!user || user.plan === "FREE") {
+    const adminBypass = isAdmin(userId);
+    if (!user || (user.plan === "FREE" && !adminBypass)) {
       return Response.json(
         { error: "Agent cloning requires a Pro or Agency plan." },
         { status: 403 }
@@ -131,8 +133,8 @@ export async function POST(
 
     const copies = Math.min(10, Math.max(1, Number(count) || 1));
 
-    // Bulk Clone nur für Agency/Admin
-    if (copies > 1 && user.plan !== "AGENCY") {
+    // Bulk Clone nur für Agency (Admins bypass).
+    if (copies > 1 && user.plan !== "AGENCY" && !adminBypass) {
       return Response.json(
         { error: "Bulk cloning requires an Agency plan." },
         { status: 403 }

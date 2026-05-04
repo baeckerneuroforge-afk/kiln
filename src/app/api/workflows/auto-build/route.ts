@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { isAdmin } from "@/lib/admin";
 import { buildWorkflow, analyzeAndDecompose } from "@/lib/sandbox/workflow-builder";
 
 /**
@@ -23,9 +24,13 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Beschreibung fehlt" }, { status: 400 });
     }
 
-    // Plan-Check: Pro+ für Auto-Build
+    // Plan-Check: Pro+ für Auto-Build (Admins bypass — siehe lib/admin.ts).
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (user && !["PRO", "AGENCY", "ENTERPRISE"].includes(user.plan)) {
+    if (
+      user &&
+      !["PRO", "AGENCY", "ENTERPRISE"].includes(user.plan) &&
+      !isAdmin(userId)
+    ) {
       return Response.json(
         { error: "Auto-Build ist ab dem Pro-Plan verfügbar" },
         { status: 403 }
