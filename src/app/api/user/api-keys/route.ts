@@ -1,18 +1,26 @@
 import { NextRequest } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { encrypt, decrypt } from "@/lib/encryption";
+import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
+import { orgScopeFilter } from "@/lib/auth/org-scope";
+
+function unauthorized() {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
 
 // GET: Gespeicherte API Keys laden (maskiert)
 export async function GET() {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
 
     const keys = await prisma.apiKey.findMany({
-      where: { userId },
+      where: orgScopeFilter(scope),
     });
 
     // Keys maskiert zurückgeben — nur letzte 4 Zeichen sichtbar
@@ -42,10 +50,14 @@ export async function GET() {
 // POST: API Key speichern oder aktualisieren
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
+    const { userId, orgId } = scope;
 
     // Nur Pro/Agency/Admin dürfen Keys speichern
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -81,8 +93,8 @@ export async function POST(request: NextRequest) {
 
     await prisma.apiKey.upsert({
       where: { userId_provider: { userId, provider } },
-      update: { encryptedKey },
-      create: { userId, provider, encryptedKey },
+      update: { encryptedKey, orgId },
+      create: { userId, provider, encryptedKey, orgId },
     });
 
     return Response.json({ success: true, provider });
@@ -95,9 +107,12 @@ export async function POST(request: NextRequest) {
 // DELETE: API Key löschen
 export async function DELETE(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
 
     const { provider } = await request.json();
@@ -106,8 +121,11 @@ export async function DELETE(request: NextRequest) {
       return Response.json({ error: "Provider is required" }, { status: 400 });
     }
 
+    // Delete only keys reachable from the active org (or legacy orgId=null
+    // owned by the user). A user in a different org probing the same
+    // provider gets a no-op rather than wiping someone else's key.
     await prisma.apiKey.deleteMany({
-      where: { userId, provider },
+      where: { provider, ...orgScopeFilter(scope) },
     });
 
     return Response.json({ success: true });
