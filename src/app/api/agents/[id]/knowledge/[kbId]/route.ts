@@ -1,7 +1,12 @@
 import { NextRequest } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
+import { orgScopeFilter } from "@/lib/auth/org-scope";
+
+function unauthorized() {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
 
 // Delete knowledge base entry
 export async function DELETE(
@@ -9,14 +14,17 @@ export async function DELETE(
   { params }: { params: { id: string; kbId: string } }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
 
     // Check ownership
     const agent = await prisma.agent.findFirst({
-      where: { id: params.id, userId },
+      where: { id: params.id, ...orgScopeFilter(scope) },
     });
     if (!agent) {
       return Response.json({ error: "Agent not found" }, { status: 404 });

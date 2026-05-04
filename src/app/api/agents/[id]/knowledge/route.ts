@@ -1,8 +1,13 @@
 import { NextRequest } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { fetchUrlContent } from "@/lib/rag";
+import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
+import { orgScopeFilter } from "@/lib/auth/org-scope";
+
+function unauthorized() {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
 
 // Load knowledge base entries
 export async function GET(
@@ -10,13 +15,16 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
 
     const agent = await prisma.agent.findFirst({
-      where: { id: params.id, userId },
+      where: { id: params.id, ...orgScopeFilter(scope) },
     });
     if (!agent) {
       return Response.json({ error: "Agent not found" }, { status: 404 });
@@ -79,13 +87,17 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
+    const { userId, orgId } = scope;
 
     const agent = await prisma.agent.findFirst({
-      where: { id: params.id, userId },
+      where: { id: params.id, ...orgScopeFilter(scope) },
     });
     if (!agent) {
       return Response.json({ error: "Agent not found" }, { status: 404 });
@@ -169,6 +181,9 @@ export async function POST(
     const kb = await prisma.knowledgeBase.create({
       data: {
         agentId: params.id,
+        // Inherit orgId from the agent so the KB is reachable via the same
+        // org filter even after the agent is moved between orgs.
+        orgId,
         type,
         sourceName,
         content: textContent.slice(0, 50000),
