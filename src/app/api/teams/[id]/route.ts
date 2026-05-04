@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
@@ -15,6 +14,26 @@ import {
   snapshotWorkflowConfig,
   createWorkflowVersion,
 } from "@/lib/workflow-versioning";
+import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
+
+function unauthorized() {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+/**
+ * Returns true when the team belongs to the caller's active org or is a
+ * legacy team with orgId=null (unmigrated). Returning false should be
+ * surfaced as a 404 to avoid leaking existence across orgs.
+ */
+async function teamInScope(teamId: string, scopeOrgId: string): Promise<boolean> {
+  const team = await prisma.agentTeam.findUnique({
+    where: { id: teamId },
+    select: { orgId: true },
+  });
+  if (!team) return false;
+  if (team.orgId == null) return true;
+  return team.orgId === scopeOrgId;
+}
 
 // Get single team with members, tasks, and hierarchy
 export async function GET(
@@ -22,12 +41,19 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
+    const { userId } = scope;
 
     if (!(await canAccessTeam(params.id, userId))) {
+      return Response.json({ error: "Team not found" }, { status: 404 });
+    }
+    if (!(await teamInScope(params.id, scope.orgId))) {
       return Response.json({ error: "Team not found" }, { status: 404 });
     }
 
@@ -100,12 +126,19 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
+    const { userId } = scope;
 
     if (!(await canEditTeam(params.id, userId))) {
+      return Response.json({ error: "Team not found or insufficient permissions" }, { status: 404 });
+    }
+    if (!(await teamInScope(params.id, scope.orgId))) {
       return Response.json({ error: "Team not found or insufficient permissions" }, { status: 404 });
     }
 
@@ -207,11 +240,18 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
+    const { userId } = scope;
 
+    if (!(await teamInScope(params.id, scope.orgId))) {
+      return Response.json({ error: "Team not found" }, { status: 404 });
+    }
     const role = await getTeamPermission(params.id, userId);
     if (role !== "OWNER") {
       return Response.json({ error: "Only the team owner can delete." }, { status: 403 });

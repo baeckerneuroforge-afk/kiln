@@ -1,24 +1,36 @@
 import { NextRequest } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { deployTeamTemplate } from "@/lib/team-templates";
 import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
 import { describeTeamSchedule, normalizeTeamScheduleConfig } from "@/lib/team-schedule";
 import { getAccessibleTeamIds } from "@/lib/team-permissions";
+import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
+import { orgScopeFilter } from "@/lib/auth/org-scope";
 
-// List all teams for the user (owned + shared)
+function unauthorized() {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+// List all teams in the active org (owned + shared, with legacy fallback)
 export async function GET() {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
+    const { userId } = scope;
 
     const { ownedIds, sharedIds } = await getAccessibleTeamIds(userId);
     const allTeamIds = [...ownedIds, ...sharedIds];
 
+    // Layer org filter on top of the existing owned/shared ACL: only teams
+    // that belong to the active org (or are unmigrated and owned by the user)
+    // come back.
     const teams = await prisma.agentTeam.findMany({
-      where: { id: { in: allTeamIds } },
+      where: { id: { in: allTeamIds }, ...orgScopeFilter(scope) },
       include: {
         members: {
           include: {
@@ -65,10 +77,14 @@ export async function GET() {
 // Create a new team (optionally from a template)
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    let scope;
+    try {
+      scope = await requireOrgId();
+    } catch (err) {
+      if (err instanceof OrgContextError) return unauthorized();
+      throw err;
     }
+    const { userId, orgId } = scope;
 
     const body = await request.json();
     const { name, description, goal, template: templateKey } = body;
@@ -109,6 +125,7 @@ export async function POST(request: NextRequest) {
     const team = await prisma.agentTeam.create({
       data: {
         userId,
+        orgId,
         name,
         description: description || null,
         goal: goal || null,
