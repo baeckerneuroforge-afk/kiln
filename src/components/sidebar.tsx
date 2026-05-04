@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 import { WhatsNewBell } from "@/components/whats-new";
+import { OrgChangeRefresh, OrgSwitcher } from "@/components/org-switcher";
 import { useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 
@@ -313,6 +314,14 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               <X className="h-4 w-4" />
             </button>
           </div>
+        </div>
+
+        <Separator className={cn("my-2", isCollapsed ? "lg:mx-2" : "mx-3")} />
+
+        {/* Active organization */}
+        <OrgChangeRefresh />
+        <div className="mb-1">
+          <OrgSwitcher collapsed={isCollapsed} />
         </div>
 
         <Separator className={cn("my-2", isCollapsed ? "lg:mx-2" : "mx-3")} />
