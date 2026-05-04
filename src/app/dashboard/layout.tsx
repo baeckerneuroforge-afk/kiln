@@ -17,6 +17,7 @@ import { ProductTour, useTourTrigger } from "@/components/product-tour";
 import { MetaAgentChat } from "@/components/meta-agent/meta-agent-chat";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { PWAInstallPrompt } from "@/components/mobile/pwa-install-prompt";
+import { OrgRequired } from "@/components/org-required";
 
 export default function DashboardLayout({
   children,
@@ -55,6 +56,7 @@ export default function DashboardLayout({
     <AdvancedModeProvider>
       <ToastProvider>
         <KeyboardShortcutProvider>
+        <OrgRequired />
         <div className="flex h-screen overflow-hidden">
           <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           <div className="flex flex-1 flex-col overflow-y-auto">
