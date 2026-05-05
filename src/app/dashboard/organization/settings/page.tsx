@@ -6,15 +6,15 @@
  * Renders Clerk's <OrganizationProfile /> which ships with built-in tabs for
  * Profile (name + logo + delete), Members (list, role change, remove), and
  * Invitations (send / cancel). For Phase 2.3a we lean on Clerk's UI rather
- * than rebuilding it — the appearance prop matches the rest of the app's
- * dark + orange theme.
+ * than rebuilding it — the appearance prop maps Clerk's color slots to the
+ * dashboard's shadcn CSS variables, which resolve to light values inside
+ * the .theme-light scope of the dashboard layout.
  *
  * The page is admin-gated: non-admin members see a "no permission" notice
  * instead of the profile editor. Listing/joining is fine for any member;
  * editing requires `org:admin`.
  */
 import { OrganizationProfile, useOrganization } from "@clerk/nextjs";
-import { dark } from "@clerk/themes";
 import { Building2, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 
@@ -81,7 +81,6 @@ export default function OrganizationSettingsPage() {
       <OrganizationProfile
         routing="hash"
         appearance={{
-          baseTheme: dark,
           elements: {
             rootBox: "w-full",
             cardBox:

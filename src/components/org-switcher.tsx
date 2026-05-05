@@ -4,8 +4,9 @@
  * OrganizationSwitcher — KILN-themed wrapper around Clerk's switcher.
  *
  * Renders Clerk's `<OrganizationSwitcher />` with appearance overrides
- * matching the dark+orange theme. The collapsed prop trims the trigger
- * to the org avatar only, for the collapsed sidebar layout.
+ * mapped to the dashboard's shadcn CSS variables (which resolve to light
+ * values inside the .theme-light scope). The collapsed prop trims the
+ * trigger to the org avatar only, for the collapsed sidebar layout.
  *
  * Cache invalidation on org change is handled separately by
  * `<OrgChangeRefresh />` in the same module — drop both into the
@@ -14,7 +15,6 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { OrganizationSwitcher, useOrganization } from "@clerk/nextjs";
-import { dark } from "@clerk/themes";
 import { cn } from "@/lib/utils";
 
 interface OrgSwitcherProps {
@@ -36,7 +36,6 @@ export function OrgSwitcher({ collapsed = false }: OrgSwitcherProps) {
         afterSelectOrganizationUrl="/dashboard"
         afterLeaveOrganizationUrl="/dashboard"
         appearance={{
-          baseTheme: dark,
           elements: {
             // Trigger button styling — matches the rest of the sidebar.
             organizationSwitcherTrigger: cn(
