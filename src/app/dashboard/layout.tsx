@@ -52,13 +52,17 @@ export default function DashboardLayout({
     return <OnboardingWizard onSkip={() => setShowOnboarding(false)} />;
   }
 
-  // Render the dashboard shell immediately — don't block on onboarding check
+  // Render the dashboard shell immediately — don't block on onboarding check.
+  // The `theme-light` class scopes the light CSS variable values to
+  // everything under the dashboard (see globals.css). Pages outside
+  // /dashboard (landing, sign-in, embed, marketplace, public agent pages)
+  // keep the :root dark values.
   return (
     <AdvancedModeProvider>
       <ToastProvider>
         <KeyboardShortcutProvider>
         <OrgRequired />
-        <div className="flex h-screen overflow-hidden">
+        <div className="theme-light flex h-screen overflow-hidden bg-background text-foreground">
           <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           <div className="flex flex-1 flex-col overflow-y-auto">
             {/* Mobile header */}

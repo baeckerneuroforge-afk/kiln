@@ -44,6 +44,66 @@
     --sidebar-ring: 24 76% 52%;
   }
 
+  /*
+   * theme-light — applied to the dashboard layout root only.
+   *
+   * Components that use the semantic Tailwind tokens (bg-background,
+   * bg-card, bg-sidebar, text-foreground, text-muted-foreground,
+   * border-border, …) automatically pick up the light values inside
+   * the dashboard. Outside the dashboard (landing, sign-in, embed,
+   * marketplace, public agent pages) the :root dark values still apply.
+   *
+   * Components that hardcode zinc/neutral classes (bg-zinc-900,
+   * text-white, …) are NOT covered by this — they need to be migrated
+   * to semantic tokens in follow-up commits. The bulk of the dashboard
+   * already uses semantic tokens, so this single block delivers most
+   * of the visual flip.
+   */
+  .theme-light {
+    --background: 0 0% 100%;        /* #ffffff */
+    --foreground: 224 71% 4%;       /* near-black */
+    --card: 0 0% 100%;
+    --card-foreground: 224 71% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71% 4%;
+    --primary: 24 76% 52%;          /* keep kiln-orange */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;       /* gray-100 */
+    --secondary-foreground: 224 71% 4%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%; /* gray-500 */
+    --accent: 220 14% 96%;
+    --accent-foreground: 224 71% 4%;
+    --destructive: 0 72% 51%;       /* red-600 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 91%;          /* gray-200 */
+    --input: 220 13% 95%;
+    --ring: 24 76% 52%;
+
+    --sidebar: 0 0% 99%;            /* off-white so it separates from bg */
+    --sidebar-foreground: 224 71% 4%;
+    --sidebar-primary: 24 76% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 224 71% 4%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 24 76% 52%;
+  }
+
+  /* Skeleton shimmer reads as a bleach stain on light backgrounds —
+   * darken the sheen inside the light-themed scope. */
+  .theme-light .skeleton {
+    @apply bg-gray-100;
+  }
+  .theme-light .skeleton::after {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.04) 50%,
+      transparent 100%
+    );
+  }
+
   * {
     @apply border-border outline-ring/50;
   }
