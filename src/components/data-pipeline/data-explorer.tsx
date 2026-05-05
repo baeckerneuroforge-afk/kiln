@@ -194,18 +194,18 @@ export function DataExplorer() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-[#1a1918]">
+    <div className="flex h-[calc(100vh-4rem)] bg-card">
       {/* ── Sidebar ── */}
-      <div className="flex w-64 flex-col border-r border-stone-800 bg-stone-950">
+      <div className="flex w-64 flex-col border-r border-border bg-background">
         {/* Verbindungswahl */}
-        <div className="border-b border-stone-800 p-3">
-          <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-stone-500">
+        <div className="border-b border-border p-3">
+          <label className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
             Verbindung
           </label>
           <select
             value={selectedConnection ?? ""}
             onChange={(e) => setSelectedConnection(e.target.value || null)}
-            className="w-full rounded-md border border-stone-800 bg-stone-900/50 px-2.5 py-1.5 text-sm text-white outline-none focus:border-orange-500/50"
+            className="w-full rounded-md border border-border bg-card/50 px-2.5 py-1.5 text-sm text-foreground outline-none focus:border-orange-500/50"
           >
             <option value="">Waehlen...</option>
             {connections.map((c) => (
@@ -217,14 +217,14 @@ export function DataExplorer() {
         </div>
 
         {/* Tabellenfilter */}
-        <div className="border-b border-stone-800 p-3">
+        <div className="border-b border-border p-3">
           <div className="relative">
-            <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-stone-500" />
+            <Search className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Tabelle suchen..."
               value={tableFilter}
               onChange={(e) => setTableFilter(e.target.value)}
-              className="h-7 border-stone-800 bg-stone-900/50 pl-7 text-xs text-white placeholder:text-stone-600"
+              className="h-7 border-border bg-card/50 pl-7 text-xs text-foreground placeholder:text-muted-foreground"
             />
           </div>
         </div>
@@ -233,10 +233,10 @@ export function DataExplorer() {
         <div className="flex-1 overflow-y-auto p-2">
           {loadingSchema ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="size-4 animate-spin text-stone-500" />
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
             </div>
           ) : filteredTables.length === 0 ? (
-            <p className="py-4 text-center text-xs text-stone-600">
+            <p className="py-4 text-center text-xs text-muted-foreground">
               {selectedConnection ? "Keine Tabellen" : "Verbindung waehlen"}
             </p>
           ) : (
@@ -247,15 +247,15 @@ export function DataExplorer() {
                     onClick={() =>
                       setExpandedTable(expandedTable === table.name ? null : table.name)
                     }
-                    className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-stone-800/50"
+                    className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-muted/50"
                   >
                     {expandedTable === table.name ? (
-                      <ChevronDown className="size-3 text-stone-500" />
+                      <ChevronDown className="size-3 text-muted-foreground" />
                     ) : (
-                      <ChevronRight className="size-3 text-stone-500" />
+                      <ChevronRight className="size-3 text-muted-foreground" />
                     )}
                     <Table className="size-3 text-orange-400/70" />
-                    <span className="truncate font-medium text-stone-300">{table.name}</span>
+                    <span className="truncate font-medium text-foreground">{table.name}</span>
                   </button>
                   {expandedTable === table.name && (
                     <div className="ml-5 space-y-0.5 py-0.5">
@@ -264,8 +264,8 @@ export function DataExplorer() {
                           key={col.name}
                           className="flex items-center gap-2 px-2 py-0.5 text-[11px]"
                         >
-                          <span className="truncate text-stone-400">{col.name}</span>
-                          <Badge className="ml-auto shrink-0 border-stone-700 bg-stone-800/50 px-1 py-0 text-[9px] font-mono text-stone-500">
+                          <span className="truncate text-muted-foreground">{col.name}</span>
+                          <Badge className="ml-auto shrink-0 border-border bg-muted/50 px-1 py-0 text-[9px] font-mono text-muted-foreground">
                             {col.type}
                           </Badge>
                         </div>
@@ -282,16 +282,16 @@ export function DataExplorer() {
       {/* ── Hauptbereich ── */}
       <div className="flex flex-1 flex-col">
         {/* Top Bar */}
-        <div className="flex items-center gap-3 border-b border-stone-800 px-4 py-2.5">
+        <div className="flex items-center gap-3 border-b border-border px-4 py-2.5">
           {/* Query-Modus Toggle */}
-          <div className="flex rounded-lg border border-stone-800 bg-stone-900/50 p-0.5">
+          <div className="flex rounded-lg border border-border bg-card/50 p-0.5">
             <button
               onClick={() => setQueryMode("sql")}
               className={cn(
                 "rounded-md px-3 py-1 text-xs font-medium transition-colors",
                 queryMode === "sql"
                   ? "bg-orange-500/10 text-orange-400"
-                  : "text-stone-500 hover:text-stone-300"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               SQL
@@ -302,7 +302,7 @@ export function DataExplorer() {
                 "rounded-md px-3 py-1 text-xs font-medium transition-colors",
                 queryMode === "nl"
                   ? "bg-orange-500/10 text-orange-400"
-                  : "text-stone-500 hover:text-stone-300"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               Natural Language
@@ -341,7 +341,7 @@ export function DataExplorer() {
         </div>
 
         {/* Query Editor */}
-        <div className="relative border-b border-stone-800 p-4">
+        <div className="relative border-b border-border p-4">
           <Textarea
             value={queryInput}
             onChange={(e) => setQueryInput(e.target.value)}
@@ -351,7 +351,7 @@ export function DataExplorer() {
                 : "Zeige mir alle Kunden, die sich in den letzten 30 Tagen registriert haben."
             }
             className={cn(
-              "min-h-[120px] resize-y border-stone-800 bg-stone-900/30 text-white placeholder:text-stone-600",
+              "min-h-[120px] resize-y border-border bg-card/30 text-foreground placeholder:text-muted-foreground",
               queryMode === "sql" && "font-mono text-sm"
             )}
             onKeyDown={(e) => {
@@ -363,7 +363,7 @@ export function DataExplorer() {
           {queryMode === "sql" && (
             <button
               onClick={() => setQueryMode("nl")}
-              className="absolute bottom-7 right-7 flex items-center gap-1.5 rounded-md border border-stone-700 bg-stone-800 px-2.5 py-1 text-[10px] text-stone-400 transition-colors hover:border-orange-500/50 hover:text-orange-400"
+              className="absolute bottom-7 right-7 flex items-center gap-1.5 rounded-md border border-border bg-muted px-2.5 py-1 text-[10px] text-muted-foreground transition-colors hover:border-orange-500/50 hover:text-orange-400"
             >
               <Sparkles className="size-3" />
               Ask AI
@@ -380,7 +380,7 @@ export function DataExplorer() {
                     setQueryInput(s);
                     setQueryMode("nl");
                   }}
-                  className="rounded-full border border-stone-800 bg-stone-900/50 px-3 py-1 text-xs text-stone-400 transition-colors hover:border-orange-500/30 hover:text-orange-400"
+                  className="rounded-full border border-border bg-card/50 px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-orange-500/30 hover:text-orange-400"
                 >
                   {s}
                 </button>
@@ -393,14 +393,14 @@ export function DataExplorer() {
         <div className="flex-1 overflow-auto">
           {executing ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="size-5 animate-spin text-stone-500" />
-              <span className="ml-2 text-sm text-stone-500">Query wird ausgefuehrt...</span>
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-sm text-muted-foreground">Query wird ausgefuehrt...</span>
             </div>
           ) : result ? (
             <div className="flex h-full flex-col">
               {/* Ergebnis-Header */}
-              <div className="flex items-center gap-3 border-b border-stone-800 px-4 py-2">
-                <span className="text-xs text-stone-400">
+              <div className="flex items-center gap-3 border-b border-border px-4 py-2">
+                <span className="text-xs text-muted-foreground">
                   {result.rowCount} Zeilen &middot; {result.executionTimeMs}ms
                 </span>
                 <div className="flex-1" />
@@ -431,11 +431,11 @@ export function DataExplorer() {
               <div className="flex-1 overflow-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-stone-800 bg-stone-900/50">
+                    <tr className="border-b border-border bg-card/50">
                       {result.columns.map((col) => (
                         <th
                           key={col}
-                          className="whitespace-nowrap px-3 py-2 text-left text-xs font-medium text-stone-400"
+                          className="whitespace-nowrap px-3 py-2 text-left text-xs font-medium text-muted-foreground"
                         >
                           {col}
                         </th>
@@ -446,15 +446,15 @@ export function DataExplorer() {
                     {result.rows.slice(0, 100).map((row, i) => (
                       <tr
                         key={i}
-                        className="border-b border-stone-800/50 transition-colors hover:bg-stone-900/30"
+                        className="border-b border-border/50 transition-colors hover:bg-card/30"
                       >
                         {result.columns.map((col) => (
                           <td
                             key={col}
-                            className="max-w-[300px] truncate whitespace-nowrap px-3 py-1.5 font-mono text-xs text-stone-300"
+                            className="max-w-[300px] truncate whitespace-nowrap px-3 py-1.5 font-mono text-xs text-foreground"
                           >
                             {row[col] === null ? (
-                              <span className="text-stone-600">NULL</span>
+                              <span className="text-muted-foreground">NULL</span>
                             ) : (
                               String(row[col])
                             )}
@@ -468,11 +468,11 @@ export function DataExplorer() {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-16">
-              <Database className="mb-3 size-8 text-stone-700" />
-              <p className="text-sm text-stone-500">
+              <Database className="mb-3 size-8 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
                 Schreibe eine Query und klicke auf &quot;Ausfuehren&quot;
               </p>
-              <p className="mt-1 text-xs text-stone-600">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Cmd+Enter zum schnellen Ausfuehren
               </p>
             </div>

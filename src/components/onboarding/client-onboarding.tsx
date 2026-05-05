@@ -27,7 +27,7 @@ export function ClientOnboarding({ agencyName, agencyLogo, accentColor = "#F9731
   const [step, setStep] = useState(0);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#1a1918] p-6">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-card p-6">
       <div className="w-full max-w-md">
         {/* Agency Logo */}
         <div className="mb-8 flex items-center justify-center gap-2.5">
@@ -46,7 +46,7 @@ export function ClientOnboarding({ agencyName, agencyLogo, accentColor = "#F9731
               </span>
             </div>
           )}
-          <span className="font-serif text-2xl text-zinc-100">{agencyName}</span>
+          <span className="font-serif text-2xl text-foreground">{agencyName}</span>
         </div>
 
         {/* Progress */}
@@ -69,10 +69,10 @@ export function ClientOnboarding({ agencyName, agencyLogo, accentColor = "#F9731
         {step === 0 && (
           <div className="text-center">
             <Sparkles className="mx-auto mb-4 h-12 w-12" style={{ color: accentColor }} />
-            <h1 className="font-serif text-2xl text-zinc-100">
+            <h1 className="font-serif text-2xl text-foreground">
               Willkommen bei {agencyName}!
             </h1>
-            <p className="mt-3 text-sm text-zinc-500">
+            <p className="mt-3 text-sm text-muted-foreground">
               Wir haben AI Assistenten für Sie eingerichtet, die Ihnen rund um die Uhr zur Verfügung stehen.
             </p>
             <Button
@@ -88,15 +88,15 @@ export function ClientOnboarding({ agencyName, agencyLogo, accentColor = "#F9731
         {/* Step 2: Meet your agents */}
         {step === 1 && (
           <div>
-            <h2 className="text-center font-serif text-xl text-zinc-100">Ihre AI Assistenten</h2>
-            <p className="mt-2 text-center text-sm text-zinc-500">
+            <h2 className="text-center font-serif text-xl text-foreground">Ihre AI Assistenten</h2>
+            <p className="mt-2 text-center text-sm text-muted-foreground">
               Diese Agents wurden speziell für Sie konfiguriert.
             </p>
             <div className="mt-6 space-y-3">
               {agents.map((agent) => (
                 <div
                   key={agent.id}
-                  className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4"
+                  className="flex items-center gap-3 rounded-xl border border-border bg-card/50 p-4"
                 >
                   <div
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
@@ -105,9 +105,9 @@ export function ClientOnboarding({ agencyName, agencyLogo, accentColor = "#F9731
                     <Bot className="h-5 w-5" style={{ color: accentColor }} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium text-zinc-100">{agent.name}</h4>
+                    <h4 className="text-sm font-medium text-foreground">{agent.name}</h4>
                     {agent.description && (
-                      <p className="mt-0.5 text-xs text-zinc-500 line-clamp-1">{agent.description}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{agent.description}</p>
                     )}
                   </div>
                 </div>
@@ -132,8 +132,8 @@ export function ClientOnboarding({ agencyName, agencyLogo, accentColor = "#F9731
             >
               <Check className="h-8 w-8" style={{ color: accentColor }} />
             </div>
-            <h2 className="font-serif text-2xl text-zinc-100">Alles bereit!</h2>
-            <p className="mt-3 text-sm text-zinc-500">
+            <h2 className="font-serif text-2xl text-foreground">Alles bereit!</h2>
+            <p className="mt-3 text-sm text-muted-foreground">
               Ihr AI Assistent steht Ihnen jederzeit zur Verfügung.
               Sprechen Sie ihn einfach an wie einen Mitarbeiter.
             </p>

@@ -143,17 +143,17 @@ export function NodesMarketplaceBrowser() {
       {/* Suchleiste und Filter */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Nodes durchsuchen..."
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 py-2 pl-9 pr-3 text-sm text-zinc-200 outline-none focus:border-orange-500/50 transition-colors placeholder:text-zinc-600"
+            className="w-full rounded-lg border border-border bg-card/50 py-2 pl-9 pr-3 text-sm text-foreground outline-none focus:border-orange-500/50 transition-colors placeholder:text-muted-foreground"
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -161,7 +161,7 @@ export function NodesMarketplaceBrowser() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-zinc-500" />
+          <Filter className="h-4 w-4 text-muted-foreground" />
           <div className="flex flex-wrap gap-1.5">
             {CATEGORIES.map((cat) => (
               <button
@@ -170,7 +170,7 @@ export function NodesMarketplaceBrowser() {
                 className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
                   category === cat.value
                     ? "bg-orange-500/20 text-orange-400 border border-orange-500/30"
-                    : "bg-zinc-800/50 text-zinc-400 border border-zinc-800 hover:border-zinc-700"
+                    : "bg-muted/50 text-muted-foreground border border-border hover:border-border"
                 }`}
               >
                 {cat.label}
@@ -181,10 +181,10 @@ export function NodesMarketplaceBrowser() {
       </div>
 
       {/* Node einreichen CTA */}
-      <div className="flex items-center justify-between rounded-lg border border-zinc-800/50 bg-zinc-900/30 p-4">
+      <div className="flex items-center justify-between rounded-lg border border-border/50 bg-card/30 p-4">
         <div>
-          <p className="text-sm font-medium text-zinc-200">Eigenen Node erstellen</p>
-          <p className="text-xs text-zinc-500 mt-0.5">
+          <p className="text-sm font-medium text-foreground">Eigenen Node erstellen</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
             Baue und veroeffentliche Custom Nodes fuer die Community
           </p>
         </div>
@@ -207,20 +207,20 @@ export function NodesMarketplaceBrowser() {
       {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-5 w-5 animate-spin text-zinc-500" />
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       )}
 
       {/* Empty State */}
       {!loading && nodes.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-800/50 mb-4">
-            <Puzzle className="h-6 w-6 text-zinc-500" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted/50 mb-4">
+            <Puzzle className="h-6 w-6 text-muted-foreground" />
           </div>
-          <p className="text-sm font-medium text-zinc-300">
+          <p className="text-sm font-medium text-foreground">
             Noch keine Community-Nodes verfuegbar
           </p>
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-muted-foreground">
             {search
               ? "Keine Nodes fuer diese Suche gefunden. Probiere andere Begriffe."
               : "Sei der Erste und veroeffentliche einen Custom Node!"}
@@ -238,7 +238,7 @@ export function NodesMarketplaceBrowser() {
             return (
               <div
                 key={node.id}
-                className="group rounded-xl border border-zinc-800/50 bg-zinc-900/30 p-4 hover:border-zinc-700/50 transition-all"
+                className="group rounded-xl border border-border/50 bg-card/30 p-4 hover:border-border/50 transition-all"
               >
                 {/* Node Header */}
                 <div className="flex items-start justify-between">
@@ -250,8 +250,8 @@ export function NodesMarketplaceBrowser() {
                       <Puzzle className="h-4 w-4 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-medium text-zinc-200">{node.name}</h3>
-                      <p className="text-[10px] text-zinc-500 font-mono">{node.nodeId}</p>
+                      <h3 className="text-sm font-medium text-foreground">{node.name}</h3>
+                      <p className="text-[10px] text-muted-foreground font-mono">{node.nodeId}</p>
                     </div>
                   </div>
                   <span className="rounded-full border border-orange-500/20 bg-orange-500/10 px-1.5 py-0.5 text-[9px] font-medium text-orange-400">
@@ -260,17 +260,17 @@ export function NodesMarketplaceBrowser() {
                 </div>
 
                 {/* Beschreibung */}
-                <p className="mt-3 text-xs text-zinc-400 leading-relaxed line-clamp-2">
+                <p className="mt-3 text-xs text-muted-foreground leading-relaxed line-clamp-2">
                   {node.description}
                 </p>
 
                 {/* Metadaten */}
                 <div className="mt-3 flex items-center gap-3">
-                  <span className="rounded-full bg-zinc-800/50 px-2 py-0.5 text-[10px] text-zinc-400">
+                  <span className="rounded-full bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground">
                     {node.category}
                   </span>
-                  <span className="text-[10px] text-zinc-500">v{node.version}</span>
-                  <div className="flex items-center gap-0.5 text-[10px] text-zinc-500">
+                  <span className="text-[10px] text-muted-foreground">v{node.version}</span>
+                  <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
                     <Download className="h-3 w-3" />
                     {node.installCount}
                   </div>
@@ -313,7 +313,7 @@ export function NodesMarketplaceBrowser() {
                   )}
                   <a
                     href={`/dashboard/nodes-marketplace?node=${node.id}`}
-                    className="flex items-center justify-center rounded-lg border border-zinc-800 p-1.5 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300 transition-colors"
+                    className="flex items-center justify-center rounded-lg border border-border p-1.5 text-muted-foreground hover:border-border hover:text-foreground transition-colors"
                   >
                     <ArrowUpRight className="h-3.5 w-3.5" />
                   </a>

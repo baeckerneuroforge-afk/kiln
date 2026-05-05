@@ -91,10 +91,10 @@ export function VoiceSettingsPanel() {
           <Mic className="h-5 w-5 text-orange-400" />
         </div>
         <div>
-          <h3 className="text-base font-semibold text-zinc-100">
+          <h3 className="text-base font-semibold text-foreground">
             Spracheingabe & Audio
           </h3>
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-muted-foreground">
             Steuere KILN per Stimme
           </p>
         </div>
@@ -110,11 +110,11 @@ export function VoiceSettingsPanel() {
       )}
 
       {/* Voice Input */}
-      <div className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+      <div className="space-y-4 rounded-xl border border-border bg-card/50 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Mic className="h-4 w-4 text-zinc-400" />
-            <span className="text-sm font-medium text-zinc-200">
+            <Mic className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-foreground">
               Spracheingabe aktiviert
             </span>
           </div>
@@ -122,7 +122,7 @@ export function VoiceSettingsPanel() {
             onClick={() => updateSetting("enabled", !settings.enabled)}
             className={cn(
               "relative h-5 w-9 rounded-full transition-colors",
-              settings.enabled ? "bg-orange-500" : "bg-zinc-700"
+              settings.enabled ? "bg-orange-500" : "bg-muted"
             )}
           >
             <div
@@ -135,14 +135,14 @@ export function VoiceSettingsPanel() {
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-sm text-zinc-400">
+          <span className="text-sm text-muted-foreground">
             Automatisch senden nach Erkennung
           </span>
           <button
             onClick={() => updateSetting("autoSend", !settings.autoSend)}
             className={cn(
               "relative h-5 w-9 rounded-full transition-colors",
-              settings.autoSend ? "bg-orange-500" : "bg-zinc-700"
+              settings.autoSend ? "bg-orange-500" : "bg-muted"
             )}
           >
             <div
@@ -155,11 +155,11 @@ export function VoiceSettingsPanel() {
         </div>
 
         <div>
-          <label className="text-sm text-zinc-400">Sprache</label>
+          <label className="text-sm text-muted-foreground">Sprache</label>
           <select
             value={settings.language}
             onChange={(e) => updateSetting("language", e.target.value)}
-            className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:border-orange-500/50 focus:outline-none"
+            className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground focus:border-orange-500/50 focus:outline-none"
           >
             <option value="de-DE">Deutsch</option>
             <option value="en-US">English (US)</option>
@@ -171,11 +171,11 @@ export function VoiceSettingsPanel() {
       </div>
 
       {/* TTS */}
-      <div className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+      <div className="space-y-4 rounded-xl border border-border bg-card/50 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Volume2 className="h-4 w-4 text-zinc-400" />
-            <span className="text-sm font-medium text-zinc-200">
+            <Volume2 className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-foreground">
               Antworten vorlesen
             </span>
           </div>
@@ -183,7 +183,7 @@ export function VoiceSettingsPanel() {
             onClick={() => updateSetting("ttsEnabled", !settings.ttsEnabled)}
             className={cn(
               "relative h-5 w-9 rounded-full transition-colors",
-              settings.ttsEnabled ? "bg-orange-500" : "bg-zinc-700"
+              settings.ttsEnabled ? "bg-orange-500" : "bg-muted"
             )}
           >
             <div
@@ -199,8 +199,8 @@ export function VoiceSettingsPanel() {
           <>
             <div>
               <div className="flex items-center justify-between">
-                <label className="text-sm text-zinc-400">Geschwindigkeit</label>
-                <span className="text-xs text-zinc-500">{settings.ttsRate}x</span>
+                <label className="text-sm text-muted-foreground">Geschwindigkeit</label>
+                <span className="text-xs text-muted-foreground">{settings.ttsRate}x</span>
               </div>
               <input
                 type="range"
@@ -217,8 +217,8 @@ export function VoiceSettingsPanel() {
 
             <div>
               <div className="flex items-center justify-between">
-                <label className="text-sm text-zinc-400">Tonhöhe</label>
-                <span className="text-xs text-zinc-500">{settings.ttsPitch}x</span>
+                <label className="text-sm text-muted-foreground">Tonhöhe</label>
+                <span className="text-xs text-muted-foreground">{settings.ttsPitch}x</span>
               </div>
               <input
                 type="range"
@@ -237,10 +237,10 @@ export function VoiceSettingsPanel() {
               onClick={testTTS}
               disabled={testPlaying}
               className={cn(
-                "flex items-center gap-2 rounded-lg border border-zinc-700 px-3 py-2 text-sm transition-colors",
+                "flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm transition-colors",
                 testPlaying
                   ? "border-orange-500/30 bg-orange-500/10 text-orange-400"
-                  : "text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+                  : "text-muted-foreground hover:border-foreground/20 hover:text-foreground"
               )}
             >
               <Settings2 className="h-3.5 w-3.5" />

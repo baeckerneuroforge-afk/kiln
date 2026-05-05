@@ -52,13 +52,13 @@ export function ResellerSetup({ onComplete }: Props) {
               className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-colors ${
                 i <= step
                   ? "bg-orange-500 text-white"
-                  : "bg-zinc-800 text-zinc-600"
+                  : "bg-muted text-muted-foreground"
               }`}
             >
               {i < step ? <Check className="h-4 w-4" /> : i + 1}
             </div>
             {i < STEPS.length - 1 && (
-              <div className={`h-0.5 w-8 ${i < step ? "bg-orange-500" : "bg-zinc-800"}`} />
+              <div className={`h-0.5 w-8 ${i < step ? "bg-orange-500" : "bg-muted"}`} />
             )}
           </div>
         ))}
@@ -68,27 +68,27 @@ export function ResellerSetup({ onComplete }: Props) {
       {step === 0 && (
         <div className="space-y-6">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-100">Starte als AI-Reseller</h2>
-            <p className="mt-1 text-sm text-zinc-500">
+            <h2 className="text-lg font-semibold text-foreground">Starte als AI-Reseller</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
               Verkaufe AI Agent-Services an deine Kunden. Du setzt den Preis, KILN nimmt nur 20% Platform Fee.
             </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+            <div className="rounded-xl border border-border bg-card/50 p-4">
               <DollarSign className="mb-2 h-5 w-5 text-green-400" />
-              <h4 className="text-sm font-medium text-zinc-100">Du setzt den Preis</h4>
-              <p className="mt-1 text-xs text-zinc-500">z.B. €200/Monat pro Client</p>
+              <h4 className="text-sm font-medium text-foreground">Du setzt den Preis</h4>
+              <p className="mt-1 text-xs text-muted-foreground">z.B. €200/Monat pro Client</p>
             </div>
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+            <div className="rounded-xl border border-border bg-card/50 p-4">
               <Zap className="mb-2 h-5 w-5 text-orange-400" />
-              <h4 className="text-sm font-medium text-zinc-100">Automatische Abrechnung</h4>
-              <p className="mt-1 text-xs text-zinc-500">Stripe handelt alles</p>
+              <h4 className="text-sm font-medium text-foreground">Automatische Abrechnung</h4>
+              <p className="mt-1 text-xs text-muted-foreground">Stripe handelt alles</p>
             </div>
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+            <div className="rounded-xl border border-border bg-card/50 p-4">
               <Shield className="mb-2 h-5 w-5 text-blue-400" />
-              <h4 className="text-sm font-medium text-zinc-100">80% für dich</h4>
-              <p className="mt-1 text-xs text-zinc-500">KILN behält nur 20% Fee</p>
+              <h4 className="text-sm font-medium text-foreground">80% für dich</h4>
+              <p className="mt-1 text-xs text-muted-foreground">KILN behält nur 20% Fee</p>
             </div>
           </div>
 
@@ -109,8 +109,8 @@ export function ResellerSetup({ onComplete }: Props) {
 
       {step === 1 && connectUrl && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-zinc-100">Stripe verbinden</h2>
-          <p className="text-sm text-zinc-500">
+          <h2 className="text-lg font-semibold text-foreground">Stripe verbinden</h2>
+          <p className="text-sm text-muted-foreground">
             Klicke unten, um dein Bankkonto bei Stripe einzurichten. Nach der Einrichtung wirst du hierher zurückgeleitet.
           </p>
           <a
@@ -125,7 +125,7 @@ export function ResellerSetup({ onComplete }: Props) {
           <Button
             variant="outline"
             onClick={() => setStep(2)}
-            className="ml-3 border-zinc-700 text-xs"
+            className="ml-3 border-border text-xs"
           >
             Ich habe Stripe verbunden <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
           </Button>
@@ -134,23 +134,23 @@ export function ResellerSetup({ onComplete }: Props) {
 
       {step === 2 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-zinc-100">Standard-Preis festlegen</h2>
-          <p className="text-sm text-zinc-500">
+          <h2 className="text-lg font-semibold text-foreground">Standard-Preis festlegen</h2>
+          <p className="text-sm text-muted-foreground">
             Dieser Preis wird als Vorschlag beim Erstellen neuer Client-Subscriptions verwendet.
           </p>
           <div>
-            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
               Monatlicher Preis (€)
             </label>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-zinc-500">€</span>
+              <span className="text-sm text-muted-foreground">€</span>
               <input
                 type="number"
                 value={Math.round(parseInt(defaultPrice) / 100)}
                 onChange={(e) => setDefaultPrice(String(parseInt(e.target.value || "0") * 100))}
-                className="w-32 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-orange-500/60"
+                className="w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-orange-500/60"
               />
-              <span className="text-xs text-zinc-600">/ Monat pro Client</span>
+              <span className="text-xs text-muted-foreground">/ Monat pro Client</span>
             </div>
           </div>
           <Button
@@ -167,8 +167,8 @@ export function ResellerSetup({ onComplete }: Props) {
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-green-500/10">
             <Check className="h-8 w-8 text-green-400" />
           </div>
-          <h2 className="text-lg font-semibold text-zinc-100">Du bist bereit!</h2>
-          <p className="text-sm text-zinc-500">
+          <h2 className="text-lg font-semibold text-foreground">Du bist bereit!</h2>
+          <p className="text-sm text-muted-foreground">
             Erstelle jetzt ein Client-Portal und füge Billing hinzu.
           </p>
           <Button

@@ -79,17 +79,17 @@ export function ResellerDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (!dashboard) {
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
-        <CreditCard className="mx-auto mb-3 h-8 w-8 text-zinc-600" />
-        <h3 className="text-sm font-semibold text-zinc-100">Kein Reseller-Account</h3>
-        <p className="mt-1 text-xs text-zinc-500">Richte zuerst Stripe Connect ein.</p>
+      <div className="rounded-xl border border-border bg-card/50 p-8 text-center">
+        <CreditCard className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+        <h3 className="text-sm font-semibold text-foreground">Kein Reseller-Account</h3>
+        <p className="mt-1 text-xs text-muted-foreground">Richte zuerst Stripe Connect ein.</p>
       </div>
     );
   }
@@ -126,29 +126,29 @@ export function ResellerDashboard() {
 
       {/* Client Table */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-zinc-100">Kunden-Subscriptions</h3>
+        <h3 className="mb-3 text-sm font-semibold text-foreground">Kunden-Subscriptions</h3>
         {dashboard.clients.length === 0 ? (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 text-center">
-            <p className="text-xs text-zinc-500">Noch keine Kunden mit Subscription.</p>
+          <div className="rounded-xl border border-border bg-card/50 p-6 text-center">
+            <p className="text-xs text-muted-foreground">Noch keine Kunden mit Subscription.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-zinc-800">
-                  <th className="pb-2 text-left text-[11px] font-medium uppercase tracking-wide text-zinc-500">Kunde</th>
-                  <th className="pb-2 text-left text-[11px] font-medium uppercase tracking-wide text-zinc-500">Preis</th>
-                  <th className="pb-2 text-left text-[11px] font-medium uppercase tracking-wide text-zinc-500">Status</th>
-                  <th className="pb-2 text-left text-[11px] font-medium uppercase tracking-wide text-zinc-500">Nächste Zahlung</th>
-                  <th className="pb-2 text-right text-[11px] font-medium uppercase tracking-wide text-zinc-500">Aktionen</th>
+                <tr className="border-b border-border">
+                  <th className="pb-2 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Kunde</th>
+                  <th className="pb-2 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Preis</th>
+                  <th className="pb-2 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Status</th>
+                  <th className="pb-2 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Nächste Zahlung</th>
+                  <th className="pb-2 text-right text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Aktionen</th>
                 </tr>
               </thead>
               <tbody>
                 {dashboard.clients.map((client) => (
-                  <tr key={client.id} className="border-b border-zinc-800/50">
+                  <tr key={client.id} className="border-b border-border/50">
                     <td className="py-2.5">
-                      <span className="text-sm text-zinc-200">{client.clientName}</span>
-                      <p className="text-[10px] text-zinc-600">{client.portalName}</p>
+                      <span className="text-sm text-foreground">{client.clientName}</span>
+                      <p className="text-[10px] text-muted-foreground">{client.portalName}</p>
                     </td>
                     <td className="py-2.5">
                       {editingId === client.id ? (
@@ -157,7 +157,7 @@ export function ResellerDashboard() {
                             type="number"
                             value={newPrice}
                             onChange={(e) => setNewPrice(e.target.value)}
-                            className="w-20 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-100 outline-none"
+                            className="w-20 rounded border border-border bg-background px-2 py-1 text-xs text-foreground outline-none"
                             placeholder="€"
                           />
                           <button
@@ -168,7 +168,7 @@ export function ResellerDashboard() {
                           </button>
                         </div>
                       ) : (
-                        <span className="text-sm text-zinc-300">{formatEur(client.monthlyPrice)}/mo</span>
+                        <span className="text-sm text-foreground">{formatEur(client.monthlyPrice)}/mo</span>
                       )}
                     </td>
                     <td className="py-2.5">
@@ -184,7 +184,7 @@ export function ResellerDashboard() {
                         {client.status}
                       </span>
                     </td>
-                    <td className="py-2.5 text-xs text-zinc-500">
+                    <td className="py-2.5 text-xs text-muted-foreground">
                       {new Date(client.currentPeriodEnd).toLocaleDateString("de-DE")}
                     </td>
                     <td className="py-2.5 text-right">
@@ -194,7 +194,7 @@ export function ResellerDashboard() {
                             setEditingId(client.id);
                             setNewPrice(String(Math.round(client.monthlyPrice / 100)));
                           }}
-                          className="flex h-6 w-6 items-center justify-center rounded text-zinc-600 hover:bg-zinc-800 hover:text-zinc-300"
+                          className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
                           title="Preis ändern"
                         >
                           <Edit2 className="h-3 w-3" />
@@ -202,7 +202,7 @@ export function ResellerDashboard() {
                         {client.status !== "canceled" && (
                           <button
                             onClick={() => cancelClient(client.id)}
-                            className="flex h-6 w-6 items-center justify-center rounded text-zinc-600 hover:bg-red-500/10 hover:text-red-400"
+                            className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-red-500/10 hover:text-red-400"
                             title="Kündigen"
                           >
                             <Trash2 className="h-3 w-3" />
@@ -233,10 +233,10 @@ function StatCard({
   color: string;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+    <div className="rounded-xl border border-border bg-card/50 p-4">
       <div className="mb-2 flex items-center gap-2">
         <span style={{ color }}>{icon}</span>
-        <span className="text-[11px] text-zinc-500">{label}</span>
+        <span className="text-[11px] text-muted-foreground">{label}</span>
       </div>
       <p className="text-xl font-bold" style={{ color }}>
         {value}

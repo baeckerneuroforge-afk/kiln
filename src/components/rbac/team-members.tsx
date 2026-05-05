@@ -37,7 +37,7 @@ const ROLE_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ c
   OWNER: { label: "Owner", icon: Crown, color: "text-kiln-orange" },
   ADMIN: { label: "Admin", icon: Shield, color: "text-kiln-blue" },
   BUILDER: { label: "Builder", icon: Wrench, color: "text-kiln-green" },
-  VIEWER: { label: "Viewer", icon: Eye, color: "text-stone-400" },
+  VIEWER: { label: "Viewer", icon: Eye, color: "text-muted-foreground" },
   APPROVER: { label: "Approver", icon: UserCheck, color: "text-purple-400" },
 };
 
@@ -107,7 +107,7 @@ export function TeamMembersManager() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-stone-500" />
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -121,8 +121,8 @@ export function TeamMembersManager() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Users className="w-5 h-5 text-kiln-orange" />
-          <h2 className="text-lg font-serif text-white">Team-Mitglieder</h2>
-          <span className="text-sm text-stone-500">{activeMembers.length} aktiv</span>
+          <h2 className="text-lg font-serif text-foreground">Team-Mitglieder</h2>
+          <span className="text-sm text-muted-foreground">{activeMembers.length} aktiv</span>
         </div>
         <Button
           onClick={() => setShowInvite(true)}
@@ -158,7 +158,7 @@ export function TeamMembersManager() {
 
       {/* Active Members */}
       <div>
-        <h3 className="text-sm font-medium text-stone-400 mb-3">Aktive Mitglieder</h3>
+        <h3 className="text-sm font-medium text-muted-foreground mb-3">Aktive Mitglieder</h3>
         <div className="space-y-2">
           {activeMembers.map((member) => {
             const config = ROLE_CONFIG[member.role] || ROLE_CONFIG.VIEWER;
@@ -166,21 +166,21 @@ export function TeamMembersManager() {
             return (
               <div
                 key={member.id}
-                className="flex items-center justify-between p-4 rounded-lg border border-stone-800 bg-stone-900/30"
+                className="flex items-center justify-between p-4 rounded-lg border border-border bg-card/30"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-stone-800 flex items-center justify-center">
-                    <span className="text-xs text-stone-400 uppercase">
+                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                    <span className="text-xs text-muted-foreground uppercase">
                       {member.email.slice(0, 2)}
                     </span>
                   </div>
                   <div>
-                    <div className="text-sm text-white">{member.email}</div>
+                    <div className="text-sm text-foreground">{member.email}</div>
                     <div className="flex items-center gap-1 mt-0.5">
                       <RoleIcon className={cn("w-3 h-3", config.color)} />
                       <span className={cn("text-xs", config.color)}>{config.label}</span>
                       {member.joinedAt && (
-                        <span className="text-xs text-stone-600 ml-2">
+                        <span className="text-xs text-muted-foreground ml-2">
                           seit {new Date(member.joinedAt).toLocaleDateString("de-DE")}
                         </span>
                       )}
@@ -193,7 +193,7 @@ export function TeamMembersManager() {
                     <select
                       value={member.role}
                       onChange={(e) => handleRoleChange(member.id, e.target.value)}
-                      className="text-xs bg-stone-800 border border-stone-700 rounded px-2 py-1 text-white focus:outline-none focus:border-kiln-orange"
+                      className="text-xs bg-muted border border-border rounded px-2 py-1 text-foreground focus:outline-none focus:border-kiln-orange"
                     >
                       {ASSIGNABLE_ROLES.map((role) => (
                         <option key={role} value={role}>
@@ -205,7 +205,7 @@ export function TeamMembersManager() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleRemove(member.id)}
-                      className="text-stone-400 hover:text-red-400"
+                      className="text-muted-foreground hover:text-red-400"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -220,27 +220,27 @@ export function TeamMembersManager() {
       {/* Pending Invites */}
       {pendingInvites.length > 0 && (
         <div>
-          <h3 className="text-sm font-medium text-stone-400 mb-3">
+          <h3 className="text-sm font-medium text-muted-foreground mb-3">
             Offene Einladungen ({pendingInvites.length})
           </h3>
           <div className="space-y-2">
             {pendingInvites.map((member) => (
               <div
                 key={member.id}
-                className="flex items-center justify-between p-4 rounded-lg border border-stone-800/50 bg-stone-900/20"
+                className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-card/20"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-stone-800/50 flex items-center justify-center">
-                    <Mail className="w-3.5 h-3.5 text-stone-500" />
+                  <div className="w-8 h-8 rounded-full bg-muted/50 flex items-center justify-center">
+                    <Mail className="w-3.5 h-3.5 text-muted-foreground" />
                   </div>
                   <div>
-                    <div className="text-sm text-stone-300">{member.email}</div>
+                    <div className="text-sm text-foreground">{member.email}</div>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <Clock className="w-3 h-3 text-stone-500" />
-                      <span className="text-xs text-stone-500">
+                      <Clock className="w-3 h-3 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">
                         Eingeladen am {new Date(member.createdAt).toLocaleDateString("de-DE")}
                       </span>
-                      <span className="text-xs text-stone-600 ml-1">
+                      <span className="text-xs text-muted-foreground ml-1">
                         als {ROLE_CONFIG[member.role]?.label || member.role}
                       </span>
                     </div>
@@ -251,7 +251,7 @@ export function TeamMembersManager() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-stone-400 hover:text-white text-xs"
+                    className="text-muted-foreground hover:text-foreground text-xs"
                     onClick={() => {
                       // TODO: Resend invite email
                     }}
@@ -263,7 +263,7 @@ export function TeamMembersManager() {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleRemove(member.id)}
-                    className="text-stone-400 hover:text-red-400"
+                    className="text-muted-foreground hover:text-red-400"
                   >
                     <X className="w-4 h-4" />
                   </Button>
@@ -322,8 +322,8 @@ function InviteForm({
   };
 
   return (
-    <div className="rounded-lg border border-kiln-orange/30 bg-stone-900/50 p-6 space-y-4">
-      <h3 className="text-lg font-serif text-white">Mitglied einladen</h3>
+    <div className="rounded-lg border border-kiln-orange/30 bg-card/50 p-6 space-y-4">
+      <h3 className="text-lg font-serif text-foreground">Mitglied einladen</h3>
 
       {error && (
         <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 p-3 rounded">
@@ -334,21 +334,21 @@ function InviteForm({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm text-stone-400 mb-1">E-Mail</label>
+          <label className="block text-sm text-muted-foreground mb-1">E-Mail</label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="mitglied@beispiel.de"
-            className="w-full px-3 py-2 rounded-md bg-stone-900 border border-stone-700 text-white placeholder:text-stone-600 focus:border-kiln-orange focus:outline-none text-sm"
+            className="w-full px-3 py-2 rounded-md bg-card border border-border text-foreground placeholder:text-muted-foreground focus:border-kiln-orange focus:outline-none text-sm"
           />
         </div>
         <div>
-          <label className="block text-sm text-stone-400 mb-1">Rolle</label>
+          <label className="block text-sm text-muted-foreground mb-1">Rolle</label>
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
-            className="w-full px-3 py-2 rounded-md bg-stone-900 border border-stone-700 text-white focus:border-kiln-orange focus:outline-none text-sm"
+            className="w-full px-3 py-2 rounded-md bg-card border border-border text-foreground focus:border-kiln-orange focus:outline-none text-sm"
           >
             {ASSIGNABLE_ROLES.map((r) => (
               <option key={r} value={r}>
@@ -368,7 +368,7 @@ function InviteForm({
           {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
           Einladen
         </Button>
-        <Button variant="ghost" onClick={onCancel} className="text-stone-400">
+        <Button variant="ghost" onClick={onCancel} className="text-muted-foreground">
           Abbrechen
         </Button>
       </div>

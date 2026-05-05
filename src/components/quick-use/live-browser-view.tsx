@@ -226,7 +226,7 @@ function ProgressDots({
                   ? "w-1.5 bg-emerald-500/70"
                   : isFinal && status === "failed" && isCompleted
                     ? "w-1.5 bg-red-400/70"
-                    : "w-1.5 bg-zinc-700",
+                    : "w-1.5 bg-muted",
               isCurrent && status === "running" && "animate-pulse",
               onDotClick && "cursor-pointer hover:opacity-80"
             )}
@@ -267,11 +267,11 @@ function StepCard({
       className={cn(
         "lbv-step-enter overflow-hidden rounded-xl border transition-all duration-200",
         isLatest && success !== false
-          ? "border-orange-500/25 bg-[#1a1410]"
+          ? "border-orange-500/25 bg-card"
           : success === false
             ? "border-red-500/20 bg-red-500/[0.03]"
-            : "border-[#2a2622] bg-[#13110f]",
-        "hover:-translate-y-px hover:border-[#3a352f]"
+            : "border-border bg-card",
+        "hover:-translate-y-px hover:border-foreground/20"
       )}
       style={{ animationDelay: `${Math.min(entry.stepIndex * 30, 150)}ms` }}
     >
@@ -305,7 +305,7 @@ function StepCard({
         <div className="min-w-0 flex-1">
           <p className={cn(
             "truncate text-xs font-medium",
-            success === false ? "text-red-300" : "text-zinc-200"
+            success === false ? "text-red-300" : "text-foreground"
           )}>
             {entry.actionDetail || entry.action}
           </p>
@@ -313,7 +313,7 @@ function StepCard({
 
         {/* Duration */}
         {entry.durationMs != null ? (
-          <span className="shrink-0 text-[10px] tabular-nums text-zinc-600">
+          <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
             {formatDuration(entry.durationMs)}
           </span>
         ) : null}
@@ -333,7 +333,7 @@ function StepCard({
         {hasExpandContent ? (
           <ChevronDown
             className={cn(
-              "h-3 w-3 shrink-0 text-zinc-600 transition-transform duration-200",
+              "h-3 w-3 shrink-0 text-muted-foreground transition-transform duration-200",
               expanded && "rotate-180"
             )}
           />
@@ -348,7 +348,7 @@ function StepCard({
         )}
       >
         <div className="overflow-hidden">
-          <div className="space-y-2 border-t border-[#1e1b18] px-3 pb-3 pt-2">
+          <div className="space-y-2 border-t border-border px-3 pb-3 pt-2">
             {/* Thinking text */}
             {thinkingForStep ? (
               <div className="flex items-start gap-2 rounded-lg bg-orange-500/[0.04] px-2.5 py-2">
@@ -361,7 +361,7 @@ function StepCard({
 
             {/* Screenshot thumbnail */}
             {screenshotForStep ? (
-              <div className="overflow-hidden rounded-lg border border-[#2a2622]">
+              <div className="overflow-hidden rounded-lg border border-border">
                 <Image
                   src={`data:image/png;base64,${screenshotForStep}`}
                   alt={`Step ${entry.stepIndex + 1} screenshot`}
@@ -498,7 +498,7 @@ export function LiveBrowserView({
         "overflow-hidden rounded-xl border shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition-shadow duration-500",
         glowClass,
         state.status === "running"
-          ? "border-[#332f2b]"
+          ? "border-border"
           : state.status === "completed"
             ? "border-emerald-500/20"
             : "border-red-500/20"
@@ -506,7 +506,7 @@ export function LiveBrowserView({
       style={{ background: "linear-gradient(180deg, #131110 0%, #0c0a09 100%)" }}
     >
       {/* ── Browser Chrome ── */}
-      <div className="flex items-center gap-2 border-b border-[#222] bg-[#191614] px-3 py-2">
+      <div className="flex items-center gap-2 border-b border-border bg-card px-3 py-2">
         {/* Traffic lights */}
         <div className="flex gap-1.5">
           <div className="h-[9px] w-[9px] rounded-full bg-[#ff5f57] shadow-[0_0_4px_rgba(255,95,87,0.25)]" />
@@ -515,9 +515,9 @@ export function LiveBrowserView({
         </div>
 
         {/* URL bar */}
-        <div className="relative flex min-w-0 flex-1 items-center gap-2 rounded-md border border-[#2a2622] bg-[#0c0a09] px-2.5 py-1 shadow-[inset_0_1px_3px_rgba(0,0,0,0.4)]">
-          <Globe2 className="h-3 w-3 shrink-0 text-zinc-600" />
-          <span className="truncate font-mono text-[11px] text-zinc-400">
+        <div className="relative flex min-w-0 flex-1 items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1 shadow-[inset_0_1px_3px_rgba(0,0,0,0.4)]">
+          <Globe2 className="h-3 w-3 shrink-0 text-muted-foreground" />
+          <span className="truncate font-mono text-[11px] text-muted-foreground">
             {state.currentUrl || "about:blank"}
           </span>
           {/* Navigation progress bar */}
@@ -539,7 +539,7 @@ export function LiveBrowserView({
           className={cn(
             "flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 transition-colors duration-300",
             state.status === "running"
-              ? "bg-zinc-800/60"
+              ? "bg-muted/60"
               : state.status === "completed"
                 ? "bg-emerald-500/10"
                 : "bg-red-500/10"
@@ -551,7 +551,7 @@ export function LiveBrowserView({
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-60" />
                 <span className="relative inline-flex h-[6px] w-[6px] rounded-full bg-red-500" />
               </span>
-              <span className="text-[10px] font-semibold tracking-wider text-zinc-300">LIVE</span>
+              <span className="text-[10px] font-semibold tracking-wider text-foreground">LIVE</span>
             </>
           ) : state.status === "completed" ? (
             <>
@@ -619,12 +619,12 @@ export function LiveBrowserView({
               ) : null}
             </button>
           ) : (
-            <div className="flex aspect-video items-center justify-center bg-[#080706]">
-              <div className="flex flex-col items-center gap-3 text-zinc-700">
+            <div className="flex aspect-video items-center justify-center bg-background">
+              <div className="flex flex-col items-center gap-3 text-muted-foreground">
                 <Monitor className="h-10 w-10" />
                 <div className="space-y-1 text-center">
-                  <div className="h-2 w-32 animate-pulse rounded-full bg-zinc-800" />
-                  <div className="h-2 w-20 animate-pulse rounded-full bg-zinc-800/60" />
+                  <div className="h-2 w-32 animate-pulse rounded-full bg-muted" />
+                  <div className="h-2 w-20 animate-pulse rounded-full bg-muted/60" />
                 </div>
               </div>
             </div>
@@ -636,7 +636,7 @@ export function LiveBrowserView({
           {/* Step number badge when viewing historical screenshot */}
           {selectedThumb ? (
             <div className="absolute right-3 top-3 rounded-md bg-black/60 px-2 py-1 backdrop-blur-sm">
-              <span className="text-[10px] font-semibold text-zinc-300">
+              <span className="text-[10px] font-semibold text-foreground">
                 Step {selectedThumb.stepIndex + 1}
               </span>
             </div>
@@ -646,7 +646,7 @@ export function LiveBrowserView({
         {/* ── Actions Sidebar ── */}
         <div
           className={cn(
-            "border-t border-[#222] transition-all duration-300 lg:w-[260px] lg:border-l lg:border-t-0",
+            "border-t border-border transition-all duration-300 lg:w-[260px] lg:border-l lg:border-t-0",
             !showSidebar && "hidden lg:block"
           )}
         >
@@ -654,21 +654,21 @@ export function LiveBrowserView({
           <button
             type="button"
             onClick={() => setShowSidebar(!showSidebar)}
-            className="flex w-full items-center justify-between border-b border-[#1e1b18] px-3 py-2"
+            className="flex w-full items-center justify-between border-b border-border px-3 py-2"
           >
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6b5f57]">
                 Actions
               </span>
               {state.actionLog.length > 0 ? (
-                <span className="rounded-full bg-zinc-800 px-1.5 py-0.5 text-[9px] tabular-nums text-zinc-500">
+                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] tabular-nums text-muted-foreground">
                   {state.actionLog.length}
                 </span>
               ) : null}
             </div>
             <ChevronDown
               className={cn(
-                "h-3 w-3 text-zinc-600 transition-transform duration-200 lg:hidden",
+                "h-3 w-3 text-muted-foreground transition-transform duration-200 lg:hidden",
                 showSidebar && "rotate-180"
               )}
             />
@@ -682,7 +682,7 @@ export function LiveBrowserView({
             )}
           >
             {state.actionLog.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 px-3 py-6 text-zinc-700">
+              <div className="flex flex-col items-center gap-2 px-3 py-6 text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span className="text-[11px]">Waiting for actions...</span>
               </div>
@@ -700,19 +700,19 @@ export function LiveBrowserView({
                       className={cn(
                         "group flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors duration-150",
                         isLast && state.status === "running"
-                          ? "bg-white/[0.02]"
-                          : "hover:bg-white/[0.02]"
+                          ? "bg-muted"
+                          : "hover:bg-muted"
                       )}
                       style={{ animation: "lbv-fade-in 0.2s ease-out both", animationDelay: `${idx * 20}ms` }}
                     >
                       <div className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-md", colors.bg, colors.text)}>
                         {meta.icon}
                       </div>
-                      <p className="min-w-0 flex-1 truncate text-[11px] text-zinc-400 group-hover:text-zinc-300">
+                      <p className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground group-hover:text-foreground">
                         {entry.actionDetail || entry.action}
                       </p>
                       {entry.durationMs != null ? (
-                        <span className="shrink-0 text-[9px] tabular-nums text-zinc-700">
+                        <span className="shrink-0 text-[9px] tabular-nums text-muted-foreground">
                           {formatDuration(entry.durationMs)}
                         </span>
                       ) : null}
@@ -734,7 +734,7 @@ export function LiveBrowserView({
 
       {/* ── Screenshot Timeline Strip ── */}
       {state.screenshotTimeline.length > 0 ? (
-        <div className="relative border-t border-[#1e1b18] bg-[#0c0a09]">
+        <div className="relative border-t border-border bg-background">
           {/* Left scroll arrow */}
           {state.screenshotTimeline.length > 6 ? (
             <>
@@ -743,14 +743,14 @@ export function LiveBrowserView({
                 onClick={() => scrollTimeline("left")}
                 className="absolute left-0 top-0 z-10 flex h-full w-8 items-center justify-center bg-gradient-to-r from-[#0c0a09] to-transparent"
               >
-                <ChevronLeft className="h-3 w-3 text-zinc-500" />
+                <ChevronLeft className="h-3 w-3 text-muted-foreground" />
               </button>
               <button
                 type="button"
                 onClick={() => scrollTimeline("right")}
                 className="absolute right-0 top-0 z-10 flex h-full w-8 items-center justify-center bg-gradient-to-l from-[#0c0a09] to-transparent"
               >
-                <ChevronRight className="h-3 w-3 text-zinc-500" />
+                <ChevronRight className="h-3 w-3 text-muted-foreground" />
               </button>
             </>
           ) : null}
@@ -775,7 +775,7 @@ export function LiveBrowserView({
                     "lbv-thumb-enter relative shrink-0 overflow-hidden rounded-md border transition-all duration-200",
                     isSelected || isCurrent
                       ? "scale-105 border-orange-500/60 shadow-[0_0_8px_rgba(249,115,22,0.15)]"
-                      : "border-[#2a2622] hover:-translate-y-0.5 hover:border-[#3a352f]"
+                      : "border-border hover:-translate-y-0.5 hover:border-foreground/20"
                   )}
                   style={{
                     scrollSnapAlign: "center",
@@ -791,7 +791,7 @@ export function LiveBrowserView({
                     className="h-[48px] w-[76px] object-cover"
                   />
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-1 py-0.5">
-                    <span className="text-[8px] font-semibold tabular-nums text-white/80">
+                    <span className="text-[8px] font-semibold tabular-nums text-foreground/80">
                       {thumb.stepIndex + 1}
                     </span>
                   </div>
@@ -804,7 +804,7 @@ export function LiveBrowserView({
 
       {/* ── Step Cards (below browser frame) ── */}
       {state.actionLog.length > 0 ? (
-        <div className="border-t border-[#1e1b18] bg-[#0e0c0a] px-3 py-3">
+        <div className="border-t border-border bg-card px-3 py-3">
           <div ref={stepsRef} className="max-h-[300px] space-y-2 overflow-y-auto lg:max-h-[220px]">
             {state.actionLog.map((entry, idx) => (
               <StepCard

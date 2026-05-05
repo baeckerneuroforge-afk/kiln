@@ -107,8 +107,8 @@ export default function ImageGalleryPage() {
               className={cn(
                 "px-3 py-1.5 text-xs font-medium transition-colors",
                 filterType === t
-                  ? "bg-white/10 text-white"
-                  : "text-muted-foreground hover:text-white"
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {t === "all" ? "All" : t === "documents" ? "Documents" : "Photos"}
@@ -125,7 +125,7 @@ export default function ImageGalleryPage() {
       ) : images.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center">
           <ImageIcon className="mb-3 h-10 w-10 text-muted-foreground/50" />
-          <p className="text-sm font-medium text-zinc-300">No images yet</p>
+          <p className="text-sm font-medium text-foreground">No images yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Images from conversations will appear here.
           </p>
@@ -137,7 +137,7 @@ export default function ImageGalleryPage() {
               <button
                 key={img.id}
                 onClick={() => setSelectedImage(img)}
-                className="group relative aspect-square overflow-hidden rounded-xl border border-border bg-card transition-all hover:border-white/20 hover:shadow-lg"
+                className="group relative aspect-square overflow-hidden rounded-xl border border-border bg-card transition-all hover:border-border hover:shadow-lg"
               >
                 {img.imageUrl && !img.imageUrl.includes("kiln-meta") ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -147,18 +147,18 @@ export default function ImageGalleryPage() {
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-full items-center justify-center bg-zinc-900">
-                    <ImageIcon className="h-8 w-8 text-zinc-700" />
+                  <div className="flex h-full items-center justify-center bg-card">
+                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
                   </div>
                 )}
 
                 {/* Overlay */}
                 <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
                   <div className="flex items-center gap-1">
-                    <Bot className="h-3 w-3 text-gray-400" />
+                    <Bot className="h-3 w-3 text-muted-foreground" />
                     <span className="text-[10px] text-white truncate">{img.agentName}</span>
                   </div>
-                  <span className="text-[10px] text-zinc-400">
+                  <span className="text-[10px] text-muted-foreground">
                     {new Date(img.createdAt).toLocaleDateString("de-DE", {
                       day: "numeric",
                       month: "short",
@@ -181,7 +181,7 @@ export default function ImageGalleryPage() {
             <button
               onClick={() => setPage(Math.max(1, page - 1))}
               disabled={page === 1}
-              className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-white disabled:opacity-30"
+              className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
             >
               Previous
             </button>
@@ -189,7 +189,7 @@ export default function ImageGalleryPage() {
             <button
               onClick={() => setPage(page + 1)}
               disabled={!hasMore}
-              className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-white disabled:opacity-30"
+              className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
             >
               Next
             </button>
@@ -244,7 +244,7 @@ export default function ImageGalleryPage() {
                 />
               ) : (
                 <div className="flex h-60 items-center justify-center">
-                  <ImageIcon className="h-12 w-12 text-zinc-700" />
+                  <ImageIcon className="h-12 w-12 text-muted-foreground" />
                 </div>
               )}
             </div>
@@ -253,7 +253,7 @@ export default function ImageGalleryPage() {
             <div className="border-t border-border p-4 space-y-3">
               <div className="flex items-center gap-4 text-sm">
                 <span className="flex items-center gap-1.5 text-muted-foreground">
-                  <Bot className="h-3.5 w-3.5 text-gray-400" />
+                  <Bot className="h-3.5 w-3.5 text-muted-foreground" />
                   {selectedImage.agentName}
                 </span>
                 <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -263,13 +263,13 @@ export default function ImageGalleryPage() {
               </div>
 
               {selectedImage.content && (
-                <p className="text-sm text-zinc-400 line-clamp-3">{selectedImage.content}</p>
+                <p className="text-sm text-muted-foreground line-clamp-3">{selectedImage.content}</p>
               )}
 
               {/* Extracted Document Data */}
               {selectedImage.extractedData && (
                 <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
-                  <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-400">
+                  <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                     <FileText className="h-3.5 w-3.5" />
                     Extracted: {selectedImage.extractedData.documentType}
                   </p>
@@ -279,7 +279,7 @@ export default function ImageGalleryPage() {
                       .map(([key, value]) => (
                         <div key={key} className="text-xs">
                           <span className="text-muted-foreground">{key}: </span>
-                          <span className="text-zinc-300">{String(value)}</span>
+                          <span className="text-foreground">{String(value)}</span>
                         </div>
                       ))}
                   </div>
@@ -288,7 +288,7 @@ export default function ImageGalleryPage() {
 
               <a
                 href={`/dashboard/conversations?id=${selectedImage.conversationId}`}
-                className="inline-flex items-center gap-1 text-xs text-gray-400 hover:underline"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline"
               >
                 View conversation →
               </a>

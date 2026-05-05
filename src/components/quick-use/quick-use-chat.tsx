@@ -260,7 +260,7 @@ function ScreenshotCard({
   const [copied, setCopied] = useState(false);
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-white/6 bg-black/20">
+    <div className="group relative overflow-hidden rounded-2xl border border-border bg-muted/60">
       <button
         type="button"
         onClick={onOpenLightbox}
@@ -302,7 +302,7 @@ function ScreenshotCard({
 
       {/* Caption */}
       <div className="px-3 py-2">
-        <p className="text-xs text-zinc-400">{name}</p>
+        <p className="text-xs text-muted-foreground">{name}</p>
       </div>
     </div>
   );
@@ -353,7 +353,7 @@ function GeneratedFileIcon({ kind }: { kind: QuickUseGeneratedFile["kind"] }) {
     case "docx":
       return <FileType2 className="h-5 w-5 text-blue-400" />;
     case "csv":
-      return <FileSpreadsheet className="h-5 w-5 text-zinc-400" />;
+      return <FileSpreadsheet className="h-5 w-5 text-muted-foreground" />;
   }
 }
 
@@ -368,8 +368,8 @@ function GeneratedFileCard({ file }: { file: QuickUseGeneratedFile }) {
         <GeneratedFileIcon kind={file.kind} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-white">{file.name}</p>
-        <p className="text-xs text-zinc-400">{file.kind.toUpperCase()} &middot; {formatFileSize(file.size)}</p>
+        <p className="truncate text-sm font-medium text-foreground">{file.name}</p>
+        <p className="text-xs text-muted-foreground">{file.kind.toUpperCase()} &middot; {formatFileSize(file.size)}</p>
       </div>
       <Download className="h-4 w-4 shrink-0 text-orange-400" />
     </a>
@@ -457,7 +457,7 @@ function OnDemandFileButton({
             ? "border-red-500/20 bg-red-500/[0.06] text-red-400"
             : done
               ? "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-400"
-              : "border-white/8 bg-white/[0.02] text-zinc-400 hover:border-white/14 hover:text-zinc-200",
+              : "border-border bg-muted text-muted-foreground hover:border-white/14 hover:text-foreground",
         )}
       >
         {loading ? (
@@ -481,12 +481,12 @@ function DataPreviewTable({ data }: { data: Record<string, unknown>[] }) {
   const previewRows = data.slice(0, 5);
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-white/6 bg-black/20">
+    <div className="overflow-x-auto rounded-lg border border-border bg-muted/60">
       <table className="w-full text-left text-[11px]">
         <thead>
-          <tr className="border-b border-white/6 bg-white/[0.03]">
+          <tr className="border-b border-border bg-muted">
             {headers.map((h) => (
-              <th key={h} className="px-3 py-1.5 font-semibold text-zinc-400 whitespace-nowrap">
+              <th key={h} className="px-3 py-1.5 font-semibold text-muted-foreground whitespace-nowrap">
                 {h}
               </th>
             ))}
@@ -494,9 +494,9 @@ function DataPreviewTable({ data }: { data: Record<string, unknown>[] }) {
         </thead>
         <tbody>
           {previewRows.map((row, i) => (
-            <tr key={i} className="border-b border-white/[0.03]">
+            <tr key={i} className="border-b border-border">
               {headers.map((h) => (
-                <td key={h} className="px-3 py-1.5 text-zinc-300 whitespace-nowrap max-w-[200px] truncate">
+                <td key={h} className="px-3 py-1.5 text-foreground whitespace-nowrap max-w-[200px] truncate">
                   {String(row[h] ?? "")}
                 </td>
               ))}
@@ -505,7 +505,7 @@ function DataPreviewTable({ data }: { data: Record<string, unknown>[] }) {
         </tbody>
       </table>
       {data.length > 5 && (
-        <p className="px-3 py-1.5 text-[10px] text-zinc-600">
+        <p className="px-3 py-1.5 text-[10px] text-muted-foreground">
           +{data.length - 5} more rows
         </p>
       )}
@@ -579,7 +579,7 @@ function FileOutputSection({
       {/* On-demand generation buttons */}
       {visibleOptions.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-600">
+          <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
             Or generate
           </p>
           <div className="flex flex-wrap gap-2">
@@ -636,10 +636,10 @@ function MessageBubble({ children, icon, className }: {
 }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/8 bg-[#201b17] text-kiln-orange">
+      <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-border bg-muted text-kiln-orange">
         {icon}
       </div>
-      <div className={cn("w-full max-w-3xl rounded-[24px] border border-[#332f2b] bg-[#1d1916]/95 p-4 text-sm text-zinc-200 shadow-[0_16px_40px_rgba(0,0,0,0.22)]", className)}>
+      <div className={cn("w-full max-w-3xl rounded-[24px] border border-border bg-card/95 p-4 text-sm text-foreground shadow-[0_16px_40px_rgba(0,0,0,0.22)]", className)}>
         {children}
       </div>
     </div>
@@ -654,7 +654,7 @@ function AgentStatusGrid({ statuses }: { statuses: AgentStatusCard[] }) {
       {statuses.map((status) => (
         <div
           key={status.id}
-          className="rounded-2xl border border-[#332f2b] bg-[#171311]/90 p-4"
+          className="rounded-2xl border border-border bg-muted/90 p-4"
         >
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
@@ -666,15 +666,15 @@ function AgentStatusGrid({ statuses }: { statuses: AgentStatusCard[] }) {
                 status.status === "completed" && "bg-emerald-500/15 text-emerald-300",
                 status.status === "running" && "bg-orange-500/15 text-orange-300",
                 status.status === "failed" && "bg-red-500/15 text-red-300",
-                status.status === "queued" && "bg-zinc-500/15 text-zinc-300"
+                status.status === "queued" && "bg-muted/15 text-foreground"
               )}
             >
               {status.status}
             </Badge>
           </div>
-          <p className="mt-2 text-sm text-zinc-100">{status.task}</p>
+          <p className="mt-2 text-sm text-foreground">{status.task}</p>
           {status.detail ? (
-            <p className="mt-2 text-xs leading-relaxed text-zinc-400">{status.detail}</p>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{status.detail}</p>
           ) : null}
           {status.model ? (
             <p className="mt-3 text-[11px] uppercase tracking-[0.18em] text-[#6f645c]">
@@ -814,7 +814,7 @@ function availabilityTone(value: string): string {
   if (lower.includes("in stock") || lower.includes("available")) return "bg-emerald-400";
   if (lower.includes("2-3") || lower.includes("3-5") || lower.includes("preorder")) return "bg-amber-400";
   if (lower.includes("out of stock") || lower.includes("unavailable")) return "bg-red-400";
-  return "bg-zinc-500";
+  return "bg-muted-foreground";
 }
 
 function markdownSections(markdown?: string): { intro: string; sections: Array<{ title: string; content: string }> } | null {
@@ -874,7 +874,7 @@ function ResultMarkdown({
   onSourceReference: (sourceId: number) => void;
 }) {
   return (
-    <div className="prose prose-invert max-w-none prose-headings:font-serif prose-headings:text-white prose-p:text-zinc-200 prose-strong:text-white prose-code:text-orange-200 prose-pre:border prose-pre:border-white/8 prose-pre:bg-black/30 prose-li:text-zinc-200">
+    <div className="prose max-w-none prose-headings:font-serif prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-code:text-orange-200 prose-pre:border prose-pre:border-border prose-pre:bg-muted/70 prose-li:text-foreground">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -904,15 +904,15 @@ function ResultMarkdown({
             );
           },
           table: ({ children }) => (
-            <div className="overflow-x-auto rounded-2xl border border-white/6">
+            <div className="overflow-x-auto rounded-2xl border border-border">
               <table className="min-w-full border-collapse text-sm">{children}</table>
             </div>
           ),
-          thead: ({ children }) => <thead className="bg-white/[0.04] text-zinc-100">{children}</thead>,
+          thead: ({ children }) => <thead className="bg-muted text-foreground">{children}</thead>,
           tbody: ({ children }) => <tbody className="divide-y divide-white/6">{children}</tbody>,
-          tr: ({ children }) => <tr className="odd:bg-white/[0.01]">{children}</tr>,
-          th: ({ children }) => <th className="border-b border-white/6 px-4 py-3 text-left font-medium [&_strong]:font-bold [&_strong]:text-white">{children}</th>,
-          td: ({ children }) => <td className="px-4 py-3 align-top text-zinc-200 [&_strong]:font-semibold [&_strong]:text-zinc-100">{children}</td>,
+          tr: ({ children }) => <tr className="odd:bg-muted">{children}</tr>,
+          th: ({ children }) => <th className="border-b border-border px-4 py-3 text-left font-medium [&_strong]:font-bold [&_strong]:text-foreground">{children}</th>,
+          td: ({ children }) => <td className="px-4 py-3 align-top text-foreground [&_strong]:font-semibold [&_strong]:text-foreground">{children}</td>,
           code: ({ className, children }) => {
             const inline = !className;
             return inline ? (
@@ -937,7 +937,7 @@ function renderCellContent(text: string): React.ReactNode {
     // Bold
     const boldMatch = part.match(/^\*\*(.+)\*\*$/);
     if (boldMatch) {
-      return <strong key={i} className="font-semibold text-zinc-100">{boldMatch[1]}</strong>;
+      return <strong key={i} className="font-semibold text-foreground">{boldMatch[1]}</strong>;
     }
     // Markdown link — show text only
     const linkMatch = part.match(/^\[([^\]]+)\]\([^)]+\)$/);
@@ -955,12 +955,12 @@ function renderCellContent(text: string): React.ReactNode {
 
 function ComparisonTable({ table }: { table: ParsedMarkdownTable }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-white/8 bg-black/20">
+    <div className="overflow-x-auto rounded-2xl border border-border bg-muted/60">
       <table className="min-w-full border-collapse text-sm">
-        <thead className="bg-white/[0.05]">
+        <thead className="bg-muted">
           <tr>
             {table.headers.map((header) => (
-              <th key={header} className="border-b border-white/8 px-4 py-3 text-left font-medium text-zinc-100">
+              <th key={header} className="border-b border-border px-4 py-3 text-left font-medium text-foreground">
                 {renderCellContent(header)}
               </th>
             ))}
@@ -970,8 +970,8 @@ function ComparisonTable({ table }: { table: ParsedMarkdownTable }) {
           {table.rows.map((row) => {
             const winners = winnerIndexes(row.label, row.cells);
             return (
-              <tr key={row.label} className="border-b border-white/6 last:border-b-0">
-                <td className="px-4 py-3 font-medium text-zinc-100">{renderCellContent(row.label)}</td>
+              <tr key={row.label} className="border-b border-border last:border-b-0">
+                <td className="px-4 py-3 font-medium text-foreground">{renderCellContent(row.label)}</td>
                 {row.cells.map((cell, index) => {
                   const isWinner = winners.includes(index);
                   const rowLower = row.label.toLowerCase();
@@ -979,7 +979,7 @@ function ComparisonTable({ table }: { table: ParsedMarkdownTable }) {
                     <td
                       key={`${row.label}-${index}`}
                       className={cn(
-                        "px-4 py-3 text-zinc-200",
+                        "px-4 py-3 text-foreground",
                         isWinner && "bg-orange-500/10 text-white"
                       )}
                     >
@@ -987,7 +987,7 @@ function ComparisonTable({ table }: { table: ParsedMarkdownTable }) {
                         {/availability|delivery/.test(rowLower) ? (
                           <span className={cn("h-2.5 w-2.5 rounded-full", availabilityTone(cell))} />
                         ) : null}
-                        <span className={cn(/price|cost/.test(rowLower) && "font-semibold text-white")}>
+                        <span className={cn(/price|cost/.test(rowLower) && "font-semibold text-foreground")}>
                           {renderCellContent(cell)}
                         </span>
                         {isWinner ? <Sparkles className="h-3.5 w-3.5 text-orange-300" /> : null}
@@ -1046,17 +1046,17 @@ function PriceCards({
       ) : null}
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {cards.map((card, index) => (
-          <div key={card.vendor} className="rounded-2xl border border-white/8 bg-black/20 p-4">
+          <div key={card.vendor} className="rounded-2xl border border-border bg-muted/60 p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-medium text-white">{card.vendor}</p>
+                <p className="text-sm font-medium text-foreground">{card.vendor}</p>
                 <p className="mt-2 text-2xl font-semibold text-orange-200">{card.price}</p>
               </div>
               {index === 0 ? (
                 <Badge className="bg-emerald-500/15 text-emerald-300">Best Deal</Badge>
               ) : null}
             </div>
-            <div className="mt-4 space-y-2 text-sm text-zinc-300">
+            <div className="mt-4 space-y-2 text-sm text-foreground">
               {card.availability ? <p>Availability: {card.availability}</p> : null}
               {card.shipping ? <p>Shipping: {card.shipping}</p> : null}
               {card.rating ? <p>Rating: {card.rating}</p> : null}
@@ -1097,7 +1097,7 @@ function StructuredReport({
     <div className="space-y-4">
       {parsed.intro ? (
         <div className="rounded-2xl border border-orange-500/15 bg-orange-500/8 p-4">
-          <p className="text-base leading-7 text-zinc-100">{parsed.intro}</p>
+          <p className="text-base leading-7 text-foreground">{parsed.intro}</p>
         </div>
       ) : null}
       <div className="space-y-3">
@@ -1105,12 +1105,12 @@ function StructuredReport({
           <details
             key={section.title}
             open={index === 0}
-            className="rounded-2xl border border-white/8 bg-black/20 p-4"
+            className="rounded-2xl border border-border bg-muted/60 p-4"
           >
-            <summary className="cursor-pointer list-none text-base font-semibold text-white">
+            <summary className="cursor-pointer list-none text-base font-semibold text-foreground">
               {section.title}
             </summary>
-            <div className="mt-4 text-sm text-zinc-200">
+            <div className="mt-4 text-sm text-foreground">
               <ResultMarkdown markdown={section.content} sourceIds={sourceIds} onSourceReference={onSourceReference} />
             </div>
           </details>
@@ -1134,14 +1134,14 @@ function SourceSection({
   if (sources.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-white/6 bg-black/15 p-4">
+    <div className="rounded-2xl border border-border bg-black/15 p-4">
       <button
         type="button"
         onClick={onToggle}
         className="flex w-full items-center justify-between gap-3 text-left"
       >
         <div className="flex items-center gap-2">
-          {open ? <ChevronDown className="h-4 w-4 text-zinc-400" /> : <ChevronRight className="h-4 w-4 text-zinc-400" />}
+          {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
             Sources ({sources.length})
           </p>
@@ -1159,7 +1159,7 @@ function SourceSection({
                 target="_blank"
                 rel="noopener noreferrer"
                 className={cn(
-                  "block rounded-xl border border-white/6 bg-white/[0.02] p-3 transition-colors hover:border-white/10 hover:bg-white/[0.04]",
+                  "block rounded-xl border border-border bg-muted p-3 transition-colors hover:border-border hover:bg-muted",
                   highlightedSourceId === sourceId && "border-orange-500/40 bg-orange-500/10"
                 )}
               >
@@ -1171,15 +1171,15 @@ function SourceSection({
                       style={{ backgroundImage: `url("${sourceFavicon(source.url)}")` }}
                     />
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-zinc-100">
+                      <p className="truncate text-sm font-medium text-foreground">
                         [{sourceId}] {source.title || source.url}
                       </p>
                       <p className="truncate text-xs text-orange-300">{source.domain || source.url}</p>
                     </div>
                   </div>
-                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 </div>
-                {source.snippet ? <p className="mt-2 text-xs leading-relaxed text-zinc-400">{source.snippet}</p> : null}
+                {source.snippet ? <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{source.snippet}</p> : null}
               </a>
             );
           })}
@@ -1252,14 +1252,14 @@ function ResultCard({
             {topStats.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {topStats.map((stat) => (
-                  <div key={stat} className="rounded-2xl border border-white/8 bg-black/20 p-4">
+                  <div key={stat} className="rounded-2xl border border-border bg-muted/60 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-[#8a7a6f]">Key stat</p>
-                    <p className="mt-2 text-xl font-semibold text-white">{stat}</p>
+                    <p className="mt-2 text-xl font-semibold text-foreground">{stat}</p>
                   </div>
                 ))}
               </div>
             ) : null}
-            <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
+            <div className="rounded-2xl border border-border bg-muted/60 p-4">
               <StructuredReport
                 markdown={prepared.markdown}
                 sourceIds={sourceIds}
@@ -1274,7 +1274,7 @@ function ResultCard({
     if (prepared.resultType === "single_fact") {
       return (
         <div className="rounded-2xl border border-orange-500/15 bg-orange-500/8 p-5">
-          <p className="text-lg leading-8 text-zinc-100">{prepared.summary}</p>
+          <p className="text-lg leading-8 text-foreground">{prepared.summary}</p>
         </div>
       );
     }
@@ -1283,9 +1283,9 @@ function ResultCard({
       return (
         <div className="grid gap-3 md:grid-cols-2">
           {listItems.map((item, index) => (
-            <div key={`${item}-${index}`} className="rounded-2xl border border-white/8 bg-black/20 p-4">
+            <div key={`${item}-${index}`} className="rounded-2xl border border-border bg-muted/60 p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-[#8a7a6f]">Item {index + 1}</p>
-              <p className="mt-2 text-sm leading-7 text-zinc-200">{item}</p>
+              <p className="mt-2 text-sm leading-7 text-foreground">{item}</p>
             </div>
           ))}
         </div>
@@ -1294,7 +1294,7 @@ function ResultCard({
 
     if (prepared.markdown) {
       return (
-        <div className="rounded-2xl border border-white/6 bg-black/15 p-4 text-[15px] leading-7 text-zinc-200">
+        <div className="rounded-2xl border border-border bg-black/15 p-4 text-[15px] leading-7 text-foreground">
           <ResultMarkdown
             markdown={prepared.markdown}
             sourceIds={sourceIds}
@@ -1325,13 +1325,13 @@ function ResultCard({
           <div className="flex flex-wrap items-center gap-2">
             <Badge className="bg-orange-500/15 text-orange-300">{resultTypeLabel(prepared.resultType || "general")}</Badge>
             {modelLabel ? (
-              <Badge variant="outline" className="border-[#40372f] text-zinc-300">
+              <Badge variant="outline" className="border-border text-foreground">
                 <Sparkles className="h-3 w-3" />
                 {modelLabel}
               </Badge>
             ) : null}
             {durationLabel ? (
-              <Badge variant="outline" className="border-[#40372f] text-zinc-300">
+              <Badge variant="outline" className="border-border text-foreground">
                 <Clock3 className="h-3 w-3" />
                 {durationLabel}
               </Badge>
@@ -1339,8 +1339,8 @@ function ResultCard({
           </div>
 
           <div className="space-y-2">
-            {prepared.title ? <h3 className="text-lg font-semibold text-white">{prepared.title}</h3> : null}
-            <div className="text-sm leading-7 text-zinc-300">
+            {prepared.title ? <h3 className="text-lg font-semibold text-foreground">{prepared.title}</h3> : null}
+            <div className="text-sm leading-7 text-foreground">
               <ResultMarkdown
                 markdown={prepared.summary}
                 sourceIds={sourceIds}
@@ -1352,11 +1352,11 @@ function ResultCard({
           {renderPrimaryContent()}
 
           {prepared.data !== undefined ? (
-            <div className="rounded-2xl border border-white/6 bg-black/20 p-4">
+            <div className="rounded-2xl border border-border bg-muted/60 p-4">
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
                 Structured Data
               </p>
-              <pre className="overflow-x-auto whitespace-pre-wrap text-xs leading-6 text-zinc-300">
+              <pre className="overflow-x-auto whitespace-pre-wrap text-xs leading-6 text-foreground">
                 {stringifyData(prepared.data)}
               </pre>
             </div>
@@ -1383,10 +1383,10 @@ function ResultCard({
                       }
                     />
                   ) : (
-                    <div className="flex items-center justify-between overflow-hidden rounded-2xl border border-white/6 bg-black/20 p-4">
+                    <div className="flex items-center justify-between overflow-hidden rounded-2xl border border-border bg-muted/60 p-4">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-white">{artifact.name}</p>
-                        <p className="text-xs text-zinc-400">{artifact.mimeType || artifact.kind}</p>
+                        <p className="truncate text-sm font-medium text-foreground">{artifact.name}</p>
+                        <p className="text-xs text-muted-foreground">{artifact.mimeType || artifact.kind}</p>
                       </div>
                       {artifact.url ? (
                         <a
@@ -1414,8 +1414,8 @@ function ResultCard({
           />
 
           {prepared.followUpQuestions?.length && !followUpsDismissed ? (
-            <div className="rounded-2xl border border-white/6 bg-black/15 p-4">
-              <div className="mb-3 flex items-center gap-2 text-sm text-zinc-300">
+            <div className="rounded-2xl border border-border bg-black/15 p-4">
+              <div className="mb-3 flex items-center gap-2 text-sm text-foreground">
                 <Globe2 className="h-4 w-4 text-orange-300" />
                 Continue exploring
               </div>
@@ -1428,7 +1428,7 @@ function ResultCard({
                       setFollowUpsDismissed(true);
                       onFollowUp?.(question);
                     }}
-                    className="rounded-full border border-[#40372f] px-3 py-2 text-sm text-zinc-300 transition-colors hover:border-orange-500/40 hover:bg-orange-500/8 hover:text-white"
+                    className="rounded-full border border-border px-3 py-2 text-sm text-foreground transition-colors hover:border-orange-500/40 hover:bg-orange-500/8 hover:text-foreground"
                   >
                     {question}
                   </button>
@@ -1463,7 +1463,7 @@ function ResultCard({
               </Badge>
             ) : null}
             {credits?.creditsRemaining !== undefined ? (
-              <Badge variant="outline" className="border-[#40372f] text-zinc-300">
+              <Badge variant="outline" className="border-border text-foreground">
                 {credits.creditsRemaining} remaining
               </Badge>
             ) : null}
@@ -1496,19 +1496,19 @@ function FilePills({
               ? "border-red-500/30 bg-red-500/10 text-red-300"
               : f.uploading
                 ? "border-orange-500/30 bg-orange-500/10 text-orange-300"
-                : "border-[#3a322d] bg-[#201a17] text-zinc-300"
+                : "border-border bg-muted text-foreground"
           )}
         >
           <Paperclip className="h-3 w-3 shrink-0" />
           <span className="max-w-[140px] truncate">{f.name}</span>
-          <span className="text-zinc-500">{formatFileSize(f.size)}</span>
+          <span className="text-muted-foreground">{formatFileSize(f.size)}</span>
           {f.uploading ? (
             <Loader2 className="h-3 w-3 animate-spin" />
           ) : (
             <button
               type="button"
               onClick={() => onRemove(f.id)}
-              className="rounded-full p-0.5 text-zinc-400 transition-colors hover:text-white"
+              className="rounded-full p-0.5 text-muted-foreground transition-colors hover:text-foreground"
             >
               <X className="h-3 w-3" />
             </button>
@@ -1538,9 +1538,9 @@ function taskStatusBadge(status: string) {
     case "PAUSED":
       return <span className="h-2 w-2 rounded-full bg-amber-400" />;
     case "CANCELLED":
-      return <span className="h-2 w-2 rounded-full bg-zinc-400" />;
+      return <span className="h-2 w-2 rounded-full bg-muted-foreground" />;
     default:
-      return <span className="h-2 w-2 rounded-full bg-zinc-500" />;
+      return <span className="h-2 w-2 rounded-full bg-muted-foreground" />;
   }
 }
 
@@ -1567,13 +1567,13 @@ function TaskHistoryDropdown({
       >
         <History className="h-3.5 w-3.5" />
         History
-        <Badge className="bg-zinc-500/20 text-zinc-300">{tasks.length}</Badge>
+        <Badge className="bg-muted/20 text-foreground">{tasks.length}</Badge>
       </Button>
 
       {open ? (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-50 mt-2 w-80 max-h-96 overflow-y-auto rounded-2xl border border-[#332f2b] bg-[#171311] p-2 shadow-2xl">
+          <div className="absolute right-0 top-full z-50 mt-2 w-80 max-h-96 overflow-y-auto rounded-2xl border border-border bg-muted p-2 shadow-2xl">
             {tasks.map((task) => (
               <button
                 key={task.id}
@@ -1582,15 +1582,15 @@ function TaskHistoryDropdown({
                   setOpen(false);
                   onSelect(task.id);
                 }}
-                className="flex w-full items-start gap-3 rounded-xl p-3 text-left transition-colors hover:bg-white/[0.04]"
+                className="flex w-full items-start gap-3 rounded-xl p-3 text-left transition-colors hover:bg-muted"
               >
                 <span className="mt-0.5 text-base">{taskTypeIcon(task.type)}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     {taskStatusBadge(task.status)}
-                    <p className="truncate text-sm text-zinc-200">{task.inputPreview || "Task"}</p>
+                    <p className="truncate text-sm text-foreground">{task.inputPreview || "Task"}</p>
                   </div>
-                  <div className="mt-1 flex items-center gap-2 text-[11px] text-zinc-500">
+                  <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
                     <span>{new Date(task.createdAt).toLocaleDateString()}</span>
                     {task.creditsUsed > 0 ? <span>{task.creditsUsed} credits</span> : null}
                   </div>
@@ -1603,7 +1603,7 @@ function TaskHistoryDropdown({
                       setOpen(false);
                       onRerun(task.inputPreview);
                     }}
-                    className="shrink-0 rounded-lg border border-[#3a322d] px-2 py-1 text-[11px] text-zinc-400 transition-colors hover:border-orange-500/30 hover:text-orange-300"
+                    className="shrink-0 rounded-lg border border-border px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-orange-500/30 hover:text-orange-300"
                     title="Rerun with same input"
                   >
                     <RefreshCcw className="h-3 w-3" />
@@ -1698,7 +1698,7 @@ function TaskControlBar({
   if (feedbackMode) {
     return (
       <div className="space-y-2">
-        <div className="flex items-center gap-2 rounded-2xl border border-orange-500/20 bg-[#1a1613] p-2">
+        <div className="flex items-center gap-2 rounded-2xl border border-orange-500/20 bg-card p-2">
           <input
             ref={feedbackRef}
             type="text"
@@ -1715,7 +1715,7 @@ function TaskControlBar({
             }}
             placeholder="Tell the agent what to do differently..."
             disabled={sending}
-            className="flex-1 rounded-lg border-0 bg-transparent px-3 py-2 text-sm text-white placeholder:text-[#6f645c] focus:outline-none disabled:opacity-40"
+            className="flex-1 rounded-lg border-0 bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-40"
           />
           <button
             type="button"
@@ -1733,7 +1733,7 @@ function TaskControlBar({
           <button
             type="button"
             onClick={() => { setFeedbackMode(false); setFeedbackInput(""); }}
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:text-zinc-300"
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
@@ -1783,7 +1783,7 @@ function TaskControlBar({
         type="button"
         onClick={() => setFeedbackMode(true)}
         disabled={isPaused}
-        className="flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-[#332f2b] bg-[#1a1613] text-sm font-medium text-zinc-300 transition-colors hover:border-orange-500/20 hover:text-orange-300 disabled:opacity-40"
+        className="flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-border bg-card text-sm font-medium text-foreground transition-colors hover:border-orange-500/20 hover:text-orange-300 disabled:opacity-40"
       >
         <MessageSquare className="h-4 w-4" />
         Feedback
@@ -1809,22 +1809,22 @@ function MemoryBanner({
   const extraCount = Math.max(0, memories.length - 1);
 
   return (
-    <div className="mb-3 rounded-2xl border border-[#3a322d] bg-[#201915] p-3">
+    <div className="mb-3 rounded-2xl border border-border bg-card p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
             Related Context
           </p>
-          <p className="mt-1 text-sm leading-6 text-zinc-200">
+          <p className="mt-1 text-sm leading-6 text-foreground">
             {primary.ageLabel}: {primary.summary}
           </p>
           {primary.highlights?.length ? (
-            <p className="mt-1 text-xs text-zinc-400">
+            <p className="mt-1 text-xs text-muted-foreground">
               {primary.highlights.join(" · ")}
             </p>
           ) : null}
           {extraCount > 0 ? (
-            <p className="mt-2 text-xs text-zinc-500">
+            <p className="mt-2 text-xs text-muted-foreground">
               +{extraCount} more related task{extraCount === 1 ? "" : "s"}
             </p>
           ) : null}
@@ -1838,7 +1838,7 @@ function MemoryBanner({
               "rounded-full border px-3 py-1.5 text-xs transition-colors",
               selected
                 ? "border-orange-500/40 bg-orange-500/12 text-orange-200"
-                : "border-[#40372f] text-zinc-300 hover:border-orange-500/35 hover:text-white"
+                : "border-border text-foreground hover:border-orange-500/35 hover:text-foreground"
             )}
           >
             {selected ? "Context Pinned" : "Use This Context"}
@@ -1846,7 +1846,7 @@ function MemoryBanner({
           <button
             type="button"
             onClick={onDismiss}
-            className="rounded-full border border-[#40372f] p-1.5 text-zinc-500 transition-colors hover:text-white"
+            className="rounded-full border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground"
             aria-label="Dismiss related context"
           >
             <X className="h-3 w-3" />
@@ -2715,8 +2715,8 @@ export function QuickUseChat({
   return (
     <div
       className={cn(
-        "relative mx-auto flex min-h-[78vh] max-w-6xl overflow-hidden rounded-[30px] border bg-[#171311] shadow-[0_28px_90px_rgba(0,0,0,0.36)]",
-        isDragOver ? "border-orange-500/50" : "border-[#332f2b]"
+        "relative mx-auto flex min-h-[78vh] max-w-6xl overflow-hidden rounded-[30px] border bg-muted shadow-[0_28px_90px_rgba(0,0,0,0.36)]",
+        isDragOver ? "border-orange-500/50" : "border-border"
       )}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -2727,24 +2727,24 @@ export function QuickUseChat({
       {/* Drag overlay */}
       {isDragOver ? (
         <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-3 rounded-2xl border border-orange-500/30 bg-[#1a1613] p-8">
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-orange-500/30 bg-card p-8">
             <Paperclip className="h-8 w-8 text-orange-400" />
-            <p className="text-lg font-medium text-white">Drop files here</p>
-            <p className="text-sm text-zinc-400">PDF, DOCX, XLSX, CSV, TXT, JSON, PNG, JPG</p>
+            <p className="text-lg font-medium text-foreground">Drop files here</p>
+            <p className="text-sm text-muted-foreground">PDF, DOCX, XLSX, CSV, TXT, JSON, PNG, JPG</p>
           </div>
         </div>
       ) : null}
 
       <div className="relative flex flex-1 flex-col">
-        <div className="border-b border-[#2f2925] px-5 py-5 sm:px-6">
+        <div className="border-b border-border px-5 py-5 sm:px-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-[18px] border border-orange-500/20 bg-orange-500/10 text-orange-300">
                 <Icon className="h-5 w-5" />
               </div>
               <div>
-                <h1 className="font-serif text-2xl text-white">{title}</h1>
-                <p className="mt-1 text-sm text-zinc-400">{subtitle}</p>
+                <h1 className="font-serif text-2xl text-foreground">{title}</h1>
+                <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
               </div>
             </div>
 
@@ -2769,7 +2769,7 @@ export function QuickUseChat({
           {type === "agent-swarm" ? <AgentStatusGrid statuses={orderedAgentStatuses} /> : null}
 
           {findings.length > 0 ? (
-            <div className="mb-5 rounded-2xl border border-[#332f2b] bg-[#120f0d]/80 p-4">
+            <div className="mb-5 rounded-2xl border border-border bg-card/80 p-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8a7a6f]">
                 Progressive Findings
               </p>
@@ -2777,7 +2777,7 @@ export function QuickUseChat({
                 {findings.map((finding, index) => (
                   <div
                     key={`${finding}-${index}`}
-                    className="rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 text-sm text-zinc-300"
+                    className="rounded-xl border border-border bg-muted px-3 py-2 text-sm text-foreground"
                   >
                     {finding}
                   </div>
@@ -2821,7 +2821,7 @@ export function QuickUseChat({
               if (message.kind === "assistant") {
                 return (
                   <MessageBubble key={message.id} icon={<Sparkles className="h-4 w-4" />}>
-                    <p className="whitespace-pre-wrap leading-relaxed text-zinc-200">{message.content}</p>
+                    <p className="whitespace-pre-wrap leading-relaxed text-foreground">{message.content}</p>
                   </MessageBubble>
                 );
               }
@@ -2836,7 +2836,7 @@ export function QuickUseChat({
                     {message.suggestions?.length ? (
                       <div className="mt-3 space-y-1">
                         {message.suggestions.map((suggestion) => (
-                          <p key={suggestion} className="text-xs text-zinc-400">
+                          <p key={suggestion} className="text-xs text-muted-foreground">
                             {suggestion}
                           </p>
                         ))}
@@ -2872,8 +2872,8 @@ export function QuickUseChat({
             })}
 
             {debugLogs && Object.keys(debugLogs).length > 0 && (
-              <details className="mt-2 rounded-lg border border-stone-800 bg-stone-900/50 px-3 py-2">
-                <summary className="cursor-pointer text-xs font-mono text-stone-500 select-none">
+              <details className="mt-2 rounded-lg border border-border bg-card/50 px-3 py-2">
+                <summary className="cursor-pointer text-xs font-mono text-muted-foreground select-none">
                   Debug Log ({Object.values(debugLogs).reduce((s, l) => s + l.length, 0)} entries)
                 </summary>
                 <div className="mt-2 max-h-64 overflow-y-auto space-y-2">
@@ -2881,7 +2881,7 @@ export function QuickUseChat({
                     <div key={agentId}>
                       <div className="text-[10px] font-mono font-bold text-orange-400">{agentId}</div>
                       {lines.map((line, i) => (
-                        <div key={i} className="text-[10px] font-mono text-stone-400 leading-tight pl-2">
+                        <div key={i} className="text-[10px] font-mono text-muted-foreground leading-tight pl-2">
                           {line}
                         </div>
                       ))}
@@ -2898,7 +2898,7 @@ export function QuickUseChat({
                   className="border-orange-500/20 bg-[linear-gradient(180deg,rgba(34,20,12,0.95),rgba(27,20,16,0.94))]"
                 >
                   <div className="flex flex-wrap items-center gap-3">
-                    <p className="text-sm leading-relaxed text-zinc-100">{activeProgress}</p>
+                    <p className="text-sm leading-relaxed text-foreground">{activeProgress}</p>
                     {estimatedCredits ? (
                       <Badge className="bg-orange-500/15 text-orange-300">
                         <Coins className="h-3 w-3" />
@@ -2941,8 +2941,8 @@ export function QuickUseChat({
                   <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[22px] border border-orange-500/20 bg-orange-500/10 text-orange-300">
                     <Icon className="h-7 w-7" />
                   </div>
-                  <h2 className="font-serif text-3xl text-white">{title}</h2>
-                  <p className="mt-3 text-base leading-relaxed text-zinc-400">{subtitle}</p>
+                  <h2 className="font-serif text-3xl text-foreground">{title}</h2>
+                  <p className="mt-3 text-base leading-relaxed text-muted-foreground">{subtitle}</p>
                 </div>
               </div>
             ) : null}
@@ -2951,7 +2951,7 @@ export function QuickUseChat({
         </div>
 
         {/* Input area / Task controls */}
-        <div className="border-t border-[#2f2925] bg-[#130f0d]/95 px-4 py-4 backdrop-blur-sm sm:px-6">
+        <div className="border-t border-border bg-card/95 px-4 py-4 backdrop-blur-sm sm:px-6">
           {/* Task control bar — shown during active execution */}
           {(isStreaming || activeTaskId) ? (
             <TaskControlBar
@@ -2972,7 +2972,7 @@ export function QuickUseChat({
                         key={prompt}
                         type="button"
                         onClick={() => handleSend(prompt)}
-                        className="rounded-full border border-[#3a322d] bg-[#201a17] px-4 py-2 text-left text-sm text-zinc-300 transition-colors hover:border-orange-500/30 hover:bg-[#261d17] hover:text-white"
+                        className="rounded-full border border-border bg-muted px-4 py-2 text-left text-sm text-foreground transition-colors hover:border-orange-500/30 hover:bg-muted hover:text-foreground"
                       >
                         {prompt}
                       </button>
@@ -2981,7 +2981,7 @@ export function QuickUseChat({
                 </div>
               ) : null}
 
-              <div className="rounded-[26px] border border-[#332f2b] bg-[#1a1613] p-3 shadow-[0_-12px_35px_rgba(0,0,0,0.18)]">
+              <div className="rounded-[26px] border border-border bg-card p-3 shadow-[0_-12px_35px_rgba(0,0,0,0.18)]">
                 {showMemoryBanner ? (
                   <MemoryBanner
                     memories={memorySuggestions}
@@ -3008,7 +3008,7 @@ export function QuickUseChat({
                     }
                   }}
                   placeholder="Describe what you want done..."
-                  className="min-h-[72px] resize-none border-0 bg-transparent px-2 py-2 text-base text-white placeholder:text-[#6f645c] focus-visible:ring-0"
+                  className="min-h-[72px] resize-none border-0 bg-transparent px-2 py-2 text-base text-foreground placeholder:text-muted-foreground focus-visible:ring-0"
                 />
 
                 <div className="mt-3 flex items-center justify-between gap-3">
@@ -3018,7 +3018,7 @@ export function QuickUseChat({
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isStreaming}
-                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#3a322d] bg-[#201a17] text-zinc-400 transition-colors hover:border-orange-500/30 hover:text-orange-300 disabled:opacity-40"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-muted text-muted-foreground transition-colors hover:border-orange-500/30 hover:text-orange-300 disabled:opacity-40"
                       title="Attach files (PDF, DOCX, XLSX, CSV, TXT, JSON, PNG, JPG)"
                     >
                       <Paperclip className="h-4 w-4" />

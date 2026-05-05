@@ -235,10 +235,10 @@ export function DataConnections() {
     const typeInfo = CONNECTION_TYPES.find((t) => t.id === selectedType);
     if (!typeInfo?.available) {
       return (
-        <div className="rounded-lg border border-stone-800 bg-stone-900/50 p-6 text-center">
-          <AlertCircle className="mx-auto mb-2 size-8 text-stone-500" />
-          <p className="text-stone-400">Kommt bald</p>
-          <p className="mt-1 text-xs text-stone-500">
+        <div className="rounded-lg border border-border bg-card/50 p-6 text-center">
+          <AlertCircle className="mx-auto mb-2 size-8 text-muted-foreground" />
+          <p className="text-muted-foreground">Kommt bald</p>
+          <p className="mt-1 text-xs text-muted-foreground">
             {typeInfo?.label}-Integration wird in Kuerze verfuegbar sein.
           </p>
         </div>
@@ -249,12 +249,12 @@ export function DataConnections() {
       <div className="space-y-4">
         {/* Verbindungsname */}
         <div className="space-y-1.5">
-          <Label className="text-stone-300">Verbindungsname</Label>
+          <Label className="text-foreground">Verbindungsname</Label>
           <Input
             placeholder="z.B. Produktions-DB"
             value={formName}
             onChange={(e) => setFormName(e.target.value)}
-            className="border-stone-800 bg-stone-900/50 text-white placeholder:text-stone-600"
+            className="border-border bg-card/50 text-foreground placeholder:text-muted-foreground"
           />
         </div>
 
@@ -263,64 +263,64 @@ export function DataConnections() {
           <>
             <div className="flex items-center gap-2">
               <Switch checked={useConnectionString} onCheckedChange={setUseConnectionString} />
-              <Label className="text-xs text-stone-400">Connection String verwenden</Label>
+              <Label className="text-xs text-muted-foreground">Connection String verwenden</Label>
             </div>
             {useConnectionString ? (
               <div className="space-y-1.5">
-                <Label className="text-stone-300">Connection String</Label>
+                <Label className="text-foreground">Connection String</Label>
                 <Input
                   placeholder={`${selectedType}://user:pass@host:port/db`}
                   value={formConnectionString}
                   onChange={(e) => setFormConnectionString(e.target.value)}
-                  className="border-stone-800 bg-stone-900/50 font-mono text-sm text-white placeholder:text-stone-600"
+                  className="border-border bg-card/50 font-mono text-sm text-foreground placeholder:text-muted-foreground"
                 />
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-stone-300">Host</Label>
+                  <Label className="text-foreground">Host</Label>
                   <Input
                     placeholder="localhost"
                     value={formHost}
                     onChange={(e) => setFormHost(e.target.value)}
-                    className="border-stone-800 bg-stone-900/50 text-white placeholder:text-stone-600"
+                    className="border-border bg-card/50 text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-stone-300">Port</Label>
+                  <Label className="text-foreground">Port</Label>
                   <Input
                     placeholder={selectedType === "postgresql" ? "5432" : "3306"}
                     value={formPort}
                     onChange={(e) => setFormPort(e.target.value)}
-                    className="border-stone-800 bg-stone-900/50 text-white placeholder:text-stone-600"
+                    className="border-border bg-card/50 text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-stone-300">Datenbank</Label>
+                  <Label className="text-foreground">Datenbank</Label>
                   <Input
                     placeholder="mydb"
                     value={formDatabase}
                     onChange={(e) => setFormDatabase(e.target.value)}
-                    className="border-stone-800 bg-stone-900/50 text-white placeholder:text-stone-600"
+                    className="border-border bg-card/50 text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-stone-300">Benutzername</Label>
+                  <Label className="text-foreground">Benutzername</Label>
                   <Input
                     placeholder="user"
                     value={formUsername}
                     onChange={(e) => setFormUsername(e.target.value)}
-                    className="border-stone-800 bg-stone-900/50 text-white placeholder:text-stone-600"
+                    className="border-border bg-card/50 text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <Label className="text-stone-300">Passwort</Label>
+                  <Label className="text-foreground">Passwort</Label>
                   <Input
                     type="password"
                     placeholder="••••••••"
                     value={formPassword}
                     onChange={(e) => setFormPassword(e.target.value)}
-                    className="border-stone-800 bg-stone-900/50 text-white placeholder:text-stone-600"
+                    className="border-border bg-card/50 text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
               </div>
@@ -332,22 +332,22 @@ export function DataConnections() {
         {selectedType === "supabase" && (
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-stone-300">Projekt-URL</Label>
+              <Label className="text-foreground">Projekt-URL</Label>
               <Input
                 placeholder="https://xyz.supabase.co"
                 value={formProjectUrl}
                 onChange={(e) => setFormProjectUrl(e.target.value)}
-                className="border-stone-800 bg-stone-900/50 text-white placeholder:text-stone-600"
+                className="border-border bg-card/50 text-foreground placeholder:text-muted-foreground"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-stone-300">Service Role Key</Label>
+              <Label className="text-foreground">Service Role Key</Label>
               <Input
                 type="password"
                 placeholder="eyJ..."
                 value={formServiceKey}
                 onChange={(e) => setFormServiceKey(e.target.value)}
-                className="border-stone-800 bg-stone-900/50 text-white placeholder:text-stone-600"
+                className="border-border bg-card/50 text-foreground placeholder:text-muted-foreground"
               />
             </div>
           </div>
@@ -357,16 +357,16 @@ export function DataConnections() {
         {selectedType === "rest_api" && (
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-stone-300">Base URL</Label>
+              <Label className="text-foreground">Base URL</Label>
               <Input
                 placeholder="https://api.example.com/v1"
                 value={formBaseUrl}
                 onChange={(e) => setFormBaseUrl(e.target.value)}
-                className="border-stone-800 bg-stone-900/50 text-white placeholder:text-stone-600"
+                className="border-border bg-card/50 text-foreground placeholder:text-muted-foreground"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-stone-300">Authentifizierung</Label>
+              <Label className="text-foreground">Authentifizierung</Label>
               <div className="flex gap-2">
                 {(["none", "api_key", "bearer"] as const).map((t) => (
                   <button
@@ -376,7 +376,7 @@ export function DataConnections() {
                       "rounded-md border px-3 py-1.5 text-xs transition-colors",
                       formAuthType === t
                         ? "border-orange-500/50 bg-orange-500/10 text-orange-400"
-                        : "border-stone-800 bg-stone-900/50 text-stone-400 hover:border-stone-700"
+                        : "border-border bg-card/50 text-muted-foreground hover:border-border"
                     )}
                   >
                     {t === "none" ? "Keine" : t === "api_key" ? "API Key" : "Bearer Token"}
@@ -386,7 +386,7 @@ export function DataConnections() {
             </div>
             {formAuthType !== "none" && (
               <div className="space-y-1.5">
-                <Label className="text-stone-300">
+                <Label className="text-foreground">
                   {formAuthType === "api_key" ? "API Key" : "Bearer Token"}
                 </Label>
                 <Input
@@ -394,7 +394,7 @@ export function DataConnections() {
                   placeholder={formAuthType === "api_key" ? "sk-..." : "eyJ..."}
                   value={formAuthValue}
                   onChange={(e) => setFormAuthValue(e.target.value)}
-                  className="border-stone-800 bg-stone-900/50 text-white placeholder:text-stone-600"
+                  className="border-border bg-card/50 text-foreground placeholder:text-muted-foreground"
                 />
               </div>
             )}
@@ -405,7 +405,7 @@ export function DataConnections() {
         {selectedType !== "rest_api" && (
           <div className="flex items-center gap-2">
             <Switch checked={formReadOnly} onCheckedChange={setFormReadOnly} />
-            <Label className="text-xs text-stone-400">Nur-Lese-Zugriff (empfohlen)</Label>
+            <Label className="text-xs text-muted-foreground">Nur-Lese-Zugriff (empfohlen)</Label>
           </div>
         )}
 
@@ -437,8 +437,8 @@ export function DataConnections() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-serif text-2xl text-white">Datenverbindungen</h2>
-          <p className="mt-1 text-sm text-stone-400">
+          <h2 className="font-serif text-2xl text-foreground">Datenverbindungen</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             Verbinde externe Datenbanken und APIs mit deinen Agents und Workflows.
           </p>
         </div>
@@ -456,8 +456,8 @@ export function DataConnections() {
 
       {/* Neue Verbindung */}
       {showAdd && (
-        <div className="rounded-xl border border-stone-800 bg-stone-950 p-5 space-y-5">
-          <h3 className="text-sm font-medium text-white">Datenquelle waehlen</h3>
+        <div className="rounded-xl border border-border bg-background p-5 space-y-5">
+          <h3 className="text-sm font-medium text-foreground">Datenquelle waehlen</h3>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {CONNECTION_TYPES.map((ct) => (
               <button
@@ -470,15 +470,15 @@ export function DataConnections() {
                   "flex items-center gap-3 rounded-lg border p-3 text-left transition-all",
                   selectedType === ct.id
                     ? "border-orange-500/50 bg-orange-500/5"
-                    : "border-stone-800 bg-stone-900/30 hover:border-stone-700",
+                    : "border-border bg-card/30 hover:border-border",
                   !ct.available && "opacity-60"
                 )}
               >
                 <span className={ct.color}>{ct.icon}</span>
                 <div>
-                  <p className="text-sm font-medium text-white">{ct.label}</p>
+                  <p className="text-sm font-medium text-foreground">{ct.label}</p>
                   {!ct.available && (
-                    <p className="text-[10px] text-stone-500">Kommt bald</p>
+                    <p className="text-[10px] text-muted-foreground">Kommt bald</p>
                   )}
                 </div>
               </button>
@@ -492,13 +492,13 @@ export function DataConnections() {
       {/* Verbindungsliste */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="size-5 animate-spin text-stone-500" />
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
         </div>
       ) : connections.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-stone-800 py-12 text-center">
-          <Database className="mx-auto mb-3 size-8 text-stone-600" />
-          <p className="text-stone-400">Noch keine Verbindungen</p>
-          <p className="mt-1 text-xs text-stone-500">
+        <div className="rounded-xl border border-dashed border-border py-12 text-center">
+          <Database className="mx-auto mb-3 size-8 text-muted-foreground" />
+          <p className="text-muted-foreground">Noch keine Verbindungen</p>
+          <p className="mt-1 text-xs text-muted-foreground">
             Verbinde eine Datenbank oder API, um Daten in deinen Workflows zu nutzen.
           </p>
         </div>
@@ -507,24 +507,24 @@ export function DataConnections() {
           {connections.map((conn) => (
             <div
               key={conn.id}
-              className="rounded-xl border border-stone-800 bg-stone-950 overflow-hidden"
+              className="rounded-xl border border-border bg-background overflow-hidden"
             >
               {/* Kopfzeile */}
               <div
-                className="flex cursor-pointer items-center gap-3 p-4 hover:bg-stone-900/50 transition-colors"
+                className="flex cursor-pointer items-center gap-3 p-4 hover:bg-card/50 transition-colors"
                 onClick={() => toggleExpand(conn)}
               >
                 {expandedConnection === conn.id ? (
-                  <ChevronDown className="size-4 text-stone-500" />
+                  <ChevronDown className="size-4 text-muted-foreground" />
                 ) : (
-                  <ChevronRight className="size-4 text-stone-500" />
+                  <ChevronRight className="size-4 text-muted-foreground" />
                 )}
-                <span className={CONNECTION_TYPES.find((t) => t.id === conn.type)?.color ?? "text-stone-400"}>
+                <span className={CONNECTION_TYPES.find((t) => t.id === conn.type)?.color ?? "text-muted-foreground"}>
                   {CONNECTION_TYPES.find((t) => t.id === conn.type)?.icon ?? <Database className="size-5" />}
                 </span>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-white">{conn.name}</p>
-                  <p className="text-xs text-stone-500">
+                  <p className="text-sm font-medium text-foreground">{conn.name}</p>
+                  <p className="text-xs text-muted-foreground">
                     {conn.tablesCount} Tabellen &middot; Zuletzt genutzt: {conn.lastUsed}
                   </p>
                 </div>
@@ -556,14 +556,14 @@ export function DataConnections() {
                   {deleting === conn.id ? (
                     <Loader2 className="size-3.5 animate-spin" />
                   ) : (
-                    <Trash2 className="size-3.5 text-stone-500 hover:text-red-400" />
+                    <Trash2 className="size-3.5 text-muted-foreground hover:text-red-400" />
                   )}
                 </Button>
               </div>
 
               {/* Erweiterte Tabellen-Ansicht */}
               {expandedConnection === conn.id && (
-                <div className="border-t border-stone-800 bg-stone-900/30 p-4">
+                <div className="border-t border-border bg-card/30 p-4">
                   {conn.tables ? (
                     conn.tables.length > 0 ? (
                       <div className="space-y-2">
@@ -572,10 +572,10 @@ export function DataConnections() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-stone-500">Keine Tabellen gefunden.</p>
+                      <p className="text-xs text-muted-foreground">Keine Tabellen gefunden.</p>
                     )
                   ) : (
-                    <div className="flex items-center gap-2 text-xs text-stone-500">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Loader2 className="size-3 animate-spin" />
                       Schema wird geladen...
                     </div>
@@ -598,16 +598,16 @@ function TableRow({ table }: { table: ConnectionTable }) {
     <div>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-stone-800/50 transition-colors"
+        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted/50 transition-colors"
       >
         {expanded ? (
-          <ChevronDown className="size-3 text-stone-500" />
+          <ChevronDown className="size-3 text-muted-foreground" />
         ) : (
-          <ChevronRight className="size-3 text-stone-500" />
+          <ChevronRight className="size-3 text-muted-foreground" />
         )}
-        <Database className="size-3 text-stone-500" />
-        <span className="font-medium text-stone-300">{table.name}</span>
-        <Badge className="ml-auto border-stone-700 bg-stone-800 text-[10px] text-stone-400">
+        <Database className="size-3 text-muted-foreground" />
+        <span className="font-medium text-foreground">{table.name}</span>
+        <Badge className="ml-auto border-border bg-muted text-[10px] text-muted-foreground">
           {table.columns.length} Spalten
         </Badge>
       </button>
@@ -615,12 +615,12 @@ function TableRow({ table }: { table: ConnectionTable }) {
         <div className="ml-7 mt-1 space-y-0.5">
           {table.columns.map((col) => (
             <div key={col.name} className="flex items-center gap-2 px-2 py-0.5 text-xs">
-              <span className="text-stone-400">{col.name}</span>
-              <Badge className="border-stone-700 bg-stone-800/50 text-[9px] font-mono text-stone-500">
+              <span className="text-muted-foreground">{col.name}</span>
+              <Badge className="border-border bg-muted/50 text-[9px] font-mono text-muted-foreground">
                 {col.type}
               </Badge>
               {col.nullable && (
-                <span className="text-[9px] text-stone-600">nullable</span>
+                <span className="text-[9px] text-muted-foreground">nullable</span>
               )}
             </div>
           ))}

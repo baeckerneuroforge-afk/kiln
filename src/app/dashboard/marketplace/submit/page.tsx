@@ -48,14 +48,14 @@ const PLAN_OPTIONS = [
 ];
 
 const categoryColors: Record<string, string> = {
-  sales: "bg-white/[0.05] text-gray-400",
-  support: "bg-white/[0.05] text-gray-400",
-  research: "bg-white/[0.05] text-gray-400",
+  sales: "bg-muted text-muted-foreground",
+  support: "bg-muted text-muted-foreground",
+  research: "bg-muted text-muted-foreground",
   monitoring: "bg-yellow-500/10 text-yellow-400",
-  "e-commerce": "bg-white/[0.05] text-gray-400",
-  recruiting: "bg-white/[0.05] text-gray-400",
+  "e-commerce": "bg-muted text-muted-foreground",
+  recruiting: "bg-muted text-muted-foreground",
   marketing: "bg-cyan-500/10 text-cyan-400",
-  legal: "bg-white/[0.05] text-gray-400",
+  legal: "bg-muted text-muted-foreground",
 };
 
 export default function MarketplaceSubmitPage() {
@@ -186,10 +186,10 @@ export default function MarketplaceSubmitPage() {
   if (submitted) {
     return (
       <div className="mx-auto max-w-2xl py-20 text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-white/[0.05]">
-          <Check className="h-8 w-8 text-gray-400" />
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+          <Check className="h-8 w-8 text-muted-foreground" />
         </div>
-        <h1 className="font-serif text-2xl font-semibold text-gray-50">
+        <h1 className="font-serif text-2xl font-semibold text-foreground">
           Agent eingereicht!
         </h1>
         <p className="mt-3 text-muted-foreground">
@@ -252,8 +252,8 @@ export default function MarketplaceSubmitPage() {
 
       {/* Plan-Check Banner */}
       {!isPlanSufficient && (
-        <div className="mb-8 flex items-start gap-3 rounded-xl border border-[#332f2b] bg-kiln-orange/5 p-4">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" />
+        <div className="mb-8 flex items-start gap-3 rounded-xl border border-border bg-kiln-orange/5 p-4">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
           <div>
             <p className="font-medium text-foreground">
               Marketplace-Veröffentlichung erfordert mindestens Pro
@@ -485,7 +485,7 @@ export default function MarketplaceSubmitPage() {
                     type="button"
                     onClick={addScreenshot}
                     disabled={!isPlanSufficient}
-                    className="flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-[#3d3935] hover:text-foreground disabled:opacity-50"
+                    className="flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground disabled:opacity-50"
                   >
                     <Plus className="h-4 w-4" />
                     Screenshot hinzufügen
@@ -519,7 +519,7 @@ export default function MarketplaceSubmitPage() {
             {/* Submit section */}
             <div className="space-y-4">
               <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-4">
-                <Info className="mt-0.5 h-5 w-5 shrink-0 text-gray-400" />
+                <Info className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
                   Nach dem Einreichen wird dein Agent geprüft. Bei
                   Veröffentlichung erhältst du{" "}
@@ -619,7 +619,7 @@ export default function MarketplaceSubmitPage() {
                     <span
                       className={cn(
                         "text-sm font-semibold",
-                        price > 0 ? "text-foreground" : "text-gray-400"
+                        price > 0 ? "text-foreground" : "text-muted-foreground"
                       )}
                     >
                       {price > 0 ? `€${price}` : "Kostenlos"}
@@ -648,7 +648,7 @@ export default function MarketplaceSubmitPage() {
                   {/* Min Plan Badge */}
                   {minPlan !== "free" && (
                     <div className="mt-3">
-                      <span className="rounded-md bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium text-gray-400">
+                      <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                         Ab {PLAN_OPTIONS.find((p) => p.value === minPlan)?.label}
                       </span>
                     </div>

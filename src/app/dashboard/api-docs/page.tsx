@@ -11,7 +11,7 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
   const [copied, setCopied] = useState(false);
 
   return (
-    <div className="relative rounded-lg border border-border bg-[#1e1d1b]">
+    <div className="relative rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-4 py-2">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           {lang}
@@ -26,7 +26,7 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
             setTimeout(() => setCopied(false), 2000);
           }}
         >
-          {copied ? <Check className="h-3 w-3 text-gray-400" /> : <Copy className="h-3 w-3" />}
+          {copied ? <Check className="h-3 w-3 text-muted-foreground" /> : <Copy className="h-3 w-3" />}
         </Button>
       </div>
       <pre className="overflow-x-auto p-4 font-mono text-xs text-foreground leading-relaxed">
@@ -142,7 +142,7 @@ export default function ApiDocsPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <div className="mb-8">
-        <h1 className="font-serif text-2xl font-semibold text-gray-50">API Documentation</h1>
+        <h1 className="font-serif text-2xl font-semibold text-foreground">API Documentation</h1>
         <p className="mt-2 text-muted-foreground">
           Integrate KILN agents into your applications with our REST API.
         </p>
@@ -151,21 +151,21 @@ export default function ApiDocsPage() {
       {/* Quick Start */}
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-border bg-card p-5">
-          <Key className="mb-3 h-5 w-5 text-gray-400" />
+          <Key className="mb-3 h-5 w-5 text-muted-foreground" />
           <h3 className="text-sm font-semibold text-foreground">1. Get an API Key</h3>
           <p className="mt-1 text-xs text-muted-foreground">
             Generate a key in Settings. Agency plan required.
           </p>
         </div>
         <div className="rounded-xl border border-border bg-card p-5">
-          <Terminal className="mb-3 h-5 w-5 text-gray-400" />
+          <Terminal className="mb-3 h-5 w-5 text-muted-foreground" />
           <h3 className="text-sm font-semibold text-foreground">2. Make Requests</h3>
           <p className="mt-1 text-xs text-muted-foreground">
             Send messages to your agents via REST API.
           </p>
         </div>
         <div className="rounded-xl border border-border bg-card p-5">
-          <Zap className="mb-3 h-5 w-5 text-gray-400" />
+          <Zap className="mb-3 h-5 w-5 text-muted-foreground" />
           <h3 className="text-sm font-semibold text-foreground">3. Build Integrations</h3>
           <p className="mt-1 text-xs text-muted-foreground">
             Connect to Slack, WhatsApp, custom apps, and more.
@@ -176,7 +176,7 @@ export default function ApiDocsPage() {
       {/* Authentication */}
       <div className="mb-8 rounded-xl border border-border bg-card p-6">
         <div className="flex items-center gap-3 mb-4">
-          <Shield className="h-5 w-5 text-gray-400" />
+          <Shield className="h-5 w-5 text-muted-foreground" />
           <h2 className="text-lg font-semibold text-foreground">Authentication</h2>
         </div>
         <p className="text-sm text-muted-foreground mb-3">
@@ -221,8 +221,8 @@ export default function ApiDocsPage() {
               <span className={cn(
                 "rounded px-2 py-1 text-xs font-bold",
                 ep.method === "GET"
-                  ? "bg-white/[0.05] text-gray-400"
-                  : "bg-white/[0.05] text-gray-400"
+                  ? "bg-muted text-muted-foreground"
+                  : "bg-muted text-muted-foreground"
               )}>
                 {ep.method}
               </span>
@@ -267,13 +267,13 @@ export default function ApiDocsPage() {
             </thead>
             <tbody className="text-foreground">
               <tr className="border-b border-border/50">
-                <td className="py-2 pr-4 font-mono text-xs text-gray-400">message</td>
+                <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">message</td>
                 <td className="py-2 pr-4">string</td>
                 <td className="py-2 pr-4">Yes</td>
                 <td className="py-2 text-muted-foreground">The user&apos;s message</td>
               </tr>
               <tr>
-                <td className="py-2 pr-4 font-mono text-xs text-gray-400">sessionId</td>
+                <td className="py-2 pr-4 font-mono text-xs text-muted-foreground">sessionId</td>
                 <td className="py-2 pr-4">string</td>
                 <td className="py-2 pr-4">No</td>
                 <td className="py-2 text-muted-foreground">Unique session ID for conversation continuity. Auto-generated if omitted.</td>

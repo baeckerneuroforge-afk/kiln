@@ -93,7 +93,7 @@ export function WebhookV2Manager() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-stone-500" />
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -104,8 +104,8 @@ export function WebhookV2Manager() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Webhook className="w-5 h-5 text-kiln-orange" />
-          <h2 className="text-lg font-serif text-white">Webhooks</h2>
-          <span className="text-sm text-stone-500">{webhooks.length} konfiguriert</span>
+          <h2 className="text-lg font-serif text-foreground">Webhooks</h2>
+          <span className="text-sm text-muted-foreground">{webhooks.length} konfiguriert</span>
         </div>
         <Button
           onClick={() => setShowCreateForm(true)}
@@ -130,7 +130,7 @@ export function WebhookV2Manager() {
 
       {/* Webhook List */}
       {webhooks.length === 0 && !showCreateForm && (
-        <div className="text-center py-12 text-stone-500">
+        <div className="text-center py-12 text-muted-foreground">
           <Webhook className="w-10 h-10 mx-auto mb-3 opacity-30" />
           <p>Keine Webhooks konfiguriert.</p>
           <p className="text-sm mt-1">Erstelle einen Webhook um Events zu empfangen.</p>
@@ -142,8 +142,8 @@ export function WebhookV2Manager() {
           <div
             key={webhook.id}
             className={cn(
-              "rounded-lg border bg-stone-900/30 overflow-hidden transition-colors",
-              !webhook.active ? "border-red-900/50 opacity-60" : "border-stone-800"
+              "rounded-lg border bg-card/30 overflow-hidden transition-colors",
+              !webhook.active ? "border-red-900/50 opacity-60" : "border-border"
             )}
           >
             {/* Webhook Row */}
@@ -157,15 +157,15 @@ export function WebhookV2Manager() {
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <Globe className="w-3.5 h-3.5 text-stone-500 flex-shrink-0" />
-                    <span className="text-sm text-white font-mono truncate">{webhook.url}</span>
+                    <Globe className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                    <span className="text-sm text-foreground font-mono truncate">{webhook.url}</span>
                   </div>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-stone-500">
+                    <span className="text-xs text-muted-foreground">
                       {(webhook.events || []).length} Events
                     </span>
-                    <span className="text-xs text-stone-600">|</span>
-                    <span className="text-xs text-stone-500">
+                    <span className="text-xs text-muted-foreground">|</span>
+                    <span className="text-xs text-muted-foreground">
                       Erstellt {new Date(webhook.createdAt).toLocaleDateString("de-DE")}
                     </span>
                   </div>
@@ -178,7 +178,7 @@ export function WebhookV2Manager() {
                   size="sm"
                   onClick={() => handleTest(webhook.id)}
                   disabled={testingId === webhook.id}
-                  className="text-stone-400 hover:text-white"
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   {testingId === webhook.id ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -190,7 +190,7 @@ export function WebhookV2Manager() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setExpandedId(expandedId === webhook.id ? null : webhook.id)}
-                  className="text-stone-400 hover:text-white"
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   {expandedId === webhook.id ? (
                     <ChevronUp className="w-4 h-4" />
@@ -202,7 +202,7 @@ export function WebhookV2Manager() {
                   variant="ghost"
                   size="sm"
                   onClick={() => handleDelete(webhook.id)}
-                  className="text-stone-400 hover:text-red-400"
+                  className="text-muted-foreground hover:text-red-400"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -211,16 +211,16 @@ export function WebhookV2Manager() {
 
             {/* Expanded: Delivery Logs */}
             {expandedId === webhook.id && (
-              <div className="border-t border-stone-800 p-4">
-                <h4 className="text-sm font-medium text-stone-400 mb-3">Zustellungsprotokoll</h4>
+              <div className="border-t border-border p-4">
+                <h4 className="text-sm font-medium text-muted-foreground mb-3">Zustellungsprotokoll</h4>
                 {!webhook.deliveries || webhook.deliveries.length === 0 ? (
-                  <p className="text-sm text-stone-500">Noch keine Zustellungen.</p>
+                  <p className="text-sm text-muted-foreground">Noch keine Zustellungen.</p>
                 ) : (
                   <div className="space-y-2">
                     {webhook.deliveries.slice(0, 10).map((delivery) => (
                       <div
                         key={delivery.id}
-                        className="flex items-center justify-between text-xs py-2 px-3 rounded bg-stone-900/50"
+                        className="flex items-center justify-between text-xs py-2 px-3 rounded bg-card/50"
                       >
                         <div className="flex items-center gap-3">
                           {delivery.success ? (
@@ -228,7 +228,7 @@ export function WebhookV2Manager() {
                           ) : (
                             <X className="w-3.5 h-3.5 text-red-400" />
                           )}
-                          <span className="text-stone-300 font-mono">{delivery.event}</span>
+                          <span className="text-foreground font-mono">{delivery.event}</span>
                           {delivery.statusCode && (
                             <span
                               className={cn(
@@ -242,7 +242,7 @@ export function WebhookV2Manager() {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-3 text-stone-500">
+                        <div className="flex items-center gap-3 text-muted-foreground">
                           {delivery.responseTime && (
                             <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />
@@ -333,8 +333,8 @@ function CreateWebhookForm({
   };
 
   return (
-    <div className="rounded-lg border border-kiln-orange/30 bg-stone-900/50 p-6 space-y-4">
-      <h3 className="text-lg font-serif text-white">Neuen Webhook erstellen</h3>
+    <div className="rounded-lg border border-kiln-orange/30 bg-card/50 p-6 space-y-4">
+      <h3 className="text-lg font-serif text-foreground">Neuen Webhook erstellen</h3>
 
       {error && (
         <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 p-3 rounded">
@@ -345,19 +345,19 @@ function CreateWebhookForm({
 
       {/* URL */}
       <div>
-        <label className="block text-sm text-stone-400 mb-1">Endpoint URL</label>
+        <label className="block text-sm text-muted-foreground mb-1">Endpoint URL</label>
         <input
           type="url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://example.com/webhook"
-          className="w-full px-3 py-2 rounded-md bg-stone-900 border border-stone-700 text-white placeholder:text-stone-600 focus:border-kiln-orange focus:outline-none text-sm font-mono"
+          className="w-full px-3 py-2 rounded-md bg-card border border-border text-foreground placeholder:text-muted-foreground focus:border-kiln-orange focus:outline-none text-sm font-mono"
         />
       </div>
 
       {/* Secret */}
       <div>
-        <label className="block text-sm text-stone-400 mb-1">
+        <label className="block text-sm text-muted-foreground mb-1">
           <Shield className="w-3.5 h-3.5 inline mr-1" />
           Signing Secret (optional — wird automatisch generiert)
         </label>
@@ -366,19 +366,19 @@ function CreateWebhookForm({
           value={secret}
           onChange={(e) => setSecret(e.target.value)}
           placeholder="Leer lassen für Auto-Generierung"
-          className="w-full px-3 py-2 rounded-md bg-stone-900 border border-stone-700 text-white placeholder:text-stone-600 focus:border-kiln-orange focus:outline-none text-sm font-mono"
+          className="w-full px-3 py-2 rounded-md bg-card border border-border text-foreground placeholder:text-muted-foreground focus:border-kiln-orange focus:outline-none text-sm font-mono"
         />
       </div>
 
       {/* Events */}
       <div>
-        <label className="block text-sm text-stone-400 mb-3">Events</label>
+        <label className="block text-sm text-muted-foreground mb-3">Events</label>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {Object.entries(WEBHOOK_V2_EVENT_CATEGORIES).map(([category, events]) => (
             <div key={category} className="space-y-2">
               <button
                 onClick={() => toggleCategory(events)}
-                className="text-xs font-medium text-stone-300 hover:text-kiln-orange transition-colors"
+                className="text-xs font-medium text-foreground hover:text-kiln-orange transition-colors"
               >
                 {category}
                 {events.every((e) => selectedEvents.includes(e)) && (
@@ -395,9 +395,9 @@ function CreateWebhookForm({
                       type="checkbox"
                       checked={selectedEvents.includes(event)}
                       onChange={() => toggleEvent(event)}
-                      className="rounded border-stone-600 bg-stone-800 text-kiln-orange focus:ring-kiln-orange"
+                      className="rounded border-border bg-muted text-kiln-orange focus:ring-kiln-orange"
                     />
-                    <span className="text-stone-400 group-hover:text-stone-300 font-mono">
+                    <span className="text-muted-foreground group-hover:text-foreground font-mono">
                       {event}
                     </span>
                   </label>
@@ -418,7 +418,7 @@ function CreateWebhookForm({
           {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
           Webhook erstellen
         </Button>
-        <Button variant="ghost" onClick={onCancel} className="text-stone-400">
+        <Button variant="ghost" onClick={onCancel} className="text-muted-foreground">
           Abbrechen
         </Button>
       </div>

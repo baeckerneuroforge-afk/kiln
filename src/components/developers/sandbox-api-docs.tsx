@@ -33,7 +33,7 @@ function CopyButton({ text }: { text: string }) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }}
-      className="flex items-center gap-1 text-xs text-neutral-500 transition-colors hover:text-white"
+      className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
     >
       {copied ? <Check className="h-3 w-3 text-[#22C55E]" /> : <Copy className="h-3 w-3" />}
       {copied ? "Kopiert" : "Kopieren"}
@@ -45,13 +45,13 @@ function CopyButton({ text }: { text: string }) {
 
 function CodeBlock({ code, language }: { code: string; language: string }) {
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-[#1a1918] overflow-hidden">
-      <div className="flex items-center justify-between border-b border-white/[0.04] px-4 py-2">
-        <span className="text-xs text-neutral-500">{language}</span>
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="flex items-center justify-between border-b border-border px-4 py-2">
+        <span className="text-xs text-muted-foreground">{language}</span>
         <CopyButton text={code} />
       </div>
       <pre className="overflow-x-auto p-4 text-xs leading-relaxed">
-        <code className="font-mono text-neutral-300">{code}</code>
+        <code className="font-mono text-foreground">{code}</code>
       </pre>
     </div>
   );
@@ -81,30 +81,30 @@ function EndpointCard({
   };
 
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-      <div className="border-b border-white/[0.04] px-6 py-4">
+    <div className="rounded-2xl border border-border bg-muted overflow-hidden">
+      <div className="border-b border-border px-6 py-4">
         <div className="flex items-center gap-3">
           <span
             className={`rounded-md px-2.5 py-1 font-mono text-xs font-bold ${methodColors[method]}`}
           >
             {method}
           </span>
-          <code className="font-mono text-sm text-white">{path}</code>
+          <code className="font-mono text-sm text-foreground">{path}</code>
         </div>
-        <p className="mt-2 text-sm text-neutral-400">{description}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{description}</p>
       </div>
       <div className="space-y-0">
         {requestBody && (
-          <div className="border-b border-white/[0.04] px-6 py-4">
-            <p className="mb-2 text-xs font-medium text-neutral-500 uppercase tracking-wider">
+          <div className="border-b border-border px-6 py-4">
+            <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Request Body
             </p>
             <CodeBlock code={requestBody} language="JSON" />
           </div>
         )}
         {responseBody && (
-          <div className="border-b border-white/[0.04] px-6 py-4">
-            <p className="mb-2 text-xs font-medium text-neutral-500 uppercase tracking-wider">
+          <div className="border-b border-border px-6 py-4">
+            <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Response
             </p>
             <CodeBlock code={responseBody} language="JSON" />
@@ -225,10 +225,10 @@ function TryItSection() {
   }
 
   return (
-    <div className="rounded-2xl border border-[#F97316]/20 bg-[#F97316]/[0.03] overflow-hidden">
-      <div className="border-b border-[#F97316]/10 px-6 py-4">
-        <h3 className="text-lg font-semibold text-white">Ausprobieren</h3>
-        <p className="text-sm text-neutral-400 mt-1">
+    <div className="rounded-2xl border border-kiln-orange/20 bg-kiln-orange/[0.03] overflow-hidden">
+      <div className="border-b border-kiln-orange/10 px-6 py-4">
+        <h3 className="text-lg font-semibold text-foreground">Ausprobieren</h3>
+        <p className="text-sm text-muted-foreground mt-1">
           Teste die Sandbox API direkt hier. Du brauchst einen gültigen API-Key.
         </p>
       </div>
@@ -236,19 +236,19 @@ function TryItSection() {
       <div className="px-6 py-4 space-y-4">
         {/* API Key */}
         <div>
-          <label className="block text-xs font-medium text-neutral-400 mb-1.5">API Key</label>
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5">API Key</label>
           <input
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             placeholder="sk-kiln-..."
-            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-white placeholder:text-neutral-600 focus:border-[#F97316]/50 focus:outline-none focus:ring-1 focus:ring-[#F97316]/30"
+            className="w-full rounded-lg border border-border bg-muted px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-kiln-orange/50 focus:outline-none focus:ring-1 focus:ring-[#F97316]/30"
           />
         </div>
 
         {/* Session ID */}
         <div>
-          <label className="block text-xs font-medium text-neutral-400 mb-1.5">
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
             Session ID{" "}
             {sessionId && <span className="text-[#22C55E]">(automatisch gesetzt)</span>}
           </label>
@@ -257,12 +257,12 @@ function TryItSection() {
             value={sessionId}
             onChange={(e) => setSessionId(e.target.value)}
             placeholder="Session ID hier eingeben oder Session erstellen"
-            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-sm text-white placeholder:text-neutral-600 focus:border-[#F97316]/50 focus:outline-none focus:ring-1 focus:ring-[#F97316]/30"
+            className="w-full rounded-lg border border-border bg-muted px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-kiln-orange/50 focus:outline-none focus:ring-1 focus:ring-[#F97316]/30"
           />
         </div>
 
         {/* Tab-Auswahl */}
-        <div className="flex gap-1 rounded-lg bg-white/[0.04] p-1">
+        <div className="flex gap-1 rounded-lg bg-muted p-1">
           {(
             [
               { key: "create", label: "Erstellen" },
@@ -276,8 +276,8 @@ function TryItSection() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 activeTab === tab.key
-                  ? "bg-[#F97316] text-white"
-                  : "text-neutral-400 hover:text-white"
+                  ? "bg-kiln-orange text-white"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {tab.label}
@@ -324,7 +324,7 @@ function TryItSection() {
         {activeTab === "action" && (
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-neutral-400 mb-1.5">
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                 Action-Typ
               </label>
               <select
@@ -334,7 +334,7 @@ function TryItSection() {
                   const found = ACTION_TYPES.find((a) => a.type === e.target.value);
                   if (found) setActionBody(JSON.stringify(JSON.parse(found.fields), null, 2));
                 }}
-                className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-[#F97316]/50 focus:outline-none"
+                className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground focus:border-kiln-orange/50 focus:outline-none"
               >
                 {ACTION_TYPES.map((a) => (
                   <option key={a.type} value={a.type}>
@@ -344,14 +344,14 @@ function TryItSection() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-neutral-400 mb-1.5">
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                 Request Body
               </label>
               <textarea
                 value={actionBody}
                 onChange={(e) => setActionBody(e.target.value)}
                 rows={6}
-                className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-xs text-white placeholder:text-neutral-600 focus:border-[#F97316]/50 focus:outline-none focus:ring-1 focus:ring-[#F97316]/30"
+                className="w-full rounded-lg border border-border bg-muted px-3 py-2 font-mono text-xs text-white placeholder:text-muted-foreground focus:border-kiln-orange/50 focus:outline-none focus:ring-1 focus:ring-[#F97316]/30"
               />
             </div>
             <button
@@ -373,7 +373,7 @@ function TryItSection() {
                 }
               }}
               disabled={loading}
-              className="flex items-center gap-2 rounded-lg bg-[#F97316] px-4 py-2 text-sm font-semibold text-white transition-all hover:scale-105 disabled:opacity-50"
+              className="flex items-center gap-2 rounded-lg bg-kiln-orange px-4 py-2 text-sm font-semibold text-white transition-all hover:scale-105 disabled:opacity-50"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -431,10 +431,10 @@ function TryItSection() {
         {response && (
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-medium text-neutral-400">Response</span>
+              <span className="text-xs font-medium text-muted-foreground">Response</span>
               <CopyButton text={response} />
             </div>
-            <pre className="max-h-80 overflow-auto rounded-xl border border-white/[0.06] bg-[#1a1918] p-4 font-mono text-xs leading-relaxed text-neutral-300">
+            <pre className="max-h-80 overflow-auto rounded-xl border border-border bg-card p-4 font-mono text-xs leading-relaxed text-foreground">
               {response}
             </pre>
           </div>
@@ -454,7 +454,7 @@ export function SandboxApiDocs() {
       {/* Navigation */}
       <Link
         href="/developers"
-        className="mb-8 inline-flex items-center gap-2 text-sm text-neutral-400 transition-colors hover:text-white"
+        className="mb-8 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
         Zurück zu Developers
@@ -462,12 +462,12 @@ export function SandboxApiDocs() {
 
       {/* Header */}
       <div className="mb-12">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#F97316]/20 bg-[#F97316]/10 px-3 py-1 text-xs font-medium text-[#F97316]">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-kiln-orange/20 bg-kiln-orange/10 px-3 py-1 text-xs font-medium text-kiln-orange">
           <Code2 className="h-3.5 w-3.5" />
           REST API
         </div>
         <h1 className="font-serif text-4xl tracking-tight sm:text-5xl">Sandbox API</h1>
-        <p className="mt-4 text-lg text-neutral-400 max-w-2xl">
+        <p className="mt-4 text-lg text-muted-foreground max-w-2xl">
           Programmatischer Zugriff auf Browser-Automatisierung und Code-Ausführung. Navigiere
           Webseiten, nimm Screenshots auf, führe Python/JavaScript aus — alles über eine
           einfache REST API.
@@ -475,8 +475,8 @@ export function SandboxApiDocs() {
       </div>
 
       {/* Inhaltsverzeichnis */}
-      <nav className="mb-12 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-        <p className="mb-3 text-xs font-semibold text-neutral-500 uppercase tracking-wider">
+      <nav className="mb-12 rounded-xl border border-border bg-muted p-4">
+        <p className="mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Inhalt
         </p>
         <div className="grid grid-cols-2 gap-2 text-sm">
@@ -493,7 +493,7 @@ export function SandboxApiDocs() {
             <a
               key={item.href}
               href={item.href}
-              className="text-neutral-400 transition-colors hover:text-[#F97316]"
+              className="text-muted-foreground transition-colors hover:text-kiln-orange"
             >
               {item.label}
             </a>
@@ -505,12 +505,12 @@ export function SandboxApiDocs() {
         {/* Authentifizierung */}
         <section id="authentifizierung">
           <h2 className="mb-4 font-serif text-2xl text-white">Authentifizierung</h2>
-          <p className="mb-4 text-sm text-neutral-400">
+          <p className="mb-4 text-sm text-muted-foreground">
             Alle API-Aufrufe erfordern einen gültigen API-Key im Authorization-Header. Die
             Sandbox API ist ab dem Pro-Plan verfügbar.
           </p>
           <CodeBlock code="Authorization: Bearer sk-kiln-YOUR_API_KEY" language="Header" />
-          <p className="mt-3 text-xs text-neutral-500">
+          <p className="mt-3 text-xs text-muted-foreground">
             API-Keys erstellst du unter Dashboard &rarr; Einstellungen &rarr; API Keys.
           </p>
         </section>
@@ -548,17 +548,17 @@ export function SandboxApiDocs() {
             )}
           >
             <div className="px-6 py-4">
-              <p className="text-xs text-neutral-500">
-                <strong className="text-neutral-300">capabilities:</strong> Array mit{" "}
-                <code className="text-[#F97316]">browser</code>,{" "}
-                <code className="text-[#F97316]">code_python</code>,{" "}
-                <code className="text-[#F97316]">code_javascript</code>,{" "}
-                <code className="text-[#F97316]">screenshots</code>
+              <p className="text-xs text-muted-foreground">
+                <strong className="text-foreground">capabilities:</strong> Array mit{" "}
+                <code className="text-kiln-orange">browser</code>,{" "}
+                <code className="text-kiln-orange">code_python</code>,{" "}
+                <code className="text-kiln-orange">code_javascript</code>,{" "}
+                <code className="text-kiln-orange">screenshots</code>
                 <br />
-                <strong className="text-neutral-300">timeout:</strong> Sekunden bis Ablauf
+                <strong className="text-foreground">timeout:</strong> Sekunden bis Ablauf
                 (30-600, default 300)
                 <br />
-                <strong className="text-neutral-300">maxSteps:</strong> Maximale Anzahl an
+                <strong className="text-foreground">maxSteps:</strong> Maximale Anzahl an
                 Actions (1-200, default 50)
               </p>
             </div>
@@ -569,15 +569,15 @@ export function SandboxApiDocs() {
         <section id="action-ausfuehren">
           <h2 className="mb-4 font-serif text-2xl text-white">Actions ausführen</h2>
 
-          <div className="mb-4 flex gap-1 rounded-lg bg-white/[0.04] p-1 w-fit">
+          <div className="mb-4 flex gap-1 rounded-lg bg-muted p-1 w-fit">
             {(["curl", "javascript"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setExampleTab(tab)}
                 className={`rounded-md px-4 py-1.5 text-xs font-medium transition-colors ${
                   exampleTab === tab
-                    ? "bg-white/10 text-white"
-                    : "text-neutral-400 hover:text-white"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {tab === "curl" ? "cURL" : "JavaScript"}
@@ -684,18 +684,18 @@ console.log(code.result.stdout); // 3.141592653589793`}
               return (
                 <div
                   key={action.type}
-                  className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 transition-all hover:border-white/[0.12]"
+                  className="rounded-xl border border-border bg-muted p-4 transition-all hover:border-border"
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#F97316]/10">
-                      <Icon className="h-4 w-4 text-[#F97316]" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-kiln-orange/10">
+                      <Icon className="h-4 w-4 text-kiln-orange" />
                     </div>
                     <div>
                       <code className="text-sm font-mono font-bold text-white">{action.type}</code>
-                      <p className="text-xs text-neutral-500">{action.desc}</p>
+                      <p className="text-xs text-muted-foreground">{action.desc}</p>
                     </div>
                   </div>
-                  <pre className="rounded-lg bg-[#1a1918] p-2 font-mono text-[11px] text-neutral-400 overflow-x-auto">
+                  <pre className="rounded-lg bg-card p-2 font-mono text-[11px] text-muted-foreground overflow-x-auto">
                     {action.fields}
                   </pre>
                 </div>
@@ -703,19 +703,19 @@ console.log(code.result.stdout); // 3.141592653589793`}
             })}
           </div>
 
-          <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-            <p className="text-xs text-neutral-400">
-              <strong className="text-neutral-300">Capability-Zuordnung:</strong>{" "}
-              <code className="text-[#F97316]">navigate</code>,{" "}
-              <code className="text-[#F97316]">click</code>,{" "}
-              <code className="text-[#F97316]">type</code>,{" "}
-              <code className="text-[#F97316]">scroll</code>,{" "}
-              <code className="text-[#F97316]">read_page</code> erfordern{" "}
+          <div className="mt-4 rounded-xl border border-border bg-muted p-4">
+            <p className="text-xs text-muted-foreground">
+              <strong className="text-foreground">Capability-Zuordnung:</strong>{" "}
+              <code className="text-kiln-orange">navigate</code>,{" "}
+              <code className="text-kiln-orange">click</code>,{" "}
+              <code className="text-kiln-orange">type</code>,{" "}
+              <code className="text-kiln-orange">scroll</code>,{" "}
+              <code className="text-kiln-orange">read_page</code> erfordern{" "}
               <code className="text-[#22C55E]">browser</code>.{" "}
-              <code className="text-[#F97316]">screenshot</code> erfordert{" "}
+              <code className="text-kiln-orange">screenshot</code> erfordert{" "}
               <code className="text-[#22C55E]">screenshots</code> oder{" "}
               <code className="text-[#22C55E]">browser</code>.{" "}
-              <code className="text-[#F97316]">execute_code</code> erfordert{" "}
+              <code className="text-kiln-orange">execute_code</code> erfordert{" "}
               <code className="text-[#22C55E]">code_python</code> oder{" "}
               <code className="text-[#22C55E]">code_javascript</code>.
             </p>
@@ -752,12 +752,12 @@ console.log(code.result.stdout); // 3.141592653589793`}
             )}
           >
             <div className="px-6 py-4">
-              <p className="text-xs text-neutral-500">
-                <strong className="text-neutral-300">Status-Werte:</strong>{" "}
+              <p className="text-xs text-muted-foreground">
+                <strong className="text-foreground">Status-Werte:</strong>{" "}
                 <code className="text-[#22C55E]">ready</code> (erstellt, noch keine Action),{" "}
                 <code className="text-[#3B82F6]">active</code> (Actions werden ausgeführt),{" "}
-                <code className="text-neutral-400">completed</code> (maxSteps erreicht),{" "}
-                <code className="text-[#F97316]">expired</code> (Timeout),{" "}
+                <code className="text-muted-foreground">completed</code> (maxSteps erreicht),{" "}
+                <code className="text-kiln-orange">expired</code> (Timeout),{" "}
                 <code className="text-[#DC2626]">destroyed</code> (manuell beendet)
               </p>
             </div>
@@ -822,35 +822,35 @@ console.log(code.result.stdout); // 3.141592653589793`}
         {/* Limits */}
         <section>
           <h2 className="mb-4 font-serif text-2xl text-white">Limits und Preise</h2>
-          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6">
+          <div className="rounded-xl border border-border bg-muted p-6">
             <div className="grid grid-cols-2 gap-6 text-sm">
               <div>
-                <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">
+                <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">
                   Max. Timeout
                 </p>
                 <p className="text-white font-medium">600 Sekunden</p>
               </div>
               <div>
-                <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">
+                <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">
                   Max. Steps pro Session
                 </p>
                 <p className="text-white font-medium">200 (konfigurierbar)</p>
               </div>
               <div>
-                <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">
+                <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">
                   Sessions/Monat (Pro)
                 </p>
                 <p className="text-white font-medium">100</p>
               </div>
               <div>
-                <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">
+                <p className="text-muted-foreground text-xs uppercase tracking-wider mb-1">
                   Sessions/Monat (Agency+)
                 </p>
                 <p className="text-white font-medium">Unbegrenzt</p>
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-white/[0.06]">
-              <p className="text-xs text-neutral-500">
+            <div className="mt-4 pt-4 border-t border-border">
+              <p className="text-xs text-muted-foreground">
                 Credit-Kosten pro Action: navigate (0.5), screenshot (0.3), click (0.3), type
                 (0.2), scroll (0.1), execute_code (1.0), read_page (0.5)
               </p>
@@ -863,7 +863,7 @@ console.log(code.result.stdout); // 3.141592653589793`}
       <div className="mt-16 text-center">
         <Link
           href="/dashboard/settings"
-          className="inline-flex items-center gap-2 rounded-xl bg-[#F97316] px-6 py-3 text-sm font-semibold text-white transition-all hover:scale-105 hover:shadow-lg hover:shadow-[#F97316]/20"
+          className="inline-flex items-center gap-2 rounded-xl bg-kiln-orange px-6 py-3 text-sm font-semibold text-white transition-all hover:scale-105 hover:shadow-lg hover:shadow-[#F97316]/20"
         >
           API-Key erstellen
         </Link>

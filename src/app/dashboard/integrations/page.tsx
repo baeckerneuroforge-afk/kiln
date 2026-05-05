@@ -144,7 +144,7 @@ function ConnectModal({
         <div className="p-6">
           {/* Header */}
           <div className="mb-6 flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.04]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
               {INTEGRATION_LOGOS[integration.provider] ? (() => { const L = INTEGRATION_LOGOS[integration.provider]; return <L size={28} />; })() : <integration.icon className="h-6 w-6 text-muted-foreground" />}
             </div>
             <div>
@@ -171,7 +171,7 @@ function ConnectModal({
               </div>
               <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5">
                 <p className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
-                  <Shield className="h-3 w-3 text-gray-400" />
+                  <Shield className="h-3 w-3 text-muted-foreground" />
                   Your webhook URL is encrypted before storage
                 </p>
                 <p className="text-[10px] text-muted-foreground/60">
@@ -242,7 +242,7 @@ function ConnectModal({
                   </div>
                   <div className="rounded-lg border border-border bg-muted/30 p-3">
                     <p className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
-                      <Shield className="h-3 w-3 text-gray-400" />
+                      <Shield className="h-3 w-3 text-muted-foreground" />
                       Your credentials are encrypted before storage
                     </p>
                   </div>
@@ -298,7 +298,7 @@ function CustomIntegrationModal({
 
         <div className="p-6">
           <div className="mb-6 flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/15 text-gray-400 shadow-lg shadow-purple-500/10">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/15 text-muted-foreground shadow-lg shadow-purple-500/10">
               <Sparkles className="h-6 w-6" />
             </div>
             <div>
@@ -323,7 +323,7 @@ function CustomIntegrationModal({
               <div className="flex gap-2">
                 {(["api-key", "bearer", "basic"] as const).map((t) => (
                   <button key={t} onClick={() => setAuthType(t)}
-                    className={cn("rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors", authType === t ? "border-purple-500/50 bg-white/[0.05] text-gray-400" : "border-border text-muted-foreground hover:bg-muted")}>
+                    className={cn("rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors", authType === t ? "border-purple-500/50 bg-muted text-muted-foreground" : "border-border text-muted-foreground hover:bg-muted")}>
                     {t === "api-key" ? "API Key" : t === "bearer" ? "Bearer" : "Basic"}
                   </button>
                 ))}
@@ -543,8 +543,8 @@ export default function IntegrationsPage() {
       {/* Header */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.05]">
-            <Plug className="h-4.5 w-4.5 text-gray-400" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
+            <Plug className="h-4.5 w-4.5 text-muted-foreground" />
           </div>
           <div>
             <h1 className="text-lg font-semibold text-foreground">Integration Hub</h1>
@@ -553,7 +553,7 @@ export default function IntegrationsPage() {
         </div>
         {advancedMode && (
           <button onClick={() => setShowCustomModal(true)}
-            className="flex items-center gap-2 rounded-lg border border-purple-500/30 bg-white/[0.05] px-4 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-purple-500/20">
+            className="flex items-center gap-2 rounded-lg border border-purple-500/30 bg-muted px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-purple-500/20">
             <Plus className="h-4 w-4" />
             Custom Integration
           </button>
@@ -576,7 +576,7 @@ export default function IntegrationsPage() {
             <Activity className="h-3.5 w-3.5" />
             Active
           </div>
-          <p className="mt-2 text-3xl font-bold text-gray-400">{activeConnections}</p>
+          <p className="mt-2 text-3xl font-bold text-muted-foreground">{activeConnections}</p>
         </div>
         <div className="relative overflow-hidden rounded-xl border border-border bg-card p-4">
           <div className="absolute -right-4 -top-4 h-16 w-16 rounded-full bg-kiln-orange/5" />
@@ -601,8 +601,8 @@ export default function IntegrationsPage() {
               className={cn(
                 "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                 activeCategory === cat
-                  ? "border-kiln-orange/50 bg-kiln-orange/5 text-gray-400"
-                  : "border-white/[0.06] text-muted-foreground hover:border-white/10 hover:text-foreground"
+                  ? "border-kiln-orange/50 bg-kiln-orange/5 text-muted-foreground"
+                  : "border-border text-muted-foreground hover:border-border hover:text-foreground"
               )}>
               {cat}
             </button>
@@ -625,24 +625,24 @@ export default function IntegrationsPage() {
               const LogoComp = INTEGRATION_LOGOS[provider];
 
               return (
-                <div key={conn.id} className={cn("card-hover-lift group relative overflow-hidden rounded-xl border border-white/[0.06] p-4 transition-all", conn.isActive ? "bg-card" : "bg-card opacity-50")}>
+                <div key={conn.id} className={cn("card-hover-lift group relative overflow-hidden rounded-xl border border-border p-4 transition-all", conn.isActive ? "bg-card" : "bg-card opacity-50")}>
                   <div className="mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center">
                         {LogoComp ? <LogoComp size={28} /> : <Icon className="h-7 w-7 text-muted-foreground" />}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-white truncate">{conn.name}</p>
+                        <p className="text-sm font-semibold text-foreground truncate">{conn.name}</p>
                         <div className="mt-0.5 flex items-center gap-2">
                           {conn.isActive ? (
-                            <span className="flex items-center gap-1.5 text-xs font-medium text-gray-400">
+                            <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                               <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-kiln-green opacity-75" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-kiln-green" /></span>
                               Connected
                             </span>
                           ) : (
                             <span className="flex items-center gap-1 text-xs text-muted-foreground"><Circle className="h-1.5 w-1.5" /> Paused</span>
                           )}
-                          {conn.isCustom && <span className="rounded bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-medium text-gray-400">Custom</span>}
+                          {conn.isCustom && <span className="rounded bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">Custom</span>}
                         </div>
                       </div>
                     </div>
@@ -653,12 +653,12 @@ export default function IntegrationsPage() {
                         </div>
                       </button>
                       <button onClick={() => deleteConnection(conn.id)} disabled={deletingId === conn.id}
-                        className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-white/[0.05] hover:text-gray-400 group-hover:opacity-100">
+                        className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-muted hover:text-muted-foreground group-hover:opacity-100">
                         {deletingId === conn.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                       </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 border-t border-white/[0.04] pt-2.5 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-3 border-t border-border pt-2.5 text-xs text-muted-foreground">
                     {enabledAgents > 0 && <span>{enabledAgents} agent{enabledAgents !== 1 ? "s" : ""}</span>}
                     {conn.lastSyncAt && <span>Synced {timeAgo(conn.lastSyncAt)}</span>}
                   </div>
@@ -721,7 +721,7 @@ export default function IntegrationsPage() {
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
           <Search className="mb-3 h-8 w-8 text-muted-foreground/50" />
           <p className="text-sm text-muted-foreground">No integrations match your search</p>
-          <button onClick={() => { setSearch(""); setActiveCategory("All"); }} className="mt-2 text-xs text-gray-400 hover:underline">Clear filters</button>
+          <button onClick={() => { setSearch(""); setActiveCategory("All"); }} className="mt-2 text-xs text-muted-foreground hover:underline">Clear filters</button>
         </div>
       )}
 
@@ -731,7 +731,7 @@ export default function IntegrationsPage() {
           const isSubmitted = waitlistSubmitted.has(item.provider);
           const LogoComp = INTEGRATION_LOGOS[item.provider];
           return (
-            <div key={item.provider} className="relative flex min-h-[140px] flex-col overflow-hidden rounded-xl border border-white/[0.06] bg-card/60 p-4 transition-all hover:border-white/[0.1] hover:bg-card">
+            <div key={item.provider} className="relative flex min-h-[140px] flex-col overflow-hidden rounded-xl border border-border bg-card/60 p-4 transition-all hover:border-border hover:bg-card">
               {/* Top row: logo + name + badge */}
               <div className="mb-3 flex items-start gap-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center">
@@ -739,14 +739,14 @@ export default function IntegrationsPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-sm font-semibold text-white">{item.name}</p>
+                    <p className="truncate text-sm font-semibold text-foreground">{item.name}</p>
                     {isConnected ? (
-                      <span className="flex shrink-0 items-center gap-1 rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] font-semibold text-gray-400">
+                      <span className="flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
                         <span className="relative flex h-1.5 w-1.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-kiln-green opacity-75" /><span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-kiln-green" /></span>
                         Connected
                       </span>
                     ) : availabilityMap[item.provider]?.available === false && item.provider !== "telegram" && item.provider !== "whatsapp-business" && item.provider !== "stripe" && item.provider !== "airtable" && item.provider !== "calendly" ? (
-                      <span className="flex shrink-0 items-center gap-1 rounded-full border border-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      <span className="flex shrink-0 items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                         Coming Soon
                       </span>
                     ) : null}
@@ -759,7 +759,7 @@ export default function IntegrationsPage() {
                 {isConnected ? null : (item.provider === "telegram" || item.provider === "whatsapp-business" || item.provider === "stripe" || item.provider === "airtable" || item.provider === "calendly") ? (
                   <button
                     onClick={() => { window.location.href = "/dashboard/agents"; }}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/[0.06] px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-white/[0.12] hover:text-white"
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground"
                   >
                     <ArrowRight className="h-3 w-3" />
                     Configure in Agent
@@ -776,14 +776,14 @@ export default function IntegrationsPage() {
                       else if (item.provider === "notion") window.location.href = `/api/integrations/notion/auth`;
                       else if (item.provider === "zapier" || item.provider === "make") setConnectingProvider(item);
                     }}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/[0.06] px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-kiln-orange/40 hover:text-gray-400"
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-kiln-orange/40 hover:text-muted-foreground"
                   >
                     <Plug className="h-3 w-3" />
                     Connect
                   </button>
                 ) : (
                   isSubmitted ? (
-                    <div className="flex items-center justify-center gap-1.5 rounded-lg border border-kiln-green/20 px-3 py-2 text-xs font-medium text-gray-400">
+                    <div className="flex items-center justify-center gap-1.5 rounded-lg border border-kiln-green/20 px-3 py-2 text-xs font-medium text-muted-foreground">
                       <Bell className="h-3 w-3" />
                       We&apos;ll notify you!
                     </div>
@@ -809,11 +809,11 @@ export default function IntegrationsPage() {
                         placeholder="Your email"
                         value={waitlistEmail[item.provider] || ""}
                         onChange={(e) => setWaitlistEmail((prev) => ({ ...prev, [item.provider]: e.target.value }))}
-                        className="flex-1 min-w-0 rounded-lg border border-white/[0.06] bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:border-kiln-orange focus:outline-none"
+                        className="flex-1 min-w-0 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:border-kiln-orange focus:outline-none"
                       />
                       <button
                         type="submit"
-                        className="shrink-0 rounded-lg border border-white/[0.06] px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                       >
                         Notify
                       </button>
@@ -844,14 +844,14 @@ export default function IntegrationsPage() {
       {showGitHubModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowGitHubModal(false)}>
           <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-2xl animate-in zoom-in-95 fade-in duration-200" onClick={(e) => e.stopPropagation()}>
-            <div className="h-1 bg-neutral-600" />
+            <div className="h-1 bg-border" />
             <button onClick={() => setShowGitHubModal(false)} className="absolute right-4 top-5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
               <X className="h-4 w-4" />
             </button>
 
             <div className="p-6">
               <div className="mb-6 flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.04]">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
                   {INTEGRATION_LOGOS["github"] ? (() => { const L = INTEGRATION_LOGOS["github"]; return <L size={28} />; })() : <GitBranch className="h-6 w-6 text-muted-foreground" />}
                 </div>
                 <div>
@@ -919,7 +919,7 @@ export default function IntegrationsPage() {
                         className={cn(
                           "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
                           ghEvents.includes(ev.key)
-                            ? "border-kiln-orange/50 bg-white/[0.05] text-gray-400"
+                            ? "border-kiln-orange/50 bg-muted text-muted-foreground"
                             : "border-border text-muted-foreground hover:bg-muted"
                         )}
                       >
@@ -931,7 +931,7 @@ export default function IntegrationsPage() {
 
                 <div className="rounded-lg border border-border bg-muted/30 p-3">
                   <p className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
-                    <Shield className="h-3 w-3 text-gray-400" />
+                    <Shield className="h-3 w-3 text-muted-foreground" />
                     Your token is encrypted before storage. A webhook will be created on the repo.
                   </p>
                 </div>

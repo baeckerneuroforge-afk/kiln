@@ -11,12 +11,12 @@ export default async function NodesMarketplacePage() {
   if (!userId) redirect("/sign-in");
 
   return (
-    <div className="min-h-screen bg-[#1a1918] p-6 md:p-8">
+    <div className="min-h-screen bg-card p-6 md:p-8">
       <div className="mx-auto max-w-6xl space-y-6">
         {/* Header */}
         <div>
-          <h1 className="font-serif text-2xl text-zinc-100">Node Marketplace</h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <h1 className="font-serif text-2xl text-foreground">Node Marketplace</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Community-Nodes fuer deine Workflows
           </p>
         </div>
