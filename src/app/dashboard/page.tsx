@@ -101,6 +101,18 @@ export default function DashboardPage() {
   const greeting = getGreeting();
   const firstName = user?.firstName;
 
+  // Brand-new accounts have nothing meaningful in the stripe — every cell
+  // would render as "—". Skip the whole row in that case so the empty-state
+  // path on the dashboard is the activation checklist + Quick Start, not
+  // four em-dashes pretending to be data.
+  const allStatsZero =
+    !statsLoading &&
+    !statsError &&
+    stats.agents === 0 &&
+    stats.conversations === 0 &&
+    stats.leads === 0 &&
+    stats.estimatedValue === 0;
+
   return (
     <div className="relative mx-auto max-w-5xl">
       {/* Header */}
@@ -114,11 +126,14 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Stats stripe — 4 cells, divided, above the fold. */}
-      <div className="mb-8">
-        {statsError ? (
+      {/* Stats stripe — 4 cells, divided, above the fold.
+          Hidden entirely when the account has nothing to show yet. */}
+      {statsError ? (
+        <div className="mb-8">
           <ErrorState message={statsError} onRetry={fetchStats} compact />
-        ) : (
+        </div>
+      ) : allStatsZero ? null : (
+        <div className="mb-8">
           <div
             className={cn(
               "grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border bg-card/60 sm:grid-cols-4 sm:divide-y-0"
@@ -134,8 +149,8 @@ export default function DashboardPage() {
               loading={statsLoading}
             />
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Activation Checklist — hides itself when complete or near-complete. */}
       <div className="mb-8">
