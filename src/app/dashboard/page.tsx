@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Globe, Zap, ArrowRight } from "lucide-react";
+import { Bot, Globe, Workflow, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { GettingStartedSection } from "@/components/onboarding-checklist";
 import { QuickStartSection, RecentActivityFeed } from "@/components/quick-actions";
@@ -26,11 +26,11 @@ const modules = [
     active: false,
   },
   {
-    title: "Workflow Automation",
-    description: "Automate workflows with AI-powered automations.",
-    icon: Zap,
-    href: "/dashboard/flows",
-    active: false,
+    title: "Workflows",
+    description: "Build multi-agent workflows with a visual editor.",
+    icon: Workflow,
+    href: "/dashboard/teams",
+    active: true,
   },
 ];
 
