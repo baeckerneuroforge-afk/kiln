@@ -35,12 +35,20 @@
  *   - Rate limits. Bypassing rate limits would make accidental
  *     infinite-loops blow up production.
  */
-const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || "")
-  .split(",")
-  .map((id) => id.trim())
-  .filter(Boolean);
+/**
+ * Reads ADMIN_USER_IDS lazily on each call rather than caching at module
+ * load. The lazy form is robust against test ordering — `beforeAll`
+ * mutations of process.env are honored even when this module was imported
+ * earlier — and the cost is negligible (small string parse per call).
+ */
+function getAdminUserIds(): string[] {
+  return (process.env.ADMIN_USER_IDS || "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
 
 export function isAdmin(userId: string | null | undefined): boolean {
   if (!userId) return false;
-  return ADMIN_USER_IDS.includes(userId);
+  return getAdminUserIds().includes(userId);
 }
