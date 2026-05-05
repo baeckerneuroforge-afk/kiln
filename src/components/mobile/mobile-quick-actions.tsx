@@ -74,7 +74,7 @@ export function MobileQuickActions() {
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-kiln-orange/10">
                 <action.icon className="h-4 w-4 text-kiln-orange" />
               </div>
-              <span className="text-sm font-medium text-white">{action.label}</span>
+              <span className="text-sm font-medium text-foreground">{action.label}</span>
             </button>
           ))}
         </div>
@@ -86,12 +86,12 @@ export function MobileQuickActions() {
         className={cn(
           "flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200",
           open
-            ? "bg-stone-800 rotate-45"
+            ? "bg-muted rotate-45"
             : "bg-gradient-to-br from-kiln-orange to-kiln-ember shadow-kiln-orange/30"
         )}
       >
         {open ? (
-          <X className="h-6 w-6 text-white" />
+          <X className="h-6 w-6 text-foreground" />
         ) : (
           <Plus className="h-6 w-6 text-white" />
         )}

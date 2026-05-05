@@ -118,7 +118,7 @@ export function MobileNotifications() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-stone-500" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -129,7 +129,7 @@ export function MobileNotifications() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Bell className="h-5 w-5 text-kiln-orange" />
-          <h1 className="font-serif text-xl text-white">Benachrichtigungen</h1>
+          <h1 className="font-serif text-xl text-foreground">Benachrichtigungen</h1>
           {unreadCount > 0 && (
             <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-kiln-ember px-1.5 text-[10px] font-bold text-white">
               {unreadCount}
@@ -140,7 +140,7 @@ export function MobileNotifications() {
           {unreadCount > 0 && (
             <button
               onClick={markAllRead}
-              className="p-2 rounded-lg text-muted-foreground hover:text-white transition-colors"
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
               title="Alle gelesen"
             >
               <CheckCheck className="h-4 w-4" />
@@ -149,7 +149,7 @@ export function MobileNotifications() {
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="p-2 rounded-lg text-muted-foreground hover:text-white transition-colors"
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
           >
             <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
           </button>
@@ -166,7 +166,7 @@ export function MobileNotifications() {
               "rounded-full px-3 py-1 text-xs font-medium transition-colors",
               activeFilter === filter
                 ? "bg-kiln-orange/15 text-kiln-orange"
-                : "bg-card border border-border text-stone-500 active:text-stone-300"
+                : "bg-card border border-border text-muted-foreground active:text-foreground"
             )}
           >
             {filter === "all" ? "Alle" : filter === "approval" ? "Genehmigungen" : filter === "alert" ? "Alerts" : "Berichte"}
@@ -177,8 +177,8 @@ export function MobileNotifications() {
       {/* Notification List */}
       {filteredNotifications.length === 0 ? (
         <div className="text-center py-12">
-          <Bell className="h-10 w-10 mx-auto mb-3 text-stone-700" />
-          <p className="text-sm text-stone-500">Keine Benachrichtigungen</p>
+          <Bell className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Keine Benachrichtigungen</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -244,9 +244,9 @@ function NotificationCard({
           <Icon className={cn("h-4 w-4", colorMap[notification.type]?.split(" ")[0])} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-white">{notification.title}</div>
-          <div className="text-xs text-stone-400 mt-0.5 line-clamp-2">{notification.body}</div>
-          <div className="text-[10px] text-stone-600 mt-1">
+          <div className="text-sm font-medium text-foreground">{notification.title}</div>
+          <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{notification.body}</div>
+          <div className="text-[10px] text-muted-foreground mt-1">
             {new Date(notification.timestamp).toLocaleString("de-DE")}
           </div>
         </div>

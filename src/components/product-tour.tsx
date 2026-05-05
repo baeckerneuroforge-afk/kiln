@@ -225,7 +225,7 @@ export function ProductTour({
 
       {/* Tooltip */}
       <div
-        className="fixed z-[95] w-80 rounded-2xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl"
+        className="fixed z-[95] w-80 rounded-2xl border border-border bg-card p-5 shadow-2xl"
         style={tooltipStyle}
       >
         {/* Step indicator */}
@@ -236,14 +236,14 @@ export function ProductTour({
                 key={i}
                 className={cn(
                   "h-1.5 rounded-full transition-all",
-                  i === currentStep ? "w-4 bg-orange-500" : "w-1.5 bg-zinc-700"
+                  i === currentStep ? "w-4 bg-orange-500" : "w-1.5 bg-muted"
                 )}
               />
             ))}
           </div>
           <button
             onClick={handleSkip}
-            className="text-zinc-600 hover:text-zinc-400 transition-colors"
+            className="text-muted-foreground hover:text-muted-foreground transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -255,8 +255,8 @@ export function ProductTour({
             <Icon className="h-4.5 w-4.5 text-orange-400" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-zinc-100">{step.title}</h3>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-400">{step.description}</p>
+            <h3 className="text-sm font-semibold text-foreground">{step.title}</h3>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{step.description}</p>
           </div>
         </div>
 
@@ -264,7 +264,7 @@ export function ProductTour({
         <div className="mt-4 flex items-center justify-between">
           <button
             onClick={handleSkip}
-            className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-muted-foreground transition-colors"
           >
             <SkipForward className="h-3 w-3" />
             Skip tour

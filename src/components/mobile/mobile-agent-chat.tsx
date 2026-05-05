@@ -174,7 +174,7 @@ export function MobileAgentChat({
 
   if (!agent) {
     return (
-      <div className="flex items-center justify-center h-full text-stone-500">
+      <div className="flex items-center justify-center h-full text-muted-foreground">
         Kein Agent verfügbar
       </div>
     );
@@ -204,14 +204,14 @@ export function MobileAgentChat({
             <Bot className="h-4 w-4 text-white" />
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-medium text-white truncate">{agent.name}</div>
+            <div className="text-sm font-medium text-foreground truncate">{agent.name}</div>
             <div className="flex items-center gap-1">
               {isOnline ? (
                 <Wifi className="h-2.5 w-2.5 text-kiln-green" />
               ) : (
                 <WifiOff className="h-2.5 w-2.5 text-red-400" />
               )}
-              <span className="text-[10px] text-stone-500">
+              <span className="text-[10px] text-muted-foreground">
                 {isOnline ? "Verbunden" : "Offline"}
               </span>
             </div>
@@ -227,7 +227,7 @@ export function MobileAgentChat({
         </button>
 
         {/* Agent count indicator */}
-        <span className="text-[10px] text-stone-600">
+        <span className="text-[10px] text-muted-foreground">
           {agentIndex + 1}/{agents.length}
         </span>
       </div>
@@ -236,8 +236,8 @@ export function MobileAgentChat({
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
           <div className="text-center py-12">
-            <Bot className="h-12 w-12 mx-auto mb-3 text-stone-700" />
-            <p className="text-sm text-stone-500">
+            <Bot className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
               Starte eine Unterhaltung mit {agent.name}
             </p>
           </div>
@@ -250,7 +250,7 @@ export function MobileAgentChat({
               "max-w-[85%] rounded-2xl px-4 py-3 text-sm",
               msg.role === "user"
                 ? "ml-auto bg-kiln-orange text-white rounded-br-sm"
-                : "mr-auto bg-card border border-border text-stone-300 rounded-bl-sm"
+                : "mr-auto bg-card border border-border text-foreground rounded-bl-sm"
             )}
           >
             {msg.content}
@@ -258,7 +258,7 @@ export function MobileAgentChat({
         ))}
 
         {sending && (
-          <div className="mr-auto flex items-center gap-2 rounded-2xl bg-card border border-border px-4 py-3 text-sm text-stone-500 rounded-bl-sm">
+          <div className="mr-auto flex items-center gap-2 rounded-2xl bg-card border border-border px-4 py-3 text-sm text-muted-foreground rounded-bl-sm">
             <Loader2 className="h-4 w-4 animate-spin" />
             Denkt nach...
           </div>
@@ -274,7 +274,7 @@ export function MobileAgentChat({
             <button
               key={action}
               onClick={() => sendMessage(action)}
-              className="flex-shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-stone-400 active:bg-muted transition-colors"
+              className="flex-shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground active:bg-muted transition-colors"
             >
               {action}
             </button>
@@ -296,7 +296,7 @@ export function MobileAgentChat({
               "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition-colors",
               isListening
                 ? "bg-red-500/20 text-red-400"
-                : "bg-card text-muted-foreground active:text-white"
+                : "bg-card text-muted-foreground active:text-foreground"
             )}
           >
             {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
@@ -315,7 +315,7 @@ export function MobileAgentChat({
             }}
             placeholder="Nachricht schreiben..."
             rows={1}
-            className="flex-1 resize-none rounded-2xl border border-border bg-card px-4 py-2.5 text-sm text-white placeholder:text-stone-600 focus:border-kiln-orange focus:outline-none"
+            className="flex-1 resize-none rounded-2xl border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-kiln-orange focus:outline-none"
             style={{ maxHeight: "120px" }}
           />
 

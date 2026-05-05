@@ -72,7 +72,7 @@ function ShortcutsHelpModal({
       {/* Modal */}
       <div
         className={cn(
-          "relative z-10 w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl backdrop-blur"
+          "relative z-10 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl backdrop-blur"
         )}
         onClick={(e) => e.stopPropagation()}
       >
@@ -80,13 +80,13 @@ function ShortcutsHelpModal({
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Keyboard className="h-5 w-5 text-orange-500" />
-            <h2 className="font-serif text-lg text-zinc-100">
+            <h2 className="font-serif text-lg text-foreground">
               Keyboard Shortcuts
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
@@ -96,7 +96,7 @@ function ShortcutsHelpModal({
         <div className="space-y-5">
           {sections.map((section) => (
             <div key={section.title}>
-              <h3 className="mb-2.5 text-xs font-medium uppercase tracking-wider text-zinc-500">
+              <h3 className="mb-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {section.title}
               </h3>
               <div className="space-y-2">
@@ -105,7 +105,7 @@ function ShortcutsHelpModal({
                     key={shortcut.keys}
                     className="flex items-center justify-between rounded-lg px-2 py-1.5"
                   >
-                    <span className="text-sm text-zinc-300">
+                    <span className="text-sm text-foreground">
                       {shortcut.description}
                     </span>
                     <KeyCombo keys={shortcut.keys} />
@@ -117,7 +117,7 @@ function ShortcutsHelpModal({
         </div>
 
         {/* Footer */}
-        <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-zinc-600">
+        <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
           <Command className="h-3 w-3" />
           <span>Press Esc to close</span>
         </div>
@@ -134,7 +134,7 @@ function KeyCombo({ keys }: { keys: string }) {
       {parts.map((part, i) => (
         <kbd
           key={i}
-          className="inline-flex min-w-[1.5rem] items-center justify-center rounded-md bg-zinc-800 px-1.5 py-0.5 font-mono text-xs text-zinc-300"
+          className="inline-flex min-w-[1.5rem] items-center justify-center rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground"
         >
           {part}
         </kbd>

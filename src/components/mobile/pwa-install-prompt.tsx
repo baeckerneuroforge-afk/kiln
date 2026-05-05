@@ -98,10 +98,10 @@ export function PWAInstallPrompt() {
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-white">
+            <div className="text-sm font-medium text-foreground">
               KILN installieren
             </div>
-            <div className="text-xs text-stone-400 mt-0.5">
+            <div className="text-xs text-muted-foreground mt-0.5">
               {isIOS
                 ? 'Tippe auf das Teilen-Symbol und wähle \u201EZum Home-Bildschirm\u201C'
                 : "Installiere KILN als App für schnelleren Zugriff und Benachrichtigungen"}
@@ -111,7 +111,7 @@ export function PWAInstallPrompt() {
           {/* Dismiss */}
           <button
             onClick={handleDismiss}
-            className="p-1 text-stone-600 hover:text-stone-400 transition-colors"
+            className="p-1 text-muted-foreground hover:text-muted-foreground transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -136,7 +136,7 @@ export function PWAInstallPrompt() {
 
           <button
             onClick={handleDismiss}
-            className="rounded-lg px-3 py-2 text-xs text-stone-500 active:text-stone-300 transition-colors"
+            className="rounded-lg px-3 py-2 text-xs text-muted-foreground active:text-foreground transition-colors"
           >
             Später
           </button>

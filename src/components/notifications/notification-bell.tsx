@@ -71,9 +71,9 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 z-50 w-80 rounded-xl border border-zinc-800 bg-zinc-900 shadow-2xl">
-          <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-2.5">
-            <span className="text-xs font-semibold text-zinc-100">Benachrichtigungen</span>
+        <div className="absolute right-0 top-11 z-50 w-80 rounded-xl border border-border bg-card shadow-2xl">
+          <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+            <span className="text-xs font-semibold text-foreground">Benachrichtigungen</span>
             {count > 0 && (
               <span className="rounded-full bg-orange-500/10 px-2 py-0.5 text-[10px] font-medium text-orange-400">
                 {count} offen
@@ -84,14 +84,14 @@ export function NotificationBell() {
           <div className="max-h-80 overflow-y-auto">
             {count === 0 ? (
               <div className="px-4 py-6 text-center">
-                <Bell className="mx-auto mb-2 h-5 w-5 text-zinc-700" />
-                <p className="text-xs text-zinc-500">Keine neuen Benachrichtigungen</p>
+                <Bell className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Keine neuen Benachrichtigungen</p>
               </div>
             ) : (
               approvals.map((approval) => (
                 <div
                   key={approval.id}
-                  className="border-b border-zinc-800/50 px-4 py-3 last:border-b-0"
+                  className="border-b border-border/50 px-4 py-3 last:border-b-0"
                 >
                   <div className="flex items-start gap-2.5">
                     <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-orange-500/10">
@@ -99,14 +99,14 @@ export function NotificationBell() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-medium text-zinc-200">
+                        <span className="text-xs font-medium text-foreground">
                           {approval.actionType.replace(/_/g, " ")}
                         </span>
                         {approval.agent && (
-                          <span className="text-[10px] text-zinc-600">{approval.agent.name}</span>
+                          <span className="text-[10px] text-muted-foreground">{approval.agent.name}</span>
                         )}
                       </div>
-                      <p className="mt-0.5 text-[11px] text-zinc-500 line-clamp-2">
+                      <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2">
                         {approval.actionSummary}
                       </p>
                       <div className="mt-1.5 flex items-center gap-1.5">
@@ -130,7 +130,7 @@ export function NotificationBell() {
                           <X className="h-2.5 w-2.5" />
                           Nein
                         </button>
-                        <span className="flex items-center gap-0.5 text-[9px] text-zinc-600 ml-auto">
+                        <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground ml-auto">
                           <Clock className="h-2.5 w-2.5" />
                           {new Date(approval.requestedAt).toLocaleTimeString("de-DE", {
                             hour: "2-digit",
@@ -146,7 +146,7 @@ export function NotificationBell() {
           </div>
 
           {count > 0 && (
-            <div className="border-t border-zinc-800 px-4 py-2 text-center">
+            <div className="border-t border-border px-4 py-2 text-center">
               <a
                 href="/dashboard/approvals"
                 className="text-[11px] text-orange-400 hover:text-orange-300 transition-colors"

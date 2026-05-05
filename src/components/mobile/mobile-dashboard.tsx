@@ -162,7 +162,7 @@ function MobileHomeTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-stone-500" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -171,11 +171,11 @@ function MobileHomeTab() {
     <div ref={scrollRef} className="p-4 space-y-5">
       {/* Pull-to-refresh button */}
       <div className="flex items-center justify-between">
-        <h1 className="font-serif text-xl text-white">Dashboard</h1>
+        <h1 className="font-serif text-xl text-foreground">Dashboard</h1>
         <button
           onClick={handleRefresh}
           disabled={refreshing}
-          className="p-2 rounded-lg text-muted-foreground hover:text-white transition-colors"
+          className="p-2 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
         >
           <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
         </button>
@@ -193,7 +193,7 @@ function MobileHomeTab() {
 
       {/* Recent Agents */}
       <div>
-        <h2 className="text-sm font-medium text-stone-400 mb-3">Deine Agents</h2>
+        <h2 className="text-sm font-medium text-muted-foreground mb-3">Deine Agents</h2>
         <div className="space-y-2">
           {agents.map((agent) => (
             <a
@@ -205,8 +205,8 @@ function MobileHomeTab() {
                 <Bot className="h-5 w-5 text-kiln-orange" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-white truncate">{agent.name}</div>
-                <div className="text-xs text-stone-500">{agent.conversationCount || 0} Gespräche</div>
+                <div className="text-sm font-medium text-foreground truncate">{agent.name}</div>
+                <div className="text-xs text-muted-foreground">{agent.conversationCount || 0} Gespräche</div>
               </div>
               <span
                 className={cn(
@@ -214,7 +214,7 @@ function MobileHomeTab() {
                   agent.status === "LIVE"
                     ? "bg-kiln-green/10 text-kiln-green"
                     : agent.status === "DRAFT"
-                      ? "bg-stone-700/50 text-stone-400"
+                      ? "bg-muted-foreground/50 text-muted-foreground"
                       : "bg-yellow-500/10 text-yellow-400"
                 )}
               >
@@ -223,7 +223,7 @@ function MobileHomeTab() {
             </a>
           ))}
           {agents.length === 0 && (
-            <div className="text-center py-8 text-stone-500">
+            <div className="text-center py-8 text-muted-foreground">
               <Bot className="h-8 w-8 mx-auto mb-2 opacity-30" />
               <p className="text-sm">Noch keine Agents erstellt.</p>
             </div>
@@ -237,7 +237,7 @@ function MobileHomeTab() {
 function StatCard({ label, value, color }: { label: string; value: string | number; color: string }) {
   return (
     <div className="rounded-xl border border-border bg-card p-3">
-      <div className="text-xs text-stone-500 mb-1">{label}</div>
+      <div className="text-xs text-muted-foreground mb-1">{label}</div>
       <div className={cn("text-lg font-serif", color)}>{value}</div>
     </div>
   );
@@ -248,8 +248,8 @@ function StatCard({ label, value, color }: { label: string; value: string | numb
 function MobileAgentsTab() {
   return (
     <div className="p-4">
-      <h1 className="font-serif text-xl text-white mb-4">AI Agents</h1>
-      <p className="text-sm text-stone-400 mb-4">
+      <h1 className="font-serif text-xl text-foreground mb-4">AI Agents</h1>
+      <p className="text-sm text-muted-foreground mb-4">
         Verwalte deine Agents. Tippe auf einen Agent für Details.
       </p>
       {/* Reuse home tab agent list with link to full agent page */}
@@ -271,8 +271,8 @@ function MobileChatRedirect() {
   return (
     <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
       <Sparkles className="h-10 w-10 text-kiln-orange mb-4" />
-      <h2 className="font-serif text-lg text-white mb-2">KILN Assistant</h2>
-      <p className="text-sm text-stone-400">
+      <h2 className="font-serif text-lg text-foreground mb-2">KILN Assistant</h2>
+      <p className="text-sm text-muted-foreground">
         Der Chat-Assistent öffnet sich automatisch. Falls nicht, tippe auf das
         Sparkles-Icon unten rechts.
       </p>
@@ -294,7 +294,7 @@ function MobileMoreTab() {
 
   return (
     <div className="p-4">
-      <h1 className="font-serif text-xl text-white mb-4">Mehr</h1>
+      <h1 className="font-serif text-xl text-foreground mb-4">Mehr</h1>
       <div className="space-y-2">
         {links.map((link) => (
           <a
@@ -303,7 +303,7 @@ function MobileMoreTab() {
             className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 active:bg-muted transition-colors"
           >
             <span className="text-lg">{link.icon}</span>
-            <span className="text-sm font-medium text-white">{link.label}</span>
+            <span className="text-sm font-medium text-foreground">{link.label}</span>
           </a>
         ))}
       </div>

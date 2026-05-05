@@ -104,12 +104,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               </span>
               <button
                 onClick={() => removeToast(t.id)}
-                className="shrink-0 rounded-md p-0.5 opacity-40 hover:opacity-100 hover:bg-white/5 transition-all duration-150"
+                className="shrink-0 rounded-md p-0.5 opacity-40 hover:opacity-100 hover:bg-muted/60 transition-all duration-150"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
               {/* Fortschrittsbalken */}
-              <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/5">
+              <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-muted/60">
                 <div
                   className={cn(
                     "h-full rounded-full opacity-60",

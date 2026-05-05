@@ -68,13 +68,13 @@ function saveMessages(messages: MetaAgentMessage[]) {
 function TypingIndicator() {
   return (
     <div className="flex items-start gap-3 px-4 py-2">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
         <Bot className="h-4 w-4 text-orange-400" />
       </div>
-      <div className="flex items-center gap-1 rounded-2xl bg-zinc-800/50 px-4 py-3">
-        <span className="h-2 w-2 animate-bounce rounded-full bg-zinc-500 [animation-delay:0ms]" />
-        <span className="h-2 w-2 animate-bounce rounded-full bg-zinc-500 [animation-delay:150ms]" />
-        <span className="h-2 w-2 animate-bounce rounded-full bg-zinc-500 [animation-delay:300ms]" />
+      <div className="flex items-center gap-1 rounded-2xl bg-muted/50 px-4 py-3">
+        <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:0ms]" />
+        <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:150ms]" />
+        <span className="h-2 w-2 animate-bounce rounded-full bg-muted-foreground [animation-delay:300ms]" />
       </div>
     </div>
   );
@@ -331,18 +331,18 @@ export function MetaAgentChat() {
         "fixed bottom-6 right-6 z-50",
         "flex w-96 flex-col",
         "h-[32rem] max-h-[80vh]",
-        "rounded-2xl border border-zinc-800 bg-zinc-950",
+        "rounded-2xl border border-border bg-background",
         "shadow-2xl shadow-black/50",
         "animate-in fade-in slide-in-from-bottom-4 duration-200"
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-orange-600">
             <Sparkles className="h-4 w-4 text-white" />
           </div>
-          <span className="text-sm font-semibold text-zinc-100">
+          <span className="text-sm font-semibold text-foreground">
             KILN Assistant
           </span>
         </div>
@@ -351,7 +351,7 @@ export function MetaAgentChat() {
           aria-label="Chat schließen"
           className={cn(
             "flex h-7 w-7 items-center justify-center rounded-lg",
-            "text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300",
+            "text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
           )}
         >
@@ -369,23 +369,23 @@ export function MetaAgentChat() {
               msg.toolCalls.map((tc, idx) => (
                 <div
                   key={`${msg.id}-tool-${idx}`}
-                  className="mb-2 ml-11 rounded-xl border border-zinc-800/50 bg-zinc-900/50 px-3 py-2"
+                  className="mb-2 ml-11 rounded-xl border border-border/50 bg-card/50 px-3 py-2"
                 >
                   <p className="text-xs font-medium text-orange-400/80">
                     {tc.name}
                   </p>
-                  <p className="mt-0.5 text-xs text-zinc-400">{tc.result}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{tc.result}</p>
                 </div>
               ))}
 
             {/* Message Bubble */}
             {msg.role === "assistant" ? (
               <div className="flex items-start gap-3 px-2">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
                   <Bot className="h-4 w-4 text-orange-400" />
                 </div>
-                <div className="max-w-[85%] rounded-2xl bg-zinc-800/50 px-4 py-2.5">
-                  <p className="text-sm leading-relaxed text-zinc-200 whitespace-pre-wrap">
+                <div className="max-w-[85%] rounded-2xl bg-muted/50 px-4 py-2.5">
+                  <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
                     {msg.content}
                   </p>
                 </div>
@@ -393,7 +393,7 @@ export function MetaAgentChat() {
             ) : (
               <div className="flex justify-end px-2">
                 <div className="max-w-[85%] rounded-2xl bg-orange-500/20 px-4 py-2.5">
-                  <p className="text-sm leading-relaxed text-zinc-100 whitespace-pre-wrap">
+                  <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
                     {msg.content}
                   </p>
                 </div>
@@ -413,8 +413,8 @@ export function MetaAgentChat() {
                 key={chip}
                 onClick={() => handleSend(chip)}
                 className={cn(
-                  "rounded-full border border-zinc-800 bg-zinc-900/50 px-3 py-1.5",
-                  "text-xs text-zinc-400 transition-all",
+                  "rounded-full border border-border bg-card/50 px-3 py-1.5",
+                  "text-xs text-muted-foreground transition-all",
                   "hover:border-orange-500/30 hover:bg-orange-500/10 hover:text-orange-300",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
                 )}
@@ -429,7 +429,7 @@ export function MetaAgentChat() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-zinc-800 px-3 py-3">
+      <div className="border-t border-border px-3 py-3">
         <div className="flex items-end gap-2">
           {voiceSupported && (
             <button
@@ -440,7 +440,7 @@ export function MetaAgentChat() {
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400",
                 isRecording
                   ? "bg-red-500/20 text-red-400 animate-pulse"
-                  : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+                  : "bg-muted text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
               {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
@@ -454,8 +454,8 @@ export function MetaAgentChat() {
             placeholder="Was möchtest du tun?"
             rows={1}
             className={cn(
-              "flex-1 resize-none rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2.5",
-              "text-sm text-zinc-100 placeholder:text-zinc-600",
+              "flex-1 resize-none rounded-xl border border-border bg-card px-3 py-2.5",
+              "text-sm text-foreground placeholder:text-muted-foreground",
               "focus:border-orange-500/50 focus:outline-none focus:ring-1 focus:ring-orange-500/30",
               "scrollbar-thin scrollbar-thumb-zinc-700"
             )}
@@ -471,7 +471,7 @@ export function MetaAgentChat() {
               "focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400",
               input.trim() && !isLoading
                 ? "bg-orange-500 text-white hover:bg-orange-400"
-                : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                : "bg-muted text-muted-foreground cursor-not-allowed"
             )}
           >
             {isLoading ? (

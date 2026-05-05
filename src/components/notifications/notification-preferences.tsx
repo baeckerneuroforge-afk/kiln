@@ -141,7 +141,7 @@ export function NotificationPreferences({ agentId }: Props) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -150,7 +150,7 @@ export function NotificationPreferences({ agentId }: Props) {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Bell className="h-5 w-5 text-orange-400" />
-        <h3 className="text-sm font-semibold text-zinc-100">
+        <h3 className="text-sm font-semibold text-foreground">
           {agentId ? "Agent-Benachrichtigungen" : "Globale Benachrichtigungen"}
         </h3>
       </div>
@@ -158,36 +158,36 @@ export function NotificationPreferences({ agentId }: Props) {
       {/* Channel Settings */}
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
-          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Slack Channel
           </label>
           <input
             value={slackChannel}
             onChange={(e) => setSlackChannel(e.target.value)}
             placeholder="#notifications"
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-orange-500/60 placeholder:text-zinc-700"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
           />
         </div>
         <div>
-          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Telegram Chat ID
           </label>
           <input
             value={telegramChatId}
             onChange={(e) => setTelegramChatId(e.target.value)}
             placeholder="123456789"
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-orange-500/60 placeholder:text-zinc-700"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
           />
         </div>
         <div>
-          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             WhatsApp Nummer
           </label>
           <input
             value={whatsappNumber}
             onChange={(e) => setWhatsappNumber(e.target.value)}
             placeholder="+4915..."
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-orange-500/60 placeholder:text-zinc-700"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
           />
         </div>
       </div>
@@ -196,12 +196,12 @@ export function NotificationPreferences({ agentId }: Props) {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-zinc-800">
-              <th className="pb-2 text-left text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+            <tr className="border-b border-border">
+              <th className="pb-2 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                 Event
               </th>
               {CHANNELS.map((ch) => (
-                <th key={ch.id} className="pb-2 text-center text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+                <th key={ch.id} className="pb-2 text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                   <div className="flex flex-col items-center gap-0.5">
                     <ch.icon className="h-3.5 w-3.5" />
                     <span>{ch.label}</span>
@@ -221,10 +221,10 @@ export function NotificationPreferences({ agentId }: Props) {
                 browserPush: false,
               };
               return (
-                <tr key={evt.id} className="border-b border-zinc-800/50">
+                <tr key={evt.id} className="border-b border-border/50">
                   <td className="py-2.5 pr-4">
-                    <span className="text-xs font-medium text-zinc-200">{evt.label}</span>
-                    <p className="text-[10px] text-zinc-600">{evt.description}</p>
+                    <span className="text-xs font-medium text-foreground">{evt.label}</span>
+                    <p className="text-[10px] text-muted-foreground">{evt.description}</p>
                   </td>
                   {CHANNELS.map((ch) => (
                     <td key={ch.id} className="py-2.5 text-center">
@@ -233,7 +233,7 @@ export function NotificationPreferences({ agentId }: Props) {
                         className={`mx-auto flex h-6 w-6 items-center justify-center rounded-md transition-colors ${
                           pref[ch.id as keyof Preference]
                             ? "bg-orange-500/20 text-orange-400"
-                            : "bg-zinc-900 text-zinc-700 hover:text-zinc-500"
+                            : "bg-card text-muted-foreground hover:text-muted-foreground"
                         }`}
                       >
                         {pref[ch.id as keyof Preference] ? (
@@ -271,7 +271,7 @@ export function NotificationPreferences({ agentId }: Props) {
           size="sm"
           variant="outline"
           onClick={enablePush}
-          className="text-xs h-8 border-zinc-700"
+          className="text-xs h-8 border-border"
         >
           <Globe className="mr-1.5 h-3.5 w-3.5" />
           Push aktivieren
