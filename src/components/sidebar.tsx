@@ -32,6 +32,7 @@ import {
   Search,
   Workflow,
   CreditCard,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -133,6 +134,7 @@ const NAV_SECTIONS: NavSection[] = [
       { name: "Sub-orgs", href: "/dashboard/agency/sub-orgs", icon: Building2, minAgents: 0, requiresAgencyTier: true },
       { name: "Branding", href: "/dashboard/agency/branding", icon: Settings, minAgents: 0, requiresBusiness: true },
       { name: "Billing", href: "/dashboard/agency/billing", icon: CreditCard, minAgents: 0, requiresBusiness: true },
+      { name: "Revenue", href: "/dashboard/agency/revenue", icon: TrendingUp, minAgents: 0, requiresBusiness: true },
       { name: "Data Explorer", href: "/dashboard/data-explorer", icon: Database, minAgents: 1 },
       { name: "Settings", href: "/dashboard/settings", icon: Settings, minAgents: 0 },
     ],
