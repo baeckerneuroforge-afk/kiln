@@ -22,7 +22,7 @@ export function ApprovalGateConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2">
         <ShieldCheck className="h-4 w-4 text-cyan-400" />
-        <p className="text-xs text-zinc-300">Pause execution until a human approves</p>
+        <p className="text-xs text-foreground">Pause execution until a human approves</p>
       </div>
 
       <ExpressionInput
@@ -43,22 +43,22 @@ export function ApprovalGateConfig({
       />
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Timeout (minutes)</label>
+        <label className="text-xs font-medium text-muted-foreground">Timeout (minutes)</label>
         <input
           type="number"
           min={1}
           value={timeoutMinutes}
           onChange={(e) => onChange({ ...config, timeoutMinutes: Math.max(1, parseInt(e.target.value) || 60) })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
         />
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">On Timeout</label>
+        <label className="text-xs font-medium text-muted-foreground">On Timeout</label>
         <select
           value={timeoutAction}
           onChange={(e) => onChange({ ...config, timeoutAction: e.target.value })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
         >
           <option value="auto_approve">Auto-approve</option>
           <option value="auto_reject">Auto-reject</option>
@@ -89,23 +89,23 @@ export function WaitWebhookConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2">
         <Pause className="h-4 w-4 text-cyan-400" />
-        <p className="text-xs text-zinc-300">Pause until an external system sends a webhook</p>
+        <p className="text-xs text-foreground">Pause until an external system sends a webhook</p>
       </div>
 
       {/* Callback URL template */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Callback URL</label>
-        <div className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2">
+        <label className="text-xs font-medium text-muted-foreground">Callback URL</label>
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2">
           <Globe className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
-          <code className="flex-1 text-[10px] text-zinc-300 font-mono break-all">{callbackUrlTemplate}</code>
+          <code className="flex-1 text-[10px] text-foreground font-mono break-all">{callbackUrlTemplate}</code>
           <button
             onClick={() => { navigator.clipboard.writeText(callbackUrlTemplate); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-            className="inline-flex items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-200 transition-colors shrink-0"
+            className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors shrink-0"
           >
             {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
           </button>
         </div>
-        <p className="text-[10px] text-zinc-600">
+        <p className="text-[10px] text-muted-foreground">
           The actual URL with executionId and nodeId will be available at runtime.
           External systems should POST JSON to this URL to resume the workflow.
         </p>
@@ -113,35 +113,35 @@ export function WaitWebhookConfig({
 
       {/* Expected payload */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Expected Payload (optional)</label>
+        <label className="text-xs font-medium text-muted-foreground">Expected Payload (optional)</label>
         <textarea
           value={expectedSchema}
           onChange={(e) => onChange({ ...config, expectedSchema: e.target.value })}
           placeholder={'{\n  "status": "approved",\n  "comment": "Looks good"\n}'}
           rows={4}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 placeholder:text-zinc-600 resize-none"
+          className="w-full bg-muted border border-border rounded-lg text-[11px] font-mono text-foreground px-3 py-2 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground resize-none"
         />
-        <p className="text-[10px] text-zinc-600">Document the expected JSON payload for reference</p>
+        <p className="text-[10px] text-muted-foreground">Document the expected JSON payload for reference</p>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Timeout (minutes)</label>
+        <label className="text-xs font-medium text-muted-foreground">Timeout (minutes)</label>
         <input
           type="number"
           min={1}
           value={timeoutMinutes}
           onChange={(e) => onChange({ ...config, timeoutMinutes: Math.max(1, parseInt(e.target.value) || 1440) })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
         />
-        <p className="text-[10px] text-zinc-600">Default: 1440 min (24h). Max: 10080 min (7 days).</p>
+        <p className="text-[10px] text-muted-foreground">Default: 1440 min (24h). Max: 10080 min (7 days).</p>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">On Timeout</label>
+        <label className="text-xs font-medium text-muted-foreground">On Timeout</label>
         <select
           value={timeoutAction}
           onChange={(e) => onChange({ ...config, timeoutAction: e.target.value })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
         >
           <option value="fail">Fail workflow</option>
           <option value="skip">Skip and continue</option>
@@ -196,7 +196,7 @@ export function WaitFormConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2">
         <FileText className="h-4 w-4 text-cyan-400" />
-        <p className="text-xs text-zinc-300">Create a form that pauses the workflow until submitted</p>
+        <p className="text-xs text-foreground">Create a form that pauses the workflow until submitted</p>
       </div>
 
       <ExpressionInput
@@ -218,21 +218,21 @@ export function WaitFormConfig({
 
       {/* Form Fields */}
       <div className="space-y-2">
-        <label className="text-xs font-medium text-zinc-400">Form Fields</label>
+        <label className="text-xs font-medium text-muted-foreground">Form Fields</label>
 
         {fields.length === 0 && (
-          <div className="rounded-lg border border-dashed border-zinc-700/60 bg-zinc-800/20 py-4 text-center">
-            <p className="text-xs text-zinc-500">No fields yet. Add fields to build your form.</p>
+          <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 py-4 text-center">
+            <p className="text-xs text-muted-foreground">No fields yet. Add fields to build your form.</p>
           </div>
         )}
 
         {fields.map((field, i) => (
-          <div key={i} className="rounded-lg border border-zinc-700/50 bg-zinc-800/30 p-3 space-y-2">
+          <div key={i} className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-zinc-500">Field {i + 1}</span>
+              <span className="text-[10px] text-muted-foreground">Field {i + 1}</span>
               <button
                 onClick={() => removeField(i)}
-                className="text-zinc-600 hover:text-red-400 transition-colors"
+                className="text-muted-foreground hover:text-red-400 transition-colors"
               >
                 <Trash2 className="h-3 w-3" />
               </button>
@@ -244,7 +244,7 @@ export function WaitFormConfig({
                   value={field.name}
                   onChange={(e) => updateField(i, { name: e.target.value })}
                   placeholder="field_name"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+                  className="w-full bg-muted border border-border rounded-lg text-[11px] font-mono text-foreground px-2 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
                 />
               </div>
               <div>
@@ -252,7 +252,7 @@ export function WaitFormConfig({
                   value={field.label}
                   onChange={(e) => updateField(i, { label: e.target.value })}
                   placeholder="Display Label"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+                  className="w-full bg-muted border border-border rounded-lg text-[11px] text-foreground px-2 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
                 />
               </div>
             </div>
@@ -261,7 +261,7 @@ export function WaitFormConfig({
               <select
                 value={field.type}
                 onChange={(e) => updateField(i, { type: e.target.value as FormFieldDef["type"] })}
-                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60"
+                className="flex-1 bg-muted border border-border rounded-lg text-[11px] text-foreground px-2 py-1.5 outline-none focus:border-orange-500/60"
               >
                 <option value="text">Text</option>
                 <option value="email">Email</option>
@@ -271,12 +271,12 @@ export function WaitFormConfig({
                 <option value="checkbox">Checkbox</option>
               </select>
 
-              <label className="flex items-center gap-1.5 text-[10px] text-zinc-400 cursor-pointer whitespace-nowrap">
+              <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer whitespace-nowrap">
                 <input
                   type="checkbox"
                   checked={field.required}
                   onChange={(e) => updateField(i, { required: e.target.checked })}
-                  className="h-3 w-3 rounded border-zinc-600 bg-zinc-800"
+                  className="h-3 w-3 rounded border-border bg-muted"
                 />
                 Required
               </label>
@@ -286,7 +286,7 @@ export function WaitFormConfig({
               value={field.placeholder || ""}
               onChange={(e) => updateField(i, { placeholder: e.target.value })}
               placeholder="Placeholder text (optional)"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+              className="w-full bg-muted border border-border rounded-lg text-[11px] text-foreground px-2 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
             />
 
             {field.type === "select" && (
@@ -294,7 +294,7 @@ export function WaitFormConfig({
                 value={(field.options || []).join(", ")}
                 onChange={(e) => updateField(i, { options: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
                 placeholder="Option 1, Option 2, Option 3"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+                className="w-full bg-muted border border-border rounded-lg text-[11px] text-foreground px-2 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
               />
             )}
           </div>
@@ -310,23 +310,23 @@ export function WaitFormConfig({
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Timeout (minutes)</label>
+        <label className="text-xs font-medium text-muted-foreground">Timeout (minutes)</label>
         <input
           type="number"
           min={1}
           value={timeoutMinutes}
           onChange={(e) => onChange({ ...config, timeoutMinutes: Math.max(1, parseInt(e.target.value) || 10080) })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
         />
-        <p className="text-[10px] text-zinc-600">Default: 10080 min (7 days)</p>
+        <p className="text-[10px] text-muted-foreground">Default: 10080 min (7 days)</p>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">On Timeout</label>
+        <label className="text-xs font-medium text-muted-foreground">On Timeout</label>
         <select
           value={timeoutAction}
           onChange={(e) => onChange({ ...config, timeoutAction: e.target.value })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
         >
           <option value="fail">Fail workflow</option>
           <option value="skip">Skip and continue</option>
@@ -334,8 +334,8 @@ export function WaitFormConfig({
         </select>
       </div>
 
-      <div className="rounded-lg border border-zinc-700/40 bg-zinc-800/20 p-3">
-        <p className="text-[10px] text-zinc-500">
+      <div className="rounded-lg border border-border/40 bg-muted/20 p-3">
+        <p className="text-[10px] text-muted-foreground">
           A unique form URL will be generated when the workflow reaches this node.
           The form can be shared with external users who don&apos;t need a KILN account.
         </p>
@@ -400,16 +400,16 @@ export function SubWorkflowConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2">
         <Layers className="h-4 w-4 text-cyan-400" />
-        <p className="text-xs text-zinc-300">Run another workflow as a step in this one</p>
+        <p className="text-xs text-foreground">Run another workflow as a step in this one</p>
       </div>
 
       {/* Workflow Selector */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Target Workflow</label>
+        <label className="text-xs font-medium text-muted-foreground">Target Workflow</label>
         <select
           value={workflowId}
           onChange={(e) => onChange({ ...config, workflowId: e.target.value })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
         >
           <option value="">{loading ? "Loading workflows..." : "Select a workflow"}</option>
           {workflows.map((wf) => (
@@ -419,8 +419,8 @@ export function SubWorkflowConfig({
           ))}
         </select>
         {workflowId && !selectedWorkflow && !loading && (
-          <p className="text-[10px] text-zinc-500">
-            Using workflow ID: <code className="text-zinc-400 font-mono">{workflowId}</code>
+          <p className="text-[10px] text-muted-foreground">
+            Using workflow ID: <code className="text-muted-foreground font-mono">{workflowId}</code>
           </p>
         )}
       </div>
@@ -440,7 +440,7 @@ export function SubWorkflowConfig({
 
       {/* Execution Mode */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Execution Mode</label>
+        <label className="text-xs font-medium text-muted-foreground">Execution Mode</label>
         <div className="flex gap-2">
           {(["sync", "async"] as const).map((m) => (
             <button
@@ -450,11 +450,11 @@ export function SubWorkflowConfig({
                 "flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
                 mode === m
                   ? "border-orange-500/40 bg-orange-500/10 text-orange-400"
-                  : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
+                  : "border-border bg-muted text-muted-foreground hover:border-foreground/20"
               )}
             >
               <span className="block font-semibold">{m === "sync" ? "Synchronous" : "Asynchronous"}</span>
-              <span className="block text-[10px] mt-0.5 text-zinc-500">
+              <span className="block text-[10px] mt-0.5 text-muted-foreground">
                 {m === "sync" ? "Wait for result" : "Fire and forget"}
               </span>
             </button>
@@ -465,15 +465,15 @@ export function SubWorkflowConfig({
       {/* Timeout (sync only) */}
       {mode === "sync" && (
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Timeout (minutes)</label>
+          <label className="text-xs font-medium text-muted-foreground">Timeout (minutes)</label>
           <input
             type="number"
             min={1}
             value={timeoutMinutes}
             onChange={(e) => onChange({ ...config, timeoutMinutes: Math.max(1, parseInt(e.target.value) || 5) })}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+            className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
           />
-          <p className="text-[10px] text-zinc-600">Execution fails if the sub-workflow does not complete in time.</p>
+          <p className="text-[10px] text-muted-foreground">Execution fails if the sub-workflow does not complete in time.</p>
         </div>
       )}
 
@@ -496,9 +496,9 @@ export function SubWorkflowConfig({
       />
 
       {/* Max depth info */}
-      <div className="flex items-center gap-2 rounded-lg border border-zinc-700/60 bg-zinc-800/50 px-3 py-2">
-        <Layers className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
-        <p className="text-[10px] text-zinc-500">Sub-workflows can be nested up to 5 levels deep</p>
+      <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/50 px-3 py-2">
+        <Layers className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <p className="text-[10px] text-muted-foreground">Sub-workflows can be nested up to 5 levels deep</p>
       </div>
     </div>
   );
@@ -518,15 +518,15 @@ export function MergeConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2">
         <Merge className="h-4 w-4 text-cyan-400" />
-        <p className="text-xs text-zinc-300">Wait for multiple parallel branches to complete</p>
+        <p className="text-xs text-foreground">Wait for multiple parallel branches to complete</p>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Merge Strategy</label>
+        <label className="text-xs font-medium text-muted-foreground">Merge Strategy</label>
         <select
           value={strategy}
           onChange={(e) => onChange({ ...config, strategy: e.target.value })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
         >
           <option value="wait_all">Wait for all branches</option>
           <option value="wait_any">Continue on first completion</option>
@@ -534,8 +534,8 @@ export function MergeConfig({
         </select>
       </div>
 
-      <div className="rounded-lg border border-zinc-700/60 bg-zinc-800/50 p-3">
-        <p className="text-[10px] text-zinc-500">
+      <div className="rounded-lg border border-border/60 bg-muted/50 p-3">
+        <p className="text-[10px] text-muted-foreground">
           {strategy === "wait_all" && "All incoming branches must complete before continuing."}
           {strategy === "wait_any" && "Continues as soon as any branch completes. Other branches are cancelled."}
           {strategy === "wait_majority" && "Continues when more than half of branches complete."}

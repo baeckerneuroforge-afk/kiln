@@ -11,7 +11,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-      className="inline-flex items-center gap-1 text-[10px] text-zinc-400 hover:text-zinc-200 transition-colors"
+      className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
     >
       {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
       {copied ? "Copied" : "Copy"}
@@ -66,22 +66,22 @@ export function TriggerWebhookConfig({
     <div className="space-y-4">
       {/* Webhook URL */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Webhook URL</label>
-        <div className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2">
+        <label className="text-xs font-medium text-muted-foreground">Webhook URL</label>
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2">
           <Globe className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-          <code className="flex-1 text-[11px] text-zinc-300 truncate font-mono">{webhookUrl}</code>
+          <code className="flex-1 text-[11px] text-foreground truncate font-mono">{webhookUrl}</code>
           <CopyButton text={webhookUrl} />
         </div>
-        <p className="text-[10px] text-zinc-600">Send HTTP POST requests to this URL to trigger the workflow</p>
+        <p className="text-[10px] text-muted-foreground">Send HTTP POST requests to this URL to trigger the workflow</p>
       </div>
 
       {/* Auth Method */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Authentication</label>
+        <label className="text-xs font-medium text-muted-foreground">Authentication</label>
         <select
           value={authMethod}
           onChange={(e) => onChange({ ...config, authMethod: e.target.value })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
         >
           <option value="none">None</option>
           <option value="api_key">API Key</option>
@@ -121,7 +121,7 @@ export function TriggerWebhookConfig({
         <button
           onClick={testWebhook}
           disabled={testing}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700 transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs text-foreground hover:bg-muted transition-colors disabled:opacity-50"
         >
           <Send className="h-3 w-3" />
           {testing ? "Testing..." : "Send Test"}
@@ -171,7 +171,7 @@ export function TriggerScheduleConfig({
     <div className="space-y-4">
       {/* Cron presets */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Schedule</label>
+        <label className="text-xs font-medium text-muted-foreground">Schedule</label>
         <div className="flex flex-wrap gap-1.5">
           {CRON_PRESETS.map((p) => (
             <button
@@ -181,7 +181,7 @@ export function TriggerScheduleConfig({
                 "rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-all",
                 cron === p.cron
                   ? "border-orange-500/40 bg-orange-500/10 text-orange-400"
-                  : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
+                  : "border-border bg-muted text-muted-foreground hover:border-foreground/20"
               )}
             >
               {p.label}
@@ -192,25 +192,25 @@ export function TriggerScheduleConfig({
 
       {/* Custom cron */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Cron Expression</label>
+        <label className="text-xs font-medium text-muted-foreground">Cron Expression</label>
         <div className="flex items-center gap-2">
-          <Clock className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
+          <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <input
             value={cron}
             onChange={(e) => onChange({ ...config, cron: e.target.value })}
             placeholder="0 9 * * *"
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg text-sm font-mono text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+            className="flex-1 bg-muted border border-border rounded-lg text-sm font-mono text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
           />
         </div>
       </div>
 
       {/* Timezone */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Timezone</label>
+        <label className="text-xs font-medium text-muted-foreground">Timezone</label>
         <select
           value={timezone}
           onChange={(e) => onChange({ ...config, timezone: e.target.value })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
         >
           {TIMEZONES.map((tz) => (
             <option key={tz} value={tz}>{tz}</option>
@@ -245,26 +245,26 @@ export function TriggerLeadConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
         <UserPlus className="h-4 w-4 text-amber-400" />
-        <p className="text-xs text-zinc-300">Fires when any of your agents captures a new lead</p>
+        <p className="text-xs text-foreground">Fires when any of your agents captures a new lead</p>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Agent Filter</label>
+        <label className="text-xs font-medium text-muted-foreground">Agent Filter</label>
         <select
           value={agentFilter}
           onChange={(e) => onChange({ ...config, agentFilter: e.target.value })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
         >
           <option value="all">Any agent</option>
         </select>
-        <p className="text-[10px] text-zinc-600">Select which agents should trigger this workflow</p>
+        <p className="text-[10px] text-muted-foreground">Select which agents should trigger this workflow</p>
       </div>
 
-      <div className="rounded-lg border border-zinc-700/60 bg-zinc-800/50 p-3">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500 mb-2">Available Fields</p>
+      <div className="rounded-lg border border-border/60 bg-muted/50 p-3">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-2">Available Fields</p>
         <div className="flex flex-wrap gap-1">
           {["lead.name", "lead.email", "lead.phone", "lead.source", "lead.score", "lead.agentId"].map((f) => (
-            <span key={f} className="text-[10px] font-mono bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded border border-zinc-700/50">{f}</span>
+            <span key={f} className="text-[10px] font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded border border-border/50">{f}</span>
           ))}
         </div>
       </div>
@@ -286,25 +286,25 @@ export function TriggerChatConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
         <MessageSquare className="h-4 w-4 text-amber-400" />
-        <p className="text-xs text-zinc-300">Fires when an embed widget chat session starts</p>
+        <p className="text-xs text-foreground">Fires when an embed widget chat session starts</p>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Agent Filter</label>
+        <label className="text-xs font-medium text-muted-foreground">Agent Filter</label>
         <select
           value={agentFilter}
           onChange={(e) => onChange({ ...config, agentFilter: e.target.value })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
         >
           <option value="all">Any agent</option>
         </select>
       </div>
 
-      <div className="rounded-lg border border-zinc-700/60 bg-zinc-800/50 p-3">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500 mb-2">Available Fields</p>
+      <div className="rounded-lg border border-border/60 bg-muted/50 p-3">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-2">Available Fields</p>
         <div className="flex flex-wrap gap-1">
           {["chat.agentId", "chat.visitorId", "chat.url", "chat.timestamp"].map((f) => (
-            <span key={f} className="text-[10px] font-mono bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded border border-zinc-700/50">{f}</span>
+            <span key={f} className="text-[10px] font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded border border-border/50">{f}</span>
           ))}
         </div>
       </div>
@@ -324,7 +324,7 @@ export function TriggerManualConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
         <Play className="h-4 w-4 text-amber-400" />
-        <p className="text-xs text-zinc-300">Run this workflow manually from the dashboard</p>
+        <p className="text-xs text-foreground">Run this workflow manually from the dashboard</p>
       </div>
 
       <ExpressionInput

@@ -265,11 +265,11 @@ function ChangeItem({ change }: { change: WorkflowDiffChange }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <CatIcon className="h-3 w-3 text-zinc-500" />
-          <span className="text-xs text-zinc-200">{change.label}</span>
+          <CatIcon className="h-3 w-3 text-muted-foreground" />
+          <span className="text-xs text-foreground">{change.label}</span>
         </div>
         {change.detail && (
-          <p className="mt-0.5 text-[10px] text-zinc-500">{change.detail}</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">{change.detail}</p>
         )}
       </div>
     </div>
@@ -308,8 +308,8 @@ export function WorkflowDiffView({
   if (diff.changes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <GitCompare className="mb-3 h-8 w-8 text-zinc-600" />
-        <p className="text-sm text-zinc-400">No differences between these versions</p>
+        <GitCompare className="mb-3 h-8 w-8 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">No differences between these versions</p>
       </div>
     );
   }
@@ -317,10 +317,10 @@ export function WorkflowDiffView({
   return (
     <div className="space-y-6">
       {/* Summary bar */}
-      <div className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3">
-        <GitCompare className="h-4 w-4 text-zinc-500" />
-        <p className="text-sm text-zinc-300">{diff.summary}</p>
-        <span className="ml-auto text-xs text-zinc-600">
+      <div className="flex items-center gap-3 rounded-xl border border-border bg-card/60 px-4 py-3">
+        <GitCompare className="h-4 w-4 text-muted-foreground" />
+        <p className="text-sm text-foreground">{diff.summary}</p>
+        <span className="ml-auto text-xs text-muted-foreground">
           {diff.changes.length} change{diff.changes.length !== 1 ? "s" : ""}
         </span>
       </div>
@@ -328,12 +328,12 @@ export function WorkflowDiffView({
       {/* Side-by-side diagrams */}
       <div className="grid grid-cols-2 gap-4">
         {/* Version A */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+        <div className="rounded-xl border border-border bg-card/40 p-4">
           <div className="mb-3 flex items-center gap-2">
-            <span className="text-xs font-medium text-zinc-400">{labelA}</span>
-            <span className="text-[10px] text-zinc-600">{versionA.name}</span>
+            <span className="text-xs font-medium text-muted-foreground">{labelA}</span>
+            <span className="text-[10px] text-muted-foreground">{versionA.name}</span>
           </div>
-          <div className="rounded-lg border border-zinc-800/50 bg-zinc-950 p-2">
+          <div className="rounded-lg border border-border/50 bg-background p-2">
             <DiffFlowDiagram
               nodes={versionA.nodes}
               edges={versionA.edges}
@@ -345,12 +345,12 @@ export function WorkflowDiffView({
         </div>
 
         {/* Version B */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+        <div className="rounded-xl border border-border bg-card/40 p-4">
           <div className="mb-3 flex items-center gap-2">
-            <span className="text-xs font-medium text-zinc-400">{labelB}</span>
-            <span className="text-[10px] text-zinc-600">{versionB.name}</span>
+            <span className="text-xs font-medium text-muted-foreground">{labelB}</span>
+            <span className="text-[10px] text-muted-foreground">{versionB.name}</span>
           </div>
-          <div className="rounded-lg border border-zinc-800/50 bg-zinc-950 p-2">
+          <div className="rounded-lg border border-border/50 bg-background p-2">
             <DiffFlowDiagram
               nodes={versionB.nodes}
               edges={versionB.edges}
@@ -366,19 +366,19 @@ export function WorkflowDiffView({
       <div className="flex items-center gap-4 text-[10px]">
         <div className="flex items-center gap-1.5">
           <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
-          <span className="text-zinc-500">Added</span>
+          <span className="text-muted-foreground">Added</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
-          <span className="text-zinc-500">Removed</span>
+          <span className="text-muted-foreground">Removed</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
-          <span className="text-zinc-500">Changed</span>
+          <span className="text-muted-foreground">Changed</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="h-3 w-5 border border-dashed border-zinc-500 rounded" />
-          <span className="text-zinc-500">Dashed = removed/added</span>
+          <div className="h-3 w-5 border border-dashed border-border rounded" />
+          <span className="text-muted-foreground">Dashed = removed/added</span>
         </div>
       </div>
 
@@ -386,7 +386,7 @@ export function WorkflowDiffView({
       <div className="space-y-4">
         {Object.entries(changesByCategory).map(([category, changes]) => (
           <div key={category}>
-            <h4 className="mb-2 text-[10px] font-medium uppercase tracking-wider text-zinc-600">
+            <h4 className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
               {category === "node" ? "Nodes" : category === "edge" ? "Connections" : category === "variable" ? "Variables" : "Configuration"}
             </h4>
             <div className="space-y-1">

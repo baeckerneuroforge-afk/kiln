@@ -79,7 +79,7 @@ export function MultiSiteConfig({ config, onChange }: ConfigProps) {
 
       {/* Preset */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Preset</label>
+        <label className="text-xs font-medium text-muted-foreground">Preset</label>
         <div className="grid grid-cols-2 gap-1.5">
           {PRESETS.map((p) => (
             <button
@@ -88,7 +88,7 @@ export function MultiSiteConfig({ config, onChange }: ConfigProps) {
               className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-medium transition-all ${
                 preset === p.id
                   ? "border-teal-500/50 bg-teal-500/10 text-teal-300"
-                  : "border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700"
+                  : "border-border bg-card/50 text-muted-foreground hover:border-border"
               }`}
             >
               {p.label}
@@ -99,7 +99,7 @@ export function MultiSiteConfig({ config, onChange }: ConfigProps) {
 
       {/* URL List */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">URLs ({urls.length}/20)</label>
+        <label className="text-xs font-medium text-muted-foreground">URLs ({urls.length}/20)</label>
         {urls.map((url, i) => (
           <div key={i} className="flex items-center gap-2">
             <input
@@ -109,9 +109,9 @@ export function MultiSiteConfig({ config, onChange }: ConfigProps) {
                 updated[i] = e.target.value;
                 onChange({ ...config, urls: updated });
               }}
-              className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-200 focus:border-teal-500/50 focus:outline-none"
+              className="flex-1 rounded-lg border border-border bg-card/50 px-3 py-1.5 text-xs text-foreground focus:border-teal-500/50 focus:outline-none"
             />
-            <button onClick={() => removeUrl(i)} className="p-1 text-zinc-600 hover:text-red-400">
+            <button onClick={() => removeUrl(i)} className="p-1 text-muted-foreground hover:text-red-400">
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -122,9 +122,9 @@ export function MultiSiteConfig({ config, onChange }: ConfigProps) {
             onChange={(e) => setNewUrl(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addUrl()}
             placeholder="https://competitor.com"
-            className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-400 placeholder:text-zinc-600 focus:border-teal-500/50 focus:outline-none"
+            className="flex-1 rounded-lg border border-border bg-card/50 px-3 py-1.5 text-xs text-muted-foreground placeholder:text-muted-foreground focus:border-teal-500/50 focus:outline-none"
           />
-          <button onClick={addUrl} className="p-1 text-zinc-600 hover:text-teal-400">
+          <button onClick={addUrl} className="p-1 text-muted-foreground hover:text-teal-400">
             <Plus className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -132,36 +132,36 @@ export function MultiSiteConfig({ config, onChange }: ConfigProps) {
 
       {/* Task per site */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Task per Site</label>
+        <label className="text-xs font-medium text-muted-foreground">Task per Site</label>
         <textarea
           value={taskPerSite}
           onChange={(e) => onChange({ ...config, taskPerSite: e.target.value })}
           placeholder="What should the agent do on each site?"
           rows={3}
-          className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-teal-500/50 focus:outline-none resize-none"
+          className="w-full rounded-lg border border-border bg-card/50 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-teal-500/50 focus:outline-none resize-none"
         />
       </div>
 
       {/* Product name (for price comparison) */}
       {preset === "price_comparison" && (
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Product Name</label>
+          <label className="text-xs font-medium text-muted-foreground">Product Name</label>
           <input
             value={String(config.productName || "")}
             onChange={(e) => onChange({ ...config, productName: e.target.value })}
             placeholder="e.g. Viessmann Vitocal 250-A"
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-teal-500/50 focus:outline-none"
+            className="w-full rounded-lg border border-border bg-card/50 px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-teal-500/50 focus:outline-none"
           />
         </div>
       )}
 
       {/* Merge Strategy */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Merge Strategy</label>
+        <label className="text-xs font-medium text-muted-foreground">Merge Strategy</label>
         <select
           value={mergeStrategy}
           onChange={(e) => onChange({ ...config, mergeStrategy: e.target.value })}
-          className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-200 focus:border-teal-500/50 focus:outline-none"
+          className="w-full rounded-lg border border-border bg-card/50 px-3 py-1.5 text-xs text-foreground focus:border-teal-500/50 focus:outline-none"
         >
           {MERGE_STRATEGIES.map((s) => (
             <option key={s.id} value={s.id}>{s.label}</option>
@@ -171,11 +171,11 @@ export function MultiSiteConfig({ config, onChange }: ConfigProps) {
 
       {/* Output Format */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Output Format</label>
+        <label className="text-xs font-medium text-muted-foreground">Output Format</label>
         <select
           value={outputFormat}
           onChange={(e) => onChange({ ...config, outputFormat: e.target.value })}
-          className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-200 focus:border-teal-500/50 focus:outline-none"
+          className="w-full rounded-lg border border-border bg-card/50 px-3 py-1.5 text-xs text-foreground focus:border-teal-500/50 focus:outline-none"
         >
           {OUTPUT_FORMATS.map((f) => (
             <option key={f.id} value={f.id}>{f.label}</option>
@@ -186,8 +186,8 @@ export function MultiSiteConfig({ config, onChange }: ConfigProps) {
       {/* Max Parallel */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-medium text-zinc-400">Max Parallel</label>
-          <span className="text-xs text-zinc-500">{maxParallel}</span>
+          <label className="text-xs font-medium text-muted-foreground">Max Parallel</label>
+          <span className="text-xs text-muted-foreground">{maxParallel}</span>
         </div>
         <input
           type="range"
@@ -200,8 +200,8 @@ export function MultiSiteConfig({ config, onChange }: ConfigProps) {
       </div>
 
       {/* Info */}
-      <div className="rounded-lg border border-zinc-800/50 bg-zinc-900/30 p-2.5">
-        <p className="flex items-start gap-1 text-[10px] text-zinc-500">
+      <div className="rounded-lg border border-border/50 bg-card/30 p-2.5">
+        <p className="flex items-start gap-1 text-[10px] text-muted-foreground">
           <Info className="h-3 w-3 mt-0.5 shrink-0" />
           {urls.length} sites, {mergeStrategy.replace("_", " ")}, {maxParallel} parallel
         </p>

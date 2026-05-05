@@ -45,7 +45,7 @@ interface AutoBuildChatProps {
 /* ── Node Icons ── */
 
 const NODE_COLORS: Record<string, string> = {
-  trigger_manual: "bg-zinc-500/10 text-zinc-400",
+  trigger_manual: "bg-muted/10 text-muted-foreground",
   trigger_schedule: "bg-blue-500/10 text-blue-400",
   trigger_webhook: "bg-violet-500/10 text-violet-400",
   computer_use: "bg-pink-500/10 text-pink-400",
@@ -211,13 +211,13 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
   return (
     <div className={cn("flex flex-col h-full", className)}>
       {/* Header */}
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-[#332f2b]">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500/10">
           <Sparkles className="h-4.5 w-4.5 text-orange-400" />
         </div>
         <div>
-          <h2 className="text-sm font-semibold text-zinc-100">Build with AI</h2>
-          <p className="text-[10px] text-zinc-600">Beschreibe deinen Workflow — ich baue ihn für dich</p>
+          <h2 className="text-sm font-semibold text-foreground">Build with AI</h2>
+          <p className="text-[10px] text-muted-foreground">Beschreibe deinen Workflow — ich baue ihn für dich</p>
         </div>
       </div>
 
@@ -235,7 +235,7 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
               "max-w-[85%] rounded-2xl px-4 py-3",
               msg.role === "user"
                 ? "bg-orange-600 text-white"
-                : "bg-[#1e1d1b] border border-[#332f2b] text-zinc-300"
+                : "bg-card border border-border text-foreground"
             )}>
               <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
 
@@ -243,18 +243,18 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
               {msg.data?.type === "built" && msg.data.workflow && (
                 <div className="mt-4 space-y-3">
                   {/* Mini Node Graph */}
-                  <div className="rounded-xl border border-[#332f2b] bg-[#1a1918] p-4">
+                  <div className="rounded-xl border border-border bg-card p-4">
                     <div className="flex flex-wrap gap-2">
                       {msg.data.workflow.nodes.map((node, i) => (
                         <div key={node.id} className="flex items-center gap-1.5">
                           <div className={cn(
                             "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5",
-                            NODE_COLORS[node.type] || "bg-zinc-500/10 text-zinc-400"
+                            NODE_COLORS[node.type] || "bg-muted/10 text-muted-foreground"
                           )}>
                             <span className="text-[10px] font-medium">{node.label}</span>
                           </div>
                           {i < msg.data!.workflow!.nodes.length - 1 && (
-                            <ArrowRight className="h-3 w-3 text-zinc-700" />
+                            <ArrowRight className="h-3 w-3 text-muted-foreground" />
                           )}
                         </div>
                       ))}
@@ -262,7 +262,7 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
                   </div>
 
                   {/* Meta-Info */}
-                  <div className="flex items-center gap-4 text-[10px] text-zinc-500">
+                  <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Coins className="h-3 w-3 text-orange-400" />
                       ~{msg.data.workflow.estimatedCreditsPerRun} Credits/Lauf
@@ -288,7 +288,7 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
 
                   {/* Reasoning */}
                   {msg.data.workflow.reasoning && (
-                    <p className="text-[10px] text-zinc-600 italic">{msg.data.workflow.reasoning}</p>
+                    <p className="text-[10px] text-muted-foreground italic">{msg.data.workflow.reasoning}</p>
                   )}
 
                   {/* Action Buttons */}
@@ -310,7 +310,7 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
                       size="sm"
                       variant="outline"
                       onClick={() => onWorkflowCreated?.(msg.data!.workflow!.workflowId)}
-                      className="text-xs h-8 border-[#332f2b] text-zinc-400"
+                      className="text-xs h-8 border-border text-muted-foreground"
                     >
                       <CheckCircle2 className="mr-1 h-3 w-3" />
                       Als Draft speichern
@@ -324,9 +324,9 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
 
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-[#1e1d1b] border border-[#332f2b] rounded-2xl px-4 py-3 flex items-center gap-2">
+            <div className="bg-card border border-border rounded-2xl px-4 py-3 flex items-center gap-2">
               <Loader2 className="h-4 w-4 text-orange-400 animate-spin" />
-              <span className="text-sm text-zinc-500">Denke nach...</span>
+              <span className="text-sm text-muted-foreground">Denke nach...</span>
             </div>
           </div>
         )}
@@ -335,7 +335,7 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
       </div>
 
       {/* Input */}
-      <div className="px-5 py-4 border-t border-[#332f2b]">
+      <div className="px-5 py-4 border-t border-border">
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -344,7 +344,7 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
             placeholder="Beschreibe deinen Workflow..."
             disabled={loading}
-            className="flex-1 bg-[#1a1918] border border-[#332f2b] rounded-xl text-sm text-zinc-100 px-4 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 disabled:opacity-50"
+            className="flex-1 bg-card border border-border rounded-xl text-sm text-foreground px-4 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground disabled:opacity-50"
           />
           <Button
             size="sm"
@@ -359,7 +359,7 @@ export function AutoBuildChat({ onWorkflowCreated, className }: AutoBuildChatPro
             )}
           </Button>
         </div>
-        <div className="flex items-center gap-3 mt-2 text-[10px] text-zinc-700">
+        <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
           <span className="flex items-center gap-1">
             <ChevronRight className="h-2.5 w-2.5" />
             Tipp: Je detaillierter, desto besser

@@ -85,7 +85,7 @@ function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { color: string; icon: React.ReactNode }> = {
     COMPLETED: { color: "text-green-400 bg-green-500/10 border-green-500/20", icon: <CheckCircle2 className="h-3 w-3" /> },
     FAILED: { color: "text-red-400 bg-red-500/10 border-red-500/20", icon: <AlertCircle className="h-3 w-3" /> },
-    SKIPPED: { color: "text-zinc-400 bg-zinc-500/10 border-zinc-500/20", icon: <Clock className="h-3 w-3" /> },
+    SKIPPED: { color: "text-muted-foreground bg-muted/10 border-border", icon: <Clock className="h-3 w-3" /> },
     PENDING: { color: "text-amber-400 bg-amber-500/10 border-amber-500/20", icon: <Clock className="h-3 w-3" /> },
     RUNNING: { color: "text-blue-400 bg-blue-500/10 border-blue-500/20", icon: <Loader2 className="h-3 w-3 animate-spin" /> },
   };
@@ -176,13 +176,13 @@ export function LogViewer({ teamId, executionId, open, onClose }: LogViewerProps
       <div className="fixed inset-0 z-20 bg-black/40" onClick={onClose} />
 
       {/* Panel */}
-      <div className="fixed top-0 right-0 h-full w-[680px] z-30 bg-zinc-900 border-l border-border shadow-2xl flex flex-col">
+      <div className="fixed top-0 right-0 h-full w-[680px] z-30 bg-card border-l border-border shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2">
             <FileJson className="h-4 w-4 text-orange-400" />
-            <h3 className="text-sm font-semibold text-zinc-100">Execution Logs</h3>
-            <span className="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">
+            <h3 className="text-sm font-semibold text-foreground">Execution Logs</h3>
+            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
               {stats.total} entries
             </span>
           </div>
@@ -205,22 +205,22 @@ export function LogViewer({ teamId, executionId, open, onClose }: LogViewerProps
               <FileSpreadsheet className="h-3 w-3 mr-1" />
               CSV
             </Button>
-            <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
               <X className="h-4 w-4" />
             </button>
           </div>
         </div>
 
         {/* Stats bar */}
-        <div className="px-5 py-2 border-b border-zinc-800 bg-zinc-950/50 flex items-center gap-4">
-          <div className="text-[10px] text-zinc-500">
-            <span className="text-zinc-300">{formatDuration(stats.totalDuration)}</span> total
+        <div className="px-5 py-2 border-b border-border bg-background/50 flex items-center gap-4">
+          <div className="text-[10px] text-muted-foreground">
+            <span className="text-foreground">{formatDuration(stats.totalDuration)}</span> total
           </div>
-          <div className="text-[10px] text-zinc-500">
-            <span className="text-zinc-300">{(stats.totalTokensIn + stats.totalTokensOut).toLocaleString()}</span> tokens
+          <div className="text-[10px] text-muted-foreground">
+            <span className="text-foreground">{(stats.totalTokensIn + stats.totalTokensOut).toLocaleString()}</span> tokens
           </div>
-          <div className="text-[10px] text-zinc-500">
-            <span className="text-zinc-300">{formatCost(stats.totalCost)}</span> cost
+          <div className="text-[10px] text-muted-foreground">
+            <span className="text-foreground">{formatCost(stats.totalCost)}</span> cost
           </div>
           {stats.errors > 0 && (
             <div className="text-[10px] text-red-400">
@@ -230,16 +230,16 @@ export function LogViewer({ teamId, executionId, open, onClose }: LogViewerProps
         </div>
 
         {/* Search & Filters */}
-        <div className="px-5 py-3 border-b border-zinc-800 space-y-2">
+        <div className="px-5 py-3 border-b border-border space-y-2">
           <div className="flex items-center gap-2">
             <div className="flex-1 relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && fetchLogs()}
                 placeholder="Search logs..."
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-100 pl-8 pr-3 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+                className="w-full bg-muted border border-border rounded-lg text-xs text-foreground pl-8 pr-3 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
               />
             </div>
             <button
@@ -248,7 +248,7 @@ export function LogViewer({ teamId, executionId, open, onClose }: LogViewerProps
                 "inline-flex items-center gap-1 text-[11px] px-2.5 py-1.5 rounded-lg border transition-colors",
                 showFilters
                   ? "border-orange-500/30 bg-orange-500/5 text-orange-400"
-                  : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-zinc-300"
+                  : "border-border bg-muted text-muted-foreground hover:text-foreground"
               )}
             >
               <Filter className="h-3 w-3" />
@@ -262,7 +262,7 @@ export function LogViewer({ teamId, executionId, open, onClose }: LogViewerProps
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60"
+                className="bg-muted border border-border rounded-lg text-[11px] text-foreground px-2 py-1.5 outline-none focus:border-orange-500/60"
               >
                 <option value="">All status</option>
                 {STATUS_OPTIONS.map((s) => (
@@ -272,7 +272,7 @@ export function LogViewer({ teamId, executionId, open, onClose }: LogViewerProps
               <select
                 value={nodeTypeFilter}
                 onChange={(e) => setNodeTypeFilter(e.target.value)}
-                className="bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60"
+                className="bg-muted border border-border rounded-lg text-[11px] text-foreground px-2 py-1.5 outline-none focus:border-orange-500/60"
               >
                 <option value="">All node types</option>
                 {NODE_TYPE_OPTIONS.map((t) => (
@@ -295,21 +295,21 @@ export function LogViewer({ teamId, executionId, open, onClose }: LogViewerProps
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-zinc-500" />
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : logs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <FileJson className="h-6 w-6 mb-2" />
               <p className="text-xs">No log entries found</p>
             </div>
           ) : (
-            <div className="divide-y divide-zinc-800/60">
+            <div className="divide-y divide-border">
               {logs.map((log) => (
                 <div
                   key={log.id}
                   className={cn(
-                    "px-5 py-3 hover:bg-zinc-800/30 transition-colors cursor-pointer",
-                    expandedLog === log.id && "bg-zinc-800/20"
+                    "px-5 py-3 hover:bg-muted/30 transition-colors cursor-pointer",
+                    expandedLog === log.id && "bg-muted/20"
                   )}
                   onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
                 >
@@ -318,17 +318,17 @@ export function LogViewer({ teamId, executionId, open, onClose }: LogViewerProps
                     <StatusBadge status={log.status} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-zinc-200 truncate">
+                        <span className="text-xs font-medium text-foreground truncate">
                           {log.taskTitle}
                         </span>
                         {log.nodeType && (
-                          <span className="text-[9px] font-mono text-zinc-500 bg-zinc-800 px-1 py-0.5 rounded">
+                          <span className="text-[9px] font-mono text-muted-foreground bg-muted px-1 py-0.5 rounded">
                             {log.nodeType}
                           </span>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 text-[10px] text-zinc-500 shrink-0">
+                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground shrink-0">
                       {log.durationMs !== null && (
                         <span className="flex items-center gap-1">
                           <Clock className="h-2.5 w-2.5" />
@@ -351,25 +351,25 @@ export function LogViewer({ teamId, executionId, open, onClose }: LogViewerProps
 
                   {/* Expanded detail */}
                   {expandedLog === log.id && (
-                    <div className="mt-3 space-y-2 border-t border-zinc-700/40 pt-3">
+                    <div className="mt-3 space-y-2 border-t border-border/40 pt-3">
                       <div className="grid grid-cols-2 gap-3 text-[10px]">
                         <div>
-                          <span className="text-zinc-500">Node ID:</span>{" "}
-                          <span className="text-zinc-300 font-mono">{log.nodeId || "—"}</span>
+                          <span className="text-muted-foreground">Node ID:</span>{" "}
+                          <span className="text-foreground font-mono">{log.nodeId || "—"}</span>
                         </div>
                         <div>
-                          <span className="text-zinc-500">Model:</span>{" "}
-                          <span className="text-zinc-300">{log.model || "—"}</span>
+                          <span className="text-muted-foreground">Model:</span>{" "}
+                          <span className="text-foreground">{log.model || "—"}</span>
                         </div>
                         <div>
-                          <span className="text-zinc-500">Started:</span>{" "}
-                          <span className="text-zinc-300">
+                          <span className="text-muted-foreground">Started:</span>{" "}
+                          <span className="text-foreground">
                             {log.startedAt ? new Date(log.startedAt).toLocaleString() : "—"}
                           </span>
                         </div>
                         <div>
-                          <span className="text-zinc-500">Completed:</span>{" "}
-                          <span className="text-zinc-300">
+                          <span className="text-muted-foreground">Completed:</span>{" "}
+                          <span className="text-foreground">
                             {log.completedAt ? new Date(log.completedAt).toLocaleString() : "—"}
                           </span>
                         </div>
@@ -385,27 +385,27 @@ export function LogViewer({ teamId, executionId, open, onClose }: LogViewerProps
                       )}
 
                       {log.output && (
-                        <div className="rounded-lg border border-zinc-700/40 bg-zinc-800/30 p-2.5">
-                          <p className="text-[10px] font-medium text-zinc-400 mb-1">Output</p>
-                          <pre className="text-[10px] text-zinc-300 font-mono whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
+                        <div className="rounded-lg border border-border/40 bg-muted/30 p-2.5">
+                          <p className="text-[10px] font-medium text-muted-foreground mb-1">Output</p>
+                          <pre className="text-[10px] text-foreground font-mono whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
                             {log.output}
                           </pre>
                         </div>
                       )}
 
                       {log.structuredOutput && Object.keys(log.structuredOutput).length > 0 && (
-                        <div className="rounded-lg border border-zinc-700/40 bg-zinc-800/30 p-2.5">
-                          <p className="text-[10px] font-medium text-zinc-400 mb-1">Structured Output</p>
-                          <pre className="text-[10px] text-zinc-300 font-mono whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
+                        <div className="rounded-lg border border-border/40 bg-muted/30 p-2.5">
+                          <p className="text-[10px] font-medium text-muted-foreground mb-1">Structured Output</p>
+                          <pre className="text-[10px] text-foreground font-mono whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
                             {JSON.stringify(log.structuredOutput, null, 2)}
                           </pre>
                         </div>
                       )}
 
                       {log.input && Object.keys(log.input).length > 0 && (
-                        <div className="rounded-lg border border-zinc-700/40 bg-zinc-800/30 p-2.5">
-                          <p className="text-[10px] font-medium text-zinc-400 mb-1">Input / Meta</p>
-                          <pre className="text-[10px] text-zinc-300 font-mono whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
+                        <div className="rounded-lg border border-border/40 bg-muted/30 p-2.5">
+                          <p className="text-[10px] font-medium text-muted-foreground mb-1">Input / Meta</p>
+                          <pre className="text-[10px] text-foreground font-mono whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
                             {JSON.stringify(log.input, null, 2)}
                           </pre>
                         </div>

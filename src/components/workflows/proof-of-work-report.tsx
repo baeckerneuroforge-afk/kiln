@@ -133,7 +133,7 @@ export function ProofOfWorkReport({ executionId, className }: ProofOfWorkReportP
       <div className="p-4 space-y-3">
         {loading && (
           <div className="flex items-center justify-center py-6">
-            <Loader2 className="h-4 w-4 animate-spin text-zinc-600" />
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           </div>
         )}
 
@@ -173,7 +173,7 @@ export function ProofOfWorkReport({ executionId, className }: ProofOfWorkReportP
         {report?.exists && report.reportUrl && (
           <>
             {/* Preview */}
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
+            <div className="rounded-lg border border-border bg-card/50 p-3">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                 <span className="text-xs font-medium text-foreground">Report Ready</span>
@@ -225,7 +225,7 @@ export function ProofOfWorkReport({ executionId, className }: ProofOfWorkReportP
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
                   placeholder="client@example.com"
-                  className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-orange-500/50 focus:outline-none"
+                  className="flex-1 rounded-lg border border-border bg-card/50 px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:border-orange-500/50 focus:outline-none"
                 />
                 <Button
                   size="sm"
@@ -242,7 +242,7 @@ export function ProofOfWorkReport({ executionId, className }: ProofOfWorkReportP
             <button
               onClick={generateReport}
               disabled={generating}
-              className="text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+              className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
             >
               {generating ? "Regenerating..." : "Regenerate report"}
             </button>

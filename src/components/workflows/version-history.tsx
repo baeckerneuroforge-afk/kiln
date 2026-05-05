@@ -81,7 +81,7 @@ function VersionRow({
         "group rounded-lg border transition-colors",
         isSelected
           ? "border-orange-500/40 bg-orange-500/5"
-          : "border-zinc-800 bg-zinc-900/40 hover:border-zinc-700"
+          : "border-border bg-card/40 hover:border-border"
       )}
     >
       <button
@@ -93,15 +93,15 @@ function VersionRow({
       >
         <div className="mt-0.5">
           {expanded ? (
-            <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
           ) : (
-            <ChevronRight className="h-3.5 w-3.5 text-zinc-500" />
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
           )}
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono font-medium text-zinc-300">
+            <span className="text-xs font-mono font-medium text-foreground">
               v{entry.version}
             </span>
             {isCurrent && (
@@ -110,22 +110,22 @@ function VersionRow({
               </span>
             )}
           </div>
-          <p className="mt-0.5 truncate text-xs text-zinc-400">{entry.changelog}</p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">{entry.changelog}</p>
           {entry.note && (
             <div className="mt-1 flex items-start gap-1">
-              <MessageSquare className="mt-0.5 h-2.5 w-2.5 flex-shrink-0 text-zinc-600" />
-              <p className="text-[10px] text-zinc-500 italic">{entry.note}</p>
+              <MessageSquare className="mt-0.5 h-2.5 w-2.5 flex-shrink-0 text-muted-foreground" />
+              <p className="text-[10px] text-muted-foreground italic">{entry.note}</p>
             </div>
           )}
         </div>
 
         <div className="flex-shrink-0 text-right">
-          <p className="text-[10px] text-zinc-600">{relativeTime(entry.createdAt)}</p>
+          <p className="text-[10px] text-muted-foreground">{relativeTime(entry.createdAt)}</p>
         </div>
       </button>
 
       {expanded && (
-        <div className="border-t border-zinc-800/60 px-4 py-2.5 flex items-center gap-2">
+        <div className="border-t border-border/60 px-4 py-2.5 flex items-center gap-2">
           {!isCurrent && (
             <Button
               size="sm"
@@ -151,7 +151,7 @@ function VersionRow({
             <GitCompare className="mr-1.5 h-3 w-3" />
             Compare
           </Button>
-          <span className="ml-auto flex items-center gap-1 text-[10px] text-zinc-600">
+          <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground">
             <Clock className="h-2.5 w-2.5" />
             {new Date(entry.createdAt).toLocaleString("de-DE")}
           </span>
@@ -203,19 +203,19 @@ function CompareModal({
     <div className="fixed inset-0 z-[100] flex items-center justify-center" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
-        className="relative z-10 w-full max-w-4xl max-h-[85vh] overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl mx-4"
+        className="relative z-10 w-full max-w-4xl max-h-[85vh] overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl mx-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <GitCompare className="h-5 w-5 text-orange-500" />
-            <h2 className="font-serif text-lg text-zinc-100">
+            <h2 className="font-serif text-lg text-foreground">
               Compare v{versionA?.version} → v{versionB?.version}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
@@ -223,7 +223,7 @@ function CompareModal({
 
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-6 w-6 animate-spin text-zinc-500" />
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : configA && configB && diff ? (
           <WorkflowDiffView
@@ -234,7 +234,7 @@ function CompareModal({
             labelB={`v${versionB?.version}`}
           />
         ) : (
-          <p className="text-center text-sm text-zinc-500">Could not load version data</p>
+          <p className="text-center text-sm text-muted-foreground">Could not load version data</p>
         )}
       </div>
     </div>
@@ -317,9 +317,9 @@ export function VersionHistoryPanel({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <History className="h-4 w-4 text-orange-500" />
-          <h3 className="text-sm font-medium text-zinc-100">Version History</h3>
+          <h3 className="text-sm font-medium text-foreground">Version History</h3>
           {currentVersion && (
-            <span className="text-xs text-zinc-600">Current: v{currentVersion}</span>
+            <span className="text-xs text-muted-foreground">Current: v{currentVersion}</span>
           )}
         </div>
         <Button size="sm" variant="outline" onClick={fetchVersions} className="text-xs h-7">
@@ -347,14 +347,14 @@ export function VersionHistoryPanel({
       {loading ? (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-lg bg-zinc-800/60" />
+            <div key={i} className="h-16 animate-pulse rounded-lg bg-muted/60" />
           ))}
         </div>
       ) : versions.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 py-12 text-center">
-          <History className="mb-3 h-8 w-8 text-zinc-700" />
-          <p className="text-sm text-zinc-400">No versions yet</p>
-          <p className="mt-1 text-xs text-zinc-600">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card/40 py-12 text-center">
+          <History className="mb-3 h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">No versions yet</p>
+          <p className="mt-1 text-xs text-muted-foreground">
             Save your workflow to create the first version
           </p>
         </div>
@@ -407,7 +407,7 @@ export function SaveNoteInput({
     return (
       <button
         onClick={() => setShowInput(true)}
-        className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
       >
         + Add save note
       </button>
@@ -420,7 +420,7 @@ export function SaveNoteInput({
         value={note}
         onChange={(e) => setNote(e.target.value)}
         placeholder="What changed? (optional)"
-        className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-100 px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+        className="flex-1 bg-muted border border-border rounded-lg text-xs text-foreground px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
         autoFocus
         onKeyDown={(e) => {
           if (e.key === "Enter") onSave(note);

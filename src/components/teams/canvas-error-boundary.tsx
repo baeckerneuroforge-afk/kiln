@@ -48,15 +48,15 @@ export class CanvasErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="h-full w-full flex items-center justify-center bg-[#1a1918]">
+        <div className="h-full w-full flex items-center justify-center bg-card">
           <div className="flex flex-col items-center gap-4 max-w-md text-center p-8">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10 border border-red-500/20">
               <AlertTriangle className="h-7 w-7 text-red-400" />
             </div>
-            <h3 className="text-base font-medium text-zinc-200">
+            <h3 className="text-base font-medium text-foreground">
               Something went wrong with the workflow editor
             </h3>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-muted-foreground">
               Your work has been saved. Reload the editor to continue.
             </p>
             {this.state.error && (
@@ -77,7 +77,7 @@ export class CanvasErrorBoundary extends React.Component<
                 size="sm"
                 variant="outline"
                 onClick={this.handleCopyError}
-                className="border-zinc-700 text-zinc-400 hover:text-zinc-200"
+                className="border-border text-muted-foreground hover:text-foreground"
               >
                 <Copy className="h-3.5 w-3.5 mr-1.5" />
                 {this.state.copied ? "Copied!" : "Copy Error"}

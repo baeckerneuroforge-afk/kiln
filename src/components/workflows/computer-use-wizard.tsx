@@ -57,16 +57,16 @@ export function ComputerUseWizard({ teamId, onCreateWorkflow, onClose }: Compute
   };
 
   return (
-    <div className="rounded-xl border border-[#332f2b] bg-[#1e1d1b] overflow-hidden">
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[#332f2b] bg-[#1a1918]">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-card">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500/10">
             <Wand2 className="h-4.5 w-4.5 text-orange-400" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-zinc-100">Quick Setup</h3>
-            <p className="text-[10px] text-zinc-500">Beschreibe was dein Agent tun soll</p>
+            <h3 className="text-sm font-semibold text-foreground">Quick Setup</h3>
+            <p className="text-[10px] text-muted-foreground">Beschreibe was dein Agent tun soll</p>
           </div>
         </div>
         {onClose && (
@@ -74,7 +74,7 @@ export function ComputerUseWizard({ teamId, onCreateWorkflow, onClose }: Compute
             size="sm"
             variant="ghost"
             onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-300 text-xs"
+            className="text-muted-foreground hover:text-foreground text-xs"
           >
             Schließen
           </Button>
@@ -89,7 +89,7 @@ export function ComputerUseWizard({ teamId, onCreateWorkflow, onClose }: Compute
             onChange={(e) => setDescription(e.target.value)}
             placeholder="z.B. &quot;Überprüfe jeden Montag die Preise auf competitor.com und schicke mir eine E-Mail mit den Änderungen&quot;"
             rows={3}
-            className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-200 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
+            className="w-full bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground resize-none"
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 analyze();
@@ -97,7 +97,7 @@ export function ComputerUseWizard({ teamId, onCreateWorkflow, onClose }: Compute
             }}
           />
           <div className="flex items-center justify-between">
-            <p className="text-[10px] text-zinc-600">⌘ + Enter zum Analysieren</p>
+            <p className="text-[10px] text-muted-foreground">⌘ + Enter zum Analysieren</p>
             <Button
               size="sm"
               onClick={analyze}
@@ -125,20 +125,20 @@ export function ComputerUseWizard({ teamId, onCreateWorkflow, onClose }: Compute
         {result && (
           <div className="space-y-4">
             {/* Task Summary */}
-            <div className="rounded-lg border border-[#332f2b] bg-[#1a1918] p-4 space-y-3">
-              <h4 className="text-xs font-semibold text-zinc-200">Was KILN einrichten wird:</h4>
+            <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+              <h4 className="text-xs font-semibold text-foreground">Was KILN einrichten wird:</h4>
 
               {/* Task */}
               <div className="flex items-start gap-2">
                 <Monitor className="h-3.5 w-3.5 text-pink-400 mt-0.5 shrink-0" />
-                <p className="text-[11px] text-zinc-300">{result.task}</p>
+                <p className="text-[11px] text-foreground">{result.task}</p>
               </div>
 
               {/* URLs */}
               {result.urls.length > 0 && (
                 <div className="flex items-start gap-2">
                   <Globe className="h-3.5 w-3.5 text-blue-400 mt-0.5 shrink-0" />
-                  <div className="text-[11px] text-zinc-400 space-y-0.5">
+                  <div className="text-[11px] text-muted-foreground space-y-0.5">
                     {result.urls.map((url, i) => (
                       <div key={i} className="font-mono">{url}</div>
                     ))}
@@ -150,7 +150,7 @@ export function ComputerUseWizard({ teamId, onCreateWorkflow, onClose }: Compute
               {result.schedule && (
                 <div className="flex items-center gap-2">
                   <Clock className="h-3.5 w-3.5 text-yellow-400 shrink-0" />
-                  <span className="text-[11px] text-zinc-400 font-mono">{result.schedule}</span>
+                  <span className="text-[11px] text-muted-foreground font-mono">{result.schedule}</span>
                 </div>
               )}
 
@@ -175,17 +175,17 @@ export function ComputerUseWizard({ teamId, onCreateWorkflow, onClose }: Compute
             </div>
 
             {/* Workflow Preview */}
-            <div className="rounded-lg border border-[#332f2b] bg-[#1a1918] p-4">
-              <h4 className="text-xs font-semibold text-zinc-200 mb-3">Workflow-Vorschau</h4>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <h4 className="text-xs font-semibold text-foreground mb-3">Workflow-Vorschau</h4>
               <div className="flex items-center gap-2 overflow-x-auto pb-2">
                 {result.suggestedNodes.map((node, i) => (
                   <div key={i} className="flex items-center gap-2 shrink-0">
-                    {i > 0 && <ArrowRight className="h-3 w-3 text-zinc-700" />}
-                    <div className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-3 py-2">
-                      <span className="text-[10px] font-mono text-zinc-500 uppercase block">
+                    {i > 0 && <ArrowRight className="h-3 w-3 text-muted-foreground" />}
+                    <div className="rounded-lg border border-border bg-card px-3 py-2">
+                      <span className="text-[10px] font-mono text-muted-foreground uppercase block">
                         {node.type.replace(/_/g, " ")}
                       </span>
-                      <span className="text-[11px] text-zinc-300">{node.label}</span>
+                      <span className="text-[11px] text-foreground">{node.label}</span>
                     </div>
                   </div>
                 ))}
@@ -194,7 +194,7 @@ export function ComputerUseWizard({ teamId, onCreateWorkflow, onClose }: Compute
 
             {/* Reasoning */}
             {result.reasoning && (
-              <p className="text-[10px] text-zinc-600 italic">{result.reasoning}</p>
+              <p className="text-[10px] text-muted-foreground italic">{result.reasoning}</p>
             )}
 
             {/* Create Button */}
@@ -203,7 +203,7 @@ export function ComputerUseWizard({ teamId, onCreateWorkflow, onClose }: Compute
                 size="sm"
                 variant="ghost"
                 onClick={() => setResult(null)}
-                className="text-zinc-500 hover:text-zinc-300 text-xs h-8"
+                className="text-muted-foreground hover:text-foreground text-xs h-8"
               >
                 Nochmal
               </Button>

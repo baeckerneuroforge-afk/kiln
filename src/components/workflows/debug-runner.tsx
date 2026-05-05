@@ -64,7 +64,7 @@ interface DebugRunnerProps {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: Record<DebugStep["status"], string> = {
-  pending: "bg-zinc-600",
+  pending: "bg-muted",
   running: "bg-blue-500",
   completed: "bg-green-500",
   failed: "bg-red-500",
@@ -82,7 +82,7 @@ const STATUS_RING: Record<DebugStep["status"], string> = {
 };
 
 const STATUS_BORDER: Record<DebugStep["status"], string> = {
-  pending: "border-zinc-700",
+  pending: "border-border",
   running: "border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.3)]",
   completed: "border-green-500/60",
   failed: "border-red-500/60",
@@ -127,14 +127,14 @@ function JsonBlock({ data, label }: { data: unknown; label?: string }) {
   const lineCount = content.split("\n").length;
 
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-950 overflow-hidden">
+    <div className="rounded-lg border border-border bg-background overflow-hidden">
       {label && (
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-300 border-b border-zinc-800 transition-colors"
+          className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground border-b border-border transition-colors"
         >
           <span>{label}</span>
-          <span className="flex items-center gap-1.5 text-zinc-500">
+          <span className="flex items-center gap-1.5 text-muted-foreground">
             <span>{lineCount} Zeilen</span>
             <ChevronDown
               className={cn(
@@ -146,7 +146,7 @@ function JsonBlock({ data, label }: { data: unknown; label?: string }) {
         </button>
       )}
       {!collapsed && (
-        <pre className="p-3 text-xs leading-relaxed text-zinc-300 overflow-x-auto font-[var(--font-dm-mono),ui-monospace,monospace] max-h-[320px] overflow-y-auto">
+        <pre className="p-3 text-xs leading-relaxed text-foreground overflow-x-auto font-[var(--font-dm-mono),ui-monospace,monospace] max-h-[320px] overflow-y-auto">
           {content}
         </pre>
       )}
@@ -189,7 +189,7 @@ function MiniFlowList({
           <div key={step.nodeId} className="flex flex-col items-center">
             {/* Verbindungspfeil */}
             {i > 0 && (
-              <ArrowDown className="h-4 w-4 text-zinc-600 my-1 shrink-0" />
+              <ArrowDown className="h-4 w-4 text-muted-foreground my-1 shrink-0" />
             )}
 
             {/* Node-Karte */}
@@ -200,7 +200,7 @@ function MiniFlowList({
                 "group relative flex items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-all w-full max-w-[200px]",
                 isActive
                   ? STATUS_BORDER[step.status]
-                  : "border-zinc-800 hover:border-zinc-700"
+                  : "border-border hover:border-border"
               )}
             >
               {/* Status-Dot */}
@@ -211,11 +211,11 @@ function MiniFlowList({
                   STATUS_RING[step.status]
                 )}
               />
-              <Icon className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
+              <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <span
                 className={cn(
                   "text-xs truncate",
-                  isActive ? "text-zinc-100 font-medium" : "text-zinc-400"
+                  isActive ? "text-foreground font-medium" : "text-muted-foreground"
                 )}
               >
                 {step.nodeLabel}
@@ -240,7 +240,7 @@ function StepDetailPanel({
 }) {
   if (!step) {
     return (
-      <div className="flex flex-1 items-center justify-center text-sm text-zinc-500">
+      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
         Schritt auswählen, um Details zu sehen.
       </div>
     );
@@ -258,7 +258,7 @@ function StepDetailPanel({
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       {/* Tab-Leiste */}
-      <div className="flex items-center gap-1 border-b border-zinc-800 px-4">
+      <div className="flex items-center gap-1 border-b border-border px-4">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -267,7 +267,7 @@ function StepDetailPanel({
               "flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium border-b-2 transition-colors -mb-px",
               activeTab === t.id
                 ? "border-orange-500 text-orange-400"
-                : "border-transparent text-zinc-500 hover:text-zinc-300"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
             <t.icon className="h-3.5 w-3.5" />
@@ -299,12 +299,12 @@ function DetailContent({ step }: { step: DebugStep }) {
       {/* Header mit Status */}
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-zinc-100">
+          <h3 className="text-sm font-semibold text-foreground">
             {step.nodeLabel}
           </h3>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            Typ: <span className="text-zinc-400">{step.nodeType}</span> · ID:{" "}
-            <span className="font-[var(--font-dm-mono),ui-monospace,monospace] text-zinc-400">
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Typ: <span className="text-muted-foreground">{step.nodeType}</span> · ID:{" "}
+            <span className="font-[var(--font-dm-mono),ui-monospace,monospace] text-muted-foreground">
               {step.nodeId}
             </span>
           </p>
@@ -317,7 +317,7 @@ function DetailContent({ step }: { step: DebugStep }) {
             step.status === "running" && "bg-blue-500/10 text-blue-400",
             step.status === "paused" && "bg-blue-500/10 text-blue-400",
             step.status === "skipped" && "bg-yellow-500/10 text-yellow-400",
-            step.status === "pending" && "bg-zinc-500/10 text-zinc-400"
+            step.status === "pending" && "bg-muted/10 text-muted-foreground"
           )}
         >
           {step.status === "running" && (
@@ -389,10 +389,10 @@ function PromptContent({
     <div className="space-y-4">
       {/* System Prompt */}
       <div>
-        <h4 className="text-xs font-medium text-zinc-400 mb-2">
+        <h4 className="text-xs font-medium text-muted-foreground mb-2">
           System Prompt
         </h4>
-        <pre className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs text-zinc-300 whitespace-pre-wrap font-[var(--font-dm-mono),ui-monospace,monospace] max-h-[240px] overflow-y-auto">
+        <pre className="rounded-lg border border-border bg-background p-3 text-xs text-foreground whitespace-pre-wrap font-[var(--font-dm-mono),ui-monospace,monospace] max-h-[240px] overflow-y-auto">
           {prompt.system}
         </pre>
       </div>
@@ -400,14 +400,14 @@ function PromptContent({
       {/* Knowledge / RAG Context */}
       {prompt.knowledgeContext.length > 0 && (
         <div>
-          <h4 className="text-xs font-medium text-zinc-400 mb-2">
+          <h4 className="text-xs font-medium text-muted-foreground mb-2">
             Knowledge Context ({prompt.knowledgeContext.length} Chunks)
           </h4>
           <div className="space-y-2">
             {prompt.knowledgeContext.map((chunk, i) => (
               <pre
                 key={i}
-                className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3 text-xs text-zinc-300 whitespace-pre-wrap font-[var(--font-dm-mono),ui-monospace,monospace] max-h-[160px] overflow-y-auto"
+                className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3 text-xs text-foreground whitespace-pre-wrap font-[var(--font-dm-mono),ui-monospace,monospace] max-h-[160px] overflow-y-auto"
               >
                 {chunk}
               </pre>
@@ -418,20 +418,20 @@ function PromptContent({
 
       {/* User Prompt */}
       <div>
-        <h4 className="text-xs font-medium text-zinc-400 mb-2">
+        <h4 className="text-xs font-medium text-muted-foreground mb-2">
           User Prompt
         </h4>
-        <pre className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs text-zinc-300 whitespace-pre-wrap font-[var(--font-dm-mono),ui-monospace,monospace] max-h-[240px] overflow-y-auto">
+        <pre className="rounded-lg border border-border bg-background p-3 text-xs text-foreground whitespace-pre-wrap font-[var(--font-dm-mono),ui-monospace,monospace] max-h-[240px] overflow-y-auto">
           {prompt.user}
         </pre>
       </div>
 
       {/* Vollständiger Prompt */}
       <div>
-        <h4 className="text-xs font-medium text-zinc-400 mb-2">
+        <h4 className="text-xs font-medium text-muted-foreground mb-2">
           Vollständiger Prompt (wie an LLM gesendet)
         </h4>
-        <pre className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3 text-xs text-zinc-300 whitespace-pre-wrap font-[var(--font-dm-mono),ui-monospace,monospace] max-h-[360px] overflow-y-auto">
+        <pre className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3 text-xs text-foreground whitespace-pre-wrap font-[var(--font-dm-mono),ui-monospace,monospace] max-h-[360px] overflow-y-auto">
           {prompt.fullPrompt}
         </pre>
       </div>
@@ -449,14 +449,14 @@ function MetricCard({
   value: string;
 }) {
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2.5">
-      <div className="flex items-center gap-1.5 text-zinc-500 mb-1">
+    <div className="rounded-lg border border-border bg-card/50 p-2.5">
+      <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
         <Icon className="h-3 w-3" />
         <span className="text-[10px] font-medium uppercase tracking-wider">
           {label}
         </span>
       </div>
-      <p className="text-sm font-semibold text-zinc-200 font-[var(--font-dm-mono),ui-monospace,monospace]">
+      <p className="text-sm font-semibold text-foreground font-[var(--font-dm-mono),ui-monospace,monospace]">
         {value}
       </p>
     </div>
@@ -496,8 +496,8 @@ function StepTimeline({
             className={cn(
               "group relative flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs shrink-0 transition-all",
               isActive
-                ? "bg-zinc-800 text-zinc-100"
-                : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
             )}
             title={`${step.nodeLabel} — ${STATUS_LABELS[step.status]}`}
           >
@@ -512,7 +512,7 @@ function StepTimeline({
             />
             <span className="truncate max-w-[100px]">{step.nodeLabel}</span>
             {i < steps.length - 1 && (
-              <span className="text-zinc-700 ml-1 shrink-0">{">"}</span>
+              <span className="text-muted-foreground ml-1 shrink-0">{">"}</span>
             )}
           </button>
         );
@@ -639,9 +639,9 @@ export default function DebugRunner({
   const isPaused = activeStep?.status === "paused";
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#1a1918] text-zinc-100 font-[var(--font-dm-sans),sans-serif]">
+    <div className="fixed inset-0 z-50 flex flex-col bg-card text-foreground font-[var(--font-dm-sans),sans-serif]">
       {/* ===== Top-Leiste ===== */}
-      <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-2.5 shrink-0">
+      <header className="flex items-center justify-between border-b border-border px-4 py-2.5 shrink-0">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <div className="h-2.5 w-2.5 rounded-full bg-orange-500" />
@@ -650,7 +650,7 @@ export default function DebugRunner({
             </h1>
           </div>
           {executionId && (
-            <span className="rounded bg-zinc-800 px-2 py-0.5 text-[10px] font-[var(--font-dm-mono),ui-monospace,monospace] text-zinc-500">
+            <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-[var(--font-dm-mono),ui-monospace,monospace] text-muted-foreground">
               {executionId}
             </span>
           )}
@@ -702,7 +702,7 @@ export default function DebugRunner({
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 w-7 p-0 text-zinc-500 hover:text-zinc-100"
+            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
             onClick={onClose}
           >
             <X className="h-4 w-4" />
@@ -721,14 +721,14 @@ export default function DebugRunner({
       {/* ===== Hauptbereich: Split View ===== */}
       <div className="flex flex-1 overflow-hidden">
         {/* Linke Spalte: Mini Flow */}
-        <aside className="flex w-[260px] shrink-0 flex-col border-r border-zinc-800 bg-zinc-900/30">
-          <div className="px-3 py-2 border-b border-zinc-800">
-            <h2 className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+        <aside className="flex w-[260px] shrink-0 flex-col border-r border-border bg-card/30">
+          <div className="px-3 py-2 border-b border-border">
+            <h2 className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               Workflow-Schritte
             </h2>
           </div>
           {steps.length === 0 ? (
-            <div className="flex flex-1 items-center justify-center text-xs text-zinc-600">
+            <div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">
               Warte auf Schritte…
             </div>
           ) : (
@@ -752,7 +752,7 @@ export default function DebugRunner({
 
       {/* ===== Bottom: Step-Timeline ===== */}
       {steps.length > 0 && (
-        <footer className="border-t border-zinc-800 bg-zinc-900/50 shrink-0">
+        <footer className="border-t border-border bg-card/50 shrink-0">
           <StepTimeline
             steps={steps}
             activeIndex={activeIndex}

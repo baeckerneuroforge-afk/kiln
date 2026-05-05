@@ -10,9 +10,9 @@ interface ConfigProps {
 function FieldLabel({ label, hint }: { label: string; hint?: string }) {
   return (
     <div className="space-y-0.5">
-      <label className="text-xs font-medium text-zinc-400">{label}</label>
+      <label className="text-xs font-medium text-muted-foreground">{label}</label>
       {hint && (
-        <p className="flex items-start gap-1 text-[10px] text-zinc-500">
+        <p className="flex items-start gap-1 text-[10px] text-muted-foreground">
           <Info className="h-3 w-3 mt-0.5 shrink-0" />
           {hint}
         </p>
@@ -38,7 +38,7 @@ function ConfigInput({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700"
+      className="w-full bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground"
     />
   );
 }
@@ -56,7 +56,7 @@ function ConfigSelect({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors"
+      className="w-full bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors"
     >
       {options.map((opt) => (
         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -91,7 +91,7 @@ function ConfigSlider({
         step={step}
         className="flex-1 accent-orange-500"
       />
-      <span className="text-xs font-mono text-zinc-300 min-w-[3ch] text-right">
+      <span className="text-xs font-mono text-foreground min-w-[3ch] text-right">
         {value}{label}
       </span>
     </div>
@@ -105,7 +105,7 @@ export function GoalTriggerConfig({ config, onChange }: ConfigProps) {
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-orange-500/20 bg-orange-500/5 px-3 py-2">
         <Target className="h-4 w-4 text-orange-400" />
-        <p className="text-xs text-zinc-300">Plant und führt Schritte aus einem natürlichsprachlichen Ziel aus</p>
+        <p className="text-xs text-foreground">Plant und führt Schritte aus einem natürlichsprachlichen Ziel aus</p>
       </div>
 
       <div className="space-y-1.5">
@@ -115,7 +115,7 @@ export function GoalTriggerConfig({ config, onChange }: ConfigProps) {
           onChange={(e) => onChange({ ...config, goal: e.target.value })}
           placeholder="z.B. Recherchiere aktuelle Markttrends für E-Commerce und erstelle einen zusammenfassenden Report"
           rows={3}
-          className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
+          className="w-full bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground resize-none"
         />
       </div>
 
@@ -139,7 +139,7 @@ export function SpawnHelperConfig({ config, onChange }: ConfigProps) {
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-purple-500/20 bg-purple-500/5 px-3 py-2">
         <Sparkles className="h-4 w-4 text-purple-400" />
-        <p className="text-xs text-zinc-300">Erstellt einen temporären Helper-Agent für eine Sub-Aufgabe</p>
+        <p className="text-xs text-foreground">Erstellt einen temporären Helper-Agent für eine Sub-Aufgabe</p>
       </div>
 
       <div className="space-y-1.5">
@@ -149,7 +149,7 @@ export function SpawnHelperConfig({ config, onChange }: ConfigProps) {
           onChange={(e) => onChange({ ...config, task: e.target.value })}
           placeholder="z.B. Analysiere die Kundenbewertungen und extrahiere die Top-3 Probleme"
           rows={3}
-          className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
+          className="w-full bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground resize-none"
         />
       </div>
 
@@ -192,7 +192,7 @@ export function AgentSwarmConfig({ config, onChange }: ConfigProps) {
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-purple-500/20 bg-purple-500/5 px-3 py-2">
         <Layers className="h-4 w-4 text-purple-400" />
-        <p className="text-xs text-zinc-300">Zerlegt ein Ziel in parallele Sub-Tasks mit mehreren Agents</p>
+        <p className="text-xs text-foreground">Zerlegt ein Ziel in parallele Sub-Tasks mit mehreren Agents</p>
       </div>
 
       <div className="space-y-1.5">
@@ -202,7 +202,7 @@ export function AgentSwarmConfig({ config, onChange }: ConfigProps) {
           onChange={(e) => onChange({ ...config, goal: e.target.value })}
           placeholder="z.B. Analysiere die Wettbewerber in 5 verschiedenen Märkten parallel und konsolidiere die Ergebnisse"
           rows={3}
-          className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
+          className="w-full bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground resize-none"
         />
       </div>
 
@@ -249,7 +249,7 @@ export function AgentSwarmConfig({ config, onChange }: ConfigProps) {
             onChange={(e) => onChange({ ...config, customMergePrompt: e.target.value })}
             placeholder="z.B. Fasse die Ergebnisse aller Agents in einem strukturierten Report zusammen..."
             rows={2}
-            className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
+            className="w-full bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground resize-none"
           />
         </div>
       )}
@@ -284,7 +284,7 @@ export function ParallelSplitConfig({ config, onChange }: ConfigProps) {
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2">
         <GitFork className="h-4 w-4 text-blue-400" />
-        <p className="text-xs text-zinc-300">Startet mehrere Branches gleichzeitig (Fan-out)</p>
+        <p className="text-xs text-foreground">Startet mehrere Branches gleichzeitig (Fan-out)</p>
       </div>
 
       <div className="space-y-1.5">
@@ -297,8 +297,8 @@ export function ParallelSplitConfig({ config, onChange }: ConfigProps) {
         />
       </div>
 
-      <div className="rounded-lg border border-[#332f2b] bg-[#1a1918] p-3">
-        <p className="text-[10px] text-zinc-500">
+      <div className="rounded-lg border border-border bg-card p-3">
+        <p className="text-[10px] text-muted-foreground">
           Verbinde die ausgehenden Edges mit verschiedenen Nodes. Alle Branches starten gleichzeitig.
           Nutze einen &quot;Parallel Merge&quot;-Node um die Ergebnisse zusammenzuführen.
         </p>
@@ -314,7 +314,7 @@ export function ParallelMergeConfig({ config, onChange }: ConfigProps) {
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2">
         <Merge className="h-4 w-4 text-blue-400" />
-        <p className="text-xs text-zinc-300">Wartet auf parallele Branches und merged Ergebnisse (Fan-in)</p>
+        <p className="text-xs text-foreground">Wartet auf parallele Branches und merged Ergebnisse (Fan-in)</p>
       </div>
 
       <div className="space-y-1.5">

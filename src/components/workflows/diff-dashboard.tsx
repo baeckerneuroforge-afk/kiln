@@ -55,13 +55,13 @@ const CHANGE_TYPE_COLORS: Record<string, string> = {
   removed_item: "bg-amber-500/10 text-amber-400 border-amber-500/20",
   layout_change: "bg-violet-500/10 text-violet-400 border-violet-500/20",
   new_promotion: "bg-orange-500/10 text-orange-400 border-orange-500/20",
-  other: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
+  other: "bg-muted/10 text-muted-foreground border-border",
 };
 
 const IMPORTANCE_COLORS: Record<string, string> = {
   high: "text-red-400",
   medium: "text-amber-400",
-  low: "text-zinc-500",
+  low: "text-muted-foreground",
 };
 
 export function DiffDashboard({ agentId, className }: DiffDashboardProps) {
@@ -97,7 +97,7 @@ export function DiffDashboard({ agentId, className }: DiffDashboardProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -126,7 +126,7 @@ export function DiffDashboard({ agentId, className }: DiffDashboardProps) {
             {trackers.map((t) => (
               <div key={t.id} className="flex items-center justify-between rounded-lg border border-border bg-background/40 p-2.5">
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className={cn("h-2 w-2 rounded-full shrink-0", t.isActive ? "bg-emerald-400" : "bg-zinc-600")} />
+                  <div className={cn("h-2 w-2 rounded-full shrink-0", t.isActive ? "bg-emerald-400" : "bg-muted")} />
                   <span className="text-xs text-foreground truncate max-w-[200px]">{t.url}</span>
                 </div>
                 <div className="flex items-center gap-3 text-[10px] text-muted-foreground shrink-0">
@@ -147,7 +147,7 @@ export function DiffDashboard({ agentId, className }: DiffDashboardProps) {
 
       {/* Filter */}
       <div className="flex items-center gap-1.5">
-        <Filter className="h-3 w-3 text-zinc-500" />
+        <Filter className="h-3 w-3 text-muted-foreground" />
         {["all", "high", "medium", "low", "price_change", "new_product"].map((f) => (
           <button
             key={f}
@@ -156,7 +156,7 @@ export function DiffDashboard({ agentId, className }: DiffDashboardProps) {
               "rounded-full border px-2.5 py-0.5 text-[10px] font-medium transition-all",
               filter === f
                 ? "border-blue-500/50 bg-blue-500/10 text-blue-300"
-                : "border-zinc-800 text-zinc-500 hover:border-zinc-700",
+                : "border-border text-muted-foreground hover:border-border",
             )}
           >
             {f.replace("_", " ")}
@@ -167,7 +167,7 @@ export function DiffDashboard({ agentId, className }: DiffDashboardProps) {
       {/* Changes Timeline */}
       {filteredChanges.length === 0 ? (
         <div className="rounded-2xl border border-border bg-card p-8 text-center">
-          <Eye className="h-8 w-8 text-zinc-700 mx-auto mb-2" />
+          <Eye className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
           <p className="text-xs text-muted-foreground">No changes detected yet</p>
         </div>
       ) : (
@@ -180,7 +180,7 @@ export function DiffDashboard({ agentId, className }: DiffDashboardProps) {
               {/* Change Header */}
               <button
                 onClick={() => setExpandedChange(expandedChange === entry.id ? null : entry.id)}
-                className="w-full flex items-center justify-between p-3 hover:bg-zinc-900/50 transition-colors"
+                className="w-full flex items-center justify-between p-3 hover:bg-card/50 transition-colors"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <AlertTriangle className={cn("h-3.5 w-3.5 shrink-0", IMPORTANCE_COLORS[entry.importance])} />
@@ -210,7 +210,7 @@ export function DiffDashboard({ agentId, className }: DiffDashboardProps) {
                   <p className="text-xs text-muted-foreground">{entry.summary}</p>
 
                   {entry.changes.map((change, i) => (
-                    <div key={i} className="rounded-lg border border-zinc-800/50 bg-zinc-900/30 p-2.5 space-y-1.5">
+                    <div key={i} className="rounded-lg border border-border/50 bg-card/30 p-2.5 space-y-1.5">
                       <div className="flex items-center gap-2">
                         <span className={cn("rounded-full border px-1.5 py-0 text-[9px]", CHANGE_TYPE_COLORS[change.changeType] || CHANGE_TYPE_COLORS.other)}>
                           {change.changeType.replace("_", " ")}
@@ -236,16 +236,16 @@ export function DiffDashboard({ agentId, className }: DiffDashboardProps) {
                     <div className="grid grid-cols-2 gap-2">
                       {entry.snapshotBeforeUrl && (
                         <div className="space-y-1">
-                          <p className="text-[10px] text-zinc-500">Before</p>
+                          <p className="text-[10px] text-muted-foreground">Before</p>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={entry.snapshotBeforeUrl} alt="Before" className="rounded-lg border border-zinc-800 w-full" />
+                          <img src={entry.snapshotBeforeUrl} alt="Before" className="rounded-lg border border-border w-full" />
                         </div>
                       )}
                       {entry.snapshotAfterUrl && (
                         <div className="space-y-1">
-                          <p className="text-[10px] text-zinc-500">After</p>
+                          <p className="text-[10px] text-muted-foreground">After</p>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={entry.snapshotAfterUrl} alt="After" className="rounded-lg border border-zinc-800 w-full" />
+                          <img src={entry.snapshotAfterUrl} alt="After" className="rounded-lg border border-border w-full" />
                         </div>
                       )}
                     </div>

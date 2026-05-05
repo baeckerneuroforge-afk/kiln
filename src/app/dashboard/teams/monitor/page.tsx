@@ -79,16 +79,16 @@ function formatCost(cost: number): string {
 const PRIORITY_BADGE: Record<number, { label: string; style: string }> = {
   0: { label: "Critical", style: "border-red-500/40 bg-red-500/15 text-red-300" },
   1: { label: "High", style: "border-orange-500/40 bg-orange-500/15 text-orange-300" },
-  2: { label: "Normal", style: "border-zinc-600 bg-zinc-800/80 text-zinc-400" },
+  2: { label: "Normal", style: "border-border bg-muted/80 text-muted-foreground" },
   3: { label: "Low", style: "border-blue-500/40 bg-blue-500/15 text-blue-300" },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  RUNNING: { label: "Running", color: "text-gray-400 bg-white/[0.05] border-blue-500/20", icon: <Loader2 className="h-3.5 w-3.5 animate-spin" /> },
-  AWAITING_APPROVAL: { label: "Awaiting Approval", color: "text-gray-400 bg-white/[0.05] border-amber-500/20", icon: <Pause className="h-3.5 w-3.5" /> },
-  COMPLETED: { label: "Completed", color: "text-gray-400 bg-white/[0.05] border-green-500/20", icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
-  PARTIAL: { label: "Partial", color: "text-gray-400 bg-white/[0.05] border-amber-500/20", icon: <AlertTriangle className="h-3.5 w-3.5" /> },
-  FAILED: { label: "Failed", color: "text-gray-400 bg-white/[0.05] border-red-500/20", icon: <XCircle className="h-3.5 w-3.5" /> },
+  RUNNING: { label: "Running", color: "text-muted-foreground bg-muted border-blue-500/20", icon: <Loader2 className="h-3.5 w-3.5 animate-spin" /> },
+  AWAITING_APPROVAL: { label: "Awaiting Approval", color: "text-muted-foreground bg-muted border-amber-500/20", icon: <Pause className="h-3.5 w-3.5" /> },
+  COMPLETED: { label: "Completed", color: "text-muted-foreground bg-muted border-green-500/20", icon: <CheckCircle2 className="h-3.5 w-3.5" /> },
+  PARTIAL: { label: "Partial", color: "text-muted-foreground bg-muted border-amber-500/20", icon: <AlertTriangle className="h-3.5 w-3.5" /> },
+  FAILED: { label: "Failed", color: "text-muted-foreground bg-muted border-red-500/20", icon: <XCircle className="h-3.5 w-3.5" /> },
   QUEUED: { label: "Queued", color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20", icon: <Clock className="h-3.5 w-3.5" /> },
 };
 
@@ -138,7 +138,7 @@ export default function TeamMonitorPage() {
   if (!data) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-sm text-zinc-500">Failed to load monitor data.</p>
+        <p className="text-sm text-muted-foreground">Failed to load monitor data.</p>
       </div>
     );
   }
@@ -162,21 +162,21 @@ export default function TeamMonitorPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/dashboard/teams" className="text-zinc-500 hover:text-zinc-300 transition-colors">
+            <Link href="/dashboard/teams" className="text-muted-foreground hover:text-foreground transition-colors">
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <div>
-              <h1 className="text-xl font-semibold text-zinc-100 font-[family-name:var(--font-instrument)] flex items-center gap-2">
+              <h1 className="text-xl font-semibold text-foreground font-[family-name:var(--font-instrument)] flex items-center gap-2">
                 <Radio className="h-5 w-5 text-orange-400" />
                 Workflow Monitor
               </h1>
-              <p className="text-xs text-zinc-500 mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Live overview of all workflow executions · Auto-refreshes every 5s
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] text-zinc-600">
+            <span className="text-[10px] text-muted-foreground">
               Updated {lastRefresh.toLocaleTimeString("de-DE")}
             </span>
             <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
@@ -190,15 +190,15 @@ export default function TeamMonitorPage() {
             className={cn(
               "rounded-xl border p-4 text-left transition-all",
               statusFilter === "RUNNING"
-                ? "border-blue-500/30 bg-white/[0.05]"
-                : "border-zinc-800 bg-zinc-900/60 hover:border-zinc-700"
+                ? "border-blue-500/30 bg-muted"
+                : "border-border bg-card/60 hover:border-border"
             )}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Running Now</span>
-              <Activity className="h-4 w-4 text-gray-400" />
+              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Running Now</span>
+              <Activity className="h-4 w-4 text-muted-foreground" />
             </div>
-            <p className="mt-2 text-3xl font-bold text-zinc-100">{data.summary.runningNow}</p>
+            <p className="mt-2 text-3xl font-bold text-foreground">{data.summary.runningNow}</p>
           </button>
 
           <button
@@ -207,14 +207,14 @@ export default function TeamMonitorPage() {
               "rounded-xl border p-4 text-left transition-all",
               statusFilter === "QUEUED"
                 ? "border-cyan-500/30 bg-cyan-500/10"
-                : "border-zinc-800 bg-zinc-900/60 hover:border-zinc-700"
+                : "border-border bg-card/60 hover:border-border"
             )}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Queued</span>
+              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Queued</span>
               <Clock className="h-4 w-4 text-cyan-400" />
             </div>
-            <p className="mt-2 text-3xl font-bold text-zinc-100">{data.summary.queuedNow || 0}</p>
+            <p className="mt-2 text-3xl font-bold text-foreground">{data.summary.queuedNow || 0}</p>
           </button>
 
           <button
@@ -222,15 +222,15 @@ export default function TeamMonitorPage() {
             className={cn(
               "rounded-xl border p-4 text-left transition-all",
               statusFilter === "AWAITING_APPROVAL"
-                ? "border-amber-500/30 bg-white/[0.05]"
-                : "border-zinc-800 bg-zinc-900/60 hover:border-zinc-700"
+                ? "border-amber-500/30 bg-muted"
+                : "border-border bg-card/60 hover:border-border"
             )}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Awaiting Approval</span>
-              <Pause className="h-4 w-4 text-gray-400" />
+              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Awaiting Approval</span>
+              <Pause className="h-4 w-4 text-muted-foreground" />
             </div>
-            <p className="mt-2 text-3xl font-bold text-zinc-100">{data.summary.awaitingApproval}</p>
+            <p className="mt-2 text-3xl font-bold text-foreground">{data.summary.awaitingApproval}</p>
           </button>
 
           <button
@@ -238,15 +238,15 @@ export default function TeamMonitorPage() {
             className={cn(
               "rounded-xl border p-4 text-left transition-all",
               statusFilter === "COMPLETED"
-                ? "border-green-500/30 bg-white/[0.05]"
-                : "border-zinc-800 bg-zinc-900/60 hover:border-zinc-700"
+                ? "border-green-500/30 bg-muted"
+                : "border-border bg-card/60 hover:border-border"
             )}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Completed Today</span>
-              <CheckCircle2 className="h-4 w-4 text-gray-400" />
+              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Completed Today</span>
+              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             </div>
-            <p className="mt-2 text-3xl font-bold text-zinc-100">{data.summary.completedToday}</p>
+            <p className="mt-2 text-3xl font-bold text-foreground">{data.summary.completedToday}</p>
           </button>
 
           <button
@@ -254,21 +254,21 @@ export default function TeamMonitorPage() {
             className={cn(
               "rounded-xl border p-4 text-left transition-all",
               statusFilter === "FAILED"
-                ? "border-red-500/30 bg-white/[0.05]"
-                : "border-zinc-800 bg-zinc-900/60 hover:border-zinc-700"
+                ? "border-red-500/30 bg-muted"
+                : "border-border bg-card/60 hover:border-border"
             )}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Failed Today</span>
-              <XCircle className="h-4 w-4 text-gray-400" />
+              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Failed Today</span>
+              <XCircle className="h-4 w-4 text-muted-foreground" />
             </div>
-            <p className="mt-2 text-3xl font-bold text-zinc-100">{data.summary.failedToday}</p>
+            <p className="mt-2 text-3xl font-bold text-foreground">{data.summary.failedToday}</p>
           </button>
         </div>
 
         {/* Timeline Chart */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-          <h3 className="text-sm font-semibold text-zinc-200 mb-4">Last 24 Hours</h3>
+        <div className="rounded-xl border border-border bg-card/60 p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Last 24 Hours</h3>
           <div className="flex items-end gap-[3px] h-20">
             {data.hourlyTimeline.map((bucket, i) => {
               const total = bucket.completed + bucket.failed + bucket.running;
@@ -298,12 +298,12 @@ export default function TeamMonitorPage() {
               );
             })}
           </div>
-          <div className="flex justify-between mt-1.5 text-[9px] text-zinc-600">
+          <div className="flex justify-between mt-1.5 text-[9px] text-muted-foreground">
             <span>{data.hourlyTimeline[0]?.hour || ""}</span>
             <span>{data.hourlyTimeline[Math.floor(data.hourlyTimeline.length / 2)]?.hour || ""}</span>
             <span>{data.hourlyTimeline[data.hourlyTimeline.length - 1]?.hour || ""}</span>
           </div>
-          <div className="flex items-center gap-4 mt-3 text-[10px] text-zinc-500">
+          <div className="flex items-center gap-4 mt-3 text-[10px] text-muted-foreground">
             <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500" />Completed</span>
             <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-500" />Running</span>
             <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500" />Failed</span>
@@ -315,7 +315,7 @@ export default function TeamMonitorPage() {
           <select
             value={teamFilter}
             onChange={(e) => setTeamFilter(e.target.value)}
-            className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 focus:border-orange-500 focus:outline-none"
+            className="rounded-lg border border-border bg-muted px-3 py-1.5 text-xs text-foreground focus:border-orange-500 focus:outline-none"
           >
             <option value="all">All Workflows</option>
             {teamNames.map((name) => (
@@ -325,12 +325,12 @@ export default function TeamMonitorPage() {
           {(statusFilter !== "all" || teamFilter !== "all") && (
             <button
               onClick={() => { setStatusFilter("all"); setTeamFilter("all"); }}
-              className="text-[10px] text-zinc-500 hover:text-zinc-300"
+              className="text-[10px] text-muted-foreground hover:text-foreground"
             >
               Clear filters
             </button>
           )}
-          <span className="ml-auto text-[10px] text-zinc-600">
+          <span className="ml-auto text-[10px] text-muted-foreground">
             {filtered.length} execution{filtered.length !== 1 ? "s" : ""}
           </span>
         </div>
@@ -338,9 +338,9 @@ export default function TeamMonitorPage() {
         {/* Execution Feed */}
         <div className="space-y-2">
           {filtered.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/30 p-8 text-center">
-              <Radio className="h-8 w-8 text-zinc-600 mx-auto mb-3" />
-              <p className="text-sm text-zinc-400">No executions matching your filters</p>
+            <div className="rounded-xl border border-dashed border-border bg-card/30 p-8 text-center">
+              <Radio className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">No executions matching your filters</p>
             </div>
           ) : (
             filtered.map((exec) => {
@@ -356,8 +356,8 @@ export default function TeamMonitorPage() {
                   key={exec.id}
                   href={`/dashboard/teams/${exec.teamId}?execution=${exec.id}`}
                   className={cn(
-                    "block rounded-xl border bg-zinc-900/60 p-4 transition-all hover:border-zinc-600",
-                    isRunning ? "border-blue-500/20" : isWaiting ? "border-amber-500/20" : "border-zinc-800"
+                    "block rounded-xl border bg-card/60 p-4 transition-all hover:border-foreground/20",
+                    isRunning ? "border-blue-500/20" : isWaiting ? "border-amber-500/20" : "border-border"
                   )}
                 >
                   <div className="flex items-start gap-4">
@@ -373,18 +373,18 @@ export default function TeamMonitorPage() {
                             {PRIORITY_BADGE[exec.priority]?.label || "Normal"}
                           </span>
                         )}
-                        <span className="text-sm font-medium text-zinc-200">{exec.teamName}</span>
+                        <span className="text-sm font-medium text-foreground">{exec.teamName}</span>
                       </div>
 
                       {exec.goal && (
-                        <p className="text-xs text-zinc-500 truncate mb-2">{exec.goal}</p>
+                        <p className="text-xs text-muted-foreground truncate mb-2">{exec.goal}</p>
                       )}
 
                       {/* Current step + agent/node */}
                       {(isRunning || isWaiting) && exec.currentStep && (
                         <div className="flex items-center gap-2 mb-2">
                           {isRunning && (exec.currentAgent || exec.currentNodeType) && (
-                            <span className="flex items-center gap-1.5 text-xs text-gray-400">
+                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <span className="relative flex h-2 w-2">
                                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
                                 <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
@@ -394,13 +394,13 @@ export default function TeamMonitorPage() {
                                 : exec.currentAgent?.name}
                             </span>
                           )}
-                          <span className="text-xs text-zinc-500">
+                          <span className="text-xs text-muted-foreground">
                             {exec.currentNodeType && exec.currentNodeType !== "agent"
                               ? `Workflow → Step ${exec.currentStepIndex + 1}/${exec.totalTasks}: ${exec.currentStep}`
                               : `Step ${exec.currentStepIndex + 1}/${exec.totalTasks}: ${exec.currentStep}`}
                           </span>
                           {isWaiting && exec.currentNodeType === "approval_gate" && (
-                            <span className="text-xs text-gray-400">Waiting for approval</span>
+                            <span className="text-xs text-muted-foreground">Waiting for approval</span>
                           )}
                           {isWaiting && exec.currentNodeType === "delay" && (
                             <span className="text-xs text-cyan-400">Delay active</span>
@@ -410,7 +410,7 @@ export default function TeamMonitorPage() {
 
                       {/* Progress bar */}
                       <div className="flex items-center gap-3">
-                        <div className="flex-1 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                           <div
                             className={cn(
                               "h-full rounded-full transition-all",
@@ -421,7 +421,7 @@ export default function TeamMonitorPage() {
                             style={{ width: `${progress}%` }}
                           />
                         </div>
-                        <span className="text-[10px] text-zinc-500 shrink-0">
+                        <span className="text-[10px] text-muted-foreground shrink-0">
                           {exec.completedTasks}/{exec.totalTasks} tasks
                         </span>
                       </div>
@@ -429,21 +429,21 @@ export default function TeamMonitorPage() {
 
                     {/* Right side: elapsed + cost */}
                     <div className="text-right shrink-0 space-y-1">
-                      <div className="flex items-center gap-1 text-xs text-zinc-400 justify-end">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground justify-end">
                         <Clock className="h-3 w-3" />
                         {formatElapsed(exec.elapsedMs)}
                       </div>
                       {exec.costSoFar > 0 && (
-                        <p className="text-[10px] text-zinc-500">{formatCost(exec.costSoFar)}</p>
+                        <p className="text-[10px] text-muted-foreground">{formatCost(exec.costSoFar)}</p>
                       )}
                     </div>
                   </div>
 
                   {/* Inline Approve for awaiting approval */}
                   {isWaiting && exec.pendingApprovals.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center gap-2">
-                      <Pause className="h-3.5 w-3.5 text-gray-400" />
-                      <span className="text-xs text-gray-400 flex-1">
+                    <div className="mt-3 pt-3 border-t border-border flex items-center gap-2">
+                      <Pause className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground flex-1">
                         Approval required
                         {exec.pendingApprovals[0].approverEmail ? ` from ${exec.pendingApprovals[0].approverEmail}` : ""}
                       </span>

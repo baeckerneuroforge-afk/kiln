@@ -190,8 +190,8 @@ export function NodeSearch({ open, onClose, onSelectNode, position }: NodeSearch
           flex w-full items-center gap-3 px-3 py-2 text-left transition-colors
           ${
             isHighlighted
-              ? "bg-[#332f2b] border-l-2 border-l-orange-500"
-              : "border-l-2 border-l-transparent hover:bg-[#2a2826]"
+              ? "bg-muted border-l-2 border-l-orange-500"
+              : "border-l-2 border-l-transparent hover:bg-muted/40"
           }
         `}
       >
@@ -204,8 +204,8 @@ export function NodeSearch({ open, onClose, onSelectNode, position }: NodeSearch
           </span>
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm text-zinc-200">{def.label}</div>
-          <div className="truncate text-xs text-zinc-500">{def.description}</div>
+          <div className="truncate text-sm text-foreground">{def.label}</div>
+          <div className="truncate text-xs text-muted-foreground">{def.description}</div>
         </div>
       </button>
     );
@@ -226,9 +226,9 @@ export function NodeSearch({ open, onClose, onSelectNode, position }: NodeSearch
 
       return (
         <div key={cat.id}>
-          <div className="sticky top-0 z-10 bg-[#242220] px-3 pb-1 pt-3">
+          <div className="sticky top-0 z-10 bg-card px-3 pb-1 pt-3">
             <span
-              className="text-[10px] font-medium uppercase tracking-widest text-zinc-500"
+              className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground"
               style={{ color: cat.color }}
             >
               {cat.label}
@@ -244,7 +244,7 @@ export function NodeSearch({ open, onClose, onSelectNode, position }: NodeSearch
   const renderFiltered = () => {
     if (!filtered || filtered.length === 0) {
       return (
-        <div className="px-3 py-8 text-center text-sm text-zinc-500">
+        <div className="px-3 py-8 text-center text-sm text-muted-foreground">
           Keine Nodes gefunden
         </div>
       );
@@ -268,24 +268,24 @@ export function NodeSearch({ open, onClose, onSelectNode, position }: NodeSearch
         {/* Dialog */}
         <div
           className={`
-            w-[380px] overflow-hidden rounded-xl border border-[#3d3935]
-            bg-[#242220] shadow-2xl
+            w-[380px] overflow-hidden rounded-xl border border-foreground/20
+            bg-card shadow-2xl
             transition-all duration-200 ease-out
             ${open ? "scale-100 opacity-100" : "scale-95 opacity-0"}
           `}
           onKeyDown={handleKeyDown}
         >
           {/* Search input */}
-          <div className="border-b border-[#332f2b] p-2">
-            <div className="flex items-center gap-2 rounded-lg border border-[#332f2b] bg-[#1a1918] px-3 py-2 focus-within:border-orange-500/50 focus-within:ring-1 focus-within:ring-orange-500/30">
-              <Search className="h-4 w-4 shrink-0 text-zinc-500" />
+          <div className="border-b border-border p-2">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 focus-within:border-orange-500/50 focus-within:ring-1 focus-within:ring-orange-500/30">
+              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
               <input
                 ref={inputRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Node suchen..."
-                className="w-full bg-transparent text-sm text-zinc-200 placeholder:text-zinc-500 outline-none"
+                className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
               />
             </div>
           </div>
@@ -296,21 +296,21 @@ export function NodeSearch({ open, onClose, onSelectNode, position }: NodeSearch
           </div>
 
           {/* Footer hint */}
-          <div className="flex items-center gap-3 border-t border-[#332f2b] px-3 py-1.5 text-[10px] text-zinc-600">
+          <div className="flex items-center gap-3 border-t border-border px-3 py-1.5 text-[10px] text-muted-foreground">
             <span>
-              <kbd className="rounded bg-[#1a1918] px-1 py-0.5 font-mono text-zinc-500">
+              <kbd className="rounded bg-card px-1 py-0.5 font-mono text-muted-foreground">
                 &uarr;&darr;
               </kbd>{" "}
               navigieren
             </span>
             <span>
-              <kbd className="rounded bg-[#1a1918] px-1 py-0.5 font-mono text-zinc-500">
+              <kbd className="rounded bg-card px-1 py-0.5 font-mono text-muted-foreground">
                 &crarr;
               </kbd>{" "}
               auswählen
             </span>
             <span>
-              <kbd className="rounded bg-[#1a1918] px-1 py-0.5 font-mono text-zinc-500">
+              <kbd className="rounded bg-card px-1 py-0.5 font-mono text-muted-foreground">
                 esc
               </kbd>{" "}
               schließen

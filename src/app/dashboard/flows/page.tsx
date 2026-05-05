@@ -4,8 +4,8 @@ export default function FlowsPage() {
   return (
     <div className="mx-auto max-w-5xl">
       <div className="mb-8 flex items-center gap-3">
-        <h1 className="font-serif text-2xl font-semibold text-gray-50">Flow Engine</h1>
-        <span className="rounded-full bg-white/[0.05] px-2.5 py-1 text-[11px] font-semibold text-gray-400">
+        <h1 className="font-serif text-2xl font-semibold text-foreground">Flow Engine</h1>
+        <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
           Coming Q4 2026
         </span>
       </div>
@@ -14,8 +14,8 @@ export default function FlowsPage() {
       </p>
 
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-kiln-green/20 bg-card/50 py-16">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/[0.05]">
-          <Zap className="h-8 w-8 text-gray-400" />
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+          <Zap className="h-8 w-8 text-muted-foreground" />
         </div>
         <h2 className="mb-2 text-lg font-semibold text-foreground">
           Coming Q4 2026

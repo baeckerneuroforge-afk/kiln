@@ -196,7 +196,7 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
       <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3">
         <div className="flex items-center gap-2">
           <Users className="h-4 w-4 text-blue-400" />
-          <p className="text-xs text-zinc-300">
+          <p className="text-xs text-foreground">
             Documents in this knowledge base are available to <strong>all agents</strong> in the team during execution.
           </p>
         </div>
@@ -220,7 +220,7 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
             <button
               key={item.mode}
               onClick={() => { setUploadMode(item.mode); setError(null); }}
-              className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-zinc-700 bg-zinc-900/50 p-4 text-sm text-zinc-400 transition-all hover:border-orange-500/30 hover:text-zinc-200"
+              className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card/50 p-4 text-sm text-muted-foreground transition-all hover:border-orange-500/30 hover:text-foreground"
             >
               <item.icon className="h-6 w-6" />
               {item.label}
@@ -231,10 +231,10 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
 
       {/* PDF Upload */}
       {uploadMode === "pdf" && (
-        <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-zinc-100">Upload PDF</h3>
-            <button onClick={() => setUploadMode(null)} className="text-xs text-zinc-500 hover:text-zinc-300">Cancel</button>
+            <h3 className="text-sm font-medium text-foreground">Upload PDF</h3>
+            <button onClick={() => setUploadMode(null)} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
           </div>
           <input
             ref={fileInputRef}
@@ -249,7 +249,7 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 py-8 text-sm text-zinc-400 transition-colors hover:border-orange-500/30 hover:text-zinc-200 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border py-8 text-sm text-muted-foreground transition-colors hover:border-orange-500/30 hover:text-foreground disabled:opacity-50"
           >
             {isUploading ? (
               <><Loader2 className="h-5 w-5 animate-spin" /> Processing...</>
@@ -262,10 +262,10 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
 
       {/* URL Import */}
       {uploadMode === "url" && (
-        <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-zinc-100">Import URL</h3>
-            <button onClick={() => setUploadMode(null)} className="text-xs text-zinc-500 hover:text-zinc-300">Cancel</button>
+            <h3 className="text-sm font-medium text-foreground">Import URL</h3>
+            <button onClick={() => setUploadMode(null)} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
           </div>
           <div className="flex gap-2">
             <input
@@ -273,7 +273,7 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
               placeholder="https://www.example.com/page"
-              className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500/60 outline-none"
+              className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-orange-500/60 outline-none"
             />
             <Button onClick={handleUrlSubmit} disabled={!urlInput.trim() || isUploading} size="sm" className="bg-orange-600 hover:bg-orange-700 text-white">
               {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Import"}
@@ -284,24 +284,24 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
 
       {/* Text Entry */}
       {uploadMode === "text" && (
-        <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-4 space-y-3">
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-zinc-100">Enter Text</h3>
-            <button onClick={() => setUploadMode(null)} className="text-xs text-zinc-500 hover:text-zinc-300">Cancel</button>
+            <h3 className="text-sm font-medium text-foreground">Enter Text</h3>
+            <button onClick={() => setUploadMode(null)} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
           </div>
           <input
             type="text"
             value={textTitle}
             onChange={(e) => setTextTitle(e.target.value)}
             placeholder="Title (e.g. Company Info, Product Specs)"
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500/60 outline-none"
+            className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-orange-500/60 outline-none"
           />
           <textarea
             value={textContent}
             onChange={(e) => setTextContent(e.target.value)}
             placeholder="Enter text content..."
             rows={6}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500/60 outline-none resize-none"
+            className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-orange-500/60 outline-none resize-none"
           />
           <Button onClick={handleTextSubmit} disabled={!textContent.trim() || isUploading} size="sm" className="bg-orange-600 hover:bg-orange-700 text-white">
             {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -312,13 +312,13 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
 
       {/* FAQ Entry */}
       {uploadMode === "faq" && (
-        <div className="rounded-xl border border-zinc-700 bg-zinc-900 p-4 space-y-3">
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-zinc-100">Add FAQ</h3>
-            <button onClick={() => setUploadMode(null)} className="text-xs text-zinc-500 hover:text-zinc-300">Cancel</button>
+            <h3 className="text-sm font-medium text-foreground">Add FAQ</h3>
+            <button onClick={() => setUploadMode(null)} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
           </div>
           {faqPairs.map((pair, i) => (
-            <div key={i} className="space-y-2 rounded-lg border border-zinc-800 bg-zinc-800/50 p-3">
+            <div key={i} className="space-y-2 rounded-lg border border-border bg-muted/50 p-3">
               <input
                 type="text"
                 value={pair.question}
@@ -328,7 +328,7 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
                   setFaqPairs(updated);
                 }}
                 placeholder="Question"
-                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500/60 outline-none"
+                className="w-full rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-orange-500/60 outline-none"
               />
               <textarea
                 value={pair.answer}
@@ -339,12 +339,12 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
                 }}
                 placeholder="Answer"
                 rows={2}
-                className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-orange-500/60 outline-none resize-none"
+                className="w-full rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-orange-500/60 outline-none resize-none"
               />
             </div>
           ))}
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setFaqPairs([...faqPairs, { question: "", answer: "" }])} className="border-zinc-700 text-zinc-300">
+            <Button variant="outline" size="sm" onClick={() => setFaqPairs([...faqPairs, { question: "", answer: "" }])} className="border-border text-foreground">
               + Add another
             </Button>
             <Button
@@ -363,26 +363,26 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
       {/* Document list */}
       {entries.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-medium text-zinc-200">
+          <h3 className="text-sm font-medium text-foreground">
             Workflow Knowledge Sources ({entries.length})
           </h3>
           {entries.map((entry) => (
             <div
               key={entry.id}
-              className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/80 px-4 py-3"
+              className="flex items-center justify-between rounded-xl border border-border bg-card/80 px-4 py-3"
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800">
-                  {entry.type === "PDF" && <Upload className="h-4 w-4 text-zinc-400" />}
-                  {entry.type === "URL" && <Globe className="h-4 w-4 text-zinc-400" />}
-                  {entry.type === "TEXT" && <FileText className="h-4 w-4 text-zinc-400" />}
-                  {entry.type === "FAQ" && <HelpCircle className="h-4 w-4 text-zinc-400" />}
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
+                  {entry.type === "PDF" && <Upload className="h-4 w-4 text-muted-foreground" />}
+                  {entry.type === "URL" && <Globe className="h-4 w-4 text-muted-foreground" />}
+                  {entry.type === "TEXT" && <FileText className="h-4 w-4 text-muted-foreground" />}
+                  {entry.type === "FAQ" && <HelpCircle className="h-4 w-4 text-muted-foreground" />}
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-zinc-200 truncate max-w-[300px]">
+                  <p className="text-sm font-medium text-foreground truncate max-w-[300px]">
                     {entry.sourceName}
                   </p>
-                  <div className="flex items-center gap-2 text-xs text-zinc-500">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{entry.type}</span>
                     {entry.chunkCount > 0 && <span>· {entry.chunkCount} chunks</span>}
                     <span className="flex items-center gap-1">
@@ -394,7 +394,7 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
               </div>
               <button
                 onClick={() => handleDelete(entry.id)}
-                className="rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-400"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -405,10 +405,10 @@ export function TeamKnowledgeTab({ teamId }: TeamKnowledgeTabProps) {
 
       {/* Empty state */}
       {entries.length === 0 && !uploadMode && (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 py-12">
-          <BookOpen className="mb-3 h-8 w-8 text-zinc-500" />
-          <p className="text-sm text-zinc-500">No team knowledge added yet</p>
-          <p className="text-xs text-zinc-500 mt-1">Upload documents to share knowledge across all team agents</p>
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12">
+          <BookOpen className="mb-3 h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">No team knowledge added yet</p>
+          <p className="text-xs text-muted-foreground mt-1">Upload documents to share knowledge across all team agents</p>
         </div>
       )}
     </div>

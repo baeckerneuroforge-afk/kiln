@@ -125,14 +125,14 @@ function ExecutionSelector({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
+      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
         {label}
       </label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={cn(
-          "h-9 rounded-md border border-zinc-800 bg-zinc-900 px-3 text-sm text-zinc-100",
+          "h-9 rounded-md border border-border bg-card px-3 text-sm text-foreground",
           "font-mono focus:outline-none focus:ring-1 focus:ring-orange-500/50",
           "appearance-none cursor-pointer"
         )}
@@ -160,16 +160,16 @@ function RoutingDiff({
 }) {
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-zinc-300">
+      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
         <GitBranch className="h-4 w-4 text-orange-500" />
         Routing-Vergleich
       </div>
       <div className="grid grid-cols-2 gap-3">
         {/* Column headers */}
-        <div className="text-xs font-mono text-zinc-500 uppercase tracking-wider px-2">
+        <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider px-2">
           Ausführung A
         </div>
-        <div className="text-xs font-mono text-zinc-500 uppercase tracking-wider px-2">
+        <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider px-2">
           Ausführung B
         </div>
 
@@ -188,8 +188,8 @@ function RoutingDiff({
                   inA
                     ? onlyA
                       ? "border-red-500/40 bg-red-500/10 text-red-400"
-                      : "border-zinc-800 bg-zinc-900 text-zinc-300"
-                    : "border-zinc-800/50 bg-zinc-900/30 text-zinc-600"
+                      : "border-border bg-card text-foreground"
+                    : "border-border/50 bg-card/30 text-muted-foreground"
                 )}
               >
                 {inA ? (
@@ -200,12 +200,12 @@ function RoutingDiff({
                       <AlertCircle className="h-3 w-3 text-red-400" />
                     )}
                     {nodeId}
-                    <span className="text-zinc-500 ml-auto">
+                    <span className="text-muted-foreground ml-auto">
                       {mapA.get(nodeId)!.nodeType}
                     </span>
                   </span>
                 ) : (
-                  <span className="text-zinc-600 italic">—</span>
+                  <span className="text-muted-foreground italic">—</span>
                 )}
               </div>
 
@@ -216,8 +216,8 @@ function RoutingDiff({
                   inB
                     ? onlyB
                       ? "border-green-500/40 bg-green-500/10 text-green-400"
-                      : "border-zinc-800 bg-zinc-900 text-zinc-300"
-                    : "border-zinc-800/50 bg-zinc-900/30 text-zinc-600"
+                      : "border-border bg-card text-foreground"
+                    : "border-border/50 bg-card/30 text-muted-foreground"
                 )}
               >
                 {inB ? (
@@ -228,12 +228,12 @@ function RoutingDiff({
                       <AlertCircle className="h-3 w-3 text-red-400" />
                     )}
                     {nodeId}
-                    <span className="text-zinc-500 ml-auto">
+                    <span className="text-muted-foreground ml-auto">
                       {mapB.get(nodeId)!.nodeType}
                     </span>
                   </span>
                 ) : (
-                  <span className="text-zinc-600 italic">—</span>
+                  <span className="text-muted-foreground italic">—</span>
                 )}
               </div>
             </div>
@@ -259,7 +259,7 @@ function OutputDiff({
 
   if (sharedNodes.length === 0) {
     return (
-      <div className="text-xs text-zinc-500 italic">
+      <div className="text-xs text-muted-foreground italic">
         Keine gemeinsamen Knoten für Output-Vergleich.
       </div>
     );
@@ -267,7 +267,7 @@ function OutputDiff({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-zinc-300">
+      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
         <ArrowRightLeft className="h-4 w-4 text-orange-500" />
         Output-Vergleich
       </div>
@@ -279,24 +279,24 @@ function OutputDiff({
 
           return (
             <div key={nodeId} className="space-y-1">
-              <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
+              <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
                 <span>{nodeId}</span>
                 {same ? (
-                  <span className="text-zinc-600 ml-auto">identisch</span>
+                  <span className="text-muted-foreground ml-auto">identisch</span>
                 ) : (
                   <span className="text-orange-500 ml-auto">unterschiedlich</span>
                 )}
               </div>
               {!same && (
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-md border border-zinc-800 bg-zinc-900 p-3">
+                  <div className="rounded-md border border-border bg-card p-3">
                     <pre className="text-xs font-mono text-red-400/80 whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
-                      {outA || <span className="text-zinc-600 italic">leer</span>}
+                      {outA || <span className="text-muted-foreground italic">leer</span>}
                     </pre>
                   </div>
-                  <div className="rounded-md border border-zinc-800 bg-zinc-900 p-3">
+                  <div className="rounded-md border border-border bg-card p-3">
                     <pre className="text-xs font-mono text-green-400/80 whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
-                      {outB || <span className="text-zinc-600 italic">leer</span>}
+                      {outB || <span className="text-muted-foreground italic">leer</span>}
                     </pre>
                   </div>
                 </div>
@@ -326,7 +326,7 @@ function TimingDiff({
 
   if (timingNodes.length === 0) {
     return (
-      <div className="text-xs text-zinc-500 italic">
+      <div className="text-xs text-muted-foreground italic">
         Keine Timing-Daten verfügbar.
       </div>
     );
@@ -343,7 +343,7 @@ function TimingDiff({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-zinc-300">
+      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
         <Clock className="h-4 w-4 text-orange-500" />
         Timing-Vergleich
       </div>
@@ -356,32 +356,32 @@ function TimingDiff({
 
           return (
             <div key={nodeId} className="space-y-1">
-              <div className="flex items-center justify-between text-xs font-mono text-zinc-400">
+              <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
                 <span>{nodeId}</span>
-                <span className="text-zinc-500">{pctChange(timeA, timeB)}</span>
+                <span className="text-muted-foreground">{pctChange(timeA, timeB)}</span>
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono text-zinc-500 w-6 shrink-0">A</span>
-                  <div className="flex-1 h-5 bg-zinc-900 rounded-sm overflow-hidden border border-zinc-800">
+                  <span className="text-[10px] font-mono text-muted-foreground w-6 shrink-0">A</span>
+                  <div className="flex-1 h-5 bg-card rounded-sm overflow-hidden border border-border">
                     <div
                       className="h-full bg-orange-500/60 rounded-sm transition-all"
                       style={{ width: `${widthA}%` }}
                     />
                   </div>
-                  <span className="text-[10px] font-mono text-zinc-500 w-14 text-right shrink-0">
+                  <span className="text-[10px] font-mono text-muted-foreground w-14 text-right shrink-0">
                     {formatMs(timeA)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono text-zinc-500 w-6 shrink-0">B</span>
-                  <div className="flex-1 h-5 bg-zinc-900 rounded-sm overflow-hidden border border-zinc-800">
+                  <span className="text-[10px] font-mono text-muted-foreground w-6 shrink-0">B</span>
+                  <div className="flex-1 h-5 bg-card rounded-sm overflow-hidden border border-border">
                     <div
                       className="h-full bg-blue-500/60 rounded-sm transition-all"
                       style={{ width: `${widthB}%` }}
                     />
                   </div>
-                  <span className="text-[10px] font-mono text-zinc-500 w-14 text-right shrink-0">
+                  <span className="text-[10px] font-mono text-muted-foreground w-14 text-right shrink-0">
                     {formatMs(timeB)}
                   </span>
                 </div>
@@ -482,13 +482,13 @@ function WhatChangedSummary({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-zinc-300">
+      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
         <AlertCircle className="h-4 w-4 text-orange-500" />
         Was hat sich geändert?
       </div>
-      <div className="rounded-md border border-zinc-800 bg-zinc-900 p-4 space-y-2">
+      <div className="rounded-md border border-border bg-card p-4 space-y-2">
         {insights.map((text, i) => (
-          <p key={i} className="text-xs text-zinc-400 leading-relaxed">
+          <p key={i} className="text-xs text-muted-foreground leading-relaxed">
             • {text}
           </p>
         ))}
@@ -588,21 +588,21 @@ export function ExecutionDiff({ teamId, open, onClose }: ExecutionDiffProps) {
       <div
         className={cn(
           "relative z-10 w-full max-w-5xl max-h-[90vh] overflow-hidden",
-          "rounded-xl border border-zinc-800 bg-[#1a1918] shadow-2xl",
+          "rounded-xl border border-border bg-card shadow-2xl",
           "flex flex-col"
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4 shrink-0">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4 shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/10">
               <ArrowRightLeft className="h-4 w-4 text-orange-500" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-zinc-100">
+              <h2 className="text-sm font-semibold text-foreground">
                 Ausführungs-Vergleich
               </h2>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-muted-foreground">
                 Zwei Ausführungen Seite an Seite vergleichen
               </p>
             </div>
@@ -611,16 +611,16 @@ export function ExecutionDiff({ teamId, open, onClose }: ExecutionDiffProps) {
             variant="ghost"
             size="icon"
             onClick={handleClose}
-            className="h-8 w-8 text-zinc-400 hover:text-zinc-100"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
 
         {/* Selectors */}
-        <div className="border-b border-zinc-800 px-6 py-4 shrink-0">
+        <div className="border-b border-border px-6 py-4 shrink-0">
           {loadingList ? (
-            <div className="text-xs text-zinc-500 font-mono">
+            <div className="text-xs text-muted-foreground font-mono">
               Ausführungen laden...
             </div>
           ) : (
@@ -645,7 +645,7 @@ export function ExecutionDiff({ teamId, open, onClose }: ExecutionDiffProps) {
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
           {loading && (
             <div className="flex items-center justify-center py-12">
-              <div className="text-xs text-zinc-500 font-mono animate-pulse">
+              <div className="text-xs text-muted-foreground font-mono animate-pulse">
                 Replay-Daten laden...
               </div>
             </div>
@@ -653,7 +653,7 @@ export function ExecutionDiff({ teamId, open, onClose }: ExecutionDiffProps) {
 
           {!loading && !ready && (selectedA || selectedB) && (
             <div className="flex items-center justify-center py-12">
-              <div className="text-xs text-zinc-500">
+              <div className="text-xs text-muted-foreground">
                 Bitte beide Ausführungen auswählen, um den Vergleich zu starten.
               </div>
             </div>
@@ -661,8 +661,8 @@ export function ExecutionDiff({ teamId, open, onClose }: ExecutionDiffProps) {
 
           {!loading && !selectedA && !selectedB && (
             <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <ArrowRightLeft className="h-8 w-8 text-zinc-700" />
-              <div className="text-xs text-zinc-500 text-center max-w-xs">
+              <ArrowRightLeft className="h-8 w-8 text-muted-foreground" />
+              <div className="text-xs text-muted-foreground text-center max-w-xs">
                 Wähle zwei Ausführungen aus, um Routing, Outputs und Timing zu
                 vergleichen.
               </div>

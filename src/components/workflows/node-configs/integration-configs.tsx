@@ -11,9 +11,9 @@ interface ConfigProps {
 function FieldLabel({ label, hint }: { label: string; hint?: string }) {
   return (
     <div className="space-y-0.5">
-      <label className="text-xs font-medium text-zinc-400">{label}</label>
+      <label className="text-xs font-medium text-muted-foreground">{label}</label>
       {hint && (
-        <p className="flex items-start gap-1 text-[10px] text-zinc-500">
+        <p className="flex items-start gap-1 text-[10px] text-muted-foreground">
           <Info className="h-3 w-3 mt-0.5 shrink-0" />
           {hint}
         </p>
@@ -39,7 +39,7 @@ function ConfigInput({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-green-500/60 transition-colors placeholder:text-zinc-600 font-mono"
+      className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-green-500/60 transition-colors placeholder:text-muted-foreground font-mono"
     />
   );
 }
@@ -61,7 +61,7 @@ function ConfigTextarea({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       rows={rows}
-      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-green-500/60 transition-colors placeholder:text-zinc-600 resize-none"
+      className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-green-500/60 transition-colors placeholder:text-muted-foreground resize-none"
     />
   );
 }
@@ -460,7 +460,7 @@ export function AiSummarizeConfig({ config, onChange }: ConfigProps) {
         <select
           value={String(config.maxLength || "kurz")}
           onChange={(e) => onChange({ ...config, maxLength: e.target.value })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-pink-500/60 transition-colors"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-pink-500/60 transition-colors"
         >
           <option value="kurz">Kurz (2-3 Sätze)</option>
           <option value="mittel">Mittel (1 Absatz)</option>
@@ -472,7 +472,7 @@ export function AiSummarizeConfig({ config, onChange }: ConfigProps) {
         <select
           value={String(config.language || "de")}
           onChange={(e) => onChange({ ...config, language: e.target.value })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-pink-500/60 transition-colors"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-pink-500/60 transition-colors"
         >
           <option value="de">Deutsch</option>
           <option value="en">Englisch</option>
@@ -599,7 +599,7 @@ export function ComputerUseConfig({ config, onChange }: ConfigProps) {
           <button
             onClick={() => onChange({ ...config, captureScreenshots: !config.captureScreenshots })}
             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-              config.captureScreenshots !== false ? "bg-pink-500" : "bg-zinc-700"
+              config.captureScreenshots !== false ? "bg-pink-500" : "bg-muted"
             }`}
           >
             <span
@@ -616,7 +616,7 @@ export function ComputerUseConfig({ config, onChange }: ConfigProps) {
           <button
             onClick={() => onChange({ ...config, extractData: !config.extractData })}
             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-              config.extractData ? "bg-pink-500" : "bg-zinc-700"
+              config.extractData ? "bg-pink-500" : "bg-muted"
             }`}
           >
             <span
@@ -648,15 +648,15 @@ export function ComputerUseConfig({ config, onChange }: ConfigProps) {
       </div>
 
       {/* Advanced Features */}
-      <div className="border-t border-zinc-700/50 pt-4 mt-4">
-        <p className="text-[10px] font-medium text-zinc-600 uppercase tracking-wide mb-3">Erweitert</p>
+      <div className="border-t border-border/50 pt-4 mt-4">
+        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-3">Erweitert</p>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <FieldLabel label="Schritt-Verifikation" hint="Prüft ob jede Aktion erfolgreich war" />
             <button
               onClick={() => onChange({ ...config, enableVerification: config.enableVerification === false ? true : false })}
               className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                config.enableVerification !== false ? "bg-blue-500" : "bg-zinc-700"
+                config.enableVerification !== false ? "bg-blue-500" : "bg-muted"
               }`}
             >
               <span
@@ -671,7 +671,7 @@ export function ComputerUseConfig({ config, onChange }: ConfigProps) {
             <button
               onClick={() => onChange({ ...config, enableProceduralMemory: config.enableProceduralMemory === false ? true : false })}
               className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                config.enableProceduralMemory !== false ? "bg-purple-500" : "bg-zinc-700"
+                config.enableProceduralMemory !== false ? "bg-purple-500" : "bg-muted"
               }`}
             >
               <span
@@ -686,7 +686,7 @@ export function ComputerUseConfig({ config, onChange }: ConfigProps) {
             <button
               onClick={() => onChange({ ...config, enableCodeExecution: !config.enableCodeExecution })}
               className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-                config.enableCodeExecution ? "bg-green-500" : "bg-zinc-700"
+                config.enableCodeExecution ? "bg-green-500" : "bg-muted"
               }`}
             >
               <span
@@ -700,13 +700,13 @@ export function ComputerUseConfig({ config, onChange }: ConfigProps) {
       </div>
 
       {/* Login/Credentials Section */}
-      <div className="border-t border-zinc-700/50 pt-4 mt-4">
+      <div className="border-t border-border/50 pt-4 mt-4">
         <div className="flex items-center justify-between mb-3">
           <FieldLabel label="Login erforderlich" hint="Für geschützte Seiten mit Login" />
           <button
             onClick={() => onChange({ ...config, requiresLogin: !config.requiresLogin })}
             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
-              config.requiresLogin ? "bg-pink-500" : "bg-zinc-700"
+              config.requiresLogin ? "bg-pink-500" : "bg-muted"
             }`}
           >
             <span
@@ -752,11 +752,11 @@ export function DeepResearchConfig({ config, onChange }: ConfigProps) {
               className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-colors border ${
                 (config.depth || "standard") === d
                   ? "border-pink-500/50 bg-pink-500/10 text-pink-400"
-                  : "border-[#332f2b] bg-[#1a1918] text-zinc-500 hover:text-zinc-400"
+                  : "border-border bg-card text-muted-foreground hover:text-muted-foreground"
               }`}
             >
               {d === "quick" ? "Schnell" : d === "standard" ? "Standard" : "Tief"}
-              <span className="block text-[9px] text-zinc-600 mt-0.5">
+              <span className="block text-[9px] text-muted-foreground mt-0.5">
                 {d === "quick" ? "~5 Quellen" : d === "standard" ? "~15 Quellen" : "~30 Quellen"}
               </span>
             </button>
@@ -778,11 +778,11 @@ export function DeepResearchConfig({ config, onChange }: ConfigProps) {
               className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-colors border ${
                 (config.layer || "auto") === l.value
                   ? "border-pink-500/50 bg-pink-500/10 text-pink-400"
-                  : "border-[#332f2b] bg-[#1a1918] text-zinc-500 hover:text-zinc-400"
+                  : "border-border bg-card text-muted-foreground hover:text-muted-foreground"
               }`}
             >
               {l.label}
-              <span className="block text-[9px] text-zinc-600 mt-0.5">{l.desc}</span>
+              <span className="block text-[9px] text-muted-foreground mt-0.5">{l.desc}</span>
             </button>
           ))}
         </div>
@@ -800,7 +800,7 @@ export function DeepResearchConfig({ config, onChange }: ConfigProps) {
               className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-colors border ${
                 (config.language || "de") === lang.value
                   ? "border-pink-500/50 bg-pink-500/10 text-pink-400"
-                  : "border-[#332f2b] bg-[#1a1918] text-zinc-500 hover:text-zinc-400"
+                  : "border-border bg-card text-muted-foreground hover:text-muted-foreground"
               }`}
             >
               {lang.label}
@@ -816,9 +816,9 @@ export function DeepResearchConfig({ config, onChange }: ConfigProps) {
           placeholder="researchResult"
         />
       </div>
-      <div className="rounded-lg border border-[#332f2b] bg-[#1a1918] p-3">
-        <p className="text-[10px] text-zinc-600">
-          <span className="font-medium text-zinc-500">Output:</span> summary, fullReport, sources[], confidence (0-100), queriesUsed[], totalDurationMs
+      <div className="rounded-lg border border-border bg-card p-3">
+        <p className="text-[10px] text-muted-foreground">
+          <span className="font-medium text-muted-foreground">Output:</span> summary, fullReport, sources[], confidence (0-100), queriesUsed[], totalDurationMs
         </p>
       </div>
     </div>
@@ -863,7 +863,7 @@ export function CodeSandboxConfig({ config, onChange }: ConfigProps) {
               className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-colors border ${
                 (config.language || "python") === lang
                   ? "border-green-500/50 bg-green-500/10 text-green-400"
-                  : "border-[#332f2b] bg-[#1a1918] text-zinc-500 hover:text-zinc-400"
+                  : "border-border bg-card text-muted-foreground hover:text-muted-foreground"
               }`}
             >
               {lang === "python" ? "Python" : lang === "javascript" ? "JavaScript" : "Auto"}
@@ -888,7 +888,7 @@ export function CodeSandboxConfig({ config, onChange }: ConfigProps) {
             onChange={(e) => setNewPkg(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addPackage()}
             placeholder="pandas, matplotlib, ..."
-            className="flex-1 bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-300 px-3 py-2 outline-none focus:border-green-500/60 transition-colors placeholder:text-zinc-700"
+            className="flex-1 bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-green-500/60 transition-colors placeholder:text-muted-foreground"
           />
           <button
             onClick={addPackage}
@@ -930,9 +930,9 @@ export function CodeSandboxConfig({ config, onChange }: ConfigProps) {
           placeholder="codeSandboxResult"
         />
       </div>
-      <div className="rounded-lg border border-[#332f2b] bg-[#1a1918] p-3">
-        <p className="text-[10px] text-zinc-600">
-          <span className="font-medium text-zinc-500">Output:</span> goal, language, iterations, finalOutput, executionLog[], artifacts[], totalDurationMs, status
+      <div className="rounded-lg border border-border bg-card p-3">
+        <p className="text-[10px] text-muted-foreground">
+          <span className="font-medium text-muted-foreground">Output:</span> goal, language, iterations, finalOutput, executionLog[], artifacts[], totalDurationMs, status
         </p>
       </div>
     </div>
@@ -1018,14 +1018,14 @@ function CredentialSelector({
   }
 
   if (loading) {
-    return <p className="text-[10px] text-zinc-500">Lade Credentials...</p>;
+    return <p className="text-[10px] text-muted-foreground">Lade Credentials...</p>;
   }
 
   return (
     <div className="space-y-3">
       {/* Select existing */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
+        <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
           <Lock className="h-3 w-3" /> Gespeicherte Logins
         </label>
         {credentials.length > 0 ? (
@@ -1037,16 +1037,16 @@ function CredentialSelector({
                 className={`flex items-center justify-between rounded-lg px-3 py-2 cursor-pointer border transition-colors ${
                   credentialId === c.id
                     ? "border-pink-500/50 bg-pink-500/10"
-                    : "border-zinc-700 bg-zinc-800 hover:border-zinc-600"
+                    : "border-border bg-muted hover:border-foreground/20"
                 }`}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-zinc-200 truncate">{c.serviceName}</p>
-                  <p className="text-[10px] text-zinc-500 truncate">{c.loginUrl}</p>
+                  <p className="text-xs font-medium text-foreground truncate">{c.serviceName}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{c.loginUrl}</p>
                 </div>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}
-                  className="ml-2 text-zinc-600 hover:text-red-400 transition-colors shrink-0"
+                  className="ml-2 text-muted-foreground hover:text-red-400 transition-colors shrink-0"
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>
@@ -1054,13 +1054,13 @@ function CredentialSelector({
             ))}
           </div>
         ) : (
-          <p className="text-[10px] text-zinc-500">Keine Credentials gespeichert</p>
+          <p className="text-[10px] text-muted-foreground">Keine Credentials gespeichert</p>
         )}
       </div>
 
       {/* Add new */}
       {showAddForm ? (
-        <div className="space-y-2 rounded-lg border border-zinc-700 bg-zinc-800/50 p-3">
+        <div className="space-y-2 rounded-lg border border-border bg-muted/50 p-3">
           <ConfigInput
             value={newService}
             onChange={setNewService}
@@ -1081,7 +1081,7 @@ function CredentialSelector({
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             placeholder="Passwort"
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-green-500/60 transition-colors placeholder:text-zinc-600 font-mono"
+            className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-green-500/60 transition-colors placeholder:text-muted-foreground font-mono"
           />
           <div className="flex items-center gap-2">
             <button
@@ -1093,12 +1093,12 @@ function CredentialSelector({
             </button>
             <button
               onClick={() => setShowAddForm(false)}
-              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+              className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Abbrechen
             </button>
           </div>
-          <p className="text-[9px] text-zinc-600 flex items-center gap-1">
+          <p className="text-[9px] text-muted-foreground flex items-center gap-1">
             <Lock className="h-2.5 w-2.5" />
             Credentials werden verschlüsselt gespeichert (AES-256-GCM)
           </p>

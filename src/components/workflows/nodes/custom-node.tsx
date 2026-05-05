@@ -68,7 +68,7 @@ function PortBadge({ port, direction }: { port: NodePort; direction: "in" | "out
     json: "bg-purple-500/20 text-purple-400",
     boolean: "bg-yellow-500/20 text-yellow-400",
     array: "bg-pink-500/20 text-pink-400",
-    any: "bg-stone-500/20 text-stone-400",
+    any: "bg-muted/20 text-muted-foreground",
   };
 
   return (
@@ -76,7 +76,7 @@ function PortBadge({ port, direction }: { port: NodePort; direction: "in" | "out
       <div
         className={`w-2.5 h-2.5 rounded-full border-2 ${direction === "in" ? "border-blue-400" : "border-green-400"}`}
       />
-      <span className="text-xs text-stone-400">{port.name}</span>
+      <span className="text-xs text-muted-foreground">{port.name}</span>
       <span className={`text-[10px] px-1 rounded ${colors[port.type] || colors.any}`}>
         {port.type}
       </span>
@@ -100,46 +100,46 @@ function ConfigFieldRenderer({
     case "password":
       return (
         <div className="space-y-1">
-          <Label className="text-xs text-stone-400">{field.label}</Label>
+          <Label className="text-xs text-muted-foreground">{field.label}</Label>
           <Input
             type={field.type === "password" ? "password" : "text"}
             value={String(value || field.default || "")}
             onChange={(e) => onChange(e.target.value)}
             placeholder={field.description}
-            className="h-7 text-xs bg-stone-900 border-stone-700"
+            className="h-7 text-xs bg-card border-border"
           />
         </div>
       );
     case "number":
       return (
         <div className="space-y-1">
-          <Label className="text-xs text-stone-400">{field.label}</Label>
+          <Label className="text-xs text-muted-foreground">{field.label}</Label>
           <Input
             type="number"
             value={String(value ?? field.default ?? "")}
             onChange={(e) => onChange(Number(e.target.value))}
-            className="h-7 text-xs bg-stone-900 border-stone-700"
+            className="h-7 text-xs bg-card border-border"
           />
         </div>
       );
     case "textarea":
       return (
         <div className="space-y-1">
-          <Label className="text-xs text-stone-400">{field.label}</Label>
+          <Label className="text-xs text-muted-foreground">{field.label}</Label>
           <Textarea
             value={String(value || field.default || "")}
             onChange={(e) => onChange(e.target.value)}
             placeholder={field.description}
-            className="text-xs bg-stone-900 border-stone-700 min-h-[60px]"
+            className="text-xs bg-card border-border min-h-[60px]"
           />
         </div>
       );
     case "select":
       return (
         <div className="space-y-1">
-          <Label className="text-xs text-stone-400">{field.label}</Label>
+          <Label className="text-xs text-muted-foreground">{field.label}</Label>
           <Select value={String(value || field.default || "")} onValueChange={onChange}>
-            <SelectTrigger className="h-7 text-xs bg-stone-900 border-stone-700">
+            <SelectTrigger className="h-7 text-xs bg-card border-border">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -155,7 +155,7 @@ function ConfigFieldRenderer({
     case "toggle":
       return (
         <div className="flex items-center justify-between">
-          <Label className="text-xs text-stone-400">{field.label}</Label>
+          <Label className="text-xs text-muted-foreground">{field.label}</Label>
           <Switch
             checked={Boolean(value ?? field.default)}
             onCheckedChange={onChange}
@@ -184,7 +184,7 @@ export function CustomNodeComponent({
   return (
     <div
       className={`
-        rounded-xl border bg-stone-950/90 backdrop-blur-sm
+        rounded-xl border bg-background/90 backdrop-blur-sm
         min-w-[220px] max-w-[280px] transition-shadow
         ${isSelected ? "ring-2 ring-orange-500 shadow-lg shadow-orange-500/20" : "shadow-md"}
       `}
@@ -197,10 +197,10 @@ export function CustomNodeComponent({
       >
         <span className="text-lg">{icon || "🧩"}</span>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-stone-100 truncate">{name}</p>
-          <p className="text-[10px] text-stone-400 truncate">{description}</p>
+          <p className="text-sm font-medium text-foreground truncate">{name}</p>
+          <p className="text-[10px] text-muted-foreground truncate">{description}</p>
         </div>
-        <Badge variant="outline" className="text-[9px] border-stone-600 text-stone-400 shrink-0">
+        <Badge variant="outline" className="text-[9px] border-border text-muted-foreground shrink-0">
           Community
         </Badge>
       </div>
@@ -227,8 +227,8 @@ export function CustomNodeComponent({
 
       {/* Config Panel (nur wenn selektiert) */}
       {isSelected && config.length > 0 && (
-        <div className="border-t border-stone-800 px-3 py-2 space-y-2">
-          <p className="text-[10px] font-medium text-stone-500 uppercase tracking-wide">Konfiguration</p>
+        <div className="border-t border-border px-3 py-2 space-y-2">
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Konfiguration</p>
           {config.map((field) => (
             <ConfigFieldRenderer
               key={field.name}

@@ -134,9 +134,9 @@ function getStatusStyles(status: ReplayStep["status"]) {
     case "RUNNING":
       return "border-blue-500/25 bg-blue-500/10 text-blue-300";
     case "SKIPPED":
-      return "border-zinc-700 bg-zinc-900 text-zinc-400";
+      return "border-border bg-card text-muted-foreground";
     default:
-      return "border-zinc-700 bg-zinc-900 text-zinc-400";
+      return "border-border bg-card text-muted-foreground";
   }
 }
 
@@ -274,15 +274,15 @@ export function ExecutionDebugConsole({
   return (
     <div className="fixed inset-0 z-[85] bg-black/70 backdrop-blur-sm">
       <div className="flex h-full flex-col">
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500">
+            <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
               Execution Debug Console
             </p>
-            <h2 className="mt-1 text-xl font-semibold text-zinc-100">
+            <h2 className="mt-1 text-xl font-semibold text-foreground">
               {data?.team.name || "Workflow execution"}
             </h2>
-            <p className="mt-1 text-sm text-zinc-400">
+            <p className="mt-1 text-sm text-muted-foreground">
               Inspect prompts, routing, transformations, and failure detail step by step.
             </p>
             {data?.execution.trigger === "scheduled" ? (
@@ -295,7 +295,7 @@ export function ExecutionDebugConsole({
               variant="outline"
               onClick={exportDebugData}
               disabled={!data}
-              className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+              className="border-border text-foreground hover:bg-muted"
             >
               <Download className="mr-2 h-4 w-4" />
               Export JSON
@@ -304,7 +304,7 @@ export function ExecutionDebugConsole({
               size="sm"
               variant="outline"
               onClick={onClose}
-              className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+              className="border-border text-foreground hover:bg-muted"
             >
               <X className="mr-2 h-4 w-4" />
               Close
@@ -315,42 +315,42 @@ export function ExecutionDebugConsole({
         {loading ? (
           <div className="flex flex-1 items-center justify-center">
             <Clock className="mr-3 h-5 w-5 animate-pulse text-orange-400" />
-            <span className="text-sm text-zinc-400">Loading debug data…</span>
+            <span className="text-sm text-muted-foreground">Loading debug data…</span>
           </div>
         ) : error ? (
           <div className="m-6 rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-sm text-red-300">
             {error}
           </div>
         ) : !data || !selectedStep ? (
-          <div className="flex flex-1 items-center justify-center text-zinc-500">
+          <div className="flex flex-1 items-center justify-center text-muted-foreground">
             No debug data available.
           </div>
         ) : (
           <div className="grid flex-1 gap-4 overflow-hidden p-6 xl:grid-cols-[340px,1fr]">
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/70">
-              <div className="border-b border-white/10 px-5 py-4">
-                <p className="text-[11px] uppercase tracking-[0.24em] text-zinc-500">
+            <div className="overflow-hidden rounded-3xl border border-border bg-background/70">
+              <div className="border-b border-border px-5 py-4">
+                <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
                   Search & Steps
                 </p>
                 <div className="relative mt-3">
-                  <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-zinc-500" />
+                  <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
                   <input
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     placeholder="Search prompts, outputs, errors..."
-                    className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/80 py-3 pl-10 pr-4 text-sm text-zinc-100 outline-none transition-colors focus:border-orange-500/40"
+                    className="w-full rounded-2xl border border-border bg-card/80 py-3 pl-10 pr-4 text-sm text-foreground outline-none transition-colors focus:border-orange-500/40"
                   />
                 </div>
-                <p className="mt-2 text-xs text-zinc-500">
+                <p className="mt-2 text-xs text-muted-foreground">
                   {filteredSteps.length} matching steps
                 </p>
               </div>
 
               <div className="h-[min(70vh,760px)] overflow-auto p-4">
                 {filteredSteps.length === 0 ? (
-                  <div className="flex h-full flex-col items-center justify-center px-6 text-center text-zinc-500">
-                    <FileSearch className="h-8 w-8 text-zinc-500" />
-                    <p className="mt-3 text-sm text-zinc-400">
+                  <div className="flex h-full flex-col items-center justify-center px-6 text-center text-muted-foreground">
+                    <FileSearch className="h-8 w-8 text-muted-foreground" />
+                    <p className="mt-3 text-sm text-muted-foreground">
                       No steps match your search.
                     </p>
                   </div>
@@ -365,15 +365,15 @@ export function ExecutionDebugConsole({
                           "w-full rounded-2xl border px-4 py-3 text-left transition-colors",
                           selectedStep.id === step.id
                             ? "border-orange-500/40 bg-orange-500/10"
-                            : "border-zinc-800 bg-zinc-900/70 hover:border-zinc-700 hover:bg-zinc-900"
+                            : "border-border bg-card/70 hover:border-border hover:bg-card"
                         )}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="text-sm font-medium text-zinc-100">
+                            <p className="text-sm font-medium text-foreground">
                               {step.nodeType && step.nodeType !== "agent" ? step.taskTitle : step.memberName}
                             </p>
-                            <p className="mt-1 text-xs text-zinc-500">
+                            <p className="mt-1 text-xs text-muted-foreground">
                               {step.nodeType && step.nodeType !== "agent"
                                 ? getDebugNodeTypeLabel(step.nodeType)
                                 : `Task ${step.taskIndex + 1} · Attempt ${step.attempt}`}
@@ -388,13 +388,13 @@ export function ExecutionDebugConsole({
                             {step.status}
                           </span>
                         </div>
-                        <p className="mt-3 line-clamp-2 text-xs text-zinc-400">
+                        <p className="mt-3 line-clamp-2 text-xs text-muted-foreground">
                           {step.taskTitle}
                         </p>
-                        <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-zinc-500">
+                        <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
                           <span>{formatDuration(step.metrics.responseTimeMs)}</span>
                           {step.nodeType && step.nodeType !== "agent" ? (
-                            <span className="text-zinc-400">{getDebugNodeTypeLabel(step.nodeType)}</span>
+                            <span className="text-muted-foreground">{getDebugNodeTypeLabel(step.nodeType)}</span>
                           ) : (
                             <>
                               <span>{step.metrics.model || "Unknown model"}</span>
@@ -412,8 +412,8 @@ export function ExecutionDebugConsole({
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/70">
-              <div className="border-b border-white/10 px-5 py-4">
+            <div className="overflow-hidden rounded-3xl border border-border bg-background/70">
+              <div className="border-b border-border px-5 py-4">
                 <div className="flex flex-wrap items-center gap-3">
                   <span
                     className={cn(
@@ -423,21 +423,21 @@ export function ExecutionDebugConsole({
                   >
                     {selectedStep.status}
                   </span>
-                  <span className="text-sm text-zinc-300">
+                  <span className="text-sm text-foreground">
                     {selectedStep.nodeType && selectedStep.nodeType !== "agent"
                       ? getDebugNodeTypeLabel(selectedStep.nodeType)
                       : `${selectedStep.memberName} · Task ${selectedStep.taskIndex + 1}`}
                   </span>
                   {(!selectedStep.nodeType || selectedStep.nodeType === "agent") && (
-                    <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold uppercase text-zinc-300">
+                    <span className="rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-semibold uppercase text-foreground">
                       {getStrategyLabel(selectedStep.strategy)}
                     </span>
                   )}
-                  <span className="text-xs text-zinc-500">
+                  <span className="text-xs text-muted-foreground">
                     {formatDateTime(selectedStep.startedAt)}
                   </span>
                 </div>
-                <p className="mt-3 text-sm text-zinc-400">
+                <p className="mt-3 text-sm text-muted-foreground">
                   {selectedStep.taskTitle}
                 </p>
                 {selectedStep.fallbackEvent ? (
@@ -447,7 +447,7 @@ export function ExecutionDebugConsole({
                 ) : null}
               </div>
 
-              <div className="border-b border-white/10 px-5 py-3">
+              <div className="border-b border-border px-5 py-3">
                 <div className="flex flex-wrap gap-2">
                   {debugTabs.map((tab) => (
                     <button
@@ -458,7 +458,7 @@ export function ExecutionDebugConsole({
                         "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                         activeTab === tab.id
                           ? "border-orange-500/40 bg-orange-500/10 text-orange-200"
-                          : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                          : "border-border bg-card text-muted-foreground hover:text-foreground"
                       )}
                     >
                       {tab.label}
@@ -482,7 +482,7 @@ export function ExecutionDebugConsole({
                         {selectedStep.commonFixSuggestions.map((suggestion) => (
                           <div
                             key={suggestion}
-                            className="rounded-xl border border-red-500/20 bg-black/20 px-3 py-2 text-xs text-red-100"
+                            className="rounded-xl border border-red-500/20 bg-muted/60 px-3 py-2 text-xs text-red-100"
                           >
                             {suggestion}
                           </div>
@@ -495,48 +495,48 @@ export function ExecutionDebugConsole({
                 {activeTab === "prompt" ? (
                   selectedStep.nodeType && selectedStep.nodeType !== "agent" ? (
                     <div className="space-y-4">
-                      <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                      <div className="rounded-2xl border border-border bg-card/70 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                           Node Configuration
                         </p>
-                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
+                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-foreground">
                           {formatJson(selectedStep.structuredOutput?.config || selectedStep.input)}
                         </pre>
                       </div>
                       {selectedStep.nodeType === "http_request" && (
                         <div className="space-y-4">
-                          <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                          <div className="rounded-2xl border border-border bg-card/70 p-4">
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                               HTTP Request
                             </p>
-                            <div className="mt-3 space-y-2 text-xs text-zinc-200">
-                              <p><span className="text-zinc-500">Method:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.method || "GET")}</p>
-                              <p><span className="text-zinc-500">URL:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.url || "—")}</p>
+                            <div className="mt-3 space-y-2 text-xs text-foreground">
+                              <p><span className="text-muted-foreground">Method:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.method || "GET")}</p>
+                              <p><span className="text-muted-foreground">URL:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.url || "—")}</p>
                               {!!(selectedStep.structuredOutput as Record<string, unknown>)?.headers && (
                                 <>
-                                  <p className="text-zinc-500">Headers:</p>
-                                  <pre className="whitespace-pre-wrap break-words text-zinc-300">
+                                  <p className="text-muted-foreground">Headers:</p>
+                                  <pre className="whitespace-pre-wrap break-words text-foreground">
                                     {formatJson((selectedStep.structuredOutput as Record<string, unknown>).headers)}
                                   </pre>
                                 </>
                               )}
                               {!!(selectedStep.structuredOutput as Record<string, unknown>)?.body && (
                                 <>
-                                  <p className="text-zinc-500">Body:</p>
-                                  <pre className="whitespace-pre-wrap break-words text-zinc-300">
+                                  <p className="text-muted-foreground">Body:</p>
+                                  <pre className="whitespace-pre-wrap break-words text-foreground">
                                     {formatJson((selectedStep.structuredOutput as Record<string, unknown>).body)}
                                   </pre>
                                 </>
                               )}
                             </div>
                           </div>
-                          <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                          <div className="rounded-2xl border border-border bg-card/70 p-4">
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                               HTTP Response
                             </p>
-                            <div className="mt-3 space-y-2 text-xs text-zinc-200">
-                              <p><span className="text-zinc-500">Status:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.statusCode || "—")}</p>
-                              <pre className="mt-2 whitespace-pre-wrap break-words text-zinc-300">
+                            <div className="mt-3 space-y-2 text-xs text-foreground">
+                              <p><span className="text-muted-foreground">Status:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.statusCode || "—")}</p>
+                              <pre className="mt-2 whitespace-pre-wrap break-words text-foreground">
                                 {formatJson((selectedStep.structuredOutput as Record<string, unknown>)?.response || selectedStep.output)}
                               </pre>
                             </div>
@@ -544,18 +544,18 @@ export function ExecutionDebugConsole({
                         </div>
                       )}
                       {selectedStep.nodeType === "send_email" && (
-                        <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                          <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                        <div className="rounded-2xl border border-border bg-card/70 p-4">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                             Email Details
                           </p>
-                          <div className="mt-3 space-y-2 text-xs text-zinc-200">
-                            <p><span className="text-zinc-500">To:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.to || "—")}</p>
-                            <p><span className="text-zinc-500">Subject:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.subject || "—")}</p>
-                            <p><span className="text-zinc-500">Status:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.deliveryStatus || selectedStep.status)}</p>
+                          <div className="mt-3 space-y-2 text-xs text-foreground">
+                            <p><span className="text-muted-foreground">To:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.to || "—")}</p>
+                            <p><span className="text-muted-foreground">Subject:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.subject || "—")}</p>
+                            <p><span className="text-muted-foreground">Status:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.deliveryStatus || selectedStep.status)}</p>
                             {!!(selectedStep.structuredOutput as Record<string, unknown>)?.body && (
                               <>
-                                <p className="mt-2 text-zinc-500">Body:</p>
-                                <pre className="mt-1 whitespace-pre-wrap break-words text-zinc-300">
+                                <p className="mt-2 text-muted-foreground">Body:</p>
+                                <pre className="mt-1 whitespace-pre-wrap break-words text-foreground">
                                   {String((selectedStep.structuredOutput as Record<string, unknown>).body)}
                                 </pre>
                               </>
@@ -564,17 +564,17 @@ export function ExecutionDebugConsole({
                         </div>
                       )}
                       {selectedStep.nodeType === "if_condition" && (
-                        <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                          <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                        <div className="rounded-2xl border border-border bg-card/70 p-4">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                             Condition Evaluation
                           </p>
-                          <div className="mt-3 space-y-2 text-xs text-zinc-200">
-                            <p><span className="text-zinc-500">Expression:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.expression || "—")}</p>
-                            <p><span className="text-zinc-500">Left Value:</span> {formatJson((selectedStep.structuredOutput as Record<string, unknown>)?.leftValue)}</p>
-                            <p><span className="text-zinc-500">Operator:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.operator || "—")}</p>
-                            <p><span className="text-zinc-500">Right Value:</span> {formatJson((selectedStep.structuredOutput as Record<string, unknown>)?.rightValue)}</p>
+                          <div className="mt-3 space-y-2 text-xs text-foreground">
+                            <p><span className="text-muted-foreground">Expression:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.expression || "—")}</p>
+                            <p><span className="text-muted-foreground">Left Value:</span> {formatJson((selectedStep.structuredOutput as Record<string, unknown>)?.leftValue)}</p>
+                            <p><span className="text-muted-foreground">Operator:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.operator || "—")}</p>
+                            <p><span className="text-muted-foreground">Right Value:</span> {formatJson((selectedStep.structuredOutput as Record<string, unknown>)?.rightValue)}</p>
                             <p className="mt-2">
-                              <span className="text-zinc-500">Result:</span>{" "}
+                              <span className="text-muted-foreground">Result:</span>{" "}
                               <span className={(selectedStep.structuredOutput as Record<string, unknown>)?.result ? "text-green-300" : "text-red-300"}>
                                 {String((selectedStep.structuredOutput as Record<string, unknown>)?.result ?? "—")} → {(selectedStep.structuredOutput as Record<string, unknown>)?.result ? "True path" : "False path"}
                               </span>
@@ -583,17 +583,17 @@ export function ExecutionDebugConsole({
                         </div>
                       )}
                       {selectedStep.nodeType === "set_variable" && (
-                        <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                          <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                        <div className="rounded-2xl border border-border bg-card/70 p-4">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                             Variable Assignment
                           </p>
-                          <div className="mt-3 space-y-1 text-xs text-zinc-200">
+                          <div className="mt-3 space-y-1 text-xs text-foreground">
                             {selectedStep.structuredOutput && typeof selectedStep.structuredOutput === "object"
                               ? Object.entries(selectedStep.structuredOutput as Record<string, unknown>).map(([k, v]) => (
                                   <p key={k}>
                                     <span className="font-mono text-orange-300">{k}</span>
-                                    <span className="text-zinc-500"> = </span>
-                                    <span className="text-zinc-200">{formatJson(v)}</span>
+                                    <span className="text-muted-foreground"> = </span>
+                                    <span className="text-foreground">{formatJson(v)}</span>
                                   </p>
                                 ))
                               : <p>{formatJson(selectedStep.structuredOutput)}</p>}
@@ -601,39 +601,39 @@ export function ExecutionDebugConsole({
                         </div>
                       )}
                       {selectedStep.nodeType === "delay" && (
-                        <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                          <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                        <div className="rounded-2xl border border-border bg-card/70 p-4">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                             Delay Info
                           </p>
-                          <div className="mt-3 text-xs text-zinc-200">
-                            <p><span className="text-zinc-500">Duration:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.duration || selectedStep.output || "—")}</p>
+                          <div className="mt-3 text-xs text-foreground">
+                            <p><span className="text-muted-foreground">Duration:</span> {String((selectedStep.structuredOutput as Record<string, unknown>)?.duration || selectedStep.output || "—")}</p>
                           </div>
                         </div>
                       )}
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                      <div className="rounded-2xl border border-border bg-card/70 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                           System Prompt
                         </p>
-                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
+                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-foreground">
                           {selectedStep.prompt.system}
                         </pre>
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                      <div className="rounded-2xl border border-border bg-card/70 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                           User Input
                         </p>
-                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
+                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-foreground">
                           {selectedStep.prompt.user}
                         </pre>
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                      <div className="rounded-2xl border border-border bg-card/70 p-4">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                           Included Knowledge
                         </p>
-                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
+                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-foreground">
                           {selectedStep.prompt.knowledgeContext.length > 0
                             ? selectedStep.prompt.knowledgeContext.join("\n\n---\n\n")
                             : "No RAG context injected"}
@@ -644,34 +644,34 @@ export function ExecutionDebugConsole({
                 ) : null}
 
                 {activeTab === "input" ? (
-                  <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                  <div className="rounded-2xl border border-border bg-card/70 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                       {selectedStep.nodeType && selectedStep.nodeType !== "agent"
                         ? `${getDebugNodeTypeLabel(selectedStep.nodeType)} Input`
                         : "Agent Input"}
                     </p>
-                    <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
+                    <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-foreground">
                       {formatJson(selectedStep.input)}
                     </pre>
                   </div>
                 ) : null}
 
                 {activeTab === "output" ? (
-                  <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                  <div className="rounded-2xl border border-border bg-card/70 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                       {selectedStep.nodeType && selectedStep.nodeType !== "agent"
                         ? `${getDebugNodeTypeLabel(selectedStep.nodeType)} Output`
                         : "Raw Model Output"}
                     </p>
-                    <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
+                    <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-foreground">
                       {selectedStep.output || "No output recorded"}
                     </pre>
                     {selectedStep.nodeType && selectedStep.nodeType !== "agent" && selectedStep.structuredOutput && (
-                      <div className="mt-4 border-t border-white/10 pt-4">
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                      <div className="mt-4 border-t border-border pt-4">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                           Structured Result
                         </p>
-                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
+                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-foreground">
                           {formatJson(selectedStep.structuredOutput)}
                         </pre>
                       </div>
@@ -681,22 +681,22 @@ export function ExecutionDebugConsole({
 
                 {activeTab === "structured" ? (
                   <div className="space-y-4">
-                    <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
+                    <div className="rounded-2xl border border-border bg-card/70 p-4">
                       <div className="flex items-center gap-2">
                         <Braces className="h-4 w-4 text-violet-300" />
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                           Structured Data
                         </p>
                       </div>
-                      <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
+                      <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-foreground">
                         {formatJson(selectedStep.structuredOutput)}
                       </pre>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                    <div className="rounded-2xl border border-border bg-card/70 p-4">
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                         Shared Memory After This Step
                       </p>
-                      <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
+                      <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-foreground">
                         {formatJson(selectedStep.sharedContextAfter)}
                       </pre>
                     </div>
@@ -705,11 +705,11 @@ export function ExecutionDebugConsole({
 
                 {activeTab === "routing" ? (
                   <div className="space-y-4">
-                    <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                    <div className="rounded-2xl border border-border bg-card/70 p-4">
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                         Runtime Strategy
                       </p>
-                      <p className="mt-3 text-sm text-zinc-100">
+                      <p className="mt-3 text-sm text-foreground">
                         {getStrategyLabel(selectedStep.strategy)}
                       </p>
                       {selectedStep.fallbackEvent ? (
@@ -718,18 +718,18 @@ export function ExecutionDebugConsole({
                         </p>
                       ) : null}
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
+                    <div className="rounded-2xl border border-border bg-card/70 p-4">
                       <div className="flex items-center gap-2">
                         <GitBranch className="h-4 w-4 text-orange-300" />
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                           Routing Decision
                         </p>
                       </div>
-                      <p className="mt-3 text-sm text-zinc-100">
+                      <p className="mt-3 text-sm text-foreground">
                         {selectedStep.routing.decision}
                       </p>
                       {selectedStep.routing.condition ? (
-                        <p className="mt-3 text-xs text-zinc-400">
+                        <p className="mt-3 text-xs text-muted-foreground">
                           Condition: {selectedStep.routing.condition}
                         </p>
                       ) : null}
@@ -825,12 +825,12 @@ export function ExecutionDebugConsole({
                     ).map((item) => (
                       <div
                         key={item.label}
-                        className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4"
+                        className="rounded-2xl border border-border bg-card/70 p-4"
                       >
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                           {item.label}
                         </p>
-                        <p className="mt-3 text-sm text-zinc-100">{item.value}</p>
+                        <p className="mt-3 text-sm text-foreground">{item.value}</p>
                       </div>
                     ))}
                   </div>
@@ -839,35 +839,35 @@ export function ExecutionDebugConsole({
                 {activeTab === "diff" ? (
                   <div className="space-y-4">
                     <div className="grid gap-4 lg:grid-cols-2">
-                      <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
+                      <div className="rounded-2xl border border-border bg-card/70 p-4">
                         <div className="flex items-center gap-2">
-                          <ArrowRightLeft className="h-4 w-4 text-zinc-400" />
-                          <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                          <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                             Previous Step Output
                           </p>
                         </div>
-                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
+                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-foreground">
                           {previousOutput || "No previous output available"}
                         </pre>
                       </div>
-                      <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
+                      <div className="rounded-2xl border border-border bg-card/70 p-4">
                         <div className="flex items-center gap-2">
-                          <ArrowRightLeft className="h-4 w-4 text-zinc-400" />
-                          <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                          <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                             Current Step Input
                           </p>
                         </div>
-                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-zinc-200">
+                        <pre className="mt-3 whitespace-pre-wrap break-words text-xs text-foreground">
                           {formatJson(selectedStep.input)}
                         </pre>
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-zinc-900/70 p-4">
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+                    <div className="rounded-2xl border border-border bg-card/70 p-4">
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                         Shared Memory Transformations
                       </p>
                       {sharedMemoryChanges.length === 0 ? (
-                        <p className="mt-3 text-sm text-zinc-500">
+                        <p className="mt-3 text-sm text-muted-foreground">
                           No new fields were added or updated during this step.
                         </p>
                       ) : (
@@ -882,28 +882,28 @@ export function ExecutionDebugConsole({
                                   : "border-amber-500/25 bg-amber-500/10"
                               )}
                             >
-                              <p className="text-sm font-medium text-zinc-100">
+                              <p className="text-sm font-medium text-foreground">
                                 {change.key}
                               </p>
-                              <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                              <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                                 {change.type === "added" ? "Added" : "Updated"}
                               </p>
                               <div className="mt-3 grid gap-3 lg:grid-cols-2">
                                 <div>
-                                  <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                                     Before
                                   </p>
-                                  <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-zinc-300">
+                                  <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-foreground">
                                     {change.type === "added"
                                       ? "Field did not exist"
                                       : formatJson(change.before)}
                                   </pre>
                                 </div>
                                 <div>
-                                  <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                                     After
                                   </p>
-                                  <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-zinc-100">
+                                  <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-foreground">
                                     {formatJson(change.after)}
                                   </pre>
                                 </div>

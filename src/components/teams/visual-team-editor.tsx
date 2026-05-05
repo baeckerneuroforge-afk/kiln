@@ -205,9 +205,9 @@ const NODE_WIDTH = 240;
 const NODE_HEIGHT = 80;
 
 /* ========== Handle Styles ========== */
-const handleBase = "!w-[10px] !h-[10px] !border-[2px] !border-[#332f2b] !rounded-full transition-colors";
-const handleInput = `${handleBase} !bg-[#52525b] hover:!bg-orange-400`;
-const handleOutput = `${handleBase} !bg-[#52525b] hover:!bg-orange-400`;
+const handleBase = "!w-[10px] !h-[10px] !border-[2px] !border-border !rounded-full transition-colors";
+const handleInput = `${handleBase} !bg-muted-foreground hover:!bg-orange-400`;
+const handleOutput = `${handleBase} !bg-muted-foreground hover:!bg-orange-400`;
 
 /* ========== Dagre auto-layout ========== */
 function getLayoutedElements(
@@ -285,7 +285,7 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
   return (
     <div
       className={cn(
-        "rounded-xl bg-[#2a2826] border border-[#3d3935] shadow-lg min-w-[220px] max-w-[260px] transition-all duration-150",
+        "rounded-xl bg-muted border border-foreground/20 shadow-lg min-w-[220px] max-w-[260px] transition-all duration-150",
         selected && "border-orange-500/70 shadow-orange-500/10 shadow-xl",
         statusClasses,
         execStatus === "running" && "animate-pulse",
@@ -304,7 +304,7 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
           <Bot className={cn("h-4.5 w-4.5", rc.text)} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold text-zinc-100 truncate leading-tight">{data.agentName}</p>
+          <p className="text-[13px] font-semibold text-foreground truncate leading-tight">{data.agentName}</p>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className={cn("text-[9px] font-bold uppercase tracking-wider", rc.text)}>{role}</span>
             {execStatus && execStatus !== "pending" && (
@@ -314,7 +314,7 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
                 execStatus === "completed" && "bg-green-500/15 text-green-400",
                 execStatus === "awaiting_approval" && "bg-amber-500/15 text-amber-300",
                 execStatus === "failed" && "bg-red-500/15 text-red-400",
-                execStatus === "skipped" && "bg-zinc-700/40 text-zinc-500",
+                execStatus === "skipped" && "bg-muted/40 text-muted-foreground",
               )}>
                 {execStatus === "running" && <Loader2 className="h-2 w-2 animate-spin" />}
                 {execStatus === "completed" && <Check className="h-2 w-2" />}
@@ -329,7 +329,7 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
       {/* Badges row */}
       <div className="flex items-center gap-1 px-3 pb-2.5 flex-wrap">
         {modelDef && (
-          <span className="text-[9px] bg-[#242220] text-zinc-400 px-1.5 py-0.5 rounded border border-[#3d3935]">
+          <span className="text-[9px] bg-card text-muted-foreground px-1.5 py-0.5 rounded border border-foreground/20">
             {modelDef.shortLabel}
           </span>
         )}
@@ -426,7 +426,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
   return (
     <div
       className={cn(
-        "relative rounded-xl bg-[#2a2826] border border-[#3d3935] shadow-lg min-w-[200px] max-w-[240px] transition-all duration-150",
+        "relative rounded-xl bg-muted border border-foreground/20 shadow-lg min-w-[200px] max-w-[240px] transition-all duration-150",
         selected && "border-orange-500/70 shadow-orange-500/10 shadow-xl",
         statusRing,
         execStatus === "running" && "animate-pulse",
@@ -441,7 +441,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
           execStatus === "completed" && "bg-green-500/15 text-green-400 border-green-500/30 backdrop-blur-sm",
           execStatus === "failed" && "bg-red-500/15 text-red-400 border-red-500/30 backdrop-blur-sm",
           execStatus === "running" && "bg-orange-500/15 text-orange-400 border-orange-500/30 backdrop-blur-sm",
-          execStatus === "skipped" && "bg-zinc-700/50 text-zinc-400 border-zinc-600/30 backdrop-blur-sm",
+          execStatus === "skipped" && "bg-muted/50 text-muted-foreground border-border backdrop-blur-sm",
         )}>
           {execStatus === "completed" && <><Check className="h-2.5 w-2.5" /> {durationLabel}</>}
           {execStatus === "failed" && <><X className="h-2.5 w-2.5" /> Error</>}
@@ -450,7 +450,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
         </div>
       )}
       {execStatus === "pending" && (
-        <div className="absolute -top-2 -right-2 flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-medium bg-zinc-800/80 text-zinc-500 border border-zinc-700/30 backdrop-blur-sm shadow-md z-10">
+        <div className="absolute -top-2 -right-2 flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-medium bg-muted/80 text-muted-foreground border border-border/30 backdrop-blur-sm shadow-md z-10">
           ⏳ Waiting
         </div>
       )}
@@ -473,8 +473,8 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
           {getNodeIcon(nodeType, "h-4.5 w-4.5") || <span style={{ color: colors.hex }}><IconComp className="h-4.5 w-4.5" /></span>}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold text-zinc-100 truncate leading-tight">{data.label as string}</p>
-          <p className="text-[10px] text-zinc-500 truncate mt-0.5" style={{ color: `${colors.hex}99` }}>
+          <p className="text-[13px] font-semibold text-foreground truncate leading-tight">{data.label as string}</p>
+          <p className="text-[10px] text-muted-foreground truncate mt-0.5" style={{ color: `${colors.hex}99` }}>
             {data.description as string}
           </p>
         </div>
@@ -483,7 +483,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
       {/* Config preview (only when idle or pending) */}
       {preview && !execStatus && (
         <div className="px-3 pb-2.5 -mt-1">
-          <p className="text-[10px] font-mono text-zinc-500 truncate bg-[#242220] rounded px-2 py-1 border border-[#3d3935]/50">
+          <p className="text-[10px] font-mono text-muted-foreground truncate bg-card rounded px-2 py-1 border border-foreground/20/50">
             {preview}
           </p>
         </div>
@@ -510,7 +510,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
       {/* Skipped state — upstream node failed */}
       {execStatus === "skipped" && (
         <div className="px-3 pb-2.5 -mt-1">
-          <p className="text-[10px] text-zinc-500 italic truncate bg-[#242220] rounded px-2 py-1 border border-[#3d3935]/50">
+          <p className="text-[10px] text-muted-foreground italic truncate bg-card rounded px-2 py-1 border border-foreground/20/50">
             {data.skippedReason ? `Skipped — ${data.skippedReason}` : "Skipped — upstream node failed"}
           </p>
         </div>
@@ -523,14 +523,14 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
             type="source"
             position={Position.Right}
             id="true"
-            className="!w-[10px] !h-[10px] !border-[2px] !border-[#332f2b] !rounded-full !bg-green-500 !-right-[5px]"
+            className="!w-[10px] !h-[10px] !border-[2px] !border-border !rounded-full !bg-green-500 !-right-[5px]"
             style={{ top: "35%" }}
           />
           <Handle
             type="source"
             position={Position.Right}
             id="false"
-            className="!w-[10px] !h-[10px] !border-[2px] !border-[#332f2b] !rounded-full !bg-red-500 !-right-[5px]"
+            className="!w-[10px] !h-[10px] !border-[2px] !border-border !rounded-full !bg-red-500 !-right-[5px]"
             style={{ top: "65%" }}
           />
           {/* Labels for true/false */}
@@ -550,7 +550,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
               type="source"
               position={Position.Right}
               id="error"
-              className="!w-[7px] !h-[7px] !border-[1.5px] !border-[#332f2b] !rounded-full !bg-red-500/60 hover:!bg-red-400 !-right-[4px]"
+              className="!w-[7px] !h-[7px] !border-[1.5px] !border-border !rounded-full !bg-red-500/60 hover:!bg-red-400 !-right-[4px]"
               style={{ top: "75%" }}
             />
           )}
@@ -579,18 +579,18 @@ type FallbackNodeData = {
 
 function TeamKnowledgeNode({ data }: NodeProps<Node<KnowledgeNodeData>>) {
   return (
-    <div className="rounded-xl bg-[#2a2826] border border-cyan-500/30 shadow-lg min-w-[180px] max-w-[200px]">
+    <div className="rounded-xl bg-muted border border-cyan-500/30 shadow-lg min-w-[180px] max-w-[200px]">
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-[10px] !h-[10px] !border-[2px] !border-[#332f2b] !rounded-full !bg-cyan-500 !-right-[5px]"
+        className="!w-[10px] !h-[10px] !border-[2px] !border-border !rounded-full !bg-cyan-500 !-right-[5px]"
       />
       <div className="flex items-center gap-2.5 px-3 py-3">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15">
           <BookOpen className="h-4 w-4 text-cyan-400" />
         </div>
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-zinc-200">Workflow Knowledge</p>
+          <p className="text-[13px] font-semibold text-foreground">Workflow Knowledge</p>
           <p className="text-[10px] text-cyan-400/70 mt-0.5">
             {data.docCount} {data.docCount === 1 ? "Dokument" : "Dokumente"}
           </p>
@@ -604,12 +604,12 @@ function FallbackGhostNode({ data }: NodeProps<Node<FallbackNodeData>>) {
   const model = typeof data.llmModel === "string" ? getModelDef(data.llmModel) : null;
 
   return (
-    <div className="rounded-xl border border-dashed border-orange-500/30 bg-[#2a2826]/80 shadow-lg min-w-[200px] max-w-[240px] opacity-90">
+    <div className="rounded-xl border border-dashed border-orange-500/30 bg-muted/80 shadow-lg min-w-[200px] max-w-[240px] opacity-90">
       <Handle
         type="target"
         position={Position.Left}
         isConnectable={false}
-        className="!w-[10px] !h-[10px] !border-[2px] !border-[#332f2b] !rounded-full !bg-orange-400 !-left-[5px]"
+        className="!w-[10px] !h-[10px] !border-[2px] !border-border !rounded-full !bg-orange-400 !-left-[5px]"
       />
       <div className="flex items-center gap-2.5 px-3 py-3">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-500/15">
@@ -617,8 +617,8 @@ function FallbackGhostNode({ data }: NodeProps<Node<FallbackNodeData>>) {
         </div>
         <div className="min-w-0">
           <p className="text-[9px] font-bold uppercase tracking-wider text-orange-300">Fallback</p>
-          <p className="truncate text-[13px] font-semibold text-zinc-200">{data.agentName}</p>
-          {model && <p className="text-[10px] text-zinc-500 mt-0.5">{model.shortLabel}</p>}
+          <p className="truncate text-[13px] font-semibold text-foreground">{data.agentName}</p>
+          {model && <p className="text-[10px] text-muted-foreground mt-0.5">{model.shortLabel}</p>}
         </div>
       </div>
     </div>
@@ -724,7 +724,7 @@ function AnimatedConnectionEdge({
                   ? "bg-green-500/10 border-green-500/20 text-green-400/80 hover:text-green-300 hover:border-green-500/40"
                   : flowStatus === "error"
                     ? "bg-red-500/10 border-red-500/20 text-red-400/80 hover:text-red-300"
-                    : "bg-[#2a2826] border-[#4a4540] text-zinc-500 hover:text-zinc-300"
+                    : "bg-muted border-border text-muted-foreground hover:text-foreground"
               )}
             >
               {dataPreview}{dataPreview.length >= 30 ? "…" : ""}
@@ -732,21 +732,21 @@ function AnimatedConnectionEdge({
 
             {/* Expanded data popup */}
             {dataPopupOpen && (
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-[280px] rounded-lg border border-[#3d3935] bg-[#1e1d1b] shadow-2xl shadow-black/50 z-50 overflow-hidden">
-                <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[#332f2b]">
-                  <span className="text-[9px] font-medium uppercase tracking-wider text-zinc-500">Data Flow</span>
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-[280px] rounded-lg border border-foreground/20 bg-card shadow-2xl shadow-black/50 z-50 overflow-hidden">
+                <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-border">
+                  <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">Data Flow</span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       navigator.clipboard.writeText(typeof flowData === "string" ? flowData : JSON.stringify(flowData, null, 2));
                     }}
-                    className="text-[9px] text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-0.5"
+                    className="text-[9px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-0.5"
                   >
                     <Copy className="h-2.5 w-2.5" />
                     Copy
                   </button>
                 </div>
-                <pre className="p-2.5 text-[10px] text-zinc-300 font-mono overflow-auto max-h-[180px] scrollbar-thin">
+                <pre className="p-2.5 text-[10px] text-foreground font-mono overflow-auto max-h-[180px] scrollbar-thin">
                   {typeof flowData === "string" ? flowData : JSON.stringify(flowData, null, 2)}
                 </pre>
               </div>
@@ -765,7 +765,7 @@ function AnimatedConnectionEdge({
                 ? "bg-orange-500/15 border-orange-500/40 text-orange-400"
                 : isFallback
                   ? "bg-orange-500/10 border-orange-500/20 text-orange-300"
-                  : "bg-[#2a2826] border-[#4a4540] text-zinc-400 hover:border-zinc-500 hover:text-zinc-300"
+                  : "bg-muted border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground"
             )}
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
@@ -848,7 +848,7 @@ function NodePaletteSidebar({
       <div className="absolute left-0 top-0 z-20 h-full">
         <button
           onClick={onToggle}
-          className="m-2.5 flex h-9 w-9 items-center justify-center rounded-lg border border-[#3d3935] bg-[#242220] text-zinc-400 shadow-md transition-colors hover:bg-[#2a2826] hover:text-zinc-200"
+          className="m-2.5 flex h-9 w-9 items-center justify-center rounded-lg border border-foreground/20 bg-card text-muted-foreground shadow-md transition-colors hover:bg-muted/40 hover:text-foreground"
           title="Show node palette"
         >
           <PanelLeft className="h-4 w-4" />
@@ -858,27 +858,27 @@ function NodePaletteSidebar({
   }
 
   return (
-    <div className="absolute left-0 top-0 z-20 flex h-full w-[240px] flex-col border-r border-[#332f2b] bg-[#1e1d1b]">
+    <div className="absolute left-0 top-0 z-20 flex h-full w-[240px] flex-col border-r border-border bg-card">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-3 border-b border-[#332f2b]">
-        <span className="text-xs font-semibold text-zinc-300">Nodes</span>
+      <div className="flex items-center justify-between px-3 py-3 border-b border-border">
+        <span className="text-xs font-semibold text-foreground">Nodes</span>
         <button
           onClick={onToggle}
-          className="flex h-6 w-6 items-center justify-center rounded text-zinc-500 transition-colors hover:bg-[#332f2b] hover:text-zinc-300"
+          className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <PanelLeftClose className="h-3.5 w-3.5" />
         </button>
       </div>
 
       {/* Search */}
-      <div className="px-3 py-2 border-b border-[#332f2b]">
+      <div className="px-3 py-2 border-b border-border">
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search nodes..."
-            className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-xs text-zinc-200 pl-8 pr-3 py-1.5 outline-none focus:border-orange-500/50 placeholder:text-zinc-500 transition-colors"
+            className="w-full bg-card border border-border rounded-lg text-xs text-foreground pl-8 pr-3 py-1.5 outline-none focus:border-orange-500/50 placeholder:text-muted-foreground transition-colors"
           />
         </div>
       </div>
@@ -899,21 +899,21 @@ function NodePaletteSidebar({
               {/* Category header */}
               <button
                 onClick={() => toggleCategory(cat.id)}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[#222230]"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-muted"
               >
                 {isExpanded ? (
-                  <ChevronDown className="h-3 w-3 text-zinc-500 shrink-0" />
+                  <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
                 ) : (
-                  <ChevronRight className="h-3 w-3 text-zinc-500 shrink-0" />
+                  <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
                 )}
-                <span className="flex-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                <span className="flex-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                   {cat.label}
                 </span>
-                <span className="text-[10px] text-zinc-500">{filteredNodes.length}</span>
+                <span className="text-[10px] text-muted-foreground">{filteredNodes.length}</span>
               </button>
 
               {/* Thin divider */}
-              {!isExpanded && <div className="mx-3 border-b border-[#332f2b]/60" />}
+              {!isExpanded && <div className="mx-3 border-b border-border/60" />}
 
               {isExpanded && (
                 <div className="pb-1">
@@ -926,7 +926,7 @@ function NodePaletteSidebar({
                           onDragStart={(e) => onDragStart(e, def)}
                           onMouseEnter={() => setHoveredNode(def.type)}
                           onMouseLeave={() => setHoveredNode(null)}
-                          className="flex cursor-grab items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-[#332f2b]/80 active:cursor-grabbing active:bg-[#332f2b]"
+                          className="flex cursor-grab items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/80 active:cursor-grabbing active:bg-muted"
                         >
                           <div
                             className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded"
@@ -934,20 +934,20 @@ function NodePaletteSidebar({
                           >
                             {getNodeIcon(def.type, "h-[14px] w-[14px]") || <span style={{ color: def.color }}><Icon className="h-[14px] w-[14px]" /></span>}
                           </div>
-                          <span className="text-[12px] text-zinc-300 truncate">{def.label}</span>
+                          <span className="text-[12px] text-foreground truncate">{def.label}</span>
                         </div>
 
                         {/* Tooltip on hover */}
                         {hoveredNode === def.type && (
-                          <div className="absolute left-full top-0 ml-2 z-50 w-48 rounded-lg border border-[#3d3935] bg-[#242220] px-3 py-2 shadow-xl pointer-events-none">
-                            <p className="text-[11px] font-medium text-zinc-200">{def.label}</p>
-                            <p className="text-[10px] text-zinc-500 mt-0.5">{def.description}</p>
+                          <div className="absolute left-full top-0 ml-2 z-50 w-48 rounded-lg border border-foreground/20 bg-card px-3 py-2 shadow-xl pointer-events-none">
+                            <p className="text-[11px] font-medium text-foreground">{def.label}</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">{def.description}</p>
                           </div>
                         )}
                       </div>
                     );
                   })}
-                  <div className="mx-3 mt-1 border-b border-[#332f2b]/60" />
+                  <div className="mx-3 mt-1 border-b border-border/60" />
                 </div>
               )}
             </div>
@@ -2013,7 +2013,8 @@ function VisualTeamEditorInner({
         maxZoom={2}
         nodeDragThreshold={2}
         proOptions={{ hideAttribution: true }}
-        className="bg-[#1a1918]"
+        colorMode="light"
+        className="bg-card"
         isValidConnection={isValidConnection}
         connectionLineStyle={{ stroke: "#F97316", strokeWidth: 2, strokeDasharray: "5 3" }}
         defaultEdgeOptions={{ type: "animated", animated: true }}
@@ -2090,13 +2091,13 @@ function VisualTeamEditorInner({
             return roleColors[role]?.hex || "#4a4540";
           }}
           maskColor="rgba(10,10,18,0.8)"
-          className="!bg-[#1e1d1b] !border-[#332f2b] rounded-xl"
+          className="!bg-card !border-border rounded-xl"
           pannable
           zoomable
         />
 
         <Controls
-          className="!bg-[#1e1d1b] !border-[#332f2b] !rounded-xl !shadow-xl [&>button]:!bg-[#2a2826] [&>button]:!border-[#3d3935] [&>button]:!text-zinc-400 [&>button:hover]:!bg-[#332f2b] [&>button:hover]:!text-zinc-200"
+          className="!bg-card !border-border !rounded-xl !shadow-xl [&>button]:!bg-muted [&>button]:!border-foreground/20 [&>button]:!text-muted-foreground [&>button:hover]:!bg-muted [&>button:hover]:!text-foreground"
           showInteractive={false}
         />
 
@@ -2108,8 +2109,8 @@ function VisualTeamEditorInner({
                 <LayoutGrid className="h-7 w-7 text-orange-500/50" />
               </div>
               <div className="text-center">
-                <p className="text-sm font-medium text-zinc-300 mb-1">Start building your workflow</p>
-                <p className="text-xs text-zinc-500 max-w-xs">
+                <p className="text-sm font-medium text-foreground mb-1">Start building your workflow</p>
+                <p className="text-xs text-muted-foreground max-w-xs">
                   Drag nodes from the palette and drop them here
                 </p>
               </div>
@@ -2129,23 +2130,23 @@ function VisualTeamEditorInner({
         {/* Toolbar */}
         <Panel position="top-right" className="flex items-center gap-2">
           {/* Execution status */}
-          <div className="flex items-center gap-2 rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-3 py-1.5 shadow-md">
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 shadow-md">
             <div className={cn(
               "h-2 w-2 rounded-full",
               executionStatus === "running" && "bg-orange-400 animate-pulse",
               executionStatus === "completed" && "bg-green-400",
               executionStatus === "failed" && "bg-red-400",
-              executionStatus === "idle" && "bg-zinc-600",
+              executionStatus === "idle" && "bg-muted",
             )} />
-            <span className="text-[11px] text-zinc-400">{execLabel}</span>
+            <span className="text-[11px] text-muted-foreground">{execLabel}</span>
           </div>
 
           {/* Save indicator */}
           {saveStatus !== "idle" && (
-            <div className="flex items-center gap-1.5 rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-2.5 py-1.5 shadow-md">
-              {saveStatus === "saving" && <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />}
+            <div className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 shadow-md">
+              {saveStatus === "saving" && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
               {saveStatus === "saved" && <Check className="h-3 w-3 text-green-400" />}
-              <span className={cn("text-[10px]", saveStatus === "saved" ? "text-green-400" : "text-zinc-400")}>
+              <span className={cn("text-[10px]", saveStatus === "saved" ? "text-green-400" : "text-muted-foreground")}>
                 {saveStatus === "saving" ? "Saving..." : "Saved"}
               </span>
             </div>
@@ -2173,7 +2174,7 @@ function VisualTeamEditorInner({
               size="sm"
               variant="outline"
               onClick={onVariablesClick}
-              className="bg-[#1e1d1b] border-[#3d3935] text-zinc-400 hover:text-zinc-200 hover:bg-[#2a2826] shadow-md text-xs"
+              className="bg-card border-foreground/20 text-muted-foreground hover:text-foreground hover:bg-muted/40 shadow-md text-xs"
             >
               <Variable className="h-3.5 w-3.5 mr-1.5" />
               Variables
@@ -2183,28 +2184,28 @@ function VisualTeamEditorInner({
             size="sm"
             variant="outline"
             onClick={handleAutoLayout}
-            className="bg-[#1e1d1b] border-[#3d3935] text-zinc-400 hover:text-zinc-200 hover:bg-[#2a2826] shadow-md text-xs"
+            className="bg-card border-foreground/20 text-muted-foreground hover:text-foreground hover:bg-muted/40 shadow-md text-xs"
           >
             <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
             Auto Layout
           </Button>
 
           {/* Undo / Redo */}
-          <div className="flex items-center rounded-lg border border-[#332f2b] bg-[#1e1d1b] shadow-md overflow-hidden">
+          <div className="flex items-center rounded-lg border border-border bg-card shadow-md overflow-hidden">
             <button
               onClick={undo}
               disabled={!canUndo}
               title="Undo (Ctrl+Z)"
-              className="px-2 py-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-[#2a2826] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="px-2 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <Undo2 className="h-3.5 w-3.5" />
             </button>
-            <div className="w-px h-4 bg-[#332f2b]" />
+            <div className="w-px h-4 bg-muted" />
             <button
               onClick={redo}
               disabled={!canRedo}
               title="Redo (Ctrl+Shift+Z)"
-              className="px-2 py-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-[#2a2826] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="px-2 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
               <Redo2 className="h-3.5 w-3.5" />
             </button>
@@ -2214,18 +2215,18 @@ function VisualTeamEditorInner({
         {/* Execution legend */}
         {executionSteps && executionSteps.length > 0 && (
           <Panel position="bottom-left" className="!mb-2 !ml-2">
-            <div className="bg-[#1e1d1b] border border-[#332f2b] rounded-xl px-3 py-2 shadow-lg">
-              <p className="text-[9px] font-medium uppercase tracking-wider text-zinc-500 mb-1.5">Status</p>
+            <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-lg">
+              <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5">Status</p>
               <div className="flex items-center gap-3">
                 {[
                   { color: "bg-blue-400", label: "Running" },
                   { color: "bg-green-400", label: "Done" },
                   { color: "bg-red-400", label: "Failed" },
-                  { color: "bg-zinc-600", label: "Pending" },
+                  { color: "bg-muted", label: "Pending" },
                 ].map((s) => (
                   <div key={s.label} className="flex items-center gap-1">
                     <div className={cn("h-2 w-2 rounded-full", s.color)} />
-                    <span className="text-[10px] text-zinc-500">{s.label}</span>
+                    <span className="text-[10px] text-muted-foreground">{s.label}</span>
                   </div>
                 ))}
               </div>
@@ -2239,12 +2240,12 @@ function VisualTeamEditorInner({
               setNodeSearchPosition(undefined);
               setNodeSearchOpen(true);
             }}
-            className="flex items-center gap-1.5 rounded-xl border border-[#3d3935] bg-[#242220] px-3.5 py-2 text-xs font-medium text-zinc-400 shadow-lg transition-all hover:border-orange-500/40 hover:text-orange-400 hover:shadow-orange-500/5"
+            className="flex items-center gap-1.5 rounded-xl border border-foreground/20 bg-card px-3.5 py-2 text-xs font-medium text-muted-foreground shadow-lg transition-all hover:border-orange-500/40 hover:text-orange-400 hover:shadow-orange-500/5"
             title="Add node (or press /)"
           >
             <Plus className="h-3.5 w-3.5" />
             Add Node
-            <kbd className="ml-1 rounded bg-[#1a1918] px-1 py-0.5 text-[9px] font-mono text-zinc-600">/</kbd>
+            <kbd className="ml-1 rounded bg-card px-1 py-0.5 text-[9px] font-mono text-muted-foreground">/</kbd>
           </button>
         </Panel>
       </ReactFlow>

@@ -62,28 +62,28 @@ export function CostEstimateVsActual({
       : null;
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+    <div className="rounded-xl border border-border bg-card/50 p-4">
       <div className="flex items-center gap-2 mb-3">
         <Calculator className="h-4 w-4 text-orange-500" />
-        <span className="text-sm font-medium text-zinc-100">
+        <span className="text-sm font-medium text-foreground">
           Kostenvergleich
         </span>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <p className="text-xs text-zinc-500 mb-1">Geschätzt</p>
-          <p className="text-lg font-semibold text-zinc-100">
+          <p className="text-xs text-muted-foreground mb-1">Geschätzt</p>
+          <p className="text-lg font-semibold text-foreground">
             {formatCost(estimatedCostPerExecution)}
-            <span className="text-xs text-zinc-500 ml-1">/Ausführung</span>
+            <span className="text-xs text-muted-foreground ml-1">/Ausführung</span>
           </p>
         </div>
         <div>
-          <p className="text-xs text-zinc-500 mb-1">Tatsächlich</p>
+          <p className="text-xs text-muted-foreground mb-1">Tatsächlich</p>
           {actualCostPerExecution !== null ? (
             <>
-              <p className="text-lg font-semibold text-zinc-100">
+              <p className="text-lg font-semibold text-foreground">
                 {formatCost(actualCostPerExecution)}
-                <span className="text-xs text-zinc-500 ml-1">/Ausführung</span>
+                <span className="text-xs text-muted-foreground ml-1">/Ausführung</span>
               </p>
               {diff !== null && (
                 <p
@@ -98,7 +98,7 @@ export function CostEstimateVsActual({
               )}
             </>
           ) : (
-            <p className="text-sm text-zinc-500 italic">
+            <p className="text-sm text-muted-foreground italic">
               Noch keine Ausführungen
             </p>
           )}
@@ -175,18 +175,18 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 flex items-center justify-center gap-2">
-        <Calculator className="h-4 w-4 text-zinc-500 animate-pulse" />
-        <span className="text-sm text-zinc-500">Kosten werden berechnet...</span>
+      <div className="rounded-xl border border-border bg-card/50 p-6 flex items-center justify-center gap-2">
+        <Calculator className="h-4 w-4 text-muted-foreground animate-pulse" />
+        <span className="text-sm text-muted-foreground">Kosten werden berechnet...</span>
       </div>
     );
   }
 
   if (teamMembers.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 text-center">
-        <Coins className="h-5 w-5 text-zinc-500 mx-auto mb-2" />
-        <p className="text-sm text-zinc-500">
+      <div className="rounded-xl border border-border bg-card/50 p-6 text-center">
+        <Coins className="h-5 w-5 text-muted-foreground mx-auto mb-2" />
+        <p className="text-sm text-muted-foreground">
           Füge Team-Mitglieder hinzu, um eine Kostenschätzung zu sehen.
         </p>
       </div>
@@ -196,26 +196,26 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
   return (
     <div className="space-y-4">
       {/* Vergleich: Team vs. Single Agent */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+      <div className="rounded-xl border border-border bg-card/50 p-5">
         <div className="flex items-center gap-2 mb-4">
           <Calculator className="h-4 w-4 text-orange-500" />
-          <h3 className="text-sm font-semibold text-zinc-100">
+          <h3 className="text-sm font-semibold text-foreground">
             Kostenschätzung pro Ausführung
           </h3>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-4">
           {/* Single Agent Opus */}
-          <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-4">
+          <div className="rounded-lg border border-border bg-background/50 p-4">
             <div className="flex items-center gap-1.5 mb-2">
-              <Zap className="h-3.5 w-3.5 text-zinc-500" />
-              <span className="text-xs text-zinc-500">
+              <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">
                 Einzelner Agent (Opus)
               </span>
             </div>
-            <p className="text-xl font-bold text-zinc-300">
+            <p className="text-xl font-bold text-foreground">
               ~{formatCost(opusCost)}
-              <span className="text-xs font-normal text-zinc-500 ml-1">
+              <span className="text-xs font-normal text-muted-foreground ml-1">
                 /Ausführung
               </span>
             </p>
@@ -227,9 +227,9 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
               <Coins className="h-3.5 w-3.5 text-orange-500" />
               <span className="text-xs text-orange-400/80">Dein Workflow</span>
             </div>
-            <p className="text-xl font-bold text-zinc-100">
+            <p className="text-xl font-bold text-foreground">
               ~{formatCost(teamCostPerExecution)}
-              <span className="text-xs font-normal text-zinc-500 ml-1">
+              <span className="text-xs font-normal text-muted-foreground ml-1">
                 /Ausführung
               </span>
             </p>
@@ -249,18 +249,18 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
       </div>
 
       {/* Monatliche Projektion */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+      <div className="rounded-xl border border-border bg-card/50 p-5">
         <div className="flex items-center gap-2 mb-4">
           <SlidersHorizontal className="h-4 w-4 text-blue-500" />
-          <h3 className="text-sm font-semibold text-zinc-100">
+          <h3 className="text-sm font-semibold text-foreground">
             Monatliche Projektion
           </h3>
         </div>
 
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-zinc-500">Ausführungen / Monat</span>
-            <span className="text-sm font-mono font-semibold text-zinc-100">
+            <span className="text-xs text-muted-foreground">Ausführungen / Monat</span>
+            <span className="text-sm font-mono font-semibold text-foreground">
               {runsPerMonth.toLocaleString("de-DE")}
             </span>
           </div>
@@ -273,7 +273,7 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
             onChange={(e) => setRunsPerMonth(Number(e.target.value))}
             className={cn(
               "w-full h-1.5 rounded-full appearance-none cursor-pointer",
-              "bg-zinc-800",
+              "bg-muted",
               "[&::-webkit-slider-thumb]:appearance-none",
               "[&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4",
               "[&::-webkit-slider-thumb]:rounded-full",
@@ -287,22 +287,22 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
               "[&::-moz-range-thumb]:cursor-pointer"
             )}
           />
-          <div className="flex justify-between text-[10px] text-zinc-500 mt-1">
+          <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
             <span>50</span>
             <span>5.000</span>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-lg bg-zinc-950/50 border border-zinc-800 p-3">
-            <p className="text-xs text-zinc-500 mb-1">Workflow / Monat</p>
-            <p className="text-lg font-bold text-zinc-100">
+          <div className="rounded-lg bg-background/50 border border-border p-3">
+            <p className="text-xs text-muted-foreground mb-1">Workflow / Monat</p>
+            <p className="text-lg font-bold text-foreground">
               {formatCost(monthlyTeamCost)}
             </p>
           </div>
-          <div className="rounded-lg bg-zinc-950/50 border border-zinc-800 p-3">
-            <p className="text-xs text-zinc-500 mb-1">Opus-Referenz / Monat</p>
-            <p className="text-lg font-bold text-zinc-400">
+          <div className="rounded-lg bg-background/50 border border-border p-3">
+            <p className="text-xs text-muted-foreground mb-1">Opus-Referenz / Monat</p>
+            <p className="text-lg font-bold text-muted-foreground">
               {formatCost(monthlyOpusCost)}
             </p>
           </div>
@@ -310,10 +310,10 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
       </div>
 
       {/* Pro-Agent Breakdown Tabelle */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+      <div className="rounded-xl border border-border bg-card/50 p-5">
         <div className="flex items-center gap-2 mb-4">
           <Zap className="h-4 w-4 text-orange-500" />
-          <h3 className="text-sm font-semibold text-zinc-100">
+          <h3 className="text-sm font-semibold text-foreground">
             Kosten pro Agent
           </h3>
         </div>
@@ -321,14 +321,14 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-800">
-                <th className="text-left text-xs font-medium text-zinc-500 pb-2">
+              <tr className="border-b border-border">
+                <th className="text-left text-xs font-medium text-muted-foreground pb-2">
                   Rolle
                 </th>
-                <th className="text-left text-xs font-medium text-zinc-500 pb-2">
+                <th className="text-left text-xs font-medium text-muted-foreground pb-2">
                   Modell
                 </th>
-                <th className="text-right text-xs font-medium text-zinc-500 pb-2">
+                <th className="text-right text-xs font-medium text-muted-foreground pb-2">
                   Kosten / Aufruf
                 </th>
               </tr>
@@ -337,24 +337,24 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
               {memberCosts.map((row, i) => (
                 <tr
                   key={i}
-                  className="border-b border-zinc-800/50 last:border-0"
+                  className="border-b border-border/50 last:border-0"
                 >
-                  <td className="py-2 text-zinc-300">{row.role}</td>
+                  <td className="py-2 text-foreground">{row.role}</td>
                   <td className="py-2">
-                    <span className="inline-flex items-center rounded-md bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-300">
+                    <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
                       {row.modelLabel}
                     </span>
                   </td>
-                  <td className="py-2 text-right font-mono text-zinc-100">
+                  <td className="py-2 text-right font-mono text-foreground">
                     {formatCost(row.costPerExecution)}
                   </td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr className="border-t border-zinc-700">
+              <tr className="border-t border-border">
                 <td
-                  className="pt-2 text-xs font-semibold text-zinc-400"
+                  className="pt-2 text-xs font-semibold text-muted-foreground"
                   colSpan={2}
                 >
                   Gesamt pro Ausführung
@@ -367,7 +367,7 @@ export function TeamCostCalculator({ teamId, members }: CostCalculatorProps) {
           </table>
         </div>
 
-        <p className="text-[11px] text-zinc-500 mt-3">
+        <p className="text-[11px] text-muted-foreground mt-3">
           Schätzung basiert auf ~{AVG_INPUT_TOKENS.toLocaleString("de-DE")}{" "}
           Input- und ~{AVG_OUTPUT_TOKENS.toLocaleString("de-DE")}{" "}
           Output-Tokens pro Agent.

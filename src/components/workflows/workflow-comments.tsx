@@ -73,19 +73,19 @@ export function NodeCommentPopover({
 
   return (
     <div
-      className="fixed z-50 w-72 rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl"
+      className="fixed z-50 w-72 rounded-xl border border-border bg-card shadow-2xl"
       style={{ left: position.x, top: position.y }}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2.5">
+      <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
         <div className="flex items-center gap-1.5">
           <MessageSquare className="h-3.5 w-3.5 text-amber-400" />
-          <span className="text-xs font-medium text-zinc-200">{nodeLabel}</span>
+          <span className="text-xs font-medium text-foreground">{nodeLabel}</span>
         </div>
         <button
           onClick={onClose}
-          className="rounded p-0.5 text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -95,30 +95,30 @@ export function NodeCommentPopover({
       <div className="max-h-48 overflow-y-auto">
         {comments.length === 0 ? (
           <div className="px-3 py-4 text-center">
-            <p className="text-xs text-zinc-500">No comments yet</p>
+            <p className="text-xs text-muted-foreground">No comments yet</p>
           </div>
         ) : (
-          <div className="divide-y divide-zinc-800/60">
+          <div className="divide-y divide-border">
             {comments.map((comment) => (
               <div key={comment.id} className="group px-3 py-2.5">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-1.5">
-                    <User className="h-2.5 w-2.5 text-zinc-600" />
-                    <span className="text-[10px] font-medium text-zinc-400">
+                    <User className="h-2.5 w-2.5 text-muted-foreground" />
+                    <span className="text-[10px] font-medium text-muted-foreground">
                       {comment.authorName || "User"}
                     </span>
-                    <span className="text-[9px] text-zinc-600">
+                    <span className="text-[9px] text-muted-foreground">
                       {relativeTime(comment.createdAt)}
                     </span>
                   </div>
                   <button
                     onClick={() => onDelete(nodeId, comment.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity rounded p-0.5 text-zinc-600 hover:text-red-400"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity rounded p-0.5 text-muted-foreground hover:text-red-400"
                   >
                     <Trash2 className="h-2.5 w-2.5" />
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-zinc-300 leading-relaxed">{comment.text}</p>
+                <p className="mt-1 text-xs text-foreground leading-relaxed">{comment.text}</p>
               </div>
             ))}
           </div>
@@ -126,14 +126,14 @@ export function NodeCommentPopover({
       </div>
 
       {/* Input */}
-      <div className="border-t border-zinc-800 p-2.5">
+      <div className="border-t border-border p-2.5">
         <div className="flex items-center gap-1.5">
           <input
             ref={inputRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Add a comment..."
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-100 px-2.5 py-1.5 outline-none focus:border-amber-500/60 placeholder:text-zinc-600"
+            className="flex-1 bg-muted border border-border rounded-lg text-xs text-foreground px-2.5 py-1.5 outline-none focus:border-amber-500/60 placeholder:text-muted-foreground"
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSubmit();
               if (e.key === "Escape") onClose();
@@ -242,11 +242,11 @@ export function WorkflowActivityFeed({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Zap className="h-4 w-4 text-orange-500" />
-          <h3 className="text-sm font-medium text-zinc-100">Activity</h3>
+          <h3 className="text-sm font-medium text-foreground">Activity</h3>
         </div>
         <button
           onClick={fetchActivity}
-          className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           Refresh
         </button>
@@ -255,13 +255,13 @@ export function WorkflowActivityFeed({
       {loading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-12 animate-pulse rounded-lg bg-zinc-800/60" />
+            <div key={i} className="h-12 animate-pulse rounded-lg bg-muted/60" />
           ))}
         </div>
       ) : activities.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 py-10 text-center">
-          <Zap className="mb-3 h-8 w-8 text-zinc-700" />
-          <p className="text-sm text-zinc-400">No activity yet</p>
+        <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card/40 py-10 text-center">
+          <Zap className="mb-3 h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">No activity yet</p>
         </div>
       ) : (
         <div className="space-y-1">
@@ -272,18 +272,18 @@ export function WorkflowActivityFeed({
             return (
               <div
                 key={activity.id}
-                className="flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-zinc-800/30"
+                className="flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/30"
               >
                 <div className={cn("mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg", colorClass)}>
                   <Icon className="h-3.5 w-3.5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs text-zinc-200">{activity.title}</p>
+                  <p className="text-xs text-foreground">{activity.title}</p>
                   {activity.detail && (
-                    <p className="mt-0.5 text-[10px] text-zinc-500">{activity.detail}</p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">{activity.detail}</p>
                   )}
                 </div>
-                <span className="flex-shrink-0 text-[10px] text-zinc-600">
+                <span className="flex-shrink-0 text-[10px] text-muted-foreground">
                   {relativeTime(activity.timestamp)}
                 </span>
               </div>
@@ -323,7 +323,7 @@ export function WorkflowChangelog({
     return (
       <div className="space-y-2">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-10 animate-pulse rounded-lg bg-zinc-800/60" />
+          <div key={i} className="h-10 animate-pulse rounded-lg bg-muted/60" />
         ))}
       </div>
     );
@@ -331,7 +331,7 @@ export function WorkflowChangelog({
 
   if (entries.length === 0) {
     return (
-      <p className="text-xs text-zinc-500 text-center py-6">No changelog entries</p>
+      <p className="text-xs text-muted-foreground text-center py-6">No changelog entries</p>
     );
   }
 
@@ -350,27 +350,27 @@ export function WorkflowChangelog({
     <div className="space-y-4">
       {Array.from(grouped.entries()).map(([date, dayEntries]) => (
         <div key={date}>
-          <h4 className="mb-2 text-[10px] font-medium uppercase tracking-wider text-zinc-600">
+          <h4 className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
             {date}
           </h4>
           <div className="space-y-1.5">
             {dayEntries.map((entry) => (
               <div
                 key={entry.version}
-                className="flex items-start gap-2.5 rounded-lg px-3 py-2 bg-zinc-800/20"
+                className="flex items-start gap-2.5 rounded-lg px-3 py-2 bg-muted/20"
               >
-                <span className="mt-0.5 text-[10px] font-mono text-zinc-500">
+                <span className="mt-0.5 text-[10px] font-mono text-muted-foreground">
                   v{entry.version}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-zinc-300">{entry.changelog}</p>
+                  <p className="text-xs text-foreground">{entry.changelog}</p>
                   {entry.note && (
-                    <p className="mt-0.5 text-[10px] text-zinc-500 italic">
+                    <p className="mt-0.5 text-[10px] text-muted-foreground italic">
                       &quot;{entry.note}&quot;
                     </p>
                   )}
                 </div>
-                <span className="text-[10px] text-zinc-600">
+                <span className="text-[10px] text-muted-foreground">
                   {new Date(entry.createdAt).toLocaleTimeString("de-DE", {
                     hour: "2-digit",
                     minute: "2-digit",

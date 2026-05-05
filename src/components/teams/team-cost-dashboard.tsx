@@ -272,10 +272,10 @@ export function TeamCostDashboard({ teamId }: TeamCostDashboardProps) {
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[10px] text-muted-foreground">Single Opus</span>
-                        <span className="text-xs font-medium text-zinc-500">{formatCost(singleCost)}</span>
+                        <span className="text-xs font-medium text-muted-foreground">{formatCost(singleCost)}</span>
                       </div>
                       <div className="h-1.5 rounded-full bg-muted">
-                        <div className="h-1.5 rounded-full bg-zinc-600 w-full" />
+                        <div className="h-1.5 rounded-full bg-muted w-full" />
                       </div>
                     </div>
                   </div>

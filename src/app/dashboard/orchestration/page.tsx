@@ -84,7 +84,7 @@ interface OrchConnection {
 /* ---------- Status config ---------- */
 const statusConfig: Record<string, { dot: string; label: string }> = {
   LIVE: { dot: "bg-kiln-green", label: "Live" },
-  DRAFT: { dot: "bg-stone-500", label: "Draft" },
+  DRAFT: { dot: "bg-muted-foreground", label: "Draft" },
   PAUSED: { dot: "bg-amber-500", label: "Paused" },
 };
 
@@ -107,26 +107,26 @@ function AgentNode({ data, selected }: NodeProps) {
   return (
     <div
       className={cn(
-        "group relative w-[240px] rounded-xl border border-stone-800 bg-stone-900/80 backdrop-blur-sm transition-all duration-200",
-        selected && "ring-1 ring-kiln-orange/40 border-stone-700",
+        "group relative w-[240px] rounded-xl border border-border bg-card/80 backdrop-blur-sm transition-all duration-200",
+        selected && "ring-1 ring-kiln-orange/40 border-border",
       )}
     >
       {/* Trigger indicator for Task Agents — top center */}
       {isTask && TriggerIcon && (
-        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 flex h-5 w-5 items-center justify-center rounded-full border border-stone-700 bg-stone-900 shadow-sm">
-          <TriggerIcon className="h-2.5 w-2.5 text-gray-400" />
+        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-card shadow-sm">
+          <TriggerIcon className="h-2.5 w-2.5 text-muted-foreground" />
         </div>
       )}
 
       <Handle
         type="target"
         position={Position.Left}
-        className="!-left-[4px] !h-2 !w-2 !rounded-full !border-[1.5px] !border-stone-600 !bg-stone-900 opacity-0 transition-opacity group-hover:opacity-100 hover:!border-kiln-orange hover:!bg-stone-800"
+        className="!-left-[4px] !h-2 !w-2 !rounded-full !border-[1.5px] !border-border !bg-card opacity-0 transition-opacity group-hover:opacity-100 hover:!border-kiln-orange hover:!bg-muted"
       />
       <Handle
         type="source"
         position={Position.Right}
-        className="!-right-[4px] !h-2 !w-2 !rounded-full !border-[1.5px] !border-stone-600 !bg-stone-900 opacity-0 transition-opacity group-hover:opacity-100 hover:!border-kiln-orange hover:!bg-stone-800"
+        className="!-right-[4px] !h-2 !w-2 !rounded-full !border-[1.5px] !border-border !bg-card opacity-0 transition-opacity group-hover:opacity-100 hover:!border-kiln-orange hover:!bg-muted"
       />
 
       <div className="px-3.5 py-3">
@@ -134,22 +134,22 @@ function AgentNode({ data, selected }: NodeProps) {
         <div className="flex items-center gap-2.5">
           <div className={cn(
             "relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
-            isTask ? "bg-white/[0.05]" : "bg-white/[0.05]"
+            isTask ? "bg-muted" : "bg-muted"
           )}>
             {isTask ? (
-              <Zap className="h-3.5 w-3.5 text-gray-400" />
+              <Zap className="h-3.5 w-3.5 text-muted-foreground" />
             ) : (
-              <MessageSquare className="h-3.5 w-3.5 text-gray-400" />
+              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
             )}
             {isLive && (
-              <div className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border border-stone-900 bg-kiln-green" />
+              <div className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border border-border bg-kiln-green" />
             )}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-semibold text-foreground">{d.label}</p>
             <span className={cn(
               "text-[9px] font-bold uppercase tracking-wider",
-              isTask ? "text-gray-400" : "text-gray-400"
+              isTask ? "text-muted-foreground" : "text-muted-foreground"
             )}>
               {isTask ? "Task" : "Chat"}
             </span>
@@ -163,16 +163,16 @@ function AgentNode({ data, selected }: NodeProps) {
         </div>
 
         {/* Row 3: Stats */}
-        <div className="mt-2 flex items-center gap-1.5 border-t border-stone-800/60 pt-2">
+        <div className="mt-2 flex items-center gap-1.5 border-t border-border/60 pt-2">
           {isTask ? (
             <>
-              <Play className="h-3 w-3 text-stone-500" />
-              <span className="text-[10px] text-stone-500">{d.runs || 0} runs</span>
+              <Play className="h-3 w-3 text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground">{d.runs || 0} runs</span>
             </>
           ) : (
             <>
-              <MessageSquare className="h-3 w-3 text-stone-500" />
-              <span className="text-[10px] text-stone-500">{d.conversations} conversations</span>
+              <MessageSquare className="h-3 w-3 text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground">{d.conversations} conversations</span>
             </>
           )}
         </div>
@@ -198,24 +198,24 @@ function AdvancedNodeShell({
   return (
     <div
       className={cn(
-        "group relative w-[240px] rounded-xl border border-stone-800 bg-stone-900/80 backdrop-blur-sm transition-all duration-200",
+        "group relative w-[240px] rounded-xl border border-border bg-card/80 backdrop-blur-sm transition-all duration-200",
         "border-l-2",
         accentColor,
-        selected && "ring-1 ring-white/10 border-stone-700",
+        selected && "ring-1 ring-white/10 border-border",
       )}
     >
       {hasTarget && (
         <Handle
           type="target"
           position={Position.Left}
-          className="!-left-[4px] !h-2 !w-2 !rounded-full !border-[1.5px] !border-stone-600 !bg-stone-900 opacity-0 transition-opacity group-hover:opacity-100"
+          className="!-left-[4px] !h-2 !w-2 !rounded-full !border-[1.5px] !border-border !bg-card opacity-0 transition-opacity group-hover:opacity-100"
         />
       )}
       {hasSource && (
         <Handle
           type="source"
           position={Position.Right}
-          className="!-right-[4px] !h-2 !w-2 !rounded-full !border-[1.5px] !border-stone-600 !bg-stone-900 opacity-0 transition-opacity group-hover:opacity-100"
+          className="!-right-[4px] !h-2 !w-2 !rounded-full !border-[1.5px] !border-border !bg-card opacity-0 transition-opacity group-hover:opacity-100"
         />
       )}
       <div className="px-3.5 py-3">
@@ -232,7 +232,7 @@ function AdvancedNodeContent({ icon: Icon, label, color }: { icon: React.Element
         <Icon className={cn("h-3.5 w-3.5", color)} />
       </div>
       <span className={cn("text-[13px] font-semibold", color)}>{label}</span>
-      <span className="ml-auto rounded bg-stone-800 px-1.5 py-0.5 text-[8px] font-bold text-stone-400">BETA</span>
+      <span className="ml-auto rounded bg-muted px-1.5 py-0.5 text-[8px] font-bold text-muted-foreground">BETA</span>
     </div>
   );
 }
@@ -241,8 +241,8 @@ function ConditionNode({ data, selected }: NodeProps) {
   const d = data as { label: string; condition: string };
   return (
     <AdvancedNodeShell accentColor="!border-l-blue-500" selected={selected}>
-      <AdvancedNodeContent icon={GitBranch} label={d.label} color="text-gray-400" />
-      {d.condition && <p className="mt-2 text-[10px] leading-snug text-stone-500">{d.condition}</p>}
+      <AdvancedNodeContent icon={GitBranch} label={d.label} color="text-muted-foreground" />
+      {d.condition && <p className="mt-2 text-[10px] leading-snug text-muted-foreground">{d.condition}</p>}
     </AdvancedNodeShell>
   );
 }
@@ -251,7 +251,7 @@ function TriggerNode({ data, selected }: NodeProps) {
   const d = data as { label: string };
   return (
     <AdvancedNodeShell accentColor="!border-l-green-500" selected={selected} hasTarget={false}>
-      <AdvancedNodeContent icon={Zap} label={d.label} color="text-gray-400" />
+      <AdvancedNodeContent icon={Zap} label={d.label} color="text-muted-foreground" />
     </AdvancedNodeShell>
   );
 }
@@ -260,7 +260,7 @@ function CodeNode({ data, selected }: NodeProps) {
   const d = data as { label: string };
   return (
     <AdvancedNodeShell accentColor="!border-l-purple-500" selected={selected}>
-      <AdvancedNodeContent icon={Code} label={d.label} color="text-gray-400" />
+      <AdvancedNodeContent icon={Code} label={d.label} color="text-muted-foreground" />
     </AdvancedNodeShell>
   );
 }
@@ -269,7 +269,7 @@ function HumanHandoffNode({ data, selected }: NodeProps) {
   const d = data as { label: string };
   return (
     <AdvancedNodeShell accentColor="!border-l-red-500" selected={selected} hasSource={false}>
-      <AdvancedNodeContent icon={User} label={d.label} color="text-gray-400" />
+      <AdvancedNodeContent icon={User} label={d.label} color="text-muted-foreground" />
     </AdvancedNodeShell>
   );
 }
@@ -278,7 +278,7 @@ function RouterNode({ data, selected }: NodeProps) {
   const d = data as { label: string };
   return (
     <AdvancedNodeShell accentColor="!border-l-amber-500" selected={selected}>
-      <AdvancedNodeContent icon={Split} label={d.label} color="text-gray-400" />
+      <AdvancedNodeContent icon={Split} label={d.label} color="text-muted-foreground" />
     </AdvancedNodeShell>
   );
 }
@@ -313,7 +313,7 @@ function AnimatedFlowEdge({
         <EdgeLabelRenderer>
           <div
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`, pointerEvents: "all" }}
-            className="nodrag nopan absolute rounded-full border border-stone-700 bg-stone-900/95 px-2 py-0.5 text-[9px] font-medium text-stone-400 backdrop-blur-sm"
+            className="nodrag nopan absolute rounded-full border border-border bg-card/95 px-2 py-0.5 text-[9px] font-medium text-muted-foreground backdrop-blur-sm"
           >
             {label as string}
           </div>
@@ -338,18 +338,18 @@ const edgeTypes = {
 
 /* ---------- Templates ---------- */
 const templates = [
-  { id: "sales-funnel", name: "Sales Funnel", description: "Lead Qualifier → Sales Closer → Onboarding", icon: Sparkles, color: "text-gray-400", bg: "bg-white/[0.05]" },
-  { id: "support-escalation", name: "Support Escalation", description: "L1 Support → L2 Technical → Human Handoff", icon: ArrowRight, color: "text-gray-400", bg: "bg-white/[0.05]" },
-  { id: "lead-nurture", name: "Lead Nurture", description: "Lead Capture → Lead Scorer → Follow-Up", icon: Zap, color: "text-gray-400", bg: "bg-white/[0.05]" },
+  { id: "sales-funnel", name: "Sales Funnel", description: "Lead Qualifier → Sales Closer → Onboarding", icon: Sparkles, color: "text-muted-foreground", bg: "bg-muted" },
+  { id: "support-escalation", name: "Support Escalation", description: "L1 Support → L2 Technical → Human Handoff", icon: ArrowRight, color: "text-muted-foreground", bg: "bg-muted" },
+  { id: "lead-nurture", name: "Lead Nurture", description: "Lead Capture → Lead Scorer → Follow-Up", icon: Zap, color: "text-muted-foreground", bg: "bg-muted" },
 ];
 
 /* ---------- Advanced node palette ---------- */
 const advancedNodePalette = [
-  { type: "condition", label: "Condition", desc: "Branch based on rules", icon: GitBranch, color: "text-gray-400", bg: "bg-white/[0.05]" },
-  { type: "trigger", label: "Trigger", desc: "Start a flow", icon: Zap, color: "text-gray-400", bg: "bg-white/[0.05]" },
-  { type: "code", label: "Code", desc: "Run custom logic", icon: Code, color: "text-gray-400", bg: "bg-white/[0.05]" },
-  { type: "humanHandoff", label: "Human Handoff", desc: "Escalate to human", icon: User, color: "text-gray-400", bg: "bg-white/[0.05]" },
-  { type: "router", label: "Router", desc: "Split to multiple paths", icon: Split, color: "text-gray-400", bg: "bg-white/[0.05]" },
+  { type: "condition", label: "Condition", desc: "Branch based on rules", icon: GitBranch, color: "text-muted-foreground", bg: "bg-muted" },
+  { type: "trigger", label: "Trigger", desc: "Start a flow", icon: Zap, color: "text-muted-foreground", bg: "bg-muted" },
+  { type: "code", label: "Code", desc: "Run custom logic", icon: Code, color: "text-muted-foreground", bg: "bg-muted" },
+  { type: "humanHandoff", label: "Human Handoff", desc: "Escalate to human", icon: User, color: "text-muted-foreground", bg: "bg-muted" },
+  { type: "router", label: "Router", desc: "Split to multiple paths", icon: Split, color: "text-muted-foreground", bg: "bg-muted" },
 ];
 
 /* ---------- Edge styles ---------- */
@@ -368,15 +368,15 @@ function makeEdgeMarker(enabled: boolean) {
 function ZoomControls() {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
   return (
-    <div className="flex items-center gap-0.5 rounded-full border border-stone-800 bg-stone-900/90 px-1.5 py-1 shadow-lg backdrop-blur-sm">
-      <button onClick={() => zoomIn()} className="rounded-full p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-stone-300" title="Zoom in">
+    <div className="flex items-center gap-0.5 rounded-full border border-border bg-card/90 px-1.5 py-1 shadow-lg backdrop-blur-sm">
+      <button onClick={() => zoomIn()} className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" title="Zoom in">
         <ZoomIn className="h-3.5 w-3.5" />
       </button>
-      <button onClick={() => zoomOut()} className="rounded-full p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-stone-300" title="Zoom out">
+      <button onClick={() => zoomOut()} className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" title="Zoom out">
         <ZoomOut className="h-3.5 w-3.5" />
       </button>
-      <div className="mx-0.5 h-4 w-px bg-stone-800" />
-      <button onClick={() => fitView({ padding: 0.3, duration: 300 })} className="rounded-full p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-stone-300" title="Fit view">
+      <div className="mx-0.5 h-4 w-px bg-muted" />
+      <button onClick={() => fitView({ padding: 0.3, duration: 300 })} className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" title="Fit view">
         <Maximize2 className="h-3.5 w-3.5" />
       </button>
     </div>
@@ -401,7 +401,7 @@ function NodePanel({
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="absolute left-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-lg border border-stone-800 bg-stone-900/90 text-stone-500 shadow-lg backdrop-blur-sm transition-colors hover:bg-stone-800 hover:text-stone-300"
+          className="absolute left-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card/90 text-muted-foreground shadow-lg backdrop-blur-sm transition-colors hover:bg-muted hover:text-foreground"
           title="Open node panel"
         >
           <PanelLeftOpen className="h-4 w-4" />
@@ -411,16 +411,16 @@ function NodePanel({
       {/* Open: overlay panel on top of canvas */}
       <div
         className={cn(
-          "absolute left-0 top-0 z-20 flex h-full w-56 flex-col border-r border-stone-800 bg-stone-950/95 backdrop-blur-md shadow-2xl transition-transform duration-200",
+          "absolute left-0 top-0 z-20 flex h-full w-56 flex-col border-r border-border bg-background/95 backdrop-blur-md shadow-2xl transition-transform duration-200",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Header with close button */}
-        <div className="flex items-center justify-between border-b border-stone-800 px-3 py-2.5">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Nodes</span>
+        <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Nodes</span>
           <button
             onClick={() => setOpen(false)}
-            className="rounded-md p-1 text-stone-500 transition-colors hover:bg-stone-800 hover:text-stone-300"
+            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <PanelLeftClose className="h-4 w-4" />
           </button>
@@ -429,7 +429,7 @@ function NodePanel({
       <div className="flex-1 overflow-y-auto">
         {/* Agent nodes */}
         <div className="px-2 pt-3">
-          <p className="mb-2 px-2 text-[9px] font-bold uppercase tracking-widest text-stone-600">Agents</p>
+          <p className="mb-2 px-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Agents</p>
         </div>
         <div className="flex flex-col gap-0.5 px-2">
           {agents.map((agent) => {
@@ -437,17 +437,17 @@ function NodePanel({
             return (
               <div
                 key={agent.id}
-                className="group flex cursor-default items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-stone-900"
+                className="group flex cursor-default items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-card"
               >
-                <GripVertical className="h-3 w-3 shrink-0 text-stone-700 opacity-0 transition-opacity group-hover:opacity-100" />
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/[0.05]">
-                  <Bot className="h-3 w-3 text-gray-400" />
+                <GripVertical className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted">
+                  <Bot className="h-3 w-3 text-muted-foreground" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[11px] font-medium text-stone-300">{agent.name}</p>
+                  <p className="truncate text-[11px] font-medium text-foreground">{agent.name}</p>
                   <div className="flex items-center gap-1">
                     <div className={cn("h-1 w-1 rounded-full", sc.dot)} />
-                    <span className="text-[9px] text-stone-600">{sc.label}</span>
+                    <span className="text-[9px] text-muted-foreground">{sc.label}</span>
                   </div>
                 </div>
               </div>
@@ -460,7 +460,7 @@ function NodePanel({
           <>
             <div className="px-2 pt-4">
               <div className="mb-2 flex items-center gap-2 px-2">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-stone-600">Advanced</p>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Advanced</p>
                 <span className="rounded bg-amber-500/15 px-1 py-0.5 text-[7px] font-bold text-amber-500">BETA</span>
               </div>
             </div>
@@ -469,15 +469,15 @@ function NodePanel({
                 <button
                   key={item.type}
                   onClick={() => onAddAdvancedNode(item.type, item.label)}
-                  className="group flex items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-stone-900"
+                  className="group flex items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-card"
                 >
-                  <GripVertical className="h-3 w-3 shrink-0 text-stone-700 opacity-0 transition-opacity group-hover:opacity-100" />
+                  <GripVertical className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                   <div className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-md", item.bg)}>
                     <item.icon className={cn("h-3 w-3", item.color)} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className={cn("text-[11px] font-medium", item.color)}>{item.label}</p>
-                    <p className="text-[9px] text-stone-600">{item.desc}</p>
+                    <p className="text-[9px] text-muted-foreground">{item.desc}</p>
                   </div>
                 </button>
               ))}
@@ -764,7 +764,7 @@ function OrchestrationCanvas() {
   if (loading) {
     return (
       <div className="flex h-full flex-col">
-        <div className="flex items-center justify-between border-b border-stone-800 px-6 py-3">
+        <div className="flex items-center justify-between border-b border-border px-6 py-3">
           <div className="flex items-center gap-3">
             <div className="skeleton h-8 w-8 rounded-lg" />
             <div className="skeleton h-4 w-32 rounded" />
@@ -783,21 +783,21 @@ function OrchestrationCanvas() {
       <div className="flex h-full items-center justify-center p-6">
         <div className="max-w-lg text-center">
           <div className="mx-auto mb-8 flex items-center justify-center gap-3">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-stone-800 bg-stone-900">
-              <Bot className="h-6 w-6 text-gray-400/60" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-card">
+              <Bot className="h-6 w-6 text-muted-foreground/60" />
             </div>
             <div className="h-px w-10 bg-gradient-to-r from-kiln-orange/30 to-blue-500/30" />
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-stone-800 bg-stone-900">
-              <GitBranch className="h-6 w-6 text-gray-400/60" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-card">
+              <GitBranch className="h-6 w-6 text-muted-foreground/60" />
             </div>
             <div className="h-px w-10 bg-gradient-to-r from-blue-500/30 to-green-500/30" />
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-stone-800 bg-stone-900">
-              <Bot className="h-6 w-6 text-gray-400/60" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-border bg-card">
+              <Bot className="h-6 w-6 text-muted-foreground/60" />
             </div>
           </div>
 
           <h2 className="text-xl font-semibold text-foreground">Build your first agent team</h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm text-stone-400">
+          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
             Create agents in the AI Agent Studio, then connect them here to build multi-agent workflows.
           </p>
 
@@ -809,14 +809,14 @@ function OrchestrationCanvas() {
               <Bot className="h-4 w-4" />
               Go to Agent Studio
             </a>
-            <span className="text-xs text-stone-500">or start from a template</span>
+            <span className="text-xs text-muted-foreground">or start from a template</span>
             <div className="flex gap-2">
               {templates.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => applyTemplate(t.id)}
                   disabled={creatingTemplate !== null}
-                  className="flex items-center gap-1.5 rounded-lg border border-stone-800 px-3 py-2 text-xs font-medium text-stone-400 transition-colors hover:bg-stone-900 hover:text-stone-200 disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-card hover:text-foreground disabled:opacity-50"
                 >
                   <t.icon className={cn("h-3.5 w-3.5", t.color)} />
                   {t.name}
@@ -834,13 +834,13 @@ function OrchestrationCanvas() {
   return (
     <div className="flex h-full flex-col">
       {/* Toolbar */}
-      <div className="flex items-center justify-between border-b border-stone-800 px-4 py-2 lg:px-6">
+      <div className="flex items-center justify-between border-b border-border px-4 py-2 lg:px-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.05]">
-            <Network className="h-3.5 w-3.5 text-gray-400" />
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted">
+            <Network className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
           <h1 className="text-sm font-semibold text-foreground">Orchestration</h1>
-          <span className="hidden text-[11px] text-stone-500 sm:inline">
+          <span className="hidden text-[11px] text-muted-foreground sm:inline">
             {agents.length} agent{agents.length !== 1 ? "s" : ""} · {connections.length} connection{connections.length !== 1 ? "s" : ""} · {connections.filter((c) => c.enabled).length} active
           </span>
         </div>
@@ -852,7 +852,7 @@ function OrchestrationCanvas() {
               onClick={() => setShowTemplates(!showTemplates)}
               className={cn(
                 "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                showTemplates ? "bg-stone-800 text-stone-200" : "text-stone-500 hover:bg-stone-900 hover:text-stone-300"
+                showTemplates ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-card hover:text-foreground"
               )}
             >
               <LayoutTemplate className="h-3.5 w-3.5" />
@@ -861,23 +861,23 @@ function OrchestrationCanvas() {
             </button>
 
             {showTemplates && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-stone-800 bg-stone-950 p-1.5 shadow-2xl animate-in slide-in-from-top-2 fade-in duration-150">
-                <p className="px-3 py-2 text-[9px] font-bold uppercase tracking-widest text-stone-600">Quick Start</p>
+              <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-border bg-background p-1.5 shadow-2xl animate-in slide-in-from-top-2 fade-in duration-150">
+                <p className="px-3 py-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Quick Start</p>
                 {templates.map((t) => (
                   <button
                     key={t.id}
                     onClick={() => applyTemplate(t.id)}
                     disabled={creatingTemplate !== null}
-                    className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-stone-900 disabled:opacity-50"
+                    className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-card disabled:opacity-50"
                   >
                     <div className={cn("mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", t.bg)}>
                       <t.icon className={cn("h-3.5 w-3.5", t.color)} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium text-stone-200">{t.name}</p>
-                      <p className="text-[10px] text-stone-500">{t.description}</p>
+                      <p className="text-xs font-medium text-foreground">{t.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{t.description}</p>
                     </div>
-                    {creatingTemplate === t.id && <Loader2 className="ml-auto h-3.5 w-3.5 shrink-0 animate-spin text-stone-500" />}
+                    {creatingTemplate === t.id && <Loader2 className="ml-auto h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />}
                   </button>
                 ))}
               </div>
@@ -889,7 +889,7 @@ function OrchestrationCanvas() {
             onClick={() => { setShowAnalytics(!showAnalytics); if (!showAnalytics && !analyticsData) loadAnalytics(); }}
             className={cn(
               "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-              showAnalytics ? "bg-stone-800 text-stone-200" : "text-stone-500 hover:bg-stone-900 hover:text-stone-300"
+              showAnalytics ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-card hover:text-foreground"
             )}
           >
             <BarChart3 className="h-3.5 w-3.5" />
@@ -897,7 +897,7 @@ function OrchestrationCanvas() {
           </button>
 
           {advancedMode && (
-            <span className="flex items-center gap-1 rounded-full bg-white/[0.05] px-2 py-1 text-[10px] font-semibold text-gray-400">
+            <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-[10px] font-semibold text-muted-foreground">
               <Sparkles className="h-3 w-3" />
               Advanced
             </span>
@@ -907,15 +907,15 @@ function OrchestrationCanvas() {
 
       {/* Analytics Panel */}
       {showAnalytics && (
-        <div className="border-b border-stone-800 px-4 py-4 lg:px-6">
+        <div className="border-b border-border px-4 py-4 lg:px-6">
           {analyticsLoading ? (
             <div className="flex items-center justify-center py-6">
-              <Loader2 className="h-5 w-5 animate-spin text-stone-500" />
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : analyticsData ? (
             <div>
               <div className="mb-3 flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-gray-400" />
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
                 <h3 className="text-sm font-semibold text-foreground">Analytics</h3>
               </div>
 
@@ -926,8 +926,8 @@ function OrchestrationCanvas() {
                   { label: "Active Routes", value: connections.filter((c) => c.enabled).length },
                   { label: "Avg per Conversation", value: analyticsData.avgHandoffsPerConversation },
                 ].map((kpi) => (
-                  <div key={kpi.label} className="rounded-lg border border-stone-800 bg-stone-900/50 p-3">
-                    <p className="text-[10px] font-medium text-stone-500">{kpi.label}</p>
+                  <div key={kpi.label} className="rounded-lg border border-border bg-card/50 p-3">
+                    <p className="text-[10px] font-medium text-muted-foreground">{kpi.label}</p>
                     <p className="mt-1 text-xl font-bold text-foreground">{kpi.value}</p>
                   </div>
                 ))}
@@ -935,18 +935,18 @@ function OrchestrationCanvas() {
 
               {analyticsData.routes.length > 0 && (
                 <div>
-                  <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-stone-600">Most Active Routes</p>
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Most Active Routes</p>
                   <div className="space-y-1.5">
                     {analyticsData.routes.slice(0, 5).map((route) => (
-                      <div key={route.ruleId} className="flex items-center gap-2 rounded-lg border border-stone-800 bg-stone-900/50 px-3 py-2">
+                      <div key={route.ruleId} className="flex items-center gap-2 rounded-lg border border-border bg-card/50 px-3 py-2">
                         <div className="flex items-center gap-1.5 text-xs">
-                          <Bot className="h-3.5 w-3.5 text-gray-400" />
-                          <span className="font-medium text-stone-200">{route.sourceName}</span>
-                          <ArrowRight className="h-3 w-3 text-stone-600" />
-                          <Bot className="h-3.5 w-3.5 text-gray-400" />
-                          <span className="font-medium text-stone-200">{route.targetName}</span>
+                          <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="font-medium text-foreground">{route.sourceName}</span>
+                          <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                          <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="font-medium text-foreground">{route.targetName}</span>
                         </div>
-                        <span className="ml-auto rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] font-semibold text-gray-400">
+                        <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
                           {route.count} handoff{route.count !== 1 ? "s" : ""}
                         </span>
                       </div>
@@ -956,7 +956,7 @@ function OrchestrationCanvas() {
               )}
 
               {analyticsData.totalHandoffs === 0 && (
-                <p className="text-center text-xs text-stone-500 py-2">No handoffs yet.</p>
+                <p className="text-center text-xs text-muted-foreground py-2">No handoffs yet.</p>
               )}
             </div>
           ) : null}
@@ -987,7 +987,7 @@ function OrchestrationCanvas() {
             data: { enabled: true },
           }}
           proOptions={{ hideAttribution: true }}
-          className="!bg-stone-950"
+          className="!bg-background"
           minZoom={0.2}
           maxZoom={2}
           panOnScroll
@@ -1004,7 +1004,7 @@ function OrchestrationCanvas() {
               return "hsl(217, 91%, 55%)";
             }}
             maskColor="rgba(12, 10, 9, 0.88)"
-            className="!rounded-xl !border-stone-800 !bg-stone-950/90 !shadow-lg"
+            className="!rounded-xl !border-border !bg-background/90 !shadow-lg"
             style={{ width: 160, height: 100 }}
             pannable
             zoomable
@@ -1019,14 +1019,14 @@ function OrchestrationCanvas() {
           {showHint && (
             <Panel position="bottom-center" className="!mb-4">
               <div
-                className="flex items-center gap-2 rounded-full border border-stone-800 bg-stone-900/95 px-4 py-2 shadow-lg backdrop-blur-sm animate-in fade-in slide-in-from-bottom-2 duration-300 cursor-pointer"
+                className="flex items-center gap-2 rounded-full border border-border bg-card/95 px-4 py-2 shadow-lg backdrop-blur-sm animate-in fade-in slide-in-from-bottom-2 duration-300 cursor-pointer"
                 onClick={() => { setShowHint(false); hintDismissed.current = true; }}
               >
-                <ArrowRight className="h-3 w-3 text-gray-400" />
-                <span className="text-[11px] text-stone-400">
+                <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                <span className="text-[11px] text-muted-foreground">
                   Drag from a node handle to create a connection
                 </span>
-                <X className="h-3 w-3 text-stone-600" />
+                <X className="h-3 w-3 text-muted-foreground" />
               </div>
             </Panel>
           )}
@@ -1034,16 +1034,16 @@ function OrchestrationCanvas() {
 
         {/* Connection settings panel */}
         {selectedEdge && selectedConn && (
-          <div className="absolute bottom-0 right-0 top-0 z-10 w-80 border-l border-stone-800 bg-stone-950/95 backdrop-blur-md animate-in slide-in-from-right-2 duration-200 lg:w-96">
+          <div className="absolute bottom-0 right-0 top-0 z-10 w-80 border-l border-border bg-background/95 backdrop-blur-md animate-in slide-in-from-right-2 duration-200 lg:w-96">
             <div className="flex h-full flex-col">
-              <div className="flex items-center justify-between border-b border-stone-800 px-4 py-3">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
                 <h3 className="text-sm font-semibold text-foreground">Connection</h3>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => toggleConnection(selectedEdge)}
                     className={cn(
                       "rounded-lg p-1.5 transition-colors",
-                      selectedConn.enabled ? "text-gray-400 hover:bg-white/[0.05]" : "text-stone-500 hover:bg-stone-800"
+                      selectedConn.enabled ? "text-muted-foreground hover:bg-muted" : "text-muted-foreground hover:bg-muted"
                     )}
                     title={selectedConn.enabled ? "Disable" : "Enable"}
                   >
@@ -1051,14 +1051,14 @@ function OrchestrationCanvas() {
                   </button>
                   <button
                     onClick={() => deleteConnection(selectedEdge)}
-                    className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-white/[0.05]"
+                    className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted"
                     title="Delete"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => setSelectedEdge(null)}
-                    className="rounded-lg p-1.5 text-stone-500 transition-colors hover:bg-stone-800 hover:text-stone-300"
+                    className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -1067,29 +1067,29 @@ function OrchestrationCanvas() {
 
               <div className="flex-1 overflow-y-auto p-4">
                 <div className="mb-5">
-                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-stone-600">Flow</label>
+                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Flow</label>
                   <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 rounded-lg border border-stone-800 bg-stone-900 px-3 py-2">
-                      <Bot className="h-3.5 w-3.5 text-gray-400" />
-                      <span className="text-xs font-medium text-stone-200">{selectedConn.sourceAgent.name}</span>
+                    <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+                      <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium text-foreground">{selectedConn.sourceAgent.name}</span>
                     </div>
-                    <ArrowRight className="h-4 w-4 shrink-0 text-stone-600" />
-                    <div className="flex items-center gap-2 rounded-lg border border-stone-800 bg-stone-900 px-3 py-2">
-                      <Bot className="h-3.5 w-3.5 text-gray-400" />
-                      <span className="text-xs font-medium text-stone-200">{selectedConn.targetAgent.name}</span>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+                      <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium text-foreground">{selectedConn.targetAgent.name}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="mb-5">
-                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-stone-600">Status</label>
+                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Status</label>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                      <div className={cn("h-2 w-2 rounded-full", selectedConn.enabled ? "bg-kiln-green" : "bg-stone-600")} />
-                      <span className="text-xs text-stone-300">{selectedConn.enabled ? "Active" : "Disabled"}</span>
+                      <div className={cn("h-2 w-2 rounded-full", selectedConn.enabled ? "bg-kiln-green" : "bg-muted-foreground")} />
+                      <span className="text-xs text-foreground">{selectedConn.enabled ? "Active" : "Disabled"}</span>
                     </div>
                     {(selectedConn.handoffCount ?? 0) > 0 && (
-                      <span className="rounded-full bg-white/[0.05] px-2.5 py-0.5 text-[10px] font-semibold text-gray-400">
+                      <span className="rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
                         {selectedConn.handoffCount} handoff{selectedConn.handoffCount !== 1 ? "s" : ""}
                       </span>
                     )}
@@ -1097,10 +1097,10 @@ function OrchestrationCanvas() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-stone-600">
+                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                     Handoff Condition
                   </label>
-                  <p className="mb-2 text-[10px] text-stone-500">
+                  <p className="mb-2 text-[10px] text-muted-foreground">
                     Describe when this handoff should trigger.
                   </p>
                   <textarea
@@ -1108,7 +1108,7 @@ function OrchestrationCanvas() {
                     onChange={(e) => setConditionInput(e.target.value)}
                     placeholder="e.g. When lead score is above 7..."
                     rows={4}
-                    className="w-full resize-none rounded-lg border border-stone-800 bg-stone-900 px-3 py-2.5 text-sm text-foreground placeholder:text-stone-600 focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/20"
+                    className="w-full resize-none rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange/20"
                   />
                   <button
                     onClick={() => updateCondition(selectedEdge, conditionInput)}

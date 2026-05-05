@@ -104,7 +104,7 @@ function VariableCard({
   if (!isEditing) {
     return (
       <div
-        className="group rounded-xl border border-zinc-800 bg-zinc-900/60 hover:border-zinc-700 hover:bg-zinc-900 transition-all duration-150 cursor-pointer"
+        className="group rounded-xl border border-border bg-card/60 hover:border-border hover:bg-card transition-all duration-150 cursor-pointer"
         onClick={onStartEdit}
       >
         <div className="px-4 py-3 space-y-2">
@@ -118,7 +118,7 @@ function VariableCard({
                   onMoveUp();
                 }}
                 disabled={index === 0}
-                className="text-zinc-600 hover:text-zinc-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors p-0.5"
+                className="text-muted-foreground hover:text-muted-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors p-0.5"
                 title="Move up"
               >
                 <ChevronUp className="h-3 w-3" />
@@ -129,14 +129,14 @@ function VariableCard({
                   onMoveDown();
                 }}
                 disabled={index === total - 1}
-                className="text-zinc-600 hover:text-zinc-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors p-0.5"
+                className="text-muted-foreground hover:text-muted-foreground disabled:opacity-30 disabled:cursor-not-allowed transition-colors p-0.5"
                 title="Move down"
               >
                 <ChevronDown className="h-3 w-3" />
               </button>
             </div>
 
-            <GripVertical className="h-3.5 w-3.5 text-zinc-700 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <GripVertical className="h-3.5 w-3.5 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
 
             {/* Variable name */}
             <span className="font-mono text-sm font-medium text-orange-300 truncate">
@@ -171,7 +171,7 @@ function VariableCard({
                 e.stopPropagation();
                 onCopyRef();
               }}
-              className="shrink-0 text-zinc-600 hover:text-zinc-300 transition-colors p-1 rounded-md hover:bg-zinc-800"
+              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted"
               title={`Copy {{ variables.${variable.name} }}`}
             >
               {copied ? (
@@ -184,16 +184,16 @@ function VariableCard({
 
           {/* Description */}
           {variable.description && (
-            <p className="text-xs text-zinc-500 leading-relaxed pl-[38px]">
+            <p className="text-xs text-muted-foreground leading-relaxed pl-[38px]">
               {variable.description}
             </p>
           )}
 
           {/* Bottom row: default value + usage */}
           <div className="flex items-center justify-between pl-[38px]">
-            <span className="text-[11px] text-zinc-600">
+            <span className="text-[11px] text-muted-foreground">
               Default:{" "}
-              <span className="text-zinc-400">
+              <span className="text-muted-foreground">
                 {variable.isSecret
                   ? "\u2022\u2022\u2022\u2022\u2022"
                   : variable.defaultValue || "\u2014"}
@@ -202,7 +202,7 @@ function VariableCard({
             <span
               className={cn(
                 "text-[11px]",
-                usageCount > 0 ? "text-zinc-500" : "text-zinc-700"
+                usageCount > 0 ? "text-muted-foreground" : "text-muted-foreground"
               )}
             >
               {usageCount > 0
@@ -217,11 +217,11 @@ function VariableCard({
 
   // ---- Edit mode ----
   return (
-    <div className="rounded-xl border border-orange-500/40 bg-zinc-900 shadow-lg shadow-orange-500/5 transition-all duration-150">
+    <div className="rounded-xl border border-orange-500/40 bg-card shadow-lg shadow-orange-500/5 transition-all duration-150">
       <div className="px-4 py-4 space-y-3">
         {/* Name */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Name</label>
+          <label className="text-xs font-medium text-muted-foreground">Name</label>
           <input
             value={draft.name}
             onChange={(e) =>
@@ -231,14 +231,14 @@ function VariableCard({
               }))
             }
             placeholder="variable_name"
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm font-mono text-orange-300 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-600"
+            className="w-full bg-muted border border-border rounded-lg text-sm font-mono text-orange-300 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground"
           />
         </div>
 
         {/* Type + Secret row */}
         <div className="flex items-end gap-3">
           <div className="flex-1 space-y-1.5">
-            <label className="text-xs font-medium text-zinc-400">Type</label>
+            <label className="text-xs font-medium text-muted-foreground">Type</label>
             <div className="flex gap-1.5">
               {(["string", "number", "boolean"] as const).map((t) => {
                 const ts = TYPE_STYLES[t];
@@ -251,7 +251,7 @@ function VariableCard({
                       "rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150 border",
                       active
                         ? cn(ts.bg, ts.text, "border-current")
-                        : "border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700"
+                        : "border-border text-muted-foreground hover:text-foreground hover:border-border"
                     )}
                   >
                     {t}
@@ -267,7 +267,7 @@ function VariableCard({
               "shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border transition-all duration-150",
               draft.isSecret
                 ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                : "border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-border"
             )}
           >
             <Lock className="h-3 w-3" />
@@ -277,7 +277,7 @@ function VariableCard({
 
         {/* Default value */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Default Value</label>
+          <label className="text-xs font-medium text-muted-foreground">Default Value</label>
           <input
             value={draft.defaultValue}
             onChange={(e) => setDraft((d) => ({ ...d, defaultValue: e.target.value }))}
@@ -289,18 +289,18 @@ function VariableCard({
                   ? "0"
                   : "Enter default..."
             }
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-600"
+            className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground"
           />
         </div>
 
         {/* Description */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Description</label>
+          <label className="text-xs font-medium text-muted-foreground">Description</label>
           <input
             value={draft.description}
             onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
             placeholder="Describe this variable..."
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-600"
+            className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground"
           />
         </div>
 
@@ -318,7 +318,7 @@ function VariableCard({
               </button>
               <button
                 onClick={() => setConfirmDelete(false)}
-                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 Cancel
               </button>
@@ -337,7 +337,7 @@ function VariableCard({
             <Button
               size="sm"
               variant="ghost"
-              className="h-7 text-xs text-zinc-400 hover:text-zinc-200"
+              className="h-7 text-xs text-muted-foreground hover:text-foreground"
               onClick={onCancelEdit}
             >
               Cancel
@@ -395,7 +395,7 @@ function AddVariableForm({ onAdd, existingNames }: AddVariableFormProps) {
     return (
       <button
         onClick={() => setExpanded(true)}
-        className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-800 hover:border-zinc-700 bg-zinc-900/40 hover:bg-zinc-900/60 text-zinc-500 hover:text-zinc-300 text-sm py-3 transition-all duration-150"
+        className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-border hover:border-border bg-card/40 hover:bg-card/60 text-muted-foreground hover:text-foreground text-sm py-3 transition-all duration-150"
       >
         <Plus className="h-4 w-4" />
         Add Variable
@@ -404,14 +404,14 @@ function AddVariableForm({ onAdd, existingNames }: AddVariableFormProps) {
   }
 
   return (
-    <div className="rounded-xl border border-orange-500/30 bg-zinc-900 p-4 space-y-3">
+    <div className="rounded-xl border border-orange-500/30 bg-card p-4 space-y-3">
       <p className="text-xs font-semibold uppercase tracking-wider text-orange-400">
         New Variable
       </p>
 
       {/* Name */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Name</label>
+        <label className="text-xs font-medium text-muted-foreground">Name</label>
         <input
           value={draft.name}
           onChange={(e) => {
@@ -423,8 +423,8 @@ function AddVariableForm({ onAdd, existingNames }: AddVariableFormProps) {
           }}
           placeholder="variable_name"
           className={cn(
-            "w-full bg-zinc-800 border rounded-lg text-sm font-mono text-orange-300 px-3 py-2 outline-none transition-colors placeholder:text-zinc-600",
-            nameError ? "border-red-500/60" : "border-zinc-700 focus:border-orange-500/60"
+            "w-full bg-muted border rounded-lg text-sm font-mono text-orange-300 px-3 py-2 outline-none transition-colors placeholder:text-muted-foreground",
+            nameError ? "border-red-500/60" : "border-border focus:border-orange-500/60"
           )}
         />
         {nameError && (
@@ -435,7 +435,7 @@ function AddVariableForm({ onAdd, existingNames }: AddVariableFormProps) {
       {/* Type + Secret */}
       <div className="flex items-end gap-3">
         <div className="flex-1 space-y-1.5">
-          <label className="text-xs font-medium text-zinc-400">Type</label>
+          <label className="text-xs font-medium text-muted-foreground">Type</label>
           <div className="flex gap-1.5">
             {(["string", "number", "boolean"] as const).map((t) => {
               const ts = TYPE_STYLES[t];
@@ -448,7 +448,7 @@ function AddVariableForm({ onAdd, existingNames }: AddVariableFormProps) {
                     "rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150 border",
                     active
                       ? cn(ts.bg, ts.text, "border-current")
-                      : "border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700"
+                      : "border-border text-muted-foreground hover:text-foreground hover:border-border"
                   )}
                 >
                   {t}
@@ -464,7 +464,7 @@ function AddVariableForm({ onAdd, existingNames }: AddVariableFormProps) {
             "shrink-0 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium border transition-all duration-150",
             draft.isSecret
               ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-              : "border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700"
+              : "border-border text-muted-foreground hover:text-foreground hover:border-border"
           )}
         >
           <Lock className="h-3 w-3" />
@@ -474,7 +474,7 @@ function AddVariableForm({ onAdd, existingNames }: AddVariableFormProps) {
 
       {/* Default value */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Default Value</label>
+        <label className="text-xs font-medium text-muted-foreground">Default Value</label>
         <input
           value={draft.defaultValue}
           onChange={(e) => setDraft((d) => ({ ...d, defaultValue: e.target.value }))}
@@ -486,18 +486,18 @@ function AddVariableForm({ onAdd, existingNames }: AddVariableFormProps) {
                 ? "0"
                 : "Enter default..."
           }
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-600"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground"
         />
       </div>
 
       {/* Description */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Description</label>
+        <label className="text-xs font-medium text-muted-foreground">Description</label>
         <input
           value={draft.description}
           onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
           placeholder="Describe this variable..."
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-600"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground"
         />
       </div>
 
@@ -506,7 +506,7 @@ function AddVariableForm({ onAdd, existingNames }: AddVariableFormProps) {
         <Button
           size="sm"
           variant="ghost"
-          className="h-7 text-xs text-zinc-400 hover:text-zinc-200"
+          className="h-7 text-xs text-muted-foreground hover:text-foreground"
           onClick={handleCancel}
         >
           Cancel
@@ -626,28 +626,28 @@ export function VariablesPanel({
       {/* Slide-in panel */}
       <div
         className={cn(
-          "fixed top-0 right-0 h-full w-[420px] z-30 bg-zinc-950 border-l border-zinc-800 shadow-2xl transform transition-transform duration-200 flex flex-col",
+          "fixed top-0 right-0 h-full w-[420px] z-30 bg-background border-l border-border shadow-2xl transform transition-transform duration-200 flex flex-col",
           open ? "translate-x-0" : "translate-x-full"
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-500/15">
               <Variable className="h-4 w-4 text-orange-400" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-zinc-100">
+              <h3 className="text-sm font-semibold text-foreground">
                 Workflow Variables
               </h3>
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-[11px] text-muted-foreground">
                 {variables.length} variable{variables.length !== 1 ? "s" : ""} defined
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-300 transition-colors rounded-lg p-1 hover:bg-zinc-800"
+            className="text-muted-foreground hover:text-foreground transition-colors rounded-lg p-1 hover:bg-muted"
           >
             <X className="h-4 w-4" />
           </button>
@@ -657,12 +657,12 @@ export function VariablesPanel({
         {variables.length > 0 && (
           <div className="px-5 pt-4 pb-2 shrink-0">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-600" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search variables..."
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-zinc-100 pl-9 pr-3 py-2 outline-none focus:border-orange-500/40 transition-colors placeholder:text-zinc-600"
+                className="w-full bg-card border border-border rounded-xl text-sm text-foreground pl-9 pr-3 py-2 outline-none focus:border-orange-500/40 transition-colors placeholder:text-muted-foreground"
               />
             </div>
           </div>
@@ -673,14 +673,14 @@ export function VariablesPanel({
           {/* Empty state */}
           {variables.length === 0 && (
             <div className="flex flex-col items-center justify-center text-center py-12 space-y-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-900 border border-zinc-800">
-                <Variable className="h-5 w-5 text-zinc-600" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-card border border-border">
+                <Variable className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
-                <p className="text-sm text-zinc-400 font-medium">
+                <p className="text-sm text-muted-foreground font-medium">
                   No variables defined
                 </p>
-                <p className="text-xs text-zinc-600 mt-1 max-w-[260px]">
+                <p className="text-xs text-muted-foreground mt-1 max-w-[260px]">
                   Add variables to use in expressions across your workflow nodes.
                 </p>
               </div>
@@ -690,8 +690,8 @@ export function VariablesPanel({
           {/* Filtered empty */}
           {variables.length > 0 && filtered.length === 0 && search.trim() && (
             <div className="flex flex-col items-center justify-center text-center py-8 space-y-2">
-              <Search className="h-5 w-5 text-zinc-700" />
-              <p className="text-sm text-zinc-500">
+              <Search className="h-5 w-5 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
                 No variables matching &ldquo;{search}&rdquo;
               </p>
             </div>
@@ -728,9 +728,9 @@ export function VariablesPanel({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-zinc-800 px-5 py-3 flex items-center justify-between shrink-0">
-          <p className="text-[11px] text-zinc-600">
-            Reference: <span className="font-mono text-zinc-500">{"{{ variables.name }}"}</span>
+        <div className="border-t border-border px-5 py-3 flex items-center justify-between shrink-0">
+          <p className="text-[11px] text-muted-foreground">
+            Reference: <span className="font-mono text-muted-foreground">{"{{ variables.name }}"}</span>
           </p>
           <Button size="sm" variant="ghost" onClick={onClose} className="h-7 text-xs">
             Done

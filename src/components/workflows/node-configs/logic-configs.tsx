@@ -77,18 +77,18 @@ function ConditionBuilder({
   return (
     <div className="space-y-3">
       {groups.map((group, gi) => (
-        <div key={gi} className="rounded-lg border border-zinc-700/60 bg-zinc-800/30 p-3 space-y-2">
+        <div key={gi} className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-2">
           {gi > 0 && (
             <div className="flex items-center gap-2 mb-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-violet-400">OR</span>
-              <div className="flex-1 h-px bg-zinc-700/50" />
+              <div className="flex-1 h-px bg-muted/50" />
             </div>
           )}
 
           {/* Logic toggle for within-group */}
           {group.conditions.length > 1 && (
             <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-[10px] text-zinc-500">Match:</span>
+              <span className="text-[10px] text-muted-foreground">Match:</span>
               {(["AND", "OR"] as const).map((logic) => (
                 <button
                   key={logic}
@@ -97,7 +97,7 @@ function ConditionBuilder({
                     "text-[10px] font-medium px-2 py-0.5 rounded-full border transition-all",
                     group.logic === logic
                       ? "border-violet-500/40 bg-violet-500/10 text-violet-400"
-                      : "border-zinc-700 bg-zinc-800 text-zinc-500 hover:text-zinc-300"
+                      : "border-border bg-muted text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {logic}
@@ -112,12 +112,12 @@ function ConditionBuilder({
                 value={cond.field}
                 onChange={(e) => updateCondition(gi, ci, { field: e.target.value })}
                 placeholder="field"
-                className="w-[30%] bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+                className="w-[30%] bg-muted border border-border rounded-lg text-[11px] font-mono text-foreground px-2 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
               />
               <select
                 value={cond.operator}
                 onChange={(e) => updateCondition(gi, ci, { operator: e.target.value })}
-                className="w-[35%] bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60"
+                className="w-[35%] bg-muted border border-border rounded-lg text-[11px] text-foreground px-2 py-1.5 outline-none focus:border-orange-500/60"
               >
                 {OPERATORS.map((op) => (
                   <option key={op.value} value={op.value}>{op.label}</option>
@@ -128,12 +128,12 @@ function ConditionBuilder({
                   value={cond.value}
                   onChange={(e) => updateCondition(gi, ci, { value: e.target.value })}
                   placeholder="value"
-                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+                  className="flex-1 bg-muted border border-border rounded-lg text-[11px] font-mono text-foreground px-2 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
                 />
               )}
               <button
                 onClick={() => removeCondition(gi, ci)}
-                className="text-zinc-600 hover:text-red-400 transition-colors"
+                className="text-muted-foreground hover:text-red-400 transition-colors"
               >
                 <Trash2 className="h-3 w-3" />
               </button>
@@ -175,11 +175,11 @@ export function IfConditionConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2">
         <GitBranch className="h-4 w-4 text-violet-400" />
-        <p className="text-xs text-zinc-300">Splits the flow into True and False paths</p>
+        <p className="text-xs text-foreground">Splits the flow into True and False paths</p>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Conditions</label>
+        <label className="text-xs font-medium text-muted-foreground">Conditions</label>
         <ConditionBuilder
           groups={groups}
           onChange={(g) => onChange({ ...config, groups: g })}
@@ -187,8 +187,8 @@ export function IfConditionConfig({
       </div>
 
       {/* Preview */}
-      <div className="rounded-lg border border-zinc-700/60 bg-zinc-800/50 p-3">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500 mb-2">Preview</p>
+      <div className="rounded-lg border border-border/60 bg-muted/50 p-3">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-2">Preview</p>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
@@ -238,22 +238,22 @@ export function SwitchConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2">
         <GitFork className="h-4 w-4 text-violet-400" />
-        <p className="text-xs text-zinc-300">Routes to different paths based on conditions</p>
+        <p className="text-xs text-foreground">Routes to different paths based on conditions</p>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Cases</label>
+        <label className="text-xs font-medium text-muted-foreground">Cases</label>
         <div className="space-y-2">
           {cases.map((c, i) => (
-            <div key={i} className="rounded-lg border border-zinc-700/60 bg-zinc-800/30 p-2.5 space-y-1.5">
+            <div key={i} className="rounded-lg border border-border/60 bg-muted/30 p-2.5 space-y-1.5">
               <div className="flex items-center gap-2">
                 <input
                   value={c.label}
                   onChange={(e) => updateCase(i, { label: e.target.value })}
                   placeholder="Case label"
-                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-100 px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+                  className="flex-1 bg-muted border border-border rounded-lg text-xs text-foreground px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
                 />
-                <button onClick={() => removeCase(i)} className="text-zinc-600 hover:text-red-400 transition-colors">
+                <button onClick={() => removeCase(i)} className="text-muted-foreground hover:text-red-400 transition-colors">
                   <Trash2 className="h-3 w-3" />
                 </button>
               </div>
@@ -261,7 +261,7 @@ export function SwitchConfig({
                 value={c.condition}
                 onChange={(e) => updateCase(i, { condition: e.target.value })}
                 placeholder="{{ field }} == 'value'"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+                className="w-full bg-muted border border-border rounded-lg text-[11px] font-mono text-foreground px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
               />
             </div>
           ))}
@@ -298,19 +298,19 @@ export function FilterConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2">
         <Filter className="h-4 w-4 text-violet-400" />
-        <p className="text-xs text-zinc-300">Passes data through only if conditions are met</p>
+        <p className="text-xs text-foreground">Passes data through only if conditions are met</p>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Pass-through Conditions</label>
+        <label className="text-xs font-medium text-muted-foreground">Pass-through Conditions</label>
         <ConditionBuilder
           groups={groups}
           onChange={(g) => onChange({ ...config, groups: g })}
         />
       </div>
 
-      <div className="rounded-lg border border-zinc-700/60 bg-zinc-800/50 p-3">
-        <p className="text-[10px] text-zinc-500">
+      <div className="rounded-lg border border-border/60 bg-muted/50 p-3">
+        <p className="text-[10px] text-muted-foreground">
           Data that doesn&apos;t match the conditions will be dropped. Matching data continues to the next node.
         </p>
       </div>
@@ -351,29 +351,29 @@ export function TransformConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2">
         <Shuffle className="h-4 w-4 text-violet-400" />
-        <p className="text-xs text-zinc-300">Transform and reshape data using expressions</p>
+        <p className="text-xs text-foreground">Transform and reshape data using expressions</p>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Transformations</label>
+        <label className="text-xs font-medium text-muted-foreground">Transformations</label>
         <div className="space-y-2">
           {transformations.map((t, i) => (
-            <div key={i} className="rounded-lg border border-zinc-700/60 bg-zinc-800/30 p-2.5 space-y-1.5">
+            <div key={i} className="rounded-lg border border-border/60 bg-muted/30 p-2.5 space-y-1.5">
               <div className="flex items-center gap-2">
                 <input
                   value={t.outputField}
                   onChange={(e) => update(i, { outputField: e.target.value })}
                   placeholder="outputField"
-                  className="w-[40%] bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+                  className="w-[40%] bg-muted border border-border rounded-lg text-[11px] font-mono text-foreground px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
                 />
-                <span className="text-[10px] text-zinc-500">=</span>
+                <span className="text-[10px] text-muted-foreground">=</span>
                 <input
                   value={t.expression}
                   onChange={(e) => update(i, { expression: e.target.value })}
                   placeholder="{{ source.output | upper }}"
-                  className="flex-1 bg-zinc-800 border border-violet-500/30 rounded-lg text-[11px] font-mono text-zinc-100 px-2.5 py-1.5 outline-none focus:border-violet-500/60 placeholder:text-zinc-600"
+                  className="flex-1 bg-muted border border-violet-500/30 rounded-lg text-[11px] font-mono text-foreground px-2.5 py-1.5 outline-none focus:border-violet-500/60 placeholder:text-muted-foreground"
                 />
-                <button onClick={() => remove(i)} className="text-zinc-600 hover:text-red-400 transition-colors">
+                <button onClick={() => remove(i)} className="text-muted-foreground hover:text-red-400 transition-colors">
                   <Trash2 className="h-3 w-3" />
                 </button>
               </div>
@@ -386,8 +386,8 @@ export function TransformConfig({
         </button>
       </div>
 
-      <div className="rounded-lg border border-zinc-700/60 bg-zinc-800/50 p-3">
-        <p className="text-[10px] text-zinc-500">
+      <div className="rounded-lg border border-border/60 bg-muted/50 p-3">
+        <p className="text-[10px] text-muted-foreground">
           Each transformation creates an output field from an expression. Use {`{{ }}`} syntax to reference upstream data.
           Example: <code className="text-violet-400">{`{{ source.output | upper }}`}</code>
         </p>

@@ -120,9 +120,9 @@ export function DataPipelineNode({ config, onChange }: DataPipelineNodeProps) {
     <div className="space-y-4 p-4">
       {/* Verbindungswahl */}
       <div className="space-y-1.5">
-        <Label className="text-stone-300">Datenverbindung</Label>
+        <Label className="text-foreground">Datenverbindung</Label>
         {loading ? (
-          <div className="flex items-center gap-2 text-xs text-stone-500">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="size-3 animate-spin" />
             Verbindungen laden...
           </div>
@@ -130,7 +130,7 @@ export function DataPipelineNode({ config, onChange }: DataPipelineNodeProps) {
           <select
             value={connectionId}
             onChange={(e) => update({ connectionId: e.target.value })}
-            className="w-full rounded-md border border-stone-800 bg-stone-900/50 px-2.5 py-1.5 text-sm text-white outline-none focus:border-orange-500/50"
+            className="w-full rounded-md border border-border bg-card/50 px-2.5 py-1.5 text-sm text-foreground outline-none focus:border-orange-500/50"
           >
             <option value="">Verbindung waehlen...</option>
             {connections.map((c) => (
@@ -144,15 +144,15 @@ export function DataPipelineNode({ config, onChange }: DataPipelineNodeProps) {
 
       {/* Query-Modus */}
       <div className="space-y-1.5">
-        <Label className="text-stone-300">Query-Modus</Label>
-        <div className="flex rounded-lg border border-stone-800 bg-stone-900/50 p-0.5">
+        <Label className="text-foreground">Query-Modus</Label>
+        <div className="flex rounded-lg border border-border bg-card/50 p-0.5">
           <button
             onClick={() => update({ queryMode: "sql" })}
             className={cn(
               "flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
               queryMode === "sql"
                 ? "bg-orange-500/10 text-orange-400"
-                : "text-stone-500 hover:text-stone-300"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
             SQL
@@ -163,7 +163,7 @@ export function DataPipelineNode({ config, onChange }: DataPipelineNodeProps) {
               "flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
               queryMode === "nl"
                 ? "bg-orange-500/10 text-orange-400"
-                : "text-stone-500 hover:text-stone-300"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
             Natural Language
@@ -173,7 +173,7 @@ export function DataPipelineNode({ config, onChange }: DataPipelineNodeProps) {
 
       {/* Query-Eingabe */}
       <div className="space-y-1.5">
-        <Label className="text-stone-300">
+        <Label className="text-foreground">
           {queryMode === "sql" ? "SQL Query" : "Frage in natuerlicher Sprache"}
         </Label>
         <Textarea
@@ -185,7 +185,7 @@ export function DataPipelineNode({ config, onChange }: DataPipelineNodeProps) {
               : "Zeige mir die letzten 10 Kunden..."
           }
           className={cn(
-            "min-h-[80px] border-stone-800 bg-stone-900/30 text-white placeholder:text-stone-600",
+            "min-h-[80px] border-border bg-card/30 text-foreground placeholder:text-muted-foreground",
             queryMode === "sql" && "font-mono text-sm"
           )}
         />
@@ -198,7 +198,7 @@ export function DataPipelineNode({ config, onChange }: DataPipelineNodeProps) {
             <button
               key={i}
               onClick={() => update({ query: s, queryMode: "nl" })}
-              className="rounded-full border border-stone-800 bg-stone-900/50 px-2.5 py-1 text-[10px] text-stone-400 transition-colors hover:border-orange-500/30 hover:text-orange-400"
+              className="rounded-full border border-border bg-card/50 px-2.5 py-1 text-[10px] text-muted-foreground transition-colors hover:border-orange-500/30 hover:text-orange-400"
             >
               {s}
             </button>
@@ -208,14 +208,14 @@ export function DataPipelineNode({ config, onChange }: DataPipelineNodeProps) {
 
       {/* Result Key */}
       <div className="space-y-1.5">
-        <Label className="text-stone-300">Ergebnis-Variable</Label>
+        <Label className="text-foreground">Ergebnis-Variable</Label>
         <Input
           value={resultKey}
           onChange={(e) => update({ resultKey: e.target.value })}
           placeholder="queryResult"
-          className="border-stone-800 bg-stone-900/50 font-mono text-sm text-white placeholder:text-stone-600"
+          className="border-border bg-card/50 font-mono text-sm text-foreground placeholder:text-muted-foreground"
         />
-        <p className="text-[10px] text-stone-500">
+        <p className="text-[10px] text-muted-foreground">
           Unter diesem Key stehen die Ergebnisse im Workflow zur Verfuegung.
         </p>
       </div>
@@ -252,20 +252,20 @@ export function DataPipelineNode({ config, onChange }: DataPipelineNodeProps) {
 
       {/* Vorschau-Ergebnisse */}
       {preview && (
-        <div className="rounded-lg border border-stone-800 bg-stone-900/30 overflow-hidden">
-          <div className="border-b border-stone-800 px-3 py-1.5">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-stone-500">
+        <div className="rounded-lg border border-border bg-card/30 overflow-hidden">
+          <div className="border-b border-border px-3 py-1.5">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
               Vorschau (max. 10 Zeilen)
             </span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-stone-800">
+                <tr className="border-b border-border">
                   {preview.columns.map((col) => (
                     <th
                       key={col}
-                      className="whitespace-nowrap px-2.5 py-1.5 text-left font-medium text-stone-400"
+                      className="whitespace-nowrap px-2.5 py-1.5 text-left font-medium text-muted-foreground"
                     >
                       {col}
                     </th>
@@ -274,14 +274,14 @@ export function DataPipelineNode({ config, onChange }: DataPipelineNodeProps) {
               </thead>
               <tbody>
                 {preview.rows.map((row, i) => (
-                  <tr key={i} className="border-b border-stone-800/50">
+                  <tr key={i} className="border-b border-border/50">
                     {preview.columns.map((col) => (
                       <td
                         key={col}
-                        className="max-w-[200px] truncate whitespace-nowrap px-2.5 py-1 font-mono text-stone-300"
+                        className="max-w-[200px] truncate whitespace-nowrap px-2.5 py-1 font-mono text-foreground"
                       >
                         {row[col] === null ? (
-                          <span className="text-stone-600">NULL</span>
+                          <span className="text-muted-foreground">NULL</span>
                         ) : (
                           String(row[col])
                         )}

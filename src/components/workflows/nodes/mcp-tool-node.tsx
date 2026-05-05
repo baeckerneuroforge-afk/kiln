@@ -117,23 +117,23 @@ export function MCPToolConfig({ config, onChange }: ConfigProps) {
 
       {/* Agent ID (nötig um Connections zu laden) */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Agent ID</label>
+        <label className="text-xs font-medium text-muted-foreground">Agent ID</label>
         <input
           value={agentId}
           onChange={(e) => onChange({ ...config, agentId: e.target.value })}
           placeholder="Agent ID für MCP-Verbindungen"
-          className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-200 outline-none focus:border-blue-500/50 transition-colors placeholder:text-zinc-600 font-mono"
+          className="w-full rounded-lg border border-border bg-card/50 px-3 py-1.5 text-xs text-foreground outline-none focus:border-blue-500/50 transition-colors placeholder:text-muted-foreground font-mono"
         />
       </div>
 
       {/* MCP Server auswählen */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-medium text-zinc-400">MCP Server</label>
+          <label className="text-xs font-medium text-muted-foreground">MCP Server</label>
           {agentId && (
             <button
               onClick={loadConnections}
-              className="text-zinc-500 hover:text-blue-400 transition-colors"
+              className="text-muted-foreground hover:text-blue-400 transition-colors"
               title="Verbindungen aktualisieren"
             >
               {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
@@ -143,7 +143,7 @@ export function MCPToolConfig({ config, onChange }: ConfigProps) {
         <select
           value={selectedConnectionId}
           onChange={(e) => onChange({ ...config, mcpConnectionId: e.target.value, toolName: "", toolParams: {} })}
-          className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-200 outline-none focus:border-blue-500/50 transition-colors"
+          className="w-full rounded-lg border border-border bg-card/50 px-3 py-1.5 text-xs text-foreground outline-none focus:border-blue-500/50 transition-colors"
         >
           <option value="">Server wählen...</option>
           {connections.map((c) => (
@@ -153,7 +153,7 @@ export function MCPToolConfig({ config, onChange }: ConfigProps) {
           ))}
         </select>
         {connections.length === 0 && agentId && !loading && (
-          <p className="text-[10px] text-zinc-500">Keine MCP-Verbindungen. Zuerst im Agent konfigurieren.</p>
+          <p className="text-[10px] text-muted-foreground">Keine MCP-Verbindungen. Zuerst im Agent konfigurieren.</p>
         )}
       </div>
 
@@ -161,13 +161,13 @@ export function MCPToolConfig({ config, onChange }: ConfigProps) {
       {selectedConnectionId && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-medium text-zinc-400">Tool</label>
-            {loadingTools && <Loader2 className="h-3 w-3 text-zinc-500 animate-spin" />}
+            <label className="text-xs font-medium text-muted-foreground">Tool</label>
+            {loadingTools && <Loader2 className="h-3 w-3 text-muted-foreground animate-spin" />}
           </div>
           <select
             value={selectedTool}
             onChange={(e) => onChange({ ...config, toolName: e.target.value, toolParams: {} })}
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-200 outline-none focus:border-blue-500/50 transition-colors"
+            className="w-full rounded-lg border border-border bg-card/50 px-3 py-1.5 text-xs text-foreground outline-none focus:border-blue-500/50 transition-colors"
           >
             <option value="">Tool wählen...</option>
             {availableTools.map((t) => (
@@ -177,7 +177,7 @@ export function MCPToolConfig({ config, onChange }: ConfigProps) {
             ))}
           </select>
           {selectedToolDef?.description && (
-            <p className="text-[10px] text-zinc-500">{selectedToolDef.description}</p>
+            <p className="text-[10px] text-muted-foreground">{selectedToolDef.description}</p>
           )}
         </div>
       )}
@@ -185,16 +185,16 @@ export function MCPToolConfig({ config, onChange }: ConfigProps) {
       {/* Tool Parameter */}
       {selectedTool && paramFields.length > 0 && (
         <div className="space-y-3">
-          <label className="text-xs font-medium text-zinc-400">Parameter</label>
+          <label className="text-xs font-medium text-muted-foreground">Parameter</label>
           {paramFields.map((field) => (
             <div key={field.name} className="space-y-1">
               <div className="flex items-center gap-1">
-                <span className="text-[11px] text-zinc-300 font-mono">{field.name}</span>
+                <span className="text-[11px] text-foreground font-mono">{field.name}</span>
                 {field.required && <span className="text-[9px] text-orange-400">*</span>}
-                <span className="text-[9px] text-zinc-600">({field.type})</span>
+                <span className="text-[9px] text-muted-foreground">({field.type})</span>
               </div>
               {field.description && (
-                <p className="text-[10px] text-zinc-500">{field.description}</p>
+                <p className="text-[10px] text-muted-foreground">{field.description}</p>
               )}
               <input
                 value={toolParams[field.name] || ""}
@@ -205,7 +205,7 @@ export function MCPToolConfig({ config, onChange }: ConfigProps) {
                   })
                 }
                 placeholder={`{{variable}} oder Wert`}
-                className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-200 outline-none focus:border-blue-500/50 transition-colors placeholder:text-zinc-600 font-mono"
+                className="w-full rounded-lg border border-border bg-card/50 px-3 py-1.5 text-xs text-foreground outline-none focus:border-blue-500/50 transition-colors placeholder:text-muted-foreground font-mono"
               />
             </div>
           ))}
@@ -214,20 +214,20 @@ export function MCPToolConfig({ config, onChange }: ConfigProps) {
 
       {/* Result Key */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Result Key</label>
+        <label className="text-xs font-medium text-muted-foreground">Result Key</label>
         <input
           value={resultKey}
           onChange={(e) => onChange({ ...config, resultKey: e.target.value })}
           placeholder="mcpResult"
-          className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-200 outline-none focus:border-blue-500/50 transition-colors placeholder:text-zinc-600 font-mono"
+          className="w-full rounded-lg border border-border bg-card/50 px-3 py-1.5 text-xs text-foreground outline-none focus:border-blue-500/50 transition-colors placeholder:text-muted-foreground font-mono"
         />
       </div>
 
       {/* Info */}
-      <div className="rounded-lg border border-zinc-800/50 bg-zinc-900/30 p-2.5">
+      <div className="rounded-lg border border-border/50 bg-card/30 p-2.5">
         <div className="flex items-start gap-1.5">
           <Info className="h-3 w-3 text-blue-400 mt-0.5 shrink-0" />
-          <p className="text-[10px] text-zinc-500 leading-relaxed">
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
             Führt ein Tool eines verbundenen MCP-Servers aus. Parameter unterstützen
             Workflow-Variablen mit <code className="text-blue-400/70">{"{{variable}}"}</code> Syntax.
           </p>

@@ -159,7 +159,7 @@ const AGENT_TOOLS = [
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <label className="block text-[11px] font-medium uppercase tracking-wider text-zinc-500 mb-1.5">
+    <label className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5">
       {children}
     </label>
   );
@@ -240,15 +240,15 @@ function AiAssistButton({
       {open && (
         <div
           ref={popoverRef}
-          className="absolute right-0 top-full mt-1 z-50 w-64 rounded-xl border border-[#3d3935] bg-[#242220] p-3 shadow-xl"
+          className="absolute right-0 top-full mt-1 z-50 w-64 rounded-xl border border-foreground/20 bg-card p-3 shadow-xl"
         >
-          <p className="text-[11px] font-medium text-zinc-300 mb-2">AI Generieren</p>
+          <p className="text-[11px] font-medium text-foreground mb-2">AI Generieren</p>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Beschreibe was du brauchst..."
             rows={2}
-            className="w-full rounded-lg border border-[#332f2b] bg-[#1a1918] px-2.5 py-1.5 text-xs text-zinc-200 outline-none focus:border-orange-500/50 placeholder:text-zinc-500 resize-none mb-2"
+            className="w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-foreground outline-none focus:border-orange-500/50 placeholder:text-muted-foreground resize-none mb-2"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -269,7 +269,7 @@ function AiAssistButton({
             )}
             {loading ? "Generiere..." : "Generieren"}
           </button>
-          <p className="mt-1.5 text-[9px] text-zinc-600 text-center">1 Credit pro Generierung</p>
+          <p className="mt-1.5 text-[9px] text-muted-foreground text-center">1 Credit pro Generierung</p>
         </div>
       )}
     </div>
@@ -297,7 +297,7 @@ function TextInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-3 py-2 text-sm text-zinc-200 outline-none transition-colors focus:border-orange-500/50 placeholder:text-zinc-500"
+        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-orange-500/50 placeholder:text-muted-foreground"
       />
     </div>
   );
@@ -339,7 +339,7 @@ function TextArea({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={rows}
-        className="w-full rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-3 py-2 text-sm text-zinc-200 outline-none transition-colors focus:border-orange-500/50 placeholder:text-zinc-500 resize-y font-mono"
+        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-orange-500/50 placeholder:text-muted-foreground resize-y font-mono"
       />
     </div>
   );
@@ -363,7 +363,7 @@ function SelectField({
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full appearance-none rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-3 py-2 pr-8 text-sm text-zinc-200 outline-none transition-colors focus:border-orange-500/50"
+          className="w-full appearance-none rounded-lg border border-border bg-card px-3 py-2 pr-8 text-sm text-foreground outline-none transition-colors focus:border-orange-500/50"
         >
           {options.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -371,7 +371,7 @@ function SelectField({
             </option>
           ))}
         </select>
-        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
       </div>
     </div>
   );
@@ -396,7 +396,7 @@ function SliderField({
     <div>
       <div className="flex items-center justify-between mb-1.5">
         <FieldLabel>{label}</FieldLabel>
-        <span className="text-xs text-zinc-400 font-mono">{value}</span>
+        <span className="text-xs text-muted-foreground font-mono">{value}</span>
       </div>
       <input
         type="range"
@@ -422,13 +422,13 @@ function ToggleField({
 }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-xs text-zinc-300">{label}</span>
+      <span className="text-xs text-foreground">{label}</span>
       <button
         type="button"
         onClick={() => onChange(!value)}
         className={cn(
           "relative h-5 w-9 rounded-full transition-colors",
-          value ? "bg-orange-500" : "bg-[#332f2b]"
+          value ? "bg-orange-500" : "bg-muted"
         )}
       >
         <span
@@ -476,8 +476,8 @@ function CheckboxGroup({
               className={cn(
                 "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors",
                 checked
-                  ? "bg-orange-500/10 border border-orange-500/30 text-zinc-200"
-                  : "bg-[#1e1d1b] border border-[#332f2b] text-zinc-400 hover:border-[#3d3935]"
+                  ? "bg-orange-500/10 border border-orange-500/30 text-foreground"
+                  : "bg-card border border-border text-muted-foreground hover:border-foreground/20"
               )}
             >
               <div
@@ -485,7 +485,7 @@ function CheckboxGroup({
                   "flex h-4 w-4 items-center justify-center rounded border transition-colors",
                   checked
                     ? "bg-orange-500 border-orange-500"
-                    : "border-zinc-600 bg-transparent"
+                    : "border-border bg-transparent"
                 )}
               >
                 {checked && (
@@ -801,9 +801,9 @@ function TriggerConfig({
           onChange={(v) => update("path", v)}
           placeholder="/my-webhook"
         />
-        <div className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3">
-          <p className="text-[10px] text-zinc-500 mb-1">Webhook URL</p>
-          <p className="text-xs text-zinc-300 font-mono break-all">
+        <div className="rounded-lg border border-border bg-card p-3">
+          <p className="text-[10px] text-muted-foreground mb-1">Webhook URL</p>
+          <p className="text-xs text-foreground font-mono break-all">
             {`/api/webhooks/workflow/${config.path || "..."}`}
           </p>
         </div>
@@ -825,8 +825,8 @@ function TriggerConfig({
           ]}
         />
       ) : (
-        <div className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3">
-          <p className="text-xs text-zinc-400">Click &ldquo;Run Workflow&rdquo; or use the Test button to trigger manually.</p>
+        <div className="rounded-lg border border-border bg-card p-3">
+          <p className="text-xs text-muted-foreground">Click &ldquo;Run Workflow&rdquo; or use the Test button to trigger manually.</p>
         </div>
       )}
     </div>
@@ -1089,7 +1089,7 @@ function MCPToolConfig({
 
 /* ========== Shared: HelpText ========== */
 function HelpText({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs text-zinc-500 -mt-2">{children}</p>;
+  return <p className="text-xs text-muted-foreground -mt-2">{children}</p>;
 }
 
 /* ========== Shared: DynamicList ========== */
@@ -1120,12 +1120,12 @@ function DynamicList({
                 onChange(next);
               }}
               placeholder={placeholder}
-              className="flex-1 rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-3 py-1.5 text-sm text-zinc-200 outline-none focus:border-orange-500/50 placeholder:text-zinc-500"
+              className="flex-1 rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-foreground outline-none focus:border-orange-500/50 placeholder:text-muted-foreground"
             />
             <button
               type="button"
               onClick={() => onChange(items.filter((_, j) => j !== i))}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors"
             >
               <Trash2 className="h-3 w-3" />
             </button>
@@ -1134,7 +1134,7 @@ function DynamicList({
         <button
           type="button"
           onClick={() => onChange([...items, ""])}
-          className="flex items-center gap-1.5 rounded-lg border border-dashed border-[#332f2b] px-3 py-1.5 text-xs text-zinc-400 hover:border-orange-500/30 hover:text-orange-400 transition-colors w-full justify-center"
+          className="flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-orange-500/30 hover:text-orange-400 transition-colors w-full justify-center"
         >
           <Plus className="h-3 w-3" /> {addLabel}
         </button>
@@ -1173,7 +1173,7 @@ function KeyValueList({
                 onChange(next);
               }}
               placeholder={keyPlaceholder}
-              className="w-[40%] rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-2 py-1.5 text-sm text-zinc-200 outline-none focus:border-orange-500/50 placeholder:text-zinc-500"
+              className="w-[40%] rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none focus:border-orange-500/50 placeholder:text-muted-foreground"
             />
             <input
               value={item.value}
@@ -1183,12 +1183,12 @@ function KeyValueList({
                 onChange(next);
               }}
               placeholder={valuePlaceholder}
-              className="flex-1 rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-2 py-1.5 text-sm text-zinc-200 outline-none focus:border-orange-500/50 placeholder:text-zinc-500"
+              className="flex-1 rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none focus:border-orange-500/50 placeholder:text-muted-foreground"
             />
             <button
               type="button"
               onClick={() => onChange(items.filter((_, j) => j !== i))}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors"
             >
               <Trash2 className="h-3 w-3" />
             </button>
@@ -1197,7 +1197,7 @@ function KeyValueList({
         <button
           type="button"
           onClick={() => onChange([...items, { key: "", value: "" }])}
-          className="flex items-center gap-1.5 rounded-lg border border-dashed border-[#332f2b] px-3 py-1.5 text-xs text-zinc-400 hover:border-orange-500/30 hover:text-orange-400 transition-colors w-full justify-center"
+          className="flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-orange-500/30 hover:text-orange-400 transition-colors w-full justify-center"
         >
           <Plus className="h-3 w-3" /> {addLabel}
         </button>
@@ -1212,12 +1212,12 @@ function CopyField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <FieldLabel>{label}</FieldLabel>
-      <div className="flex items-center gap-1.5 rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-3 py-2">
-        <p className="flex-1 text-xs text-zinc-300 font-mono break-all">{value}</p>
+      <div className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2">
+        <p className="flex-1 text-xs text-foreground font-mono break-all">{value}</p>
         <button
           type="button"
           onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-          className="shrink-0 text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
         >
           <Copy className="h-3.5 w-3.5" />
         </button>
@@ -1239,12 +1239,12 @@ function SwitchConfig({ config, onChange }: { config: Record<string, unknown>; o
         <div className="space-y-1.5">
           {cases.map((c, i) => (
             <div key={i} className="flex items-center gap-1.5">
-              <input value={c.label} onChange={(e) => { const next = [...cases]; next[i] = { ...next[i], label: e.target.value }; update("cases", next); }} placeholder="Label" className="w-[35%] rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-2 py-1.5 text-sm text-zinc-200 outline-none focus:border-orange-500/50 placeholder:text-zinc-500" />
-              <input value={c.condition} onChange={(e) => { const next = [...cases]; next[i] = { ...next[i], condition: e.target.value }; update("cases", next); }} placeholder="Value to match" className="flex-1 rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-2 py-1.5 text-sm text-zinc-200 outline-none focus:border-orange-500/50 placeholder:text-zinc-500" />
-              <button type="button" onClick={() => update("cases", cases.filter((_, j) => j !== i))} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 hover:bg-red-500/10 hover:text-red-400 transition-colors"><Trash2 className="h-3 w-3" /></button>
+              <input value={c.label} onChange={(e) => { const next = [...cases]; next[i] = { ...next[i], label: e.target.value }; update("cases", next); }} placeholder="Label" className="w-[35%] rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none focus:border-orange-500/50 placeholder:text-muted-foreground" />
+              <input value={c.condition} onChange={(e) => { const next = [...cases]; next[i] = { ...next[i], condition: e.target.value }; update("cases", next); }} placeholder="Value to match" className="flex-1 rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none focus:border-orange-500/50 placeholder:text-muted-foreground" />
+              <button type="button" onClick={() => update("cases", cases.filter((_, j) => j !== i))} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors"><Trash2 className="h-3 w-3" /></button>
             </div>
           ))}
-          <button type="button" onClick={() => update("cases", [...cases, { label: `Case ${cases.length + 1}`, condition: "" }])} className="flex items-center gap-1.5 rounded-lg border border-dashed border-[#332f2b] px-3 py-1.5 text-xs text-zinc-400 hover:border-orange-500/30 hover:text-orange-400 transition-colors w-full justify-center"><Plus className="h-3 w-3" /> Add Case</button>
+          <button type="button" onClick={() => update("cases", [...cases, { label: `Case ${cases.length + 1}`, condition: "" }])} className="flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-orange-500/30 hover:text-orange-400 transition-colors w-full justify-center"><Plus className="h-3 w-3" /> Add Case</button>
         </div>
       </div>
       <TextInput label="Default Case Label" value={(config.defaultLabel as string) || "default"} onChange={(v) => update("defaultLabel", v)} placeholder="default" />
@@ -1342,15 +1342,15 @@ function WaitFormConfig({ config, onChange }: { config: Record<string, unknown>;
         <div className="space-y-2">
           {fields.map((f, i) => (
             <div key={i} className="flex items-center gap-1.5">
-              <input value={f.name} onChange={(e) => { const next = [...fields]; next[i] = { ...next[i], name: e.target.value }; update("fields", next); }} placeholder="Field name" className="w-[30%] rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-2 py-1.5 text-sm text-zinc-200 outline-none focus:border-orange-500/50 placeholder:text-zinc-500" />
-              <select value={f.type} onChange={(e) => { const next = [...fields]; next[i] = { ...next[i], type: e.target.value }; update("fields", next); }} className="w-[30%] appearance-none rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-2 py-1.5 text-sm text-zinc-200 outline-none focus:border-orange-500/50">
+              <input value={f.name} onChange={(e) => { const next = [...fields]; next[i] = { ...next[i], name: e.target.value }; update("fields", next); }} placeholder="Field name" className="w-[30%] rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none focus:border-orange-500/50 placeholder:text-muted-foreground" />
+              <select value={f.type} onChange={(e) => { const next = [...fields]; next[i] = { ...next[i], type: e.target.value }; update("fields", next); }} className="w-[30%] appearance-none rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none focus:border-orange-500/50">
                 <option value="text">Text</option><option value="email">Email</option><option value="number">Number</option><option value="select">Select</option><option value="textarea">Textarea</option>
               </select>
-              <label className="flex items-center gap-1 text-xs text-zinc-400 shrink-0"><input type="checkbox" checked={f.required} onChange={(e) => { const next = [...fields]; next[i] = { ...next[i], required: e.target.checked }; update("fields", next); }} className="accent-orange-500" />Req</label>
-              <button type="button" onClick={() => update("fields", fields.filter((_, j) => j !== i))} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 hover:bg-red-500/10 hover:text-red-400 transition-colors"><Trash2 className="h-3 w-3" /></button>
+              <label className="flex items-center gap-1 text-xs text-muted-foreground shrink-0"><input type="checkbox" checked={f.required} onChange={(e) => { const next = [...fields]; next[i] = { ...next[i], required: e.target.checked }; update("fields", next); }} className="accent-orange-500" />Req</label>
+              <button type="button" onClick={() => update("fields", fields.filter((_, j) => j !== i))} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors"><Trash2 className="h-3 w-3" /></button>
             </div>
           ))}
-          <button type="button" onClick={() => update("fields", [...fields, { name: "", type: "text", required: false }])} className="flex items-center gap-1.5 rounded-lg border border-dashed border-[#332f2b] px-3 py-1.5 text-xs text-zinc-400 hover:border-orange-500/30 hover:text-orange-400 transition-colors w-full justify-center"><Plus className="h-3 w-3" /> Add Field</button>
+          <button type="button" onClick={() => update("fields", [...fields, { name: "", type: "text", required: false }])} className="flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-orange-500/30 hover:text-orange-400 transition-colors w-full justify-center"><Plus className="h-3 w-3" /> Add Field</button>
         </div>
       </div>
     </div>
@@ -1546,14 +1546,14 @@ function AIExtractConfig({ config, onChange }: { config: Record<string, unknown>
         <div className="space-y-1.5">
           {fields.map((f, i) => (
             <div key={i} className="flex items-center gap-1.5">
-              <input value={f.key} onChange={(e) => { const next = [...fields]; next[i] = { ...next[i], key: e.target.value }; update("fieldsList", next); }} placeholder="Field name" className="flex-1 rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-2 py-1.5 text-sm text-zinc-200 outline-none focus:border-orange-500/50 placeholder:text-zinc-500" />
-              <select value={f.value} onChange={(e) => { const next = [...fields]; next[i] = { ...next[i], value: e.target.value }; update("fieldsList", next); }} className="w-[35%] appearance-none rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-2 py-1.5 text-sm text-zinc-200 outline-none focus:border-orange-500/50">
+              <input value={f.key} onChange={(e) => { const next = [...fields]; next[i] = { ...next[i], key: e.target.value }; update("fieldsList", next); }} placeholder="Field name" className="flex-1 rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none focus:border-orange-500/50 placeholder:text-muted-foreground" />
+              <select value={f.value} onChange={(e) => { const next = [...fields]; next[i] = { ...next[i], value: e.target.value }; update("fieldsList", next); }} className="w-[35%] appearance-none rounded-lg border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none focus:border-orange-500/50">
                 <option value="text">Text</option><option value="number">Number</option><option value="date">Date</option><option value="email">Email</option><option value="phone">Phone</option><option value="url">URL</option>
               </select>
-              <button type="button" onClick={() => update("fieldsList", fields.filter((_, j) => j !== i))} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 hover:bg-red-500/10 hover:text-red-400 transition-colors"><Trash2 className="h-3 w-3" /></button>
+              <button type="button" onClick={() => update("fieldsList", fields.filter((_, j) => j !== i))} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors"><Trash2 className="h-3 w-3" /></button>
             </div>
           ))}
-          <button type="button" onClick={() => update("fieldsList", [...fields, { key: "", value: "text" }])} className="flex items-center gap-1.5 rounded-lg border border-dashed border-[#332f2b] px-3 py-1.5 text-xs text-zinc-400 hover:border-orange-500/30 hover:text-orange-400 transition-colors w-full justify-center"><Plus className="h-3 w-3" /> Add Field</button>
+          <button type="button" onClick={() => update("fieldsList", [...fields, { key: "", value: "text" }])} className="flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-orange-500/30 hover:text-orange-400 transition-colors w-full justify-center"><Plus className="h-3 w-3" /> Add Field</button>
         </div>
       </div>
       <SelectField label="Output Format" value={(config.outputFormat as string) || "json"} onChange={(v) => update("outputFormat", v)} options={[{ value: "json", label: "JSON" }, { value: "table", label: "Table" }]} />
@@ -2004,10 +2004,10 @@ export function NodeConfigPanel({
   return (
     <div
       ref={panelRef}
-      className="absolute right-0 top-0 z-30 flex h-full w-[400px] flex-col border-l border-[#332f2b] bg-[#1a1918] shadow-2xl animate-in slide-in-from-right duration-200"
+      className="absolute right-0 top-0 z-30 flex h-full w-[400px] flex-col border-l border-border bg-card shadow-2xl animate-in slide-in-from-right duration-200"
     >
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-[#332f2b] px-4 py-3">
+      <div className="flex items-center gap-3 border-b border-border px-4 py-3">
         <div
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
           style={{ backgroundColor: `${typeMeta?.color || "#F97316"}15` }}
@@ -2018,21 +2018,21 @@ export function NodeConfigPanel({
           <input
             value={label}
             onChange={(e) => onLabelChange(nodeId, e.target.value)}
-            className="w-full bg-transparent text-sm font-semibold text-zinc-100 outline-none border-none focus:ring-0 truncate"
+            className="w-full bg-transparent text-sm font-semibold text-foreground outline-none border-none focus:ring-0 truncate"
             spellCheck={false}
           />
-          <p className="text-[10px] text-zinc-500 uppercase tracking-wider">{nodeType.replace(/_/g, " ")}</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{nodeType.replace(/_/g, " ")}</p>
         </div>
         <button
           onClick={onClose}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-[#332f2b] hover:text-zinc-300"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-[#332f2b]">
+      <div className="flex border-b border-border">
         {(["config", "input", "output"] as const).map((tab) => (
           <button
             key={tab}
@@ -2041,7 +2041,7 @@ export function NodeConfigPanel({
               "flex-1 py-2 text-xs font-medium transition-colors",
               activeTab === tab
                 ? "text-orange-400 border-b-2 border-orange-500"
-                : "text-zinc-500 hover:text-zinc-300"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
             {tab === "config" ? "Configuration" : tab === "input" ? "Input" : "Output"}
@@ -2077,13 +2077,13 @@ export function NodeConfigPanel({
         {activeTab === "input" && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Input Data
               </p>
               {lastRunInput !== undefined && lastRunInput !== null && (
                 <button
                   onClick={() => navigator.clipboard.writeText(typeof lastRunInput === "string" ? lastRunInput : JSON.stringify(lastRunInput, null, 2))}
-                  className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Copy className="h-3 w-3" />
                   Copy Input
@@ -2092,9 +2092,9 @@ export function NodeConfigPanel({
             </div>
 
             {isTriggerNode && !lastRunInput && (
-              <div className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-4 text-center">
-                <p className="text-xs text-zinc-400">No input — this is a starting node</p>
-                <p className="text-[10px] text-zinc-500 mt-1">Trigger nodes receive external events or manual activation.</p>
+              <div className="rounded-lg border border-border bg-card p-4 text-center">
+                <p className="text-xs text-muted-foreground">No input — this is a starting node</p>
+                <p className="text-[10px] text-muted-foreground mt-1">Trigger nodes receive external events or manual activation.</p>
               </div>
             )}
 
@@ -2102,16 +2102,16 @@ export function NodeConfigPanel({
               <div className="rounded-lg border border-amber-500/15 bg-amber-500/5 p-4 text-center">
                 <AlertTriangle className="h-5 w-5 text-amber-400/60 mx-auto mb-2" />
                 <p className="text-xs text-amber-300/80">This node has no input connection</p>
-                <p className="text-[10px] text-zinc-500 mt-1">Connect an upstream node to provide input data.</p>
+                <p className="text-[10px] text-muted-foreground mt-1">Connect an upstream node to provide input data.</p>
               </div>
             )}
 
             {!isTriggerNode && hasUpstreamConnection && !lastRunInput && (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1e1d1b] border border-[#332f2b] mb-3">
-                  <Zap className="h-5 w-5 text-zinc-500" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-card border border-border mb-3">
+                  <Zap className="h-5 w-5 text-muted-foreground" />
                 </div>
-                <p className="text-xs text-zinc-500">Run the workflow to see input data.</p>
+                <p className="text-xs text-muted-foreground">Run the workflow to see input data.</p>
               </div>
             )}
 
@@ -2121,10 +2121,10 @@ export function NodeConfigPanel({
                 {typeof lastRunInput === "object" && lastRunInput !== null && !Array.isArray(lastRunInput) && (
                   <div className="space-y-1">
                     {Object.entries(lastRunInput as Record<string, unknown>).map(([key, val]) => (
-                      <div key={key} className="flex items-start gap-2 rounded-md border border-[#332f2b]/50 bg-[#1e1d1b] px-2.5 py-1.5">
+                      <div key={key} className="flex items-start gap-2 rounded-md border border-border/50 bg-card px-2.5 py-1.5">
                         <span className="text-[10px] font-mono font-medium text-orange-400/80 shrink-0">{key}</span>
-                        <span className="text-[9px] text-zinc-600 shrink-0">({typeof val})</span>
-                        <span className="text-[10px] text-zinc-300 font-mono truncate flex-1">
+                        <span className="text-[9px] text-muted-foreground shrink-0">({typeof val})</span>
+                        <span className="text-[10px] text-foreground font-mono truncate flex-1">
                           {typeof val === "string" ? val : JSON.stringify(val)}
                         </span>
                       </div>
@@ -2134,11 +2134,11 @@ export function NodeConfigPanel({
 
                 {/* Raw JSON (collapsed for objects, shown for primitives) */}
                 <details className="group">
-                  <summary className="text-[10px] text-zinc-500 cursor-pointer hover:text-zinc-300 transition-colors flex items-center gap-1">
+                  <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground transition-colors flex items-center gap-1">
                     <ChevronRight className="h-3 w-3 group-open:rotate-90 transition-transform" />
                     Raw JSON
                   </summary>
-                  <pre className="mt-1.5 rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 text-[10px] text-zinc-300 font-mono overflow-auto max-h-[300px]">
+                  <pre className="mt-1.5 rounded-lg border border-border bg-card p-3 text-[10px] text-foreground font-mono overflow-auto max-h-[300px]">
                     {typeof lastRunInput === "string" ? lastRunInput : JSON.stringify(lastRunInput, null, 2)}
                   </pre>
                 </details>
@@ -2151,8 +2151,8 @@ export function NodeConfigPanel({
           <div className="space-y-3">
             {/* ── Execution comparison banner ── */}
             {testHistory.length > 1 && (
-              <div className="flex items-center gap-1 rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-1">
-                <History className="h-3 w-3 text-zinc-500 ml-1.5 shrink-0" />
+              <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+                <History className="h-3 w-3 text-muted-foreground ml-1.5 shrink-0" />
                 {testHistory.map((entry, idx) => (
                   <button
                     key={idx}
@@ -2166,8 +2166,8 @@ export function NodeConfigPanel({
                     className={cn(
                       "flex items-center gap-1 rounded px-2 py-1 text-[10px] font-medium transition-colors",
                       historyIndex === idx
-                        ? "bg-[#2a2826] text-zinc-200"
-                        : "text-zinc-500 hover:text-zinc-300"
+                        ? "bg-muted text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
                     )}
                   >
                     <span className={cn(
@@ -2175,7 +2175,7 @@ export function NodeConfigPanel({
                       entry.status === "success" ? "bg-green-400" : "bg-red-400"
                     )} />
                     {idx === 0 ? "Latest" : idx === 1 ? "Previous" : "First"}
-                    <span className="text-zinc-600">({entry.timestamp})</span>
+                    <span className="text-muted-foreground">({entry.timestamp})</span>
                   </button>
                 ))}
               </div>
@@ -2183,11 +2183,11 @@ export function NodeConfigPanel({
 
             {/* Previous → Current comparison */}
             {testHistory.length > 1 && historyIndex === 0 && testHistory[1] && (
-              <div className="flex items-center gap-2 rounded-lg border border-[#332f2b] bg-[#1e1d1b] px-3 py-2">
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
                 <span className={cn("text-[10px] font-medium", testHistory[1].status === "success" ? "text-green-400" : "text-red-400")}>
                   {testHistory[1].status === "success" ? "✓ Success" : "✗ Error"}
                 </span>
-                <ArrowRight className="h-3 w-3 text-zinc-500" />
+                <ArrowRight className="h-3 w-3 text-muted-foreground" />
                 <span className={cn("text-[10px] font-medium", testHistory[0].status === "success" ? "text-green-400" : "text-red-400")}>
                   {testHistory[0].status === "success" ? "✓ Success" : "✗ Error"}
                 </span>
@@ -2199,7 +2199,7 @@ export function NodeConfigPanel({
 
             {/* ── Section 1: Result Metadata ── */}
             {(testResult || lastRunStatus) && (
-              <div className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 space-y-2">
+              <div className="rounded-lg border border-border bg-card p-3 space-y-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   {/* Status badge */}
                   {(testResult?.success || lastRunStatus === "completed") && (
@@ -2213,7 +2213,7 @@ export function NodeConfigPanel({
                     </span>
                   )}
                   {lastRunStatus === "skipped" && !testResult && !testError && (
-                    <span className="text-[9px] font-medium uppercase tracking-wider rounded px-1.5 py-0.5 bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+                    <span className="text-[9px] font-medium uppercase tracking-wider rounded px-1.5 py-0.5 bg-muted/10 text-muted-foreground border border-border">
                       ⊘ Skipped
                     </span>
                   )}
@@ -2223,7 +2223,7 @@ export function NodeConfigPanel({
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-4 text-[10px] text-zinc-500">
+                <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
                   {(testResult?.durationMs ?? lastRunDurationMs) !== undefined && (
                     <span>⏱ {testResult?.durationMs ?? lastRunDurationMs}ms</span>
                   )}
@@ -2250,7 +2250,7 @@ export function NodeConfigPanel({
                           {errStyle.label}
                         </span>
                       </div>
-                      <p className="text-sm font-medium text-zinc-200">{testError.message}</p>
+                      <p className="text-sm font-medium text-foreground">{testError.message}</p>
                     </div>
                   </div>
 
@@ -2258,13 +2258,13 @@ export function NodeConfigPanel({
                     <div>
                       <button
                         onClick={() => setDetailsExpanded(!detailsExpanded)}
-                        className="flex items-center gap-1 text-[10px] font-medium text-zinc-500 hover:text-zinc-300 transition-colors"
+                        className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <ChevronRight className={cn("h-3 w-3 transition-transform", detailsExpanded && "rotate-90")} />
                         Technical Details
                       </button>
                       {detailsExpanded && (
-                        <pre className="mt-1.5 rounded border border-[#332f2b] bg-[#1a1918] p-2.5 text-[10px] text-zinc-400 font-mono overflow-auto max-h-[120px]">
+                        <pre className="mt-1.5 rounded border border-border bg-card p-2.5 text-[10px] text-muted-foreground font-mono overflow-auto max-h-[120px]">
                           {testError.details}
                         </pre>
                       )}
@@ -2282,8 +2282,8 @@ export function NodeConfigPanel({
                         {testError.suggestions.map((s, i) => {
                           const action = getSuggestionAction(s);
                           return (
-                            <li key={i} className="flex items-center gap-1.5 text-xs text-zinc-400">
-                              <span className="text-zinc-600 shrink-0">•</span>
+                            <li key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <span className="text-muted-foreground shrink-0">•</span>
                               <span className="flex-1">{getSuggestionText(s)}</span>
                               {action && (
                                 <button
@@ -2304,7 +2304,7 @@ export function NodeConfigPanel({
                   <div className="flex items-center gap-2 pt-1">
                     <button
                       onClick={handleCopyError}
-                      className="flex items-center gap-1 rounded border border-[#3d3935] bg-[#1e1d1b] px-2 py-1 text-[10px] text-zinc-400 hover:text-zinc-200 hover:bg-[#2a2826] transition-colors"
+                      className="flex items-center gap-1 rounded border border-foreground/20 bg-card px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
                     >
                       <Copy className="h-3 w-3" />
                       {errorCopied ? "Copied!" : "Copy Error"}
@@ -2312,7 +2312,7 @@ export function NodeConfigPanel({
                     <button
                       onClick={handleTestNode}
                       disabled={testing}
-                      className="flex items-center gap-1 rounded border border-[#3d3935] bg-[#1e1d1b] px-2 py-1 text-[10px] text-zinc-400 hover:text-zinc-200 hover:bg-[#2a2826] transition-colors disabled:opacity-50"
+                      className="flex items-center gap-1 rounded border border-foreground/20 bg-card px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors disabled:opacity-50"
                     >
                       <RotateCw className={cn("h-3 w-3", testing && "animate-spin")} />
                       Retry Test
@@ -2336,10 +2336,10 @@ export function NodeConfigPanel({
               return (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Output Data</p>
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Output Data</p>
                     <button
                       onClick={() => navigator.clipboard.writeText(JSON.stringify(out, null, 2))}
-                      className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                      className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                     >
                       <Copy className="h-3 w-3" /> Copy Output
                     </button>
@@ -2347,15 +2347,15 @@ export function NodeConfigPanel({
 
                   {/* AI Response — prominent display */}
                   {aiResponse && (
-                    <div className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3">
-                      <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500 mb-2">AI Response</p>
-                      <p className="text-xs text-zinc-200 leading-relaxed whitespace-pre-wrap">{aiResponse}</p>
+                    <div className="rounded-lg border border-border bg-card p-3">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-2">AI Response</p>
+                      <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{aiResponse}</p>
                     </div>
                   )}
 
                   {/* HTTP Response */}
                   {httpStatus && (
-                    <div className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 space-y-1.5">
+                    <div className="rounded-lg border border-border bg-card p-3 space-y-1.5">
                       <div className="flex items-center gap-2">
                         <span className={cn(
                           "text-[10px] font-mono font-bold",
@@ -2364,9 +2364,9 @@ export function NodeConfigPanel({
                           {httpStatus}
                         </span>
                         {out.headers !== undefined && out.headers !== null && (
-                          <details className="text-[10px] text-zinc-500">
-                            <summary className="cursor-pointer hover:text-zinc-300">Headers</summary>
-                            <pre className="mt-1 text-[9px] text-zinc-400 font-mono">{JSON.stringify(out.headers, null, 2)}</pre>
+                          <details className="text-[10px] text-muted-foreground">
+                            <summary className="cursor-pointer hover:text-foreground">Headers</summary>
+                            <pre className="mt-1 text-[9px] text-muted-foreground font-mono">{JSON.stringify(out.headers, null, 2)}</pre>
                           </details>
                         )}
                       </div>
@@ -2380,13 +2380,13 @@ export function NodeConfigPanel({
                       {wouldSend && Object.entries(wouldSend).map(([k, v]) => (
                         <div key={k} className="flex gap-2 text-[10px]">
                           <span className="text-amber-400/70 font-medium shrink-0">{k}:</span>
-                          <span className="text-zinc-300 font-mono truncate">{String(v)}</span>
+                          <span className="text-foreground font-mono truncate">{String(v)}</span>
                         </div>
                       ))}
                       {wouldWrite && Object.entries(wouldWrite).map(([k, v]) => (
                         <div key={k} className="flex gap-2 text-[10px]">
                           <span className="text-amber-400/70 font-medium shrink-0">{k}:</span>
-                          <span className="text-zinc-300 font-mono truncate">{String(v)}</span>
+                          <span className="text-foreground font-mono truncate">{String(v)}</span>
                         </div>
                       ))}
                     </div>
@@ -2394,11 +2394,11 @@ export function NodeConfigPanel({
 
                   {/* Raw JSON — collapsed by default if AI response is shown */}
                   <details open={!aiResponse && !httpStatus && !wouldSend}>
-                    <summary className="text-[10px] text-zinc-500 cursor-pointer hover:text-zinc-300 transition-colors flex items-center gap-1">
+                    <summary className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground transition-colors flex items-center gap-1">
                       <ChevronRight className="h-3 w-3 group-open:rotate-90" />
                       Raw JSON
                     </summary>
-                    <pre className="mt-1.5 rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 text-[10px] text-zinc-300 font-mono overflow-auto max-h-[300px]">
+                    <pre className="mt-1.5 rounded-lg border border-border bg-card p-3 text-[10px] text-foreground font-mono overflow-auto max-h-[300px]">
                       {JSON.stringify(out, null, 2)}
                     </pre>
                   </details>
@@ -2412,12 +2412,12 @@ export function NodeConfigPanel({
                 {lastRunResult ? (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                         Last Workflow Run
                       </p>
                       <button
                         onClick={() => navigator.clipboard.writeText(typeof lastRunResult === "string" ? lastRunResult : JSON.stringify(lastRunResult, null, 2))}
-                        className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                       >
                         <Copy className="h-3 w-3" /> Copy
                       </button>
@@ -2430,11 +2430,11 @@ export function NodeConfigPanel({
                           <AlertTriangle className="h-3 w-3 text-red-400" />
                           <span className="text-[10px] font-medium text-red-400">Error</span>
                         </div>
-                        <p className="text-xs text-zinc-300">{lastRunError}</p>
+                        <p className="text-xs text-foreground">{lastRunError}</p>
                       </div>
                     )}
 
-                    <pre className="rounded-lg border border-[#332f2b] bg-[#1e1d1b] p-3 text-xs text-zinc-300 font-mono overflow-auto max-h-[400px]">
+                    <pre className="rounded-lg border border-border bg-card p-3 text-xs text-foreground font-mono overflow-auto max-h-[400px]">
                       {typeof lastRunResult === "string"
                         ? lastRunResult
                         : JSON.stringify(lastRunResult, null, 2)}
@@ -2442,19 +2442,19 @@ export function NodeConfigPanel({
                   </div>
                 ) : lastRunStatus === "skipped" ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-800/50 border border-zinc-700/30 mb-3">
-                      <span className="text-lg text-zinc-500">⊘</span>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/50 border border-border/30 mb-3">
+                      <span className="text-lg text-muted-foreground">⊘</span>
                     </div>
-                    <p className="text-xs text-zinc-400">This node was skipped</p>
-                    <p className="text-[10px] text-zinc-500 mt-1">An upstream node failed before this node could run.</p>
+                    <p className="text-xs text-muted-foreground">This node was skipped</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">An upstream node failed before this node could run.</p>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1e1d1b] border border-[#332f2b] mb-3">
-                      <Play className="h-5 w-5 text-zinc-500" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-card border border-border mb-3">
+                      <Play className="h-5 w-5 text-muted-foreground" />
                     </div>
-                    <p className="text-xs text-zinc-500">No output data yet.</p>
-                    <p className="text-[10px] text-zinc-500 mt-1">Test this node or run the workflow.</p>
+                    <p className="text-xs text-muted-foreground">No output data yet.</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Test this node or run the workflow.</p>
                   </div>
                 )}
               </>
@@ -2464,13 +2464,13 @@ export function NodeConfigPanel({
       </div>
 
       {/* Footer Actions */}
-      <div className="flex items-center gap-2 border-t border-[#332f2b] px-4 py-3">
+      <div className="flex items-center gap-2 border-t border-border px-4 py-3">
         <Button
           size="sm"
           variant="outline"
           onClick={handleTestNode}
           disabled={testing}
-          className="flex-1 bg-[#1e1d1b] border-[#3d3935] text-zinc-300 hover:text-zinc-100 hover:bg-[#2a2826] text-xs disabled:opacity-50"
+          className="flex-1 bg-card border-foreground/20 text-foreground hover:text-foreground hover:bg-muted/40 text-xs disabled:opacity-50"
         >
           {testing ? (
             <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
@@ -2485,7 +2485,7 @@ export function NodeConfigPanel({
           onClick={() => {
             if (confirm("Delete this node?")) onDelete(nodeId);
           }}
-          className="bg-[#1e1d1b] border-[#3d3935] text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:border-red-500/30 text-xs"
+          className="bg-card border-foreground/20 text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:border-red-500/30 text-xs"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>

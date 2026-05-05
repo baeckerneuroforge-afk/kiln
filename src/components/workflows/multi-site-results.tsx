@@ -158,14 +158,14 @@ export function MultiSiteResults({
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-border bg-zinc-900/50">
-                <th className="text-left p-3 text-[10px] font-medium text-zinc-400 uppercase tracking-wider">Site</th>
-                <th className="text-left p-3 text-[10px] font-medium text-zinc-400 uppercase tracking-wider">Status</th>
+              <tr className="border-b border-border bg-card/50">
+                <th className="text-left p-3 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Site</th>
+                <th className="text-left p-3 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Status</th>
                 {columns.map((col) => (
                   <th
                     key={col}
                     onClick={() => handleSort(col)}
-                    className="text-left p-3 text-[10px] font-medium text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-zinc-200 transition-colors"
+                    className="text-left p-3 text-[10px] font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors"
                   >
                     <div className="flex items-center gap-1">
                       {col}
@@ -173,7 +173,7 @@ export function MultiSiteResults({
                     </div>
                   </th>
                 ))}
-                <th className="text-left p-3 text-[10px] font-medium text-zinc-400 uppercase tracking-wider">Time</th>
+                <th className="text-left p-3 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Time</th>
               </tr>
             </thead>
             <tbody>
@@ -185,7 +185,7 @@ export function MultiSiteResults({
                     onClick={() => setExpandedRow(expandedRow === idx ? null : idx)}
                     className={cn(
                       "border-b border-border last:border-0 cursor-pointer transition-colors",
-                      expandedRow === idx ? "bg-zinc-900/50" : "hover:bg-zinc-900/30",
+                      expandedRow === idx ? "bg-card/50" : "hover:bg-card/30",
                     )}
                   >
                     <td className="p-3">
@@ -220,7 +220,7 @@ export function MultiSiteResults({
                             !isBest && !isWorst && "text-foreground",
                           )}
                         >
-                          {displayVal || <span className="text-zinc-600">—</span>}
+                          {displayVal || <span className="text-muted-foreground">—</span>}
                         </td>
                       );
                     })}
@@ -243,7 +243,7 @@ export function MultiSiteResults({
         <div className="rounded-xl border border-border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-foreground">{sortedResults[expandedRow].url}</span>
-            <button onClick={() => setExpandedRow(null)} className="text-zinc-500 hover:text-zinc-300">
+            <button onClick={() => setExpandedRow(null)} className="text-muted-foreground hover:text-foreground">
               <ChevronUp className="h-4 w-4" />
             </button>
           </div>
@@ -251,18 +251,18 @@ export function MultiSiteResults({
             <p className="text-xs text-red-400">{sortedResults[expandedRow].error}</p>
           )}
           {sortedResults[expandedRow].data && (
-            <pre className="rounded-lg bg-zinc-900/50 border border-zinc-800 p-3 text-[10px] text-zinc-300 overflow-auto max-h-[200px]">
+            <pre className="rounded-lg bg-card/50 border border-border p-3 text-[10px] text-foreground overflow-auto max-h-[200px]">
               {JSON.stringify(sortedResults[expandedRow].data, null, 2)}
             </pre>
           )}
           {sortedResults[expandedRow].screenshotUrl && (
             <div>
-              <p className="text-[10px] text-zinc-500 mb-1">Screenshot</p>
+              <p className="text-[10px] text-muted-foreground mb-1">Screenshot</p>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={sortedResults[expandedRow].screenshotUrl}
                 alt={`Screenshot of ${sortedResults[expandedRow].url}`}
-                className="rounded-lg border border-zinc-800 max-w-full"
+                className="rounded-lg border border-border max-w-full"
               />
             </div>
           )}
@@ -276,7 +276,7 @@ export function MultiSiteResults({
             <ChevronDown className="h-3.5 w-3.5 text-teal-400" />
             <p className="text-xs font-medium text-foreground">Merged Results</p>
           </div>
-          <pre className="rounded-lg bg-zinc-900/50 border border-zinc-800 p-3 text-[10px] text-zinc-300 overflow-auto max-h-[200px]">
+          <pre className="rounded-lg bg-card/50 border border-border p-3 text-[10px] text-foreground overflow-auto max-h-[200px]">
             {JSON.stringify(mergedOutput, null, 2)}
           </pre>
         </div>

@@ -50,17 +50,17 @@ export function HttpRequestConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2">
         <Globe className="h-4 w-4 text-blue-400" />
-        <p className="text-xs text-zinc-300">Make an HTTP request to any URL</p>
+        <p className="text-xs text-foreground">Make an HTTP request to any URL</p>
       </div>
 
       {/* Method + URL */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Request</label>
+        <label className="text-xs font-medium text-muted-foreground">Request</label>
         <div className="flex gap-1.5">
           <select
             value={method}
             onChange={(e) => onChange({ ...config, method: e.target.value })}
-            className="w-24 bg-zinc-800 border border-zinc-700 rounded-lg text-xs font-medium text-zinc-100 px-2 py-2 outline-none focus:border-orange-500/60"
+            className="w-24 bg-muted border border-border rounded-lg text-xs font-medium text-foreground px-2 py-2 outline-none focus:border-orange-500/60"
           >
             {HTTP_METHODS.map((m) => (
               <option key={m} value={m}>{m}</option>
@@ -70,19 +70,19 @@ export function HttpRequestConfig({
             value={url}
             onChange={(e) => onChange({ ...config, url: e.target.value })}
             placeholder="https://api.example.com/endpoint"
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+            className="flex-1 bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
           />
         </div>
-        <p className="text-[10px] text-zinc-600">Supports {`{{ expressions }}`} in the URL</p>
+        <p className="text-[10px] text-muted-foreground">Supports {`{{ expressions }}`} in the URL</p>
       </div>
 
       {/* Auth */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Authentication</label>
+        <label className="text-xs font-medium text-muted-foreground">Authentication</label>
         <select
           value={authType}
           onChange={(e) => onChange({ ...config, authType: e.target.value })}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+          className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
         >
           <option value="none">None</option>
           <option value="bearer">Bearer Token</option>
@@ -153,18 +153,18 @@ export function HttpRequestConfig({
 
       {/* Response field extraction */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Extract Response Fields</label>
+        <label className="text-xs font-medium text-muted-foreground">Extract Response Fields</label>
         <div className="flex flex-wrap gap-1.5">
           {responseFields.map((f, i) => (
-            <span key={i} className="inline-flex items-center gap-1 text-[10px] font-mono bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded border border-zinc-700/50">
+            <span key={i} className="inline-flex items-center gap-1 text-[10px] font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded border border-border/50">
               {f}
-              <button onClick={() => onChange({ ...config, responseFields: responseFields.filter((_, j) => j !== i) })} className="text-zinc-600 hover:text-red-400">×</button>
+              <button onClick={() => onChange({ ...config, responseFields: responseFields.filter((_, j) => j !== i) })} className="text-muted-foreground hover:text-red-400">×</button>
             </span>
           ))}
         </div>
         <input
           placeholder="Add field path (e.g. data.id)"
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+          className="w-full bg-muted border border-border rounded-lg text-[11px] font-mono text-foreground px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
           onKeyDown={(e) => {
             if (e.key === "Enter" && e.currentTarget.value.trim()) {
               onChange({ ...config, responseFields: [...responseFields, e.currentTarget.value.trim()] });
@@ -179,7 +179,7 @@ export function HttpRequestConfig({
         <button
           onClick={testRequest}
           disabled={testing || !url}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700 transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs text-foreground hover:bg-muted transition-colors disabled:opacity-50"
         >
           <Send className="h-3 w-3" />
           {testing ? "Testing..." : "Test Request"}
@@ -206,7 +206,7 @@ export function SendEmailConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2">
         <Mail className="h-4 w-4 text-blue-400" />
-        <p className="text-xs text-zinc-300">Send an email via Resend</p>
+        <p className="text-xs text-foreground">Send an email via Resend</p>
       </div>
 
       <ExpressionInput
@@ -240,11 +240,11 @@ export function SendEmailConfig({
         placeholder="Defaults to configured sender"
       />
 
-      <div className="rounded-lg border border-zinc-700/60 bg-zinc-800/50 p-3">
-        <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500 mb-2">Output Fields</p>
+      <div className="rounded-lg border border-border/60 bg-muted/50 p-3">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-2">Output Fields</p>
         <div className="flex flex-wrap gap-1">
           {["email.success", "email.messageId"].map((f) => (
-            <span key={f} className="text-[10px] font-mono bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded border border-zinc-700/50">{f}</span>
+            <span key={f} className="text-[10px] font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded border border-border/50">{f}</span>
           ))}
         </div>
       </div>
@@ -266,11 +266,11 @@ export function SendSlackConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2">
         <Hash className="h-4 w-4 text-blue-400" />
-        <p className="text-xs text-zinc-300">Post a message to a Slack channel</p>
+        <p className="text-xs text-foreground">Post a message to a Slack channel</p>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Connection Mode</label>
+        <label className="text-xs font-medium text-muted-foreground">Connection Mode</label>
         <div className="flex gap-1.5">
           {(["webhook", "integration"] as const).map((m) => (
             <button
@@ -280,7 +280,7 @@ export function SendSlackConfig({
                 "rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
                 mode === m
                   ? "border-orange-500/40 bg-orange-500/10 text-orange-400"
-                  : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
+                  : "border-border bg-muted text-muted-foreground hover:border-foreground/20"
               )}
             >
               {m === "webhook" ? "Webhook URL" : "Slack Integration"}
@@ -319,7 +319,7 @@ export function SendSlackConfig({
       <div className="flex items-center gap-2">
         <button
           disabled
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700 transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs text-foreground hover:bg-muted transition-colors disabled:opacity-50"
         >
           <Send className="h-3 w-3" />
           Test Message
@@ -347,12 +347,12 @@ export function DelayConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2">
         <Timer className="h-4 w-4 text-blue-400" />
-        <p className="text-xs text-zinc-300">Pause execution for a specified duration</p>
+        <p className="text-xs text-foreground">Pause execution for a specified duration</p>
       </div>
 
       {/* Mode selector */}
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-400">Delay Mode</label>
+        <label className="text-xs font-medium text-muted-foreground">Delay Mode</label>
         <div className="flex gap-2">
           {(["duration", "wait_until"] as const).map((m) => (
             <button
@@ -362,7 +362,7 @@ export function DelayConfig({
                 "flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
                 mode === m
                   ? "border-orange-500/40 bg-orange-500/10 text-orange-400"
-                  : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
+                  : "border-border bg-muted text-muted-foreground hover:border-foreground/20"
               )}
             >
               {m === "duration" ? "Duration" : "Wait Until"}
@@ -374,36 +374,36 @@ export function DelayConfig({
       {mode === "duration" ? (
         <>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-400">Duration</label>
+            <label className="text-xs font-medium text-muted-foreground">Duration</label>
             <div className="flex gap-2">
               <input
                 type="number"
                 min={1}
                 value={duration}
                 onChange={(e) => onChange({ ...config, duration: Math.max(1, parseInt(e.target.value) || 60) })}
-                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+                className="flex-1 bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
               />
               <select
                 value={unit}
                 onChange={(e) => onChange({ ...config, unit: e.target.value })}
-                className="w-28 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+                className="w-28 bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
               >
                 <option value="seconds">Seconds</option>
                 <option value="minutes">Minutes</option>
                 <option value="hours">Hours</option>
               </select>
             </div>
-            <p className="text-[10px] text-zinc-600">Max 1 hour for in-process delays. Longer delays are stored and resumed.</p>
+            <p className="text-[10px] text-muted-foreground">Max 1 hour for in-process delays. Longer delays are stored and resumed.</p>
           </div>
         </>
       ) : (
         <>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-400">Wait Until Type</label>
+            <label className="text-xs font-medium text-muted-foreground">Wait Until Type</label>
             <select
               value={waitUntilType}
               onChange={(e) => onChange({ ...config, waitUntilType: e.target.value })}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+              className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
             >
               <option value="datetime">Specific Date/Time</option>
               <option value="expression">Expression</option>
@@ -412,12 +412,12 @@ export function DelayConfig({
 
           {waitUntilType === "datetime" ? (
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400">Date & Time</label>
+              <label className="text-xs font-medium text-muted-foreground">Date & Time</label>
               <input
                 type="datetime-local"
                 value={waitUntil}
                 onChange={(e) => onChange({ ...config, waitUntil: e.target.value })}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+                className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
               />
             </div>
           ) : (
@@ -430,8 +430,8 @@ export function DelayConfig({
             />
           )}
 
-          <div className="rounded-lg border border-zinc-700/40 bg-zinc-800/20 p-3">
-            <p className="text-[10px] text-zinc-500">
+          <div className="rounded-lg border border-border/40 bg-muted/20 p-3">
+            <p className="text-[10px] text-muted-foreground">
               Long waits are stored in the database and resumed via background job.
               The workflow will pause and resume automatically at the specified time.
             </p>
@@ -475,7 +475,7 @@ export function SetVariableConfig({
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2">
         <Variable className="h-4 w-4 text-blue-400" />
-        <p className="text-xs text-zinc-300">Store values in the execution context</p>
+        <p className="text-xs text-foreground">Store values in the execution context</p>
       </div>
 
       <div className="space-y-2">
@@ -485,17 +485,17 @@ export function SetVariableConfig({
               value={v.key}
               onChange={(e) => updateVar(i, { key: e.target.value })}
               placeholder="variable_name"
-              className="w-[35%] bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-2.5 py-2 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+              className="w-[35%] bg-muted border border-border rounded-lg text-[11px] font-mono text-foreground px-2.5 py-2 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
             />
-            <span className="text-zinc-600 py-2">=</span>
+            <span className="text-muted-foreground py-2">=</span>
             <input
               value={v.value}
               onChange={(e) => updateVar(i, { value: e.target.value })}
               placeholder="{{ expression }}"
-              className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-2.5 py-2 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+              className="flex-1 bg-muted border border-border rounded-lg text-[11px] font-mono text-foreground px-2.5 py-2 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
             />
             {variables.length > 1 && (
-              <button onClick={() => removeVar(i)} className="text-zinc-600 hover:text-red-400 transition-colors py-2">
+              <button onClick={() => removeVar(i)} className="text-muted-foreground hover:text-red-400 transition-colors py-2">
                 <Trash2 className="h-3 w-3" />
               </button>
             )}
@@ -528,54 +528,54 @@ export function A2ACallConfig({
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">Target Agent URL</label>
+        <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Target Agent URL</label>
         <ExpressionInput
           value={targetUrl}
           onChange={(v) => onChange({ ...config, targetUrl: v })}
           placeholder="https://example.com/api/a2a/agents/.../message"
         />
-        <p className="text-[10px] text-zinc-600">A2A message endpoint of the target agent</p>
+        <p className="text-[10px] text-muted-foreground">A2A message endpoint of the target agent</p>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">Message Template</label>
+        <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Message Template</label>
         <textarea
           value={messageTemplate}
           onChange={(e) => onChange({ ...config, messageTemplate: e.target.value })}
           placeholder="Analyse den folgenden Lead: {{ lead.email }}..."
           rows={4}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600 resize-none"
+          className="w-full bg-muted border border-border rounded-lg text-[11px] font-mono text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground resize-none"
         />
-        <p className="text-[10px] text-zinc-600">Supports {"{{ }}"} expressions for dynamic content</p>
+        <p className="text-[10px] text-muted-foreground">Supports {"{{ }}"} expressions for dynamic content</p>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">API Key (optional)</label>
+        <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">API Key (optional)</label>
         <input
           type="password"
           value={apiKey}
           onChange={(e) => onChange({ ...config, apiKey: e.target.value })}
           placeholder="Bearer token for authentication"
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+          className="w-full bg-muted border border-border rounded-lg text-[11px] font-mono text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">Timeout (ms)</label>
+          <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Timeout (ms)</label>
           <input
             type="number"
             value={timeout}
             onChange={(e) => onChange({ ...config, timeout: Number(e.target.value) || 30000 })}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60"
+            className="w-full bg-muted border border-border rounded-lg text-[11px] font-mono text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60"
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">Result Key</label>
+          <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Result Key</label>
           <input
             value={resultKey}
             onChange={(e) => onChange({ ...config, resultKey: e.target.value || "a2aResponse" })}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60"
+            className="w-full bg-muted border border-border rounded-lg text-[11px] font-mono text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60"
           />
         </div>
       </div>

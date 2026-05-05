@@ -353,7 +353,7 @@ export function DataMapper({
       {/* Panel */}
       <div
         className={cn(
-          "fixed top-0 right-0 h-full w-[520px] z-30 bg-zinc-900 border-l border-border shadow-2xl transform transition-transform duration-200 flex flex-col",
+          "fixed top-0 right-0 h-full w-[520px] z-30 bg-card border-l border-border shadow-2xl transform transition-transform duration-200 flex flex-col",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
@@ -361,28 +361,28 @@ export function DataMapper({
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2">
             <Link2 className="h-4 w-4 text-orange-400" />
-            <h3 className="text-sm font-semibold text-zinc-100">Data Mapping</h3>
+            <h3 className="text-sm font-semibold text-foreground">Data Mapping</h3>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Source → Target header */}
-        <div className="px-5 py-3 border-b border-zinc-800 bg-zinc-950/50">
+        <div className="px-5 py-3 border-b border-border bg-background/50">
           <div className="flex items-center gap-3">
-            <div className="flex-1 rounded-lg border border-zinc-700/60 bg-zinc-800/50 px-3 py-2">
+            <div className="flex-1 rounded-lg border border-border/60 bg-muted/50 px-3 py-2">
               <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: sourceDef?.color || "#F97316" }}>
                 Source
               </p>
-              <p className="text-xs font-medium text-zinc-200 truncate">{sourceLabel}</p>
+              <p className="text-xs font-medium text-foreground truncate">{sourceLabel}</p>
             </div>
-            <ArrowRight className="h-4 w-4 text-zinc-600 shrink-0" />
-            <div className="flex-1 rounded-lg border border-zinc-700/60 bg-zinc-800/50 px-3 py-2">
+            <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div className="flex-1 rounded-lg border border-border/60 bg-muted/50 px-3 py-2">
               <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: targetDef?.color || "#F97316" }}>
                 Target
               </p>
-              <p className="text-xs font-medium text-zinc-200 truncate">{targetLabel}</p>
+              <p className="text-xs font-medium text-foreground truncate">{targetLabel}</p>
             </div>
           </div>
         </div>
@@ -398,7 +398,7 @@ export function DataMapper({
               <Wand2 className="h-3 w-3" />
               Auto-Map
             </button>
-            <span className="text-[10px] text-zinc-600">
+            <span className="text-[10px] text-muted-foreground">
               {mappings.length + expressionMappings.length} mapping{mappings.length + expressionMappings.length !== 1 ? "s" : ""}
             </span>
           </div>
@@ -406,7 +406,7 @@ export function DataMapper({
           {/* Visual field mapper */}
           <div
             ref={containerRef}
-            className="relative rounded-xl border border-zinc-700/50 bg-zinc-950/50 p-4"
+            className="relative rounded-xl border border-border/50 bg-background/50 p-4"
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
@@ -447,12 +447,12 @@ export function DataMapper({
                         "flex items-center justify-between rounded-lg border px-2.5 py-1.5 transition-all group",
                         isConnected
                           ? "border-orange-500/30 bg-orange-500/5"
-                          : "border-zinc-700/40 bg-zinc-800/30 hover:border-zinc-600"
+                          : "border-border/40 bg-muted/30 hover:border-foreground/20"
                       )}
                     >
                       <span className={cn(
                         "text-[11px] font-mono truncate",
-                        isConnected ? "text-orange-300" : "text-zinc-400"
+                        isConnected ? "text-orange-300" : "text-muted-foreground"
                       )}>
                         {field}
                       </span>
@@ -462,7 +462,7 @@ export function DataMapper({
                           "h-3 w-3 rounded-full border-2 shrink-0 ml-2 cursor-grab active:cursor-grabbing transition-all relative z-20",
                           isConnected
                             ? "bg-orange-500 border-orange-400 shadow-[0_0_6px_rgba(249,115,22,0.4)]"
-                            : "bg-zinc-700 border-zinc-600 hover:bg-green-500 hover:border-green-400 group-hover:shadow-[0_0_4px_rgba(34,197,94,0.3)]"
+                            : "bg-muted border-border hover:bg-green-500 hover:border-green-400 group-hover:shadow-[0_0_4px_rgba(34,197,94,0.3)]"
                         )}
                         onMouseDown={(e) => {
                           e.preventDefault();
@@ -492,7 +492,7 @@ export function DataMapper({
                           ? "border-blue-500/30 bg-blue-500/5"
                           : isHovered
                             ? "border-green-500/50 bg-green-500/10"
-                            : "border-zinc-700/40 bg-zinc-800/30 hover:border-zinc-600"
+                            : "border-border/40 bg-muted/30 hover:border-foreground/20"
                       )}
                       onMouseEnter={() => { if (dragging) setHoveredTarget(field); }}
                       onMouseLeave={() => setHoveredTarget(null)}
@@ -505,12 +505,12 @@ export function DataMapper({
                             ? "bg-blue-500 border-blue-400 shadow-[0_0_6px_rgba(59,130,246,0.4)]"
                             : isHovered
                               ? "bg-green-500 border-green-400 shadow-[0_0_6px_rgba(34,197,94,0.4)]"
-                              : "bg-zinc-700 border-zinc-600"
+                              : "bg-muted border-border"
                         )}
                       />
                       <span className={cn(
                         "text-[11px] font-mono truncate",
-                        isConnected ? "text-blue-300" : "text-zinc-400"
+                        isConnected ? "text-blue-300" : "text-muted-foreground"
                       )}>
                         {field}
                       </span>
@@ -523,8 +523,8 @@ export function DataMapper({
             {mappings.length === 0 && expressionMappings.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="text-center">
-                  <Link2 className="h-5 w-5 text-zinc-700 mx-auto mb-1" />
-                  <p className="text-[10px] text-zinc-600">Drag from source to target to connect</p>
+                  <Link2 className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
+                  <p className="text-[10px] text-muted-foreground">Drag from source to target to connect</p>
                 </div>
               </div>
             )}
@@ -540,7 +540,7 @@ export function DataMapper({
           {/* Expression mappings */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <Code2 className="h-3 w-3 text-violet-400" />
                 Expression Mappings
               </label>
@@ -552,14 +552,14 @@ export function DataMapper({
                   value={em.expression || ""}
                   onChange={(e) => updateExpressionMapping(i, { expression: e.target.value })}
                   placeholder='{{ source.output | upper }}'
-                  className="w-full bg-zinc-800 border border-violet-500/30 rounded-lg text-[11px] font-mono text-zinc-100 px-2.5 py-1.5 outline-none focus:border-violet-500/60 placeholder:text-zinc-600"
+                  className="w-full bg-muted border border-violet-500/30 rounded-lg text-[11px] font-mono text-foreground px-2.5 py-1.5 outline-none focus:border-violet-500/60 placeholder:text-muted-foreground"
                 />
                 <div className="flex items-center gap-1.5">
                   <ArrowRight className="h-3 w-3 text-violet-400" />
                   <select
                     value={em.target}
                     onChange={(e) => updateExpressionMapping(i, { target: e.target.value })}
-                    className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg text-[11px] font-mono text-zinc-100 px-2 py-1.5 outline-none focus:border-violet-500/60"
+                    className="flex-1 bg-muted border border-border rounded-lg text-[11px] font-mono text-foreground px-2 py-1.5 outline-none focus:border-violet-500/60"
                   >
                     <option value="">Select target...</option>
                     {targetFields.map((f) => (
@@ -568,7 +568,7 @@ export function DataMapper({
                   </select>
                   <button
                     onClick={() => removeExpressionMapping(i)}
-                    className="text-zinc-600 hover:text-red-400 transition-colors"
+                    className="text-muted-foreground hover:text-red-400 transition-colors"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -586,8 +586,8 @@ export function DataMapper({
           </div>
 
           {/* Info */}
-          <div className="rounded-lg border border-zinc-700/40 bg-zinc-800/20 p-3">
-            <p className="text-[10px] text-zinc-500">
+          <div className="rounded-lg border border-border/40 bg-muted/20 p-3">
+            <p className="text-[10px] text-muted-foreground">
               Drag from green dots to blue dots to create field connections.
               Click a connection line to remove it.
               Use expression mappings for data transformations with {`{{ }}`} syntax.

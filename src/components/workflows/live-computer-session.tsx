@@ -113,7 +113,7 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
 
   const statusColors: Record<string, string> = {
     active: "text-green-400",
-    closed: "text-zinc-500",
+    closed: "text-muted-foreground",
     error: "text-red-400",
   };
 
@@ -125,8 +125,8 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
 
   if (loading && !session) {
     return (
-      <div className="rounded-xl border border-[#332f2b] bg-[#1e1d1b] p-6">
-        <div className="flex items-center gap-3 text-zinc-400">
+      <div className="rounded-xl border border-border bg-card p-6">
+        <div className="flex items-center gap-3 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
           <span className="text-sm">Session wird geladen...</span>
         </div>
@@ -150,24 +150,24 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
   return (
     <div
       className={cn(
-        "rounded-xl border border-[#332f2b] bg-[#1e1d1b] overflow-hidden transition-all",
+        "rounded-xl border border-border bg-card overflow-hidden transition-all",
         fullscreen && "fixed inset-4 z-50 rounded-2xl shadow-2xl"
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#332f2b] bg-[#1a1918]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-500/10">
             <Monitor className="h-4 w-4 text-pink-400" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-zinc-200">Live Browser Session</span>
-              <span className={cn("text-[10px] font-bold uppercase", statusColors[session.status] || "text-zinc-500")}>
+              <span className="text-sm font-medium text-foreground">Live Browser Session</span>
+              <span className={cn("text-[10px] font-bold uppercase", statusColors[session.status] || "text-muted-foreground")}>
                 {statusLabels[session.status] || session.status}
               </span>
             </div>
-            <span className="text-[10px] text-zinc-600 font-mono">{session.id}</span>
+            <span className="text-[10px] text-muted-foreground font-mono">{session.id}</span>
           </div>
         </div>
 
@@ -178,7 +178,7 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
                 size="sm"
                 variant="ghost"
                 onClick={() => handleAction("screenshot")}
-                className="h-7 w-7 p-0 text-zinc-500 hover:text-blue-400"
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-blue-400"
                 title="Screenshot anfordern"
               >
                 <Camera className="h-3.5 w-3.5" />
@@ -187,7 +187,7 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
                 size="sm"
                 variant="ghost"
                 onClick={() => handleAction("pause")}
-                className="h-7 w-7 p-0 text-zinc-500 hover:text-yellow-400"
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-yellow-400"
                 title="Pause"
               >
                 <Pause className="h-3.5 w-3.5" />
@@ -196,7 +196,7 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
                 size="sm"
                 variant="ghost"
                 onClick={() => handleAction("abort")}
-                className="h-7 w-7 p-0 text-zinc-500 hover:text-red-400"
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-red-400"
                 title="Abbrechen"
               >
                 <Square className="h-3.5 w-3.5" />
@@ -207,7 +207,7 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
             size="sm"
             variant="ghost"
             onClick={fetchSession}
-            className="h-7 w-7 p-0 text-zinc-500 hover:text-zinc-300"
+            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
             title="Aktualisieren"
           >
             <RefreshCw className="h-3.5 w-3.5" />
@@ -216,7 +216,7 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
             size="sm"
             variant="ghost"
             onClick={() => setFullscreen(!fullscreen)}
-            className="h-7 w-7 p-0 text-zinc-500 hover:text-zinc-300"
+            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
           >
             {fullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
           </Button>
@@ -225,7 +225,7 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
               size="sm"
               variant="ghost"
               onClick={onClose}
-              className="h-7 px-2 text-zinc-500 hover:text-zinc-300 text-[10px]"
+              className="h-7 px-2 text-muted-foreground hover:text-foreground text-[10px]"
             >
               Schließen
             </Button>
@@ -246,8 +246,8 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
               className="w-full h-auto max-h-[400px] object-contain"
             />
             <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/70 rounded px-2 py-1">
-              <Eye className="h-3 w-3 text-zinc-400" />
-              <span className="text-[10px] text-zinc-400">
+              <Eye className="h-3 w-3 text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground">
                 {session.screenshotCount} Screenshots
               </span>
             </div>
@@ -259,7 +259,7 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
             )}
           </div>
         ) : (
-          <div className="px-4 py-3 flex items-center gap-2 text-zinc-500 hover:text-zinc-400 transition-colors">
+          <div className="px-4 py-3 flex items-center gap-2 text-muted-foreground hover:text-muted-foreground transition-colors">
             {expanded ? (
               <ChevronDown className="h-3.5 w-3.5" />
             ) : (
@@ -273,10 +273,10 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
       </div>
 
       {/* Action Log */}
-      <div className="border-t border-[#332f2b]">
+      <div className="border-t border-border">
         <button
           onClick={() => setShowLog(!showLog)}
-          className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-zinc-400 hover:text-zinc-300 transition-colors"
+          className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <span className="font-medium">
             Aktionslog ({session.actionCount} Aktionen)
@@ -287,7 +287,7 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
         {showLog && (
           <div className="max-h-[250px] overflow-y-auto px-4 pb-3 space-y-1">
             {session.actionLog.length === 0 ? (
-              <p className="text-[11px] text-zinc-600 py-2">Noch keine Aktionen...</p>
+              <p className="text-[11px] text-muted-foreground py-2">Noch keine Aktionen...</p>
             ) : (
               session.actionLog.map((action, i) => {
                 const isDomAction = action.methodUsed &&
@@ -302,7 +302,7 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
                   <div
                     key={i}
                     className={cn(
-                      "flex items-start gap-2 py-1.5 border-b border-[#1e1d1b] last:border-0",
+                      "flex items-start gap-2 py-1.5 border-b border-border last:border-0",
                       isScreenshotSkipped && "opacity-80"
                     )}
                   >
@@ -319,7 +319,7 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono font-medium text-zinc-400 uppercase">
+                        <span className="text-[10px] font-mono font-medium text-muted-foreground uppercase">
                           {action.type}
                         </span>
                         {action.methodUsed && (
@@ -332,19 +332,19 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
                             {isDomAction ? "DOM" : "Vision"}
                           </span>
                         )}
-                        <span className="text-[10px] text-zinc-600 flex items-center gap-1">
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                           <Clock className="h-2.5 w-2.5" />
                           {action.durationMs}ms
                         </span>
                         {action.creditsCost !== undefined && (
-                          <span className="text-[9px] text-zinc-600">
+                          <span className="text-[9px] text-muted-foreground">
                             {action.creditsCost === 0 ? "0 credits" : `${action.creditsCost} cr`}
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-zinc-500 truncate">{action.detail}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{action.detail}</p>
                       {isScreenshotSkipped && (
-                        <p className="text-[9px] text-zinc-600 mt-0.5 italic">Screenshot übersprungen</p>
+                        <p className="text-[9px] text-muted-foreground mt-0.5 italic">Screenshot übersprungen</p>
                       )}
                       {action.error && (
                         <p className="text-[10px] text-red-400 mt-0.5">{action.error}</p>
@@ -360,10 +360,10 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
 
       {/* Reasoning Log */}
       {session.reasoningLog && session.reasoningLog.length > 0 && (
-        <div className="border-t border-[#332f2b]">
+        <div className="border-t border-border">
           <button
             onClick={() => setShowReasoning(!showReasoning)}
-            className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-zinc-400 hover:text-zinc-300 transition-colors"
+            className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             <span className="font-medium">
               Agent Reasoning ({session.reasoningLog.length} Einträge)
@@ -380,15 +380,15 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
 
       {/* Artifacts */}
       {session.artifacts && session.artifacts.length > 0 && (
-        <div className="border-t border-[#332f2b] px-4 py-3">
+        <div className="border-t border-border px-4 py-3">
           <ArtifactViewer artifacts={session.artifacts} />
         </div>
       )}
 
       {/* Stats Footer */}
-      <div className="border-t border-[#332f2b] px-4 py-2 bg-[#1a1918]">
+      <div className="border-t border-border px-4 py-2 bg-card">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 text-[10px] text-zinc-600">
+          <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
             <span>{session.actionCount} Aktionen</span>
             <span>{session.screenshotCount} Screenshots</span>
             {session.screenshotStats && session.screenshotStats.skipped > 0 && (
@@ -397,12 +397,12 @@ export function LiveComputerSession({ sessionId, onClose }: LiveComputerSessionP
               </span>
             )}
           </div>
-          <span className="text-[10px] text-zinc-700 font-mono">
+          <span className="text-[10px] text-muted-foreground font-mono">
             {new Date(session.createdAt).toLocaleTimeString("de-DE")}
           </span>
         </div>
         {session.totalCredits !== undefined && session.screenshotStats && session.screenshotStats.skipped > 0 && (
-          <div className="mt-1 flex items-center gap-1.5 text-[9px] text-zinc-600">
+          <div className="mt-1 flex items-center gap-1.5 text-[9px] text-muted-foreground">
             <Coins className="h-2.5 w-2.5" />
             <span>
               {session.totalCredits} Credits
@@ -445,9 +445,9 @@ export function ComputerSessionPreview({ sessionId }: { sessionId: string }) {
   }, [sessionId]);
 
   return (
-    <div className="inline-flex items-center gap-2 rounded-lg border border-[#332f2b] bg-[#1a1918] px-3 py-1.5">
+    <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5">
       <Monitor className="h-3.5 w-3.5 text-pink-400" />
-      <span className="text-[11px] text-zinc-400">
+      <span className="text-[11px] text-muted-foreground">
         {status === "active" ? (
           <span className="text-green-400 flex items-center gap-1">
             <Play className="h-2.5 w-2.5" /> Aktiv
@@ -456,7 +456,7 @@ export function ComputerSessionPreview({ sessionId }: { sessionId: string }) {
           status
         )}
       </span>
-      <span className="text-[10px] text-zinc-600">{actionCount} Aktionen</span>
+      <span className="text-[10px] text-muted-foreground">{actionCount} Aktionen</span>
     </div>
   );
 }

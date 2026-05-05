@@ -190,22 +190,22 @@ export function TeamPermissionsTab({ teamId, isOwner }: TeamPermissionsTabProps)
           </div>
           <div className="flex items-end gap-3">
             <div className="flex-1">
-              <label className="mb-1.5 block text-xs font-medium text-zinc-400">E-Mail-Adresse</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">E-Mail-Adresse</label>
               <input
                 type="email"
                 value={inviteEmail}
                 onChange={(e) => { setInviteEmail(e.target.value); setInviteError(""); }}
                 placeholder="email@example.com"
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-500 focus:border-orange-500/50 focus:outline-none"
+                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-orange-500/50 focus:outline-none"
                 onKeyDown={(e) => e.key === "Enter" && handleInvite()}
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-zinc-400">Rolle</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Rolle</label>
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value as "EDITOR" | "VIEWER" | "APPROVER")}
-                className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 focus:border-orange-500/50 focus:outline-none"
+                className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-orange-500/50 focus:outline-none"
               >
                 <option value="VIEWER">Viewer</option>
                 <option value="EDITOR">Editor</option>
@@ -237,10 +237,10 @@ export function TeamPermissionsTab({ teamId, isOwner }: TeamPermissionsTabProps)
                 <Crown className="h-4 w-4 text-amber-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-zinc-100">
+                <p className="text-sm font-medium text-foreground">
                   {owner.name || owner.email}
                 </p>
-                {owner.name && <p className="text-[11px] text-zinc-500">{owner.email}</p>}
+                {owner.name && <p className="text-[11px] text-muted-foreground">{owner.email}</p>}
               </div>
             </div>
             <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase", ROLE_CONFIG.OWNER.color)}>
@@ -259,12 +259,12 @@ export function TeamPermissionsTab({ teamId, isOwner }: TeamPermissionsTabProps)
                   {roleConf.icon}
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-zinc-100">{perm.email}</p>
+                  <p className="text-sm font-medium text-foreground">{perm.email}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className={cn("rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase", STATUS_STYLES[perm.status])}>
                       {perm.status === "PENDING" ? "Ausstehend" : perm.status === "ACTIVE" ? "Aktiv" : "Widerrufen"}
                     </span>
-                    <span className="text-[10px] text-zinc-500">
+                    <span className="text-[10px] text-muted-foreground">
                       {perm.status === "PENDING"
                         ? `Eingeladen ${new Date(perm.invitedAt).toLocaleDateString("de-DE")}`
                         : perm.acceptedAt
@@ -281,7 +281,7 @@ export function TeamPermissionsTab({ teamId, isOwner }: TeamPermissionsTabProps)
                       value={perm.role}
                       onChange={(e) => handleChangeRole(perm.id, e.target.value)}
                       disabled={changingRole === perm.id}
-                      className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-300 focus:border-orange-500/50 focus:outline-none"
+                      className="rounded-lg border border-border bg-card px-2 py-1 text-[11px] text-foreground focus:border-orange-500/50 focus:outline-none"
                     >
                       <option value="VIEWER">Viewer</option>
                       <option value="EDITOR">Editor</option>
@@ -290,7 +290,7 @@ export function TeamPermissionsTab({ teamId, isOwner }: TeamPermissionsTabProps)
                     <button
                       onClick={() => handleRevoke(perm.id)}
                       disabled={revoking === perm.id}
-                      className="rounded-lg p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                      className="rounded-lg p-1.5 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
                       title="Zugriff widerrufen"
                     >
                       {revoking === perm.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
@@ -307,7 +307,7 @@ export function TeamPermissionsTab({ teamId, isOwner }: TeamPermissionsTabProps)
         })}
 
         {permissions.length === 0 && (
-          <div className="px-5 py-8 text-center text-sm text-zinc-500">
+          <div className="px-5 py-8 text-center text-sm text-muted-foreground">
             Noch keine weiteren Mitglieder.
             {isOwner && " Lade jemanden ein, um loszulegen."}
           </div>
@@ -322,8 +322,8 @@ export function TeamPermissionsTab({ teamId, isOwner }: TeamPermissionsTabProps)
               {conf.icon}
             </div>
             <div>
-              <p className="text-xs font-semibold text-zinc-200">{conf.label}</p>
-              <p className="text-[10px] text-zinc-500">{conf.description}</p>
+              <p className="text-xs font-semibold text-foreground">{conf.label}</p>
+              <p className="text-[10px] text-muted-foreground">{conf.description}</p>
             </div>
           </div>
         ))}

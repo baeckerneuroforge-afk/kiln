@@ -40,7 +40,7 @@ function getArtifactColor(mimeType: string): string {
   if (mimeType === "application/json") return "text-yellow-400";
   if (mimeType.startsWith("text/x-") || mimeType === "text/javascript") return "text-blue-400";
   if (mimeType === "application/pdf") return "text-red-400";
-  return "text-zinc-400";
+  return "text-muted-foreground";
 }
 
 function isPreviewable(mimeType: string): boolean {
@@ -59,7 +59,7 @@ function isPreviewable(mimeType: string): boolean {
 
 function ImagePreview({ url, fileName }: { url: string; fileName: string }) {
   return (
-    <div className="rounded-lg overflow-hidden border border-[#332f2b] bg-black">
+    <div className="rounded-lg overflow-hidden border border-border bg-black">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={url}
@@ -94,7 +94,7 @@ function TextPreview({ url, mimeType }: { url: string; mimeType: string }) {
         variant="ghost"
         onClick={loadContent}
         disabled={loading}
-        className="text-xs text-zinc-500 hover:text-zinc-300"
+        className="text-xs text-muted-foreground hover:text-foreground"
       >
         <Eye className="mr-1.5 h-3 w-3" />
         {loading ? "Laden..." : "Vorschau"}
@@ -119,8 +119,8 @@ function TextPreview({ url, mimeType }: { url: string; mimeType: string }) {
   }
 
   return (
-    <div className="rounded-lg border border-[#332f2b] bg-[#0d0d12] max-h-[300px] overflow-auto">
-      <pre className="p-3 text-[11px] font-mono text-zinc-400 whitespace-pre-wrap break-words">
+    <div className="rounded-lg border border-border bg-card max-h-[300px] overflow-auto">
+      <pre className="p-3 text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-words">
         {displayContent}
       </pre>
     </div>
@@ -135,12 +135,12 @@ function CsvPreview({ content }: { content: string }) {
   );
 
   return (
-    <div className="rounded-lg border border-[#332f2b] overflow-auto max-h-[300px]">
+    <div className="rounded-lg border border-border overflow-auto max-h-[300px]">
       <table className="w-full text-[11px]">
         <thead>
-          <tr className="bg-[#1e1d1b] sticky top-0">
+          <tr className="bg-card sticky top-0">
             {headers.map((h, i) => (
-              <th key={i} className="px-3 py-2 text-left font-medium text-zinc-400 border-b border-[#332f2b] whitespace-nowrap">
+              <th key={i} className="px-3 py-2 text-left font-medium text-muted-foreground border-b border-border whitespace-nowrap">
                 {h}
               </th>
             ))}
@@ -148,9 +148,9 @@ function CsvPreview({ content }: { content: string }) {
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} className="border-b border-[#1e1d1b] hover:bg-[#1a1918]">
+            <tr key={i} className="border-b border-border hover:bg-card">
               {row.map((cell, j) => (
-                <td key={j} className="px-3 py-1.5 text-zinc-500 whitespace-nowrap">
+                <td key={j} className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">
                   {cell}
                 </td>
               ))}
@@ -159,7 +159,7 @@ function CsvPreview({ content }: { content: string }) {
         </tbody>
       </table>
       {lines.length > 21 && (
-        <div className="px-3 py-2 text-[10px] text-zinc-600 bg-[#1a1918] border-t border-[#332f2b]">
+        <div className="px-3 py-2 text-[10px] text-muted-foreground bg-card border-t border-border">
           Zeige 20 von {lines.length - 1} Zeilen
         </div>
       )}
@@ -175,7 +175,7 @@ export function ArtifactViewer({ artifacts, className }: ArtifactViewerProps) {
 
   if (artifacts.length === 0) {
     return (
-      <div className={cn("text-[11px] text-zinc-600 py-2", className)}>
+      <div className={cn("text-[11px] text-muted-foreground py-2", className)}>
         Keine Artifacts erstellt
       </div>
     );
@@ -186,7 +186,7 @@ export function ArtifactViewer({ artifacts, className }: ArtifactViewerProps) {
       {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-xs text-zinc-400 hover:text-zinc-300 transition-colors w-full"
+        className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
       >
         {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         <span className="font-medium">Artifacts ({artifacts.length})</span>
@@ -201,15 +201,15 @@ export function ArtifactViewer({ artifacts, className }: ArtifactViewerProps) {
             const isOpen = previewId === artifact.id;
 
             return (
-              <div key={artifact.id} className="rounded-lg border border-[#332f2b] bg-[#1a1918] overflow-hidden">
+              <div key={artifact.id} className="rounded-lg border border-border bg-card overflow-hidden">
                 <div className="flex items-center justify-between px-3 py-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <IconComp className={cn("h-4 w-4 shrink-0", color)} />
                     <div className="min-w-0">
-                      <p className="text-[11px] font-medium text-zinc-300 truncate">
+                      <p className="text-[11px] font-medium text-foreground truncate">
                         {artifact.fileName}
                       </p>
-                      <p className="text-[9px] text-zinc-600">{artifact.mimeType}</p>
+                      <p className="text-[9px] text-muted-foreground">{artifact.mimeType}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -218,7 +218,7 @@ export function ArtifactViewer({ artifacts, className }: ArtifactViewerProps) {
                         size="sm"
                         variant="ghost"
                         onClick={() => setPreviewId(isOpen ? null : artifact.id)}
-                        className="h-6 w-6 p-0 text-zinc-600 hover:text-zinc-300"
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                         title="Vorschau"
                       >
                         {isOpen ? <X className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
@@ -227,7 +227,7 @@ export function ArtifactViewer({ artifacts, className }: ArtifactViewerProps) {
                     <a
                       href={`/api/workflows/artifacts/${artifact.id}`}
                       download={artifact.fileName}
-                      className="flex h-6 w-6 items-center justify-center rounded text-zinc-600 hover:text-zinc-300 hover:bg-[#332f2b] transition-colors"
+                      className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                       title="Herunterladen"
                     >
                       <Download className="h-3 w-3" />
@@ -237,7 +237,7 @@ export function ArtifactViewer({ artifacts, className }: ArtifactViewerProps) {
 
                 {/* Preview */}
                 {isOpen && (
-                  <div className="px-3 pb-3 border-t border-[#1e1d1b]">
+                  <div className="px-3 pb-3 border-t border-border">
                     <div className="pt-2">
                       {artifact.mimeType.startsWith("image/") ? (
                         <ImagePreview url={artifact.url} fileName={artifact.fileName} />

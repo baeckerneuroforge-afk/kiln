@@ -46,10 +46,10 @@ export function ReasoningLogViewer({ entries, summary }: ReasoningLogViewerProps
   if (entries.length === 0) {
     return (
       <div className="space-y-3">
-        <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">Agent Reasoning</p>
-        <div className="rounded-lg border border-[#332f2b] bg-[#1a1918] p-4 text-center">
-          <Brain className="h-5 w-5 text-zinc-600 mx-auto mb-2" />
-          <p className="text-[11px] text-zinc-600">Noch keine Reasoning-Einträge...</p>
+        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Agent Reasoning</p>
+        <div className="rounded-lg border border-border bg-card p-4 text-center">
+          <Brain className="h-5 w-5 text-muted-foreground mx-auto mb-2" />
+          <p className="text-[11px] text-muted-foreground">Noch keine Reasoning-Einträge...</p>
         </div>
       </div>
     );
@@ -59,7 +59,7 @@ export function ReasoningLogViewer({ entries, summary }: ReasoningLogViewerProps
     <div className="space-y-3">
       {/* Summary Bar */}
       {summary && (
-        <div className="flex items-center gap-4 text-[10px] text-zinc-500 bg-[#1a1918] rounded-lg px-3 py-2 border border-[#332f2b]">
+        <div className="flex items-center gap-4 text-[10px] text-muted-foreground bg-card rounded-lg px-3 py-2 border border-border">
           <span>{summary.totalSteps} Schritte</span>
           <span>Ø Confidence: {Math.round(summary.averageConfidence * 100)}%</span>
           {summary.lowConfidenceSteps > 0 && (
@@ -89,7 +89,7 @@ export function ReasoningLogViewer({ entries, summary }: ReasoningLogViewerProps
               "px-2 py-1 rounded text-[10px] font-medium transition-colors",
               filter === f.id
                 ? "bg-orange-500/20 text-orange-400"
-                : "text-zinc-600 hover:text-zinc-400 hover:bg-[#1e1d1b]"
+                : "text-muted-foreground hover:text-muted-foreground hover:bg-card"
             )}
           >
             {f.label}
@@ -142,25 +142,25 @@ function ReasoningEntryRow({
   ) : null;
 
   return (
-    <div className="rounded-lg border border-[#332f2b] bg-[#1a1918] overflow-hidden">
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
       {/* Header — immer sichtbar */}
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-[#1e1d1b] transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-card transition-colors"
       >
         {expanded ? (
-          <ChevronDown className="h-3 w-3 text-zinc-600 shrink-0" />
+          <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
         ) : (
-          <ChevronRight className="h-3 w-3 text-zinc-600 shrink-0" />
+          <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
         )}
 
         {/* Step Number */}
-        <span className="text-[10px] font-mono text-zinc-600 w-5 shrink-0">
+        <span className="text-[10px] font-mono text-muted-foreground w-5 shrink-0">
           #{entry.step + 1}
         </span>
 
         {/* Confidence Bar */}
-        <div className="w-12 h-1.5 rounded-full bg-[#332f2b] shrink-0">
+        <div className="w-12 h-1.5 rounded-full bg-muted shrink-0">
           <div
             className={cn("h-full rounded-full", confidenceColor)}
             style={{ width: `${entry.confidence * 100}%` }}
@@ -168,12 +168,12 @@ function ReasoningEntryRow({
         </div>
 
         {/* Action Badge */}
-        <span className="text-[10px] font-mono font-medium text-zinc-400 uppercase shrink-0">
+        <span className="text-[10px] font-mono font-medium text-muted-foreground uppercase shrink-0">
           {entry.action}
         </span>
 
         {/* Reasoning Preview */}
-        <span className="text-[11px] text-zinc-500 truncate flex-1 min-w-0">
+        <span className="text-[11px] text-muted-foreground truncate flex-1 min-w-0">
           {entry.observation || entry.reasoning.slice(0, 80)}
         </span>
 
@@ -188,44 +188,44 @@ function ReasoningEntryRow({
 
       {/* Expanded Detail */}
       {expanded && (
-        <div className="px-3 pb-3 space-y-2 border-t border-[#332f2b]">
+        <div className="px-3 pb-3 space-y-2 border-t border-border">
           {/* Observation */}
           <div className="pt-2">
-            <div className="flex items-center gap-1 text-[10px] text-zinc-600 mb-1">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-1">
               <Eye className="h-2.5 w-2.5" />
               Beobachtung
             </div>
-            <p className="text-[11px] text-zinc-400">{entry.observation}</p>
+            <p className="text-[11px] text-muted-foreground">{entry.observation}</p>
           </div>
 
           {/* Reasoning */}
           <div>
-            <div className="flex items-center gap-1 text-[10px] text-zinc-600 mb-1">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-1">
               <Brain className="h-2.5 w-2.5" />
               Überlegung
             </div>
-            <p className="text-[11px] text-zinc-300">{entry.reasoning}</p>
+            <p className="text-[11px] text-foreground">{entry.reasoning}</p>
           </div>
 
           {/* Target */}
           {entry.target && (
             <div className="text-[10px]">
-              <span className="text-zinc-600">Ziel: </span>
-              <span className="text-zinc-400 font-mono">{entry.target}</span>
+              <span className="text-muted-foreground">Ziel: </span>
+              <span className="text-muted-foreground font-mono">{entry.target}</span>
             </div>
           )}
 
           {/* Alternatives */}
           {entry.alternativesConsidered.length > 0 && (
             <div>
-              <div className="flex items-center gap-1 text-[10px] text-zinc-600 mb-1">
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-1">
                 <Filter className="h-2.5 w-2.5" />
                 Alternativen erwogen
               </div>
               <ul className="space-y-0.5">
                 {entry.alternativesConsidered.map((alt, i) => (
-                  <li key={i} className="text-[10px] text-zinc-500 pl-3 relative">
-                    <span className="absolute left-0 text-zinc-700">•</span>
+                  <li key={i} className="text-[10px] text-muted-foreground pl-3 relative">
+                    <span className="absolute left-0 text-muted-foreground">•</span>
                     {alt}
                   </li>
                 ))}
@@ -259,7 +259,7 @@ function ReasoningEntryRow({
           )}
 
           {/* Meta */}
-          <div className="flex items-center gap-4 text-[9px] text-zinc-700 pt-1 border-t border-[#1e1d1b]">
+          <div className="flex items-center gap-4 text-[9px] text-muted-foreground pt-1 border-t border-border">
             <span>Confidence: {Math.round(entry.confidence * 100)}%</span>
             <span>Denkzeit: {entry.thinkingDurationMs}ms</span>
             <span>{new Date(entry.timestamp).toLocaleTimeString("de-DE")}</span>

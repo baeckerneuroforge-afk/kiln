@@ -87,59 +87,59 @@ const TEMPLATE_VISUALS: Record<
 > = {
   "sales-pipeline": {
     icon: Briefcase,
-    accent: "text-gray-400",
-    bg: "bg-white/[0.05]",
-    border: "border-[#332f2b]",
+    accent: "text-muted-foreground",
+    bg: "bg-muted",
+    border: "border-border",
   },
   "customer-support-tiers": {
     icon: Headphones,
-    accent: "text-gray-400",
-    bg: "bg-white/[0.05]",
+    accent: "text-muted-foreground",
+    bg: "bg-muted",
     border: "border-blue-500/25",
   },
   "content-creation-pipeline": {
     icon: PenTool,
-    accent: "text-gray-400",
-    bg: "bg-white/[0.05]",
+    accent: "text-muted-foreground",
+    bg: "bg-muted",
     border: "border-emerald-500/25",
   },
   "lead-qualification-booking": {
     icon: CalendarDays,
-    accent: "text-gray-400",
-    bg: "bg-white/[0.05]",
+    accent: "text-muted-foreground",
+    bg: "bg-muted",
     border: "border-violet-500/25",
   },
   "shk-betrieb-lead-pipeline": {
     icon: Wrench,
-    accent: "text-gray-400",
-    bg: "bg-white/[0.05]",
+    accent: "text-muted-foreground",
+    bg: "bg-muted",
     border: "border-amber-500/25",
   },
   "immobilienmakler-pipeline": {
     icon: Building2,
-    accent: "text-gray-400",
-    bg: "bg-white/[0.05]",
+    accent: "text-muted-foreground",
+    bg: "bg-muted",
     border: "border-sky-500/25",
   },
   "coach-erstgespraech-pipeline": {
     icon: GraduationCap,
-    accent: "text-gray-400",
-    bg: "bg-white/[0.05]",
+    accent: "text-muted-foreground",
+    bg: "bg-muted",
     border: "border-pink-500/25",
   },
   "kuechenstudio-pipeline": {
     icon: CookingPot,
-    accent: "text-gray-400",
-    bg: "bg-white/[0.05]",
+    accent: "text-muted-foreground",
+    bg: "bg-muted",
     border: "border-rose-500/25",
   },
 };
 
 const DEFAULT_VISUAL = {
   icon: Zap,
-  accent: "text-zinc-400",
-  bg: "bg-zinc-500/10",
-  border: "border-zinc-500/25",
+  accent: "text-muted-foreground",
+  bg: "bg-muted/10",
+  border: "border-border",
 };
 
 /* ──────────────────────── Helpers ──────────────────────── */
@@ -339,13 +339,13 @@ function PreviewModal({
       onClick={onClose}
     >
       <div
-        className="relative mx-4 flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950"
+        className="relative mx-4 flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-background"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 z-10 rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+          className="absolute right-4 top-4 z-10 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <X className="h-5 w-5" />
         </button>
@@ -364,9 +364,9 @@ function PreviewModal({
               <Icon className={cn("h-7 w-7", visual.accent)} />
             </div>
             <div>
-              <h2 className="font-serif text-2xl text-white">{template.name}</h2>
-              <p className="mt-1 text-sm text-zinc-400">{template.description}</p>
-              <div className="mt-2 flex items-center gap-3 text-xs text-zinc-500">
+              <h2 className="font-serif text-2xl text-foreground">{template.name}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{template.description}</p>
+              <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Bot className="h-3.5 w-3.5" />
                   {template.agentCount} Agents
@@ -375,7 +375,7 @@ function PreviewModal({
                   <GitBranch className="h-3.5 w-3.5" />
                   {template.workflow?.nodes?.length ?? 0} Nodes
                 </span>
-                <span className="rounded-full bg-zinc-800 px-2 py-0.5">
+                <span className="rounded-full bg-muted px-2 py-0.5">
                   {getTemplateCategory(template)}
                 </span>
               </div>
@@ -384,8 +384,8 @@ function PreviewModal({
 
           {/* Flow Diagramm */}
           {template.workflow?.nodes && template.workflow.nodes.length > 0 && (
-            <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-              <h3 className="mb-3 text-sm font-medium text-zinc-300">
+            <div className="mb-6 rounded-xl border border-border bg-card/50 p-4">
+              <h3 className="mb-3 text-sm font-medium text-foreground">
                 Workflow-Diagramm
               </h3>
               <MiniFlowDiagram
@@ -399,41 +399,41 @@ function PreviewModal({
 
           {/* Agents */}
           <div className="mb-6">
-            <h3 className="mb-3 text-sm font-medium text-zinc-300">
+            <h3 className="mb-3 text-sm font-medium text-foreground">
               Agents ({template.agents.length})
             </h3>
             <div className="space-y-2">
               {template.agents.map((agent) => (
                 <div
                   key={agent.key}
-                  className="rounded-lg border border-zinc-800 bg-zinc-900/50"
+                  className="rounded-lg border border-border bg-card/50"
                 >
                   <button
                     onClick={() => toggleAgent(agent.key)}
-                    className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-zinc-800/50"
+                    className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-muted/50"
                   >
                     {expandedAgents.has(agent.key) ? (
-                      <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500" />
+                      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                     ) : (
-                      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-500" />
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                     )}
-                    <Bot className="h-4 w-4 shrink-0 text-gray-400" />
-                    <span className="font-medium text-white">{agent.name}</span>
-                    <span className="ml-auto rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
+                    <Bot className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="font-medium text-foreground">{agent.name}</span>
+                    <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                       {agent.role}
                     </span>
-                    <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-500">
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                       {agent.mode}
                     </span>
                   </button>
                   {expandedAgents.has(agent.key) && (
-                    <div className="border-t border-zinc-800 px-3 py-3 pl-11">
-                      <p className="text-xs text-zinc-500">
-                        Rolle: <span className="text-zinc-400">{agent.role}</span>
+                    <div className="border-t border-border px-3 py-3 pl-11">
+                      <p className="text-xs text-muted-foreground">
+                        Rolle: <span className="text-muted-foreground">{agent.role}</span>
                       </p>
-                      <p className="mt-1 text-xs text-zinc-500">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         Modus:{" "}
-                        <span className="text-zinc-400">{agent.mode}</span>
+                        <span className="text-muted-foreground">{agent.mode}</span>
                       </p>
                     </div>
                   )}
@@ -445,25 +445,25 @@ function PreviewModal({
           {/* Non-Agent Nodes */}
           {nonAgentNodes.length > 0 && (
             <div className="mb-6">
-              <h3 className="mb-3 text-sm font-medium text-zinc-300">
+              <h3 className="mb-3 text-sm font-medium text-foreground">
                 Weitere Nodes ({nonAgentNodes.length})
               </h3>
               <div className="space-y-2">
                 {nonAgentNodes.map((node) => (
                   <div
                     key={node.id}
-                    className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3"
+                    className="flex items-center gap-3 rounded-lg border border-border bg-card/50 p-3"
                   >
                     <div
                       className="h-3 w-3 rounded-sm"
                       style={{ backgroundColor: getNodeColor(node.type) }}
                     />
-                    <span className="text-sm font-medium text-white">
+                    <span className="text-sm font-medium text-foreground">
                       {node.label}
                     </span>
-                    <span className="ml-auto text-xs text-zinc-500">{node.type}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{node.type}</span>
                     {Object.keys(node.config).length > 0 && (
-                      <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-500">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                         {Object.keys(node.config).length} config
                       </span>
                     )}
@@ -476,7 +476,7 @@ function PreviewModal({
           {/* Variables */}
           {template.workflow?.variables && template.workflow.variables.length > 0 && (
             <div className="mb-6">
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-zinc-300">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-foreground">
                 <Variable className="h-4 w-4" />
                 Variablen ({template.workflow.variables.length})
               </h3>
@@ -484,28 +484,28 @@ function PreviewModal({
                 {template.workflow.variables.map((v) => (
                   <div
                     key={v.id}
-                    className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3"
+                    className="flex items-center gap-3 rounded-lg border border-border bg-card/50 p-3"
                   >
                     {v.isSecret ? (
-                      <Lock className="h-4 w-4 shrink-0 text-gray-400" />
+                      <Lock className="h-4 w-4 shrink-0 text-muted-foreground" />
                     ) : (
-                      <Variable className="h-4 w-4 shrink-0 text-zinc-500" />
+                      <Variable className="h-4 w-4 shrink-0 text-muted-foreground" />
                     )}
                     <div className="min-w-0 flex-1">
-                      <span className="text-sm font-medium text-white">
+                      <span className="text-sm font-medium text-foreground">
                         {v.name}
                       </span>
                       {v.description && (
-                        <p className="mt-0.5 truncate text-xs text-zinc-500">
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
                           {v.description}
                         </p>
                       )}
                     </div>
-                    <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-500">
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                       {v.type}
                     </span>
                     {v.defaultValue && (
-                      <span className="max-w-[120px] truncate rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
+                      <span className="max-w-[120px] truncate rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                         {v.defaultValue}
                       </span>
                     )}
@@ -549,8 +549,8 @@ function FilterChip({
       className={cn(
         "rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
         active
-          ? "border-kiln-orange/50 bg-white/[0.08] text-gray-400"
-          : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-700 hover:text-zinc-300"
+          ? "border-kiln-orange/50 bg-muted text-muted-foreground"
+          : "border-border bg-card text-muted-foreground hover:border-border hover:text-foreground"
       )}
     >
       {label}
@@ -574,7 +574,7 @@ function TemplateCard({
   const nodeCount = template.workflow?.nodes?.length ?? 0;
 
   return (
-    <div className="group flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 transition-all hover:border-zinc-700 hover:bg-zinc-900/80">
+    <div className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card/50 transition-all hover:border-border hover:bg-card/80">
       {/* Icon + Name */}
       <div className="flex items-start gap-3 p-5 pb-3">
         <div
@@ -587,8 +587,8 @@ function TemplateCard({
           <Icon className={cn("h-5 w-5", visual.accent)} />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-white">{template.name}</h3>
-          <p className="mt-0.5 line-clamp-2 text-sm text-zinc-400">
+          <h3 className="font-semibold text-foreground">{template.name}</h3>
+          <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
             {template.description}
           </p>
         </div>
@@ -596,7 +596,7 @@ function TemplateCard({
 
       {/* Mini Flow Diagram */}
       {template.workflow?.nodes && template.workflow.nodes.length > 0 && (
-        <div className="mx-5 rounded-lg border border-zinc-800/50 bg-zinc-950/50 p-2">
+        <div className="mx-5 rounded-lg border border-border/50 bg-background/50 p-2">
           <MiniFlowDiagram
             nodes={template.workflow.nodes}
             edges={template.workflow.edges ?? []}
@@ -606,7 +606,7 @@ function TemplateCard({
       )}
 
       {/* Stats */}
-      <div className="flex items-center gap-3 px-5 pt-3 text-xs text-zinc-500">
+      <div className="flex items-center gap-3 px-5 pt-3 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
           <Bot className="h-3.5 w-3.5" />
           {template.agentCount} agents
@@ -616,7 +616,7 @@ function TemplateCard({
           {nodeCount} nodes
         </span>
         {industry !== "All Industries" && (
-          <span className="ml-auto rounded-full bg-zinc-800 px-2 py-0.5 text-zinc-400">
+          <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
             {industry}
           </span>
         )}
@@ -628,7 +628,7 @@ function TemplateCard({
           variant="outline"
           size="sm"
           onClick={onPreview}
-          className="flex-1 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+          className="flex-1 border-border text-foreground hover:bg-muted hover:text-foreground"
         >
           <Eye className="mr-1.5 h-3.5 w-3.5" />
           Preview
@@ -719,41 +719,41 @@ export default function WorkflowTemplatesPage() {
   }, [templates, search, categoryFilter, industryFilter, complexityFilter]);
 
   return (
-    <div className="min-h-screen bg-[#1a1918]">
+    <div className="min-h-screen bg-card">
       <div className="mx-auto max-w-7xl px-6 py-10">
         {/* Header */}
         <div className="mb-8">
           <Link
             href="/dashboard/teams"
-            className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-500 transition-colors hover:text-zinc-300"
+            className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
             Zurück zu Teams
           </Link>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="font-serif text-4xl text-white">
+              <h1 className="font-serif text-4xl text-foreground">
                 Workflow Templates
               </h1>
-              <p className="mt-2 max-w-xl text-zinc-400">
+              <p className="mt-2 max-w-xl text-muted-foreground">
                 Vorgefertigte Workflows mit mehreren AI-Agents. Wähle ein
                 Template, passe es an und starte in Minuten.
               </p>
             </div>
             {/* Search */}
             <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Templates durchsuchen..."
-                className="h-10 w-full rounded-lg border border-zinc-800 bg-zinc-900 pl-9 pr-4 text-sm text-white placeholder-zinc-500 outline-none transition-colors focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600"
+                className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-border focus:ring-1 focus:ring-ring"
               />
               {search && (
                 <button
                   onClick={() => setSearch("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -766,7 +766,7 @@ export default function WorkflowTemplatesPage() {
         <div className="mb-8 space-y-3">
           {/* Category */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs font-medium uppercase tracking-wider text-zinc-600">
+            <span className="mr-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Kategorie
             </span>
             {CATEGORIES.map((cat) => (
@@ -781,7 +781,7 @@ export default function WorkflowTemplatesPage() {
 
           {/* Industry */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs font-medium uppercase tracking-wider text-zinc-600">
+            <span className="mr-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Branche
             </span>
             {INDUSTRIES.map((ind) => (
@@ -796,7 +796,7 @@ export default function WorkflowTemplatesPage() {
 
           {/* Complexity */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs font-medium uppercase tracking-wider text-zinc-600">
+            <span className="mr-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Komplexität
             </span>
             {COMPLEXITIES.map((c) => (
@@ -822,25 +822,25 @@ export default function WorkflowTemplatesPage() {
         {loading ? (
           <div className="flex items-center justify-center py-32">
             <div className="flex flex-col items-center gap-3">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-700 border-t-kiln-orange" />
-              <p className="text-sm text-zinc-500">Templates werden geladen...</p>
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-kiln-orange" />
+              <p className="text-sm text-muted-foreground">Templates werden geladen...</p>
             </div>
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-900">
-              <Search className="h-7 w-7 text-zinc-600" />
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-card">
+              <Search className="h-7 w-7 text-muted-foreground" />
             </div>
-            <p className="text-lg font-medium text-white">
+            <p className="text-lg font-medium text-foreground">
               Keine Templates gefunden
             </p>
-            <p className="mt-1 text-sm text-zinc-500">
+            <p className="mt-1 text-sm text-muted-foreground">
               Passe deine Filter an oder ändere den Suchbegriff.
             </p>
             <Button
               variant="outline"
               size="sm"
-              className="mt-4 border-zinc-700 text-zinc-400 hover:text-white"
+              className="mt-4 border-border text-muted-foreground hover:text-foreground"
               onClick={() => {
                 setSearch("");
                 setCategoryFilter("All");
@@ -853,7 +853,7 @@ export default function WorkflowTemplatesPage() {
           </div>
         ) : (
           <>
-            <p className="mb-4 text-sm text-zinc-500">
+            <p className="mb-4 text-sm text-muted-foreground">
               {filtered.length}{" "}
               {filtered.length === 1 ? "Template" : "Templates"} gefunden
             </p>

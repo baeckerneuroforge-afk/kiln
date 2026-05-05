@@ -193,29 +193,29 @@ interface Team {
 /* ========== Role color config ========== */
 const roleColors: Record<string, { bg: string; text: string; border: string; hex: string }> = {
   HEAD: { bg: "bg-orange-500/20", text: "text-orange-400", border: "border-orange-500/40", hex: "#F97316" },
-  COORDINATOR: { bg: "bg-blue-500/20", text: "text-gray-400", border: "border-blue-500/40", hex: "#3B82F6" },
-  EXECUTOR: { bg: "bg-green-500/20", text: "text-gray-400", border: "border-green-500/40", hex: "#22C55E" },
-  REPORTER: { bg: "bg-purple-500/20", text: "text-gray-400", border: "border-purple-500/40", hex: "#A855F7" },
-  APPROVAL_GATE: { bg: "bg-amber-500/20", text: "text-gray-400", border: "border-amber-500/40", hex: "#F59E0B" },
+  COORDINATOR: { bg: "bg-blue-500/20", text: "text-muted-foreground", border: "border-blue-500/40", hex: "#3B82F6" },
+  EXECUTOR: { bg: "bg-green-500/20", text: "text-muted-foreground", border: "border-green-500/40", hex: "#22C55E" },
+  REPORTER: { bg: "bg-purple-500/20", text: "text-muted-foreground", border: "border-purple-500/40", hex: "#A855F7" },
+  APPROVAL_GATE: { bg: "bg-amber-500/20", text: "text-muted-foreground", border: "border-amber-500/40", hex: "#F59E0B" },
 };
 
 const priorityColors: Record<string, { bg: string; text: string }> = {
-  LOW: { bg: "bg-zinc-700/60", text: "text-zinc-400" },
-  MEDIUM: { bg: "bg-blue-500/20", text: "text-gray-400" },
+  LOW: { bg: "bg-muted/60", text: "text-muted-foreground" },
+  MEDIUM: { bg: "bg-blue-500/20", text: "text-muted-foreground" },
   HIGH: { bg: "bg-orange-500/20", text: "text-orange-400" },
-  URGENT: { bg: "bg-red-500/20", text: "text-gray-400" },
+  URGENT: { bg: "bg-red-500/20", text: "text-muted-foreground" },
 };
 
 const statusColumns = ["PENDING", "RUNNING", "AWAITING_APPROVAL", "COMPLETED", "FAILED", "REJECTED", "SKIPPED"] as const;
 const statusLabels: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-  PENDING: { label: "Pending", icon: <Clock className="h-4 w-4" />, color: "text-zinc-400" },
-  RUNNING: { label: "Running", icon: <Loader2 className="h-4 w-4 animate-spin" />, color: "text-gray-400" },
-  IN_PROGRESS: { label: "Running", icon: <Loader2 className="h-4 w-4 animate-spin" />, color: "text-gray-400" },
-  AWAITING_APPROVAL: { label: "Awaiting approval", icon: <AlertCircle className="h-4 w-4" />, color: "text-gray-400" },
-  COMPLETED: { label: "Completed", icon: <CheckCircle2 className="h-4 w-4" />, color: "text-gray-400" },
-  FAILED: { label: "Failed", icon: <AlertTriangle className="h-4 w-4" />, color: "text-gray-400" },
+  PENDING: { label: "Pending", icon: <Clock className="h-4 w-4" />, color: "text-muted-foreground" },
+  RUNNING: { label: "Running", icon: <Loader2 className="h-4 w-4 animate-spin" />, color: "text-muted-foreground" },
+  IN_PROGRESS: { label: "Running", icon: <Loader2 className="h-4 w-4 animate-spin" />, color: "text-muted-foreground" },
+  AWAITING_APPROVAL: { label: "Awaiting approval", icon: <AlertCircle className="h-4 w-4" />, color: "text-muted-foreground" },
+  COMPLETED: { label: "Completed", icon: <CheckCircle2 className="h-4 w-4" />, color: "text-muted-foreground" },
+  FAILED: { label: "Failed", icon: <AlertTriangle className="h-4 w-4" />, color: "text-muted-foreground" },
   REJECTED: { label: "Rejected", icon: <X className="h-4 w-4" />, color: "text-red-300" },
-  SKIPPED: { label: "Skipped", icon: <Info className="h-4 w-4" />, color: "text-zinc-500" },
+  SKIPPED: { label: "Skipped", icon: <Info className="h-4 w-4" />, color: "text-muted-foreground" },
 };
 
 function normalizeTaskStatus(status: TeamTask["status"]) {
@@ -263,11 +263,11 @@ function TeamMemberNode({ data }: NodeProps<Node<TeamMemberNodeData>>) {
   return (
     <div
       className={cn(
-        "rounded-xl border bg-zinc-900/90 backdrop-blur-sm px-4 py-3 shadow-lg min-w-[200px] max-w-[260px] cursor-pointer hover:brightness-110 transition-all",
+        "rounded-xl border bg-card/90 backdrop-blur-sm px-4 py-3 shadow-lg min-w-[200px] max-w-[260px] cursor-pointer hover:brightness-110 transition-all",
         rc.border
       )}
     >
-      <Handle type="target" position={Position.Top} className="!bg-zinc-600 !w-2 !h-2" />
+      <Handle type="target" position={Position.Top} className="!bg-muted !w-2 !h-2" />
 
       <div className="flex items-center gap-2 mb-2">
         <span
@@ -276,22 +276,22 @@ function TeamMemberNode({ data }: NodeProps<Node<TeamMemberNodeData>>) {
           {role}
         </span>
         {data.taskCount > 0 && (
-          <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-full ml-auto">
+          <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full ml-auto">
             {data.taskCount} tasks
           </span>
         )}
       </div>
 
       <div className="flex items-center gap-2">
-        <p className="text-sm font-semibold text-zinc-100 truncate">{data.agentName}</p>
+        <p className="text-sm font-semibold text-foreground truncate">{data.agentName}</p>
         {data.llmModel && (() => {
           const m = getModelDef(data.llmModel as string);
-          return m ? <span className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-full shrink-0">{m.shortLabel}</span> : null;
+          return m ? <span className="text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full shrink-0">{m.shortLabel}</span> : null;
         })()}
       </div>
 
       {data.responsibilities && (
-        <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{data.responsibilities}</p>
+        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{data.responsibilities}</p>
       )}
 
       {/* Agent mode badge */}
@@ -301,11 +301,11 @@ function TeamMemberNode({ data }: NodeProps<Node<TeamMemberNodeData>>) {
             className={cn(
               "inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded-full",
               data.mode === "APPROVAL"
-                ? "bg-amber-500/15 text-gray-400"
+                ? "bg-amber-500/15 text-muted-foreground"
                 :
               data.mode === "CHAT"
-                ? "bg-blue-500/15 text-gray-400"
-                : "bg-green-500/15 text-gray-400"
+                ? "bg-blue-500/15 text-muted-foreground"
+                : "bg-green-500/15 text-muted-foreground"
             )}
           >
             {data.mode === "APPROVAL" ? (
@@ -329,14 +329,14 @@ function TeamMemberNode({ data }: NodeProps<Node<TeamMemberNodeData>>) {
           </span>
         )}
         {data.hasOutputSchema && (
-          <span className="inline-flex items-center text-[9px] bg-white/[0.05] text-gray-400 px-1.5 py-0.5 rounded-full">
+          <span className="inline-flex items-center text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
             JSON
           </span>
         )}
         {typeof data.sharedContextCount === "number" && data.sharedContextCount > 0 && (
           <span
             title={(data.sharedContextPreview || []).join(", ")}
-            className="inline-flex items-center gap-1 text-[9px] bg-white/[0.05] text-gray-400 px-1.5 py-0.5 rounded-full"
+            className="inline-flex items-center gap-1 text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full"
           >
             <Database className="h-2.5 w-2.5" />
             {data.sharedContextCount}
@@ -344,7 +344,7 @@ function TeamMemberNode({ data }: NodeProps<Node<TeamMemberNodeData>>) {
         )}
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="!bg-zinc-600 !w-2 !h-2" />
+      <Handle type="source" position={Position.Bottom} className="!bg-muted !w-2 !h-2" />
     </div>
   );
 }
@@ -799,7 +799,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
       {/* Slide-in panel */}
       <div
         className={cn(
-          "fixed top-0 right-0 h-full w-[380px] z-30 bg-zinc-900 border-l border-border shadow-2xl transform transition-transform duration-200 flex flex-col",
+          "fixed top-0 right-0 h-full w-[380px] z-30 bg-card border-l border-border shadow-2xl transform transition-transform duration-200 flex flex-col",
           member ? "translate-x-0" : "translate-x-full"
         )}
       >
@@ -811,9 +811,9 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                 {member.role}
               </span>
             )}
-            <h3 className="text-sm font-semibold text-zinc-100">Edit Node</h3>
+            <h3 className="text-sm font-semibold text-foreground">Edit Node</h3>
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -830,23 +830,23 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
             <>
               {/* Agent name */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-400">Agent Name</label>
+                <label className="text-xs font-medium text-muted-foreground">Agent Name</label>
                 <input
                   value={agentName}
                   onChange={(e) => setAgentName(e.target.value)}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-600"
+                  className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground"
                   placeholder="Agent name..."
                 />
               </div>
 
               {/* Role */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-400">Role</label>
+                <label className="text-xs font-medium text-muted-foreground">Role</label>
                 <div className="relative">
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value as typeof role)}
-                    className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                    className="w-full appearance-none bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
                   >
                     <option value="HEAD">HEAD</option>
                     <option value="COORDINATOR">COORDINATOR</option>
@@ -854,24 +854,24 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                     <option value="REPORTER">REPORTER</option>
                     <option value="APPROVAL_GATE">APPROVAL_GATE</option>
                   </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 </div>
               </div>
 
               {/* Agent mode badge (read-only) */}
               {mode && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-zinc-400">Agent Mode</label>
+                  <label className="text-xs font-medium text-muted-foreground">Agent Mode</label>
                   <div>
                     <span
                       className={cn(
                         "inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full",
                         mode === "APPROVAL"
-                          ? "bg-amber-500/15 text-gray-400 border border-amber-500/30"
+                          ? "bg-amber-500/15 text-muted-foreground border border-amber-500/30"
                           :
                         mode === "CHAT"
-                          ? "bg-blue-500/15 text-gray-400 border border-blue-500/30"
-                          : "bg-green-500/15 text-gray-400 border border-green-500/30"
+                          ? "bg-blue-500/15 text-muted-foreground border border-blue-500/30"
+                          : "bg-green-500/15 text-muted-foreground border border-green-500/30"
                       )}
                     >
                       {mode === "APPROVAL" ? (
@@ -893,29 +893,29 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
 
               {/* LLM Provider */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-400">LLM Provider</label>
+                <label className="text-xs font-medium text-muted-foreground">LLM Provider</label>
                 <div className="relative">
                   <select
                     value={provider}
                     onChange={(e) => handleProviderChange(e.target.value as ProviderKey)}
-                    className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                    className="w-full appearance-none bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
                   >
                     {(Object.keys(PROVIDERS) as ProviderKey[]).map((p) => (
                       <option key={p} value={p}>{PROVIDERS[p].label}</option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 </div>
               </div>
 
               {/* LLM Model */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-400">Model</label>
+                <label className="text-xs font-medium text-muted-foreground">Model</label>
                 <div className="relative">
                   <select
                     value={llmModel}
                     onChange={(e) => setLlmModel(e.target.value)}
-                    className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                    className="w-full appearance-none bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
                   >
                     {availableModels.map((m) => (
                       <option key={m.id} value={m.id}>
@@ -923,59 +923,59 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 </div>
               </div>
 
               {/* Responsibilities */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-400">Responsibilities</label>
+                <label className="text-xs font-medium text-muted-foreground">Responsibilities</label>
                 <textarea
                   value={responsibilities}
                   onChange={(e) => setResponsibilities(e.target.value)}
                   rows={3}
                   placeholder="Describe this agent's responsibilities..."
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-zinc-600"
+                  className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-muted-foreground"
                 />
               </div>
 
               {role === "APPROVAL_GATE" && (
                 <>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-zinc-400">Approver Email</label>
+                    <label className="text-xs font-medium text-muted-foreground">Approver Email</label>
                     <input
                       value={approverEmail}
                       onChange={(e) => setApproverEmail(e.target.value)}
                       placeholder="approver@example.com"
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-600"
+                      className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-zinc-400">Approval Message</label>
+                    <label className="text-xs font-medium text-muted-foreground">Approval Message</label>
                     <textarea
                       value={approvalMessage}
                       onChange={(e) => setApprovalMessage(e.target.value)}
                       rows={3}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-zinc-600"
+                      className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-muted-foreground"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-zinc-400">Timeout Hours</label>
+                      <label className="text-xs font-medium text-muted-foreground">Timeout Hours</label>
                       <input
                         type="number"
                         min={1}
                         value={timeoutHours}
                         onChange={(e) => setTimeoutHours(Math.max(1, Number(e.target.value) || 24))}
-                        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors"
+                        className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-zinc-400">Timeout Action</label>
+                      <label className="text-xs font-medium text-muted-foreground">Timeout Action</label>
                       <select
                         value={timeoutAction}
                         onChange={(e) => setTimeoutAction(e.target.value as ApprovalTimeoutAction)}
-                        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors"
+                        className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors"
                       >
                         <option value="auto_approve">Auto approve</option>
                         <option value="auto_reject">Auto reject</option>
@@ -988,24 +988,24 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
 
               {/* System prompt */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-400">System Prompt</label>
+                <label className="text-xs font-medium text-muted-foreground">System Prompt</label>
                 <textarea
                   value={systemPrompt}
                   onChange={(e) => setSystemPrompt(e.target.value)}
                   rows={5}
                   placeholder="System prompt for this agent..."
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-zinc-600 font-mono text-xs"
+                  className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-muted-foreground font-mono text-xs"
                 />
               </div>
 
               {/* Reports to */}
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-400">Reports To</label>
+                <label className="text-xs font-medium text-muted-foreground">Reports To</label>
                 <div className="relative">
                   <select
                     value={reportsToMemberId}
                     onChange={(e) => setReportsToMemberId(e.target.value)}
-                    className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                    className="w-full appearance-none bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
                   >
                     <option value="">— None (root) —</option>
                     {allMembers
@@ -1016,7 +1016,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                         </option>
                       ))}
                   </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                 </div>
               </div>
 
@@ -1024,12 +1024,12 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
               {mode === "TASK" && (
                 <>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-zinc-400">Trigger Type</label>
+                    <label className="text-xs font-medium text-muted-foreground">Trigger Type</label>
                     <div className="relative">
                       <select
                         value={triggerType}
                         onChange={(e) => setTriggerType(e.target.value)}
-                        className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                        className="w-full appearance-none bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
                       >
                         <option value="">— None —</option>
                         <option value="MANUAL">Manual</option>
@@ -1037,17 +1037,17 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                         <option value="WEBHOOK">Webhook</option>
                         <option value="EVENT">Event</option>
                       </select>
-                      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-zinc-400">Output Type</label>
+                    <label className="text-xs font-medium text-muted-foreground">Output Type</label>
                     <div className="relative">
                       <select
                         value={outputType}
                         onChange={(e) => setOutputType(e.target.value)}
-                        className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                        className="w-full appearance-none bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
                       >
                         <option value="">— None —</option>
                         <option value="NONE">None</option>
@@ -1056,16 +1056,16 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                         <option value="NEXT_AGENT">Next Agent</option>
                         <option value="WEBHOOK">Webhook</option>
                       </select>
-                      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                     </div>
                   </div>
                 </>
               )}
 
               {/* ── Output Schema (Structured Routing) ── */}
-              <div className="space-y-1.5 border-t border-zinc-800 pt-4">
+              <div className="space-y-1.5 border-t border-border pt-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-zinc-400">Output Schema</label>
+                  <label className="text-xs font-medium text-muted-foreground">Output Schema</label>
                   <button
                     type="button"
                     onClick={() =>
@@ -1076,7 +1076,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                     + Add Field
                   </button>
                 </div>
-                <p className="text-[10px] text-zinc-500">Define structured output fields for JSON routing between agents.</p>
+                <p className="text-[10px] text-muted-foreground">Define structured output fields for JSON routing between agents.</p>
 
                 {schemaFields.length > 0 && (
                   <div className="space-y-2 mt-2">
@@ -1090,7 +1090,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                             setSchemaFields(updated);
                           }}
                           placeholder="field_name"
-                          className="flex-1 bg-zinc-800 border border-zinc-700 rounded-md text-xs text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60 font-mono"
+                          className="flex-1 bg-muted border border-border rounded-md text-xs text-foreground px-2 py-1.5 outline-none focus:border-orange-500/60 font-mono"
                         />
                         <select
                           value={sf.type}
@@ -1099,7 +1099,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                             updated[i] = { ...updated[i], type: e.target.value as OutputSchemaField["type"] };
                             setSchemaFields(updated);
                           }}
-                          className="w-20 appearance-none bg-zinc-800 border border-zinc-700 rounded-md text-xs text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60"
+                          className="w-20 appearance-none bg-muted border border-border rounded-md text-xs text-foreground px-2 py-1.5 outline-none focus:border-orange-500/60"
                         >
                           <option value="string">string</option>
                           <option value="number">number</option>
@@ -1108,7 +1108,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                         <button
                           type="button"
                           onClick={() => setSchemaFields((prev) => prev.filter((_, idx) => idx !== i))}
-                          className="text-zinc-600 hover:text-gray-400 mt-1"
+                          className="text-muted-foreground hover:text-muted-foreground mt-1"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -1118,9 +1118,9 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                 )}
 
                 {schemaFields.length > 0 && (
-                  <div className="mt-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-2">
-                    <p className="text-[9px] font-medium text-zinc-500 mb-1">Preview</p>
-                    <pre className="text-[10px] font-mono text-zinc-400 overflow-x-auto">
+                  <div className="mt-2 rounded-lg border border-border bg-card/50 p-2">
+                    <p className="text-[9px] font-medium text-muted-foreground mb-1">Preview</p>
+                    <pre className="text-[10px] font-mono text-muted-foreground overflow-x-auto">
                       {JSON.stringify(
                         Object.fromEntries(
                           schemaFields
@@ -1137,17 +1137,17 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
 
               {/* ── Tool Scoping ── */}
               {agentActions.length > 0 && (
-                <div className="space-y-1.5 border-t border-zinc-800 pt-4">
-                  <label className="text-xs font-medium text-zinc-400">Active Tools</label>
-                  <p className="text-[10px] text-zinc-500">
+                <div className="space-y-1.5 border-t border-border pt-4">
+                  <label className="text-xs font-medium text-muted-foreground">Active Tools</label>
+                  <p className="text-[10px] text-muted-foreground">
                     Select which tools this agent can use during workflow execution.
                     {enabledActions.length === 0 && " (All tools active)"}
                   </p>
 
                   {agentActions.length > 6 && (
                     <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-1.5 mt-1">
-                      <AlertCircle className="h-3 w-3 text-gray-400 shrink-0" />
-                      <p className="text-[10px] text-gray-400">
+                      <AlertCircle className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <p className="text-[10px] text-muted-foreground">
                         {agentActions.length} tools active — consider reducing for better reliability
                       </p>
                     </div>
@@ -1163,7 +1163,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                             "flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer transition-colors",
                             isActive
                               ? "border-orange-500/30 bg-orange-500/5"
-                              : "border-zinc-800 bg-zinc-900/30 opacity-60"
+                              : "border-border bg-card/30 opacity-60"
                           )}
                         >
                           <input
@@ -1182,9 +1182,9 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                                 setEnabledActions(next.length === agentActions.length ? [] : next);
                               }
                             }}
-                            className="rounded border-zinc-600 bg-zinc-800 text-orange-500 focus:ring-orange-500/50 h-3 w-3"
+                            className="rounded border-border bg-muted text-orange-500 focus:ring-orange-500/50 h-3 w-3"
                           />
-                          <span className="text-xs text-zinc-300">
+                          <span className="text-xs text-foreground">
                             {action.replace(/_/g, " ")}
                           </span>
                         </label>
@@ -1196,14 +1196,14 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
 
               {/* ── Trigger Team (Inter-Team Communication) ── */}
               {role !== "APPROVAL_GATE" && (
-                <div className="space-y-3 border-t border-zinc-800 pt-4">
+                <div className="space-y-3 border-t border-border pt-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <label className="text-xs font-medium text-zinc-400 flex items-center gap-1.5">
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                         <Network className="h-3 w-3" />
                         Trigger Workflow
                       </label>
-                      <p className="mt-1 text-[10px] text-zinc-500">
+                      <p className="mt-1 text-[10px] text-muted-foreground">
                         After this agent completes, trigger another workflow&apos;s execution.
                       </p>
                     </div>
@@ -1212,7 +1212,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                       onClick={() => setTriggerTeamEnabled(!triggerTeamEnabled)}
                       className={cn(
                         "relative h-5 w-9 rounded-full transition-colors",
-                        triggerTeamEnabled ? "bg-orange-500" : "bg-zinc-700"
+                        triggerTeamEnabled ? "bg-orange-500" : "bg-muted"
                       )}
                     >
                       <span
@@ -1227,11 +1227,11 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                   {triggerTeamEnabled && (
                     <div className="space-y-3 ml-1">
                       <div>
-                        <label className="text-[10px] text-zinc-500 mb-1 block">Target Workflow</label>
+                        <label className="text-[10px] text-muted-foreground mb-1 block">Target Workflow</label>
                         <select
                           value={triggerTeamTargetId}
                           onChange={(e) => setTriggerTeamTargetId(e.target.value)}
-                          className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60"
+                          className="w-full appearance-none bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60"
                         >
                           <option value="">Select workflow...</option>
                           {availableTeams.map((t) => (
@@ -1241,7 +1241,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                       </div>
 
                       <div>
-                        <label className="text-[10px] text-zinc-500 mb-1 block">Mode</label>
+                        <label className="text-[10px] text-muted-foreground mb-1 block">Mode</label>
                         <div className="flex gap-2">
                           <button
                             type="button"
@@ -1250,7 +1250,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                               "flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
                               triggerTeamMode === "async"
                                 ? "border-orange-500/40 bg-orange-500/10 text-orange-400"
-                                : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
+                                : "border-border bg-muted text-muted-foreground hover:border-foreground/20"
                             )}
                           >
                             Async (fire &amp; forget)
@@ -1261,8 +1261,8 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                             className={cn(
                               "flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
                               triggerTeamMode === "sync"
-                                ? "border-blue-500/40 bg-white/[0.05] text-gray-400"
-                                : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
+                                ? "border-blue-500/40 bg-muted text-muted-foreground"
+                                : "border-border bg-muted text-muted-foreground hover:border-foreground/20"
                             )}
                           >
                             Sync (wait for result)
@@ -1271,14 +1271,14 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                       </div>
 
                       <div>
-                        <label className="text-[10px] text-zinc-500 mb-1 block">
-                          Goal Template <span className="text-zinc-600">(optional, use {`{{field}}`} for context)</span>
+                        <label className="text-[10px] text-muted-foreground mb-1 block">
+                          Goal Template <span className="text-muted-foreground">(optional, use {`{{field}}`} for context)</span>
                         </label>
                         <input
                           value={triggerTeamGoal}
                           onChange={(e) => setTriggerTeamGoal(e.target.value)}
                           placeholder="e.g. Onboard the lead {{leadName}} from {{company}}"
-                          className="w-full bg-zinc-800/60 border border-zinc-700 rounded-lg text-xs text-zinc-200 outline-none px-3 py-2 placeholder:text-zinc-600 focus:border-orange-500/50"
+                          className="w-full bg-muted/60 border border-border rounded-lg text-xs text-foreground outline-none px-3 py-2 placeholder:text-muted-foreground focus:border-orange-500/50"
                         />
                       </div>
                     </div>
@@ -1287,8 +1287,8 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
               )}
 
               {/* ── Execution Mode ── */}
-              <div className="space-y-1.5 border-t border-zinc-800 pt-4">
-                <label className="text-xs font-medium text-zinc-400">Execution Mode</label>
+              <div className="space-y-1.5 border-t border-border pt-4">
+                <label className="text-xs font-medium text-muted-foreground">Execution Mode</label>
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -1297,7 +1297,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                       "flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
                       executionMode === "sequential"
                         ? "border-orange-500/40 bg-orange-500/10 text-orange-400"
-                        : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
+                        : "border-border bg-muted text-muted-foreground hover:border-foreground/20"
                     )}
                   >
                     Sequential
@@ -1309,13 +1309,13 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                       "flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
                       executionMode === "parallel"
                         ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-400"
-                        : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600"
+                        : "border-border bg-muted text-muted-foreground hover:border-foreground/20"
                     )}
                   >
                     ⚡ Parallel
                   </button>
                 </div>
-                <p className="text-[10px] text-zinc-500">
+                <p className="text-[10px] text-muted-foreground">
                   {executionMode === "parallel"
                     ? "This agent runs simultaneously with sibling agents that share the same parent and are also set to parallel."
                     : "This agent runs sequentially in the execution order."}
@@ -1323,11 +1323,11 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
               </div>
 
               {role !== "APPROVAL_GATE" && (
-                <div className="space-y-3 border-t border-zinc-800 pt-4">
+                <div className="space-y-3 border-t border-border pt-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <label className="text-xs font-medium text-zinc-400">Fallback Runtime</label>
-                      <p className="mt-1 text-[10px] text-zinc-500">
+                      <label className="text-xs font-medium text-muted-foreground">Fallback Runtime</label>
+                      <p className="mt-1 text-[10px] text-muted-foreground">
                         Retry the primary agent first, then switch to a fallback agent or cheaper model.
                       </p>
                     </div>
@@ -1336,7 +1336,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                       onClick={() => setFallbackEnabled((value) => !value)}
                       className={cn(
                         "relative h-5 w-9 rounded-full transition-colors",
-                        fallbackEnabled ? "bg-orange-500" : "bg-zinc-700"
+                        fallbackEnabled ? "bg-orange-500" : "bg-muted"
                       )}
                     >
                       <span
@@ -1350,13 +1350,13 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
 
                   <div className="grid gap-3 md:grid-cols-2">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-zinc-400">Fallback Agent</label>
+                      <label className="text-xs font-medium text-muted-foreground">Fallback Agent</label>
                       <div className="relative">
                         <select
                           value={fallbackAgentId}
                           onChange={(e) => setFallbackAgentId(e.target.value)}
                           disabled={!fallbackEnabled}
-                          className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8 disabled:opacity-50"
+                          className="w-full appearance-none bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8 disabled:opacity-50"
                         >
                           <option value="">None</option>
                           {availableFallbackAgents.map((agent) => (
@@ -1365,18 +1365,18 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                             </option>
                           ))}
                         </select>
-                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                       </div>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-zinc-400">Fallback Model</label>
+                      <label className="text-xs font-medium text-muted-foreground">Fallback Model</label>
                       <div className="relative">
                         <select
                           value={fallbackModel}
                           onChange={(e) => setFallbackModel(e.target.value)}
                           disabled={!fallbackEnabled}
-                          className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8 disabled:opacity-50"
+                          className="w-full appearance-none bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8 disabled:opacity-50"
                         >
                           <option value="">None</option>
                           {fallbackModelOptions.map((model) => (
@@ -1386,13 +1386,13 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                             </option>
                           ))}
                         </select>
-                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-zinc-400">Max Retries Before Fallback</label>
+                    <label className="text-xs font-medium text-muted-foreground">Max Retries Before Fallback</label>
                     <input
                       type="number"
                       min={0}
@@ -1400,12 +1400,12 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                       value={maxRetries}
                       onChange={(e) => setMaxRetries(Math.max(0, Math.min(5, Number(e.target.value) || 0)))}
                       disabled={!fallbackEnabled}
-                      className="w-28 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors disabled:opacity-50"
+                      className="w-28 bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors disabled:opacity-50"
                     />
                   </div>
 
-                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
-                    <p className="text-[10px] text-zinc-500">
+                  <div className="rounded-lg border border-border bg-card/50 p-3">
+                    <p className="text-[10px] text-muted-foreground">
                       {fallbackEnabled
                         ? `Primary attempts: ${maxRetries + 1}. ${
                             fallbackAgentId || fallbackModel
@@ -1419,15 +1419,15 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
               )}
 
               {/* ── Feedback Loop ── */}
-              <div className="space-y-1.5 border-t border-zinc-800 pt-4">
+              <div className="space-y-1.5 border-t border-border pt-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-zinc-400">Feedback Loop</label>
+                  <label className="text-xs font-medium text-muted-foreground">Feedback Loop</label>
                   <button
                     type="button"
                     onClick={() => setLoopEnabled(!loopEnabled)}
                     className={cn(
                       "relative w-8 h-4.5 rounded-full transition-colors",
-                      loopEnabled ? "bg-orange-500" : "bg-zinc-700"
+                      loopEnabled ? "bg-orange-500" : "bg-muted"
                     )}
                   >
                     <span
@@ -1438,18 +1438,18 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                     />
                   </button>
                 </div>
-                <p className="text-[10px] text-zinc-500">
+                <p className="text-[10px] text-muted-foreground">
                   Route output back to another agent for revision until quality threshold is met.
                 </p>
 
                 {loopEnabled && (
                   <div className="space-y-2 mt-2">
                     <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500">Target Agent (to revise)</label>
+                      <label className="text-[10px] text-muted-foreground">Target Agent (to revise)</label>
                       <select
                         value={loopTargetMemberId}
                         onChange={(e) => setLoopTargetMemberId(e.target.value)}
-                        className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-md text-xs text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60"
+                        className="w-full appearance-none bg-muted border border-border rounded-md text-xs text-foreground px-2 py-1.5 outline-none focus:border-orange-500/60"
                       >
                         <option value="">— Select agent —</option>
                         {allMembers
@@ -1463,38 +1463,38 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <label className="text-[10px] text-zinc-500">Quality Field</label>
+                        <label className="text-[10px] text-muted-foreground">Quality Field</label>
                         <input
                           value={loopQualityField}
                           onChange={(e) => setLoopQualityField(e.target.value)}
                           placeholder="e.g. quality_score"
-                          className="w-full bg-zinc-800 border border-zinc-700 rounded-md text-xs text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60 font-mono"
+                          className="w-full bg-muted border border-border rounded-md text-xs text-foreground px-2 py-1.5 outline-none focus:border-orange-500/60 font-mono"
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] text-zinc-500">Threshold</label>
+                        <label className="text-[10px] text-muted-foreground">Threshold</label>
                         <input
                           type="number"
                           value={loopQualityThreshold}
                           onChange={(e) => setLoopQualityThreshold(Number(e.target.value) || 0)}
-                          className="w-full bg-zinc-800 border border-zinc-700 rounded-md text-xs text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60"
+                          className="w-full bg-muted border border-border rounded-md text-xs text-foreground px-2 py-1.5 outline-none focus:border-orange-500/60"
                         />
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500">Max Iterations</label>
+                      <label className="text-[10px] text-muted-foreground">Max Iterations</label>
                       <input
                         type="number"
                         min={1}
                         max={10}
                         value={loopMaxIterations}
                         onChange={(e) => setLoopMaxIterations(Math.max(1, Math.min(10, Number(e.target.value) || 3)))}
-                        className="w-20 bg-zinc-800 border border-zinc-700 rounded-md text-xs text-zinc-100 px-2 py-1.5 outline-none focus:border-orange-500/60"
+                        className="w-20 bg-muted border border-border rounded-md text-xs text-foreground px-2 py-1.5 outline-none focus:border-orange-500/60"
                       />
                     </div>
 
-                    <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-2 mt-1">
-                      <p className="text-[9px] text-zinc-500">
+                    <div className="rounded-lg border border-border bg-card/50 p-2 mt-1">
+                      <p className="text-[9px] text-muted-foreground">
                         After this agent evaluates, if <code className="text-orange-400">{loopQualityField || "field"}</code> {"<"} {loopQualityThreshold}, output is routed back to the target agent with feedback for revision (max {loopMaxIterations} iterations).
                       </p>
                     </div>
@@ -1523,7 +1523,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
                 variant="ghost"
                 size="sm"
                 onClick={() => setConfirmRemove(false)}
-                className="flex-1 text-zinc-400"
+                className="flex-1 text-muted-foreground"
               >
                 Cancel
               </Button>
@@ -1542,7 +1542,7 @@ function EditMemberPanel({ member, allMembers, teamId, onClose, onSaved }: EditM
               variant="ghost"
               size="sm"
               onClick={() => setConfirmRemove(true)}
-              className="w-full text-gray-400 hover:text-red-300 hover:bg-white/[0.05]"
+              className="w-full text-muted-foreground hover:text-red-300 hover:bg-muted"
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Remove Node
@@ -1652,13 +1652,13 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-zinc-900 shadow-2xl flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl flex flex-col max-h-[90vh]">
         {/* Modal header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-          <h2 className="text-base font-semibold text-zinc-100 font-[family-name:var(--font-instrument)]">
+          <h2 className="text-base font-semibold text-foreground font-[family-name:var(--font-instrument)]">
             Add Node
           </h2>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -1667,24 +1667,24 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
         <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
           {/* Agent name */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-400">Agent Name</label>
+            <label className="text-xs font-medium text-muted-foreground">Agent Name</label>
             <input
               autoFocus
               value={agentName}
               onChange={(e) => setAgentName(e.target.value)}
               placeholder="e.g. Research Analyst"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-600"
+              className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground"
             />
           </div>
 
           {/* Role */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-400">Role</label>
+            <label className="text-xs font-medium text-muted-foreground">Role</label>
             <div className="relative">
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as typeof role)}
-                className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                className="w-full appearance-none bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
               >
                 <option value="HEAD">HEAD</option>
                 <option value="COORDINATOR">COORDINATOR</option>
@@ -1692,13 +1692,13 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
                 <option value="REPORTER">REPORTER</option>
                 <option value="APPROVAL_GATE">APPROVAL_GATE</option>
               </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             </div>
           </div>
 
           {/* Agent mode */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-400">Agent Mode</label>
+            <label className="text-xs font-medium text-muted-foreground">Agent Mode</label>
             <div className="flex gap-2">
               {(["CHAT", "TASK"] as const).map((m) => (
                 <button
@@ -1710,7 +1710,7 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
                       ? m === "CHAT"
                         ? "bg-blue-500/20 border-blue-500/40 text-blue-300"
                         : "bg-green-500/20 border-green-500/40 text-green-300"
-                      : "bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300"
+                      : "bg-muted border-border text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {m === "CHAT" ? <MessageSquare className="h-3.5 w-3.5" /> : <Zap className="h-3.5 w-3.5" />}
@@ -1722,29 +1722,29 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
 
           {/* Provider */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-400">Provider</label>
+            <label className="text-xs font-medium text-muted-foreground">Provider</label>
             <div className="relative">
               <select
                 value={provider}
                 onChange={(e) => handleProviderChange(e.target.value as ProviderKey)}
-                className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                className="w-full appearance-none bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
               >
                 {(Object.keys(PROVIDERS) as ProviderKey[]).map((p) => (
                   <option key={p} value={p}>{PROVIDERS[p].label}</option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             </div>
           </div>
 
           {/* Model */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-400">Model</label>
+            <label className="text-xs font-medium text-muted-foreground">Model</label>
             <div className="relative">
               <select
                 value={llmModel}
                 onChange={(e) => setLlmModel(e.target.value)}
-                className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                className="w-full appearance-none bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
               >
                 {availableModels.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -1752,71 +1752,71 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             </div>
           </div>
 
           {/* System prompt */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-400">System Prompt</label>
+            <label className="text-xs font-medium text-muted-foreground">System Prompt</label>
             <textarea
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
               rows={4}
               placeholder="Define the agent's behavior and expertise..."
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-zinc-600"
+              className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-muted-foreground"
             />
           </div>
 
           {/* Responsibilities */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-400">Responsibilities</label>
+            <label className="text-xs font-medium text-muted-foreground">Responsibilities</label>
             <textarea
               value={responsibilities}
               onChange={(e) => setResponsibilities(e.target.value)}
               rows={2}
               placeholder="e.g. Research and summarize competitor analysis..."
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-zinc-600"
+              className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none placeholder:text-muted-foreground"
             />
           </div>
 
           {role === "APPROVAL_GATE" && (
             <>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-400">Approver Email</label>
+                <label className="text-xs font-medium text-muted-foreground">Approver Email</label>
                 <input
                   value={approverEmail}
                   onChange={(e) => setApproverEmail(e.target.value)}
                   placeholder="approver@example.com"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-600"
+                  className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground"
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-zinc-400">Approval Message</label>
+                <label className="text-xs font-medium text-muted-foreground">Approval Message</label>
                 <textarea
                   value={approvalMessage}
                   onChange={(e) => setApprovalMessage(e.target.value)}
                   rows={3}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none"
+                  className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors resize-none"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-zinc-400">Timeout Hours</label>
+                  <label className="text-xs font-medium text-muted-foreground">Timeout Hours</label>
                   <input
                     type="number"
                     min={1}
                     value={timeoutHours}
                     onChange={(e) => setTimeoutHours(Math.max(1, Number(e.target.value) || 24))}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors"
+                    className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-zinc-400">Timeout Action</label>
+                  <label className="text-xs font-medium text-muted-foreground">Timeout Action</label>
                   <select
                     value={timeoutAction}
                     onChange={(e) => setTimeoutAction(e.target.value as ApprovalTimeoutAction)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors"
+                    className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors"
                   >
                     <option value="auto_approve">Auto approve</option>
                     <option value="auto_reject">Auto reject</option>
@@ -1830,12 +1830,12 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
           {/* Reports to */}
           {allMembers.length > 0 && (
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-zinc-400">Reports To</label>
+              <label className="text-xs font-medium text-muted-foreground">Reports To</label>
               <div className="relative">
                 <select
                   value={reportsToMemberId}
                   onChange={(e) => setReportsToMemberId(e.target.value)}
-                  className="w-full appearance-none bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
+                  className="w-full appearance-none bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors pr-8"
                 >
                   <option value="">— None (root) —</option>
                   {allMembers.map((m) => (
@@ -1844,13 +1844,13 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
               </div>
             </div>
           )}
 
           {error && (
-            <p className="text-xs text-gray-400 bg-white/[0.05] border border-red-500/20 rounded-lg px-3 py-2">
+            <p className="text-xs text-muted-foreground bg-muted border border-red-500/20 rounded-lg px-3 py-2">
               {error}
             </p>
           )}
@@ -1858,7 +1858,7 @@ function AddMemberModal({ teamId, allMembers, onClose, onAdded }: AddMemberModal
 
         {/* Modal footer */}
         <div className="px-5 py-4 border-t border-border shrink-0 flex justify-end gap-3">
-          <Button variant="ghost" size="sm" onClick={onClose} className="text-zinc-400">
+          <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground">
             Cancel
           </Button>
           <Button
@@ -2611,7 +2611,7 @@ function TeamDetailInner() {
       {/* ===== Header ===== */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard/teams" className="text-zinc-500 hover:text-zinc-300 transition-colors">
+          <Link href="/dashboard/teams" className="text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="h-5 w-5" />
           </Link>
 
@@ -2629,12 +2629,12 @@ function TeamDetailInner() {
                   setEditingName(false);
                 }
               }}
-              className="bg-transparent border-b border-orange-500 text-xl font-semibold text-zinc-100 outline-none px-1 font-[family-name:var(--font-instrument)]"
+              className="bg-transparent border-b border-orange-500 text-xl font-semibold text-foreground outline-none px-1 font-[family-name:var(--font-instrument)]"
             />
           ) : (
             <h1
               onClick={() => setEditingName(true)}
-              className="text-xl font-semibold text-zinc-100 cursor-pointer hover:text-orange-400 transition-colors font-[family-name:var(--font-instrument)]"
+              className="text-xl font-semibold text-foreground cursor-pointer hover:text-orange-400 transition-colors font-[family-name:var(--font-instrument)]"
             >
               {team.name}
             </h1>
@@ -2642,7 +2642,7 @@ function TeamDetailInner() {
 
           {/* Cloned/Forked badge */}
           {team.parentTeamId && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-zinc-800 px-2.5 py-0.5 text-[11px] text-zinc-400 border border-zinc-700">
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-[11px] text-muted-foreground border border-border">
               <GitFork className="h-3 w-3" />
               {team.parentTeamName ? `Forked from ${team.parentTeamName}` : "Forked"}
             </span>
@@ -2653,15 +2653,15 @@ function TeamDetailInner() {
             className={cn(
               "text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full",
               team.status === "ACTIVE"
-                ? "bg-green-500/20 text-gray-400 border border-green-500/30"
-                : "bg-zinc-700/60 text-zinc-400 border border-zinc-600/30"
+                ? "bg-green-500/20 text-muted-foreground border border-green-500/30"
+                : "bg-muted/60 text-muted-foreground border border-border"
             )}
           >
             {team.status}
           </span>
 
           {team.schedulePreview?.description ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-white/[0.05] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-300">
+            <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-muted px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-300">
               <CalendarDays className="h-3 w-3" />
               {team.schedulePreview.description}
             </span>
@@ -2673,9 +2673,9 @@ function TeamDetailInner() {
               onClick={() => setShowHealthBreakdown(!showHealthBreakdown)}
               className={cn(
                 "flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all hover:scale-105",
-                healthScore.color === "green" && "bg-green-500/15 text-gray-400 border-green-500/30",
-                healthScore.color === "yellow" && "bg-amber-500/15 text-gray-400 border-amber-500/30",
-                healthScore.color === "red" && "bg-red-500/15 text-gray-400 border-red-500/30"
+                healthScore.color === "green" && "bg-green-500/15 text-muted-foreground border-green-500/30",
+                healthScore.color === "yellow" && "bg-amber-500/15 text-muted-foreground border-amber-500/30",
+                healthScore.color === "red" && "bg-red-500/15 text-muted-foreground border-red-500/30"
               )}
             >
               <Heart className="h-3 w-3" />
@@ -2693,7 +2693,7 @@ function TeamDetailInner() {
             size="sm"
             onClick={toggleStatus}
             disabled={toggling}
-            className="border-border text-zinc-300 hover:text-zinc-100"
+            className="border-border text-foreground hover:text-foreground"
           >
             {toggling ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -2723,20 +2723,20 @@ function TeamDetailInner() {
               variant="ghost"
               size="sm"
               onClick={() => setShowSettings(!showSettings)}
-              className="text-zinc-400 hover:text-zinc-200"
+              className="text-muted-foreground hover:text-foreground"
             >
               <Settings className="h-4 w-4" />
             </Button>
             {showSettings && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowSettings(false)} />
-                <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-xl border border-border bg-zinc-900 shadow-xl py-1">
+                <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-xl border border-border bg-card shadow-xl py-1">
                   <button
                     onClick={() => {
                       setShowSettings(false);
                       window.location.href = `/api/teams/${teamId}/export?format=yaml`;
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+                    className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted flex items-center gap-2"
                   >
                     <Download className="h-4 w-4" /> Export YAML
                   </button>
@@ -2745,7 +2745,7 @@ function TeamDetailInner() {
                       setShowSettings(false);
                       setShowCloneModal(true);
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+                    className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted flex items-center gap-2"
                   >
                     <Copy className="h-4 w-4" /> Clone Workflow
                   </button>
@@ -2754,7 +2754,7 @@ function TeamDetailInner() {
                       setShowSettings(false);
                       router.push(`/dashboard/teams/ab-tests?teamA=${teamId}`);
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+                    className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted flex items-center gap-2"
                   >
                     <FlaskConical className="h-4 w-4" /> A/B Test
                   </button>
@@ -2773,17 +2773,17 @@ function TeamDetailInner() {
                         alert("Template konnte nicht eingereicht werden.");
                       }
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-zinc-300 hover:bg-zinc-800 flex items-center gap-2"
+                    className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted flex items-center gap-2"
                   >
                     <Share2 className="h-4 w-4" /> Als Template teilen
                   </button>
-                  <div className="my-1 border-t border-zinc-800" />
+                  <div className="my-1 border-t border-border" />
                   <button
                     onClick={() => {
                       setShowSettings(false);
                       deleteTeam();
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-gray-400 hover:bg-white/[0.05] flex items-center gap-2"
+                    className="w-full px-4 py-2 text-left text-sm text-muted-foreground hover:bg-muted flex items-center gap-2"
                   >
                     <Trash2 className="h-4 w-4" /> Delete Workflow
                   </button>
@@ -2796,13 +2796,13 @@ function TeamDetailInner() {
 
       {/* ===== Health Score Breakdown ===== */}
       {showHealthBreakdown && healthScore && (
-        <div className="mx-6 mt-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 animate-in slide-in-from-top-2 duration-200">
+        <div className="mx-6 mt-3 rounded-xl border border-border bg-card/60 p-4 animate-in slide-in-from-top-2 duration-200">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Heart className="h-4 w-4 text-orange-400" />
               Workflow Health Score
             </h3>
-            <button onClick={() => setShowHealthBreakdown(false)} className="text-zinc-500 hover:text-zinc-300">
+            <button onClick={() => setShowHealthBreakdown(false)} className="text-muted-foreground hover:text-foreground">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -2810,18 +2810,18 @@ function TeamDetailInner() {
             {healthScore.categories.map((cat) => {
               const catColor = cat.score >= 80 ? "green" : cat.score >= 50 ? "amber" : "red";
               return (
-                <div key={cat.name} className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3">
+                <div key={cat.name} className="rounded-lg border border-border bg-background/50 p-3">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-medium text-zinc-400 truncate">{cat.name}</span>
-                    <span className="text-[10px] text-zinc-500">{Math.round(cat.weight * 100)}%</span>
+                    <span className="text-[10px] font-medium text-muted-foreground truncate">{cat.name}</span>
+                    <span className="text-[10px] text-muted-foreground">{Math.round(cat.weight * 100)}%</span>
                   </div>
                   <div className={cn(
                     "text-lg font-bold",
-                    catColor === "green" && "text-gray-400",
-                    catColor === "amber" && "text-gray-400",
-                    catColor === "red" && "text-gray-400"
+                    catColor === "green" && "text-muted-foreground",
+                    catColor === "amber" && "text-muted-foreground",
+                    catColor === "red" && "text-muted-foreground"
                   )}>{cat.score}</div>
-                  <div className="mt-1.5 h-1 rounded-full bg-zinc-800 overflow-hidden">
+                  <div className="mt-1.5 h-1 rounded-full bg-muted overflow-hidden">
                     <div
                       className={cn(
                         "h-full rounded-full transition-all",
@@ -2832,14 +2832,14 @@ function TeamDetailInner() {
                       style={{ width: `${cat.score}%` }}
                     />
                   </div>
-                  <p className="text-[9px] text-zinc-500 mt-1.5 line-clamp-2">{cat.explanation}</p>
+                  <p className="text-[9px] text-muted-foreground mt-1.5 line-clamp-2">{cat.explanation}</p>
                 </div>
               );
             })}
           </div>
           {healthScore.weakestLink && (
             <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 mb-2">
-              <p className="text-[11px] text-gray-400">
+              <p className="text-[11px] text-muted-foreground">
                 <AlertTriangle className="h-3 w-3 inline mr-1" />
                 <strong>Schwachstelle:</strong> {healthScore.weakestLink.suggestion}
               </p>
@@ -2848,7 +2848,7 @@ function TeamDetailInner() {
           {healthScore.suggestions.length > 0 && (
             <div className="space-y-1">
               {healthScore.suggestions.map((s, i) => (
-                <p key={i} className="text-[10px] text-zinc-400 flex items-start gap-1.5">
+                <p key={i} className="text-[10px] text-muted-foreground flex items-start gap-1.5">
                   <Sparkles className="h-3 w-3 text-orange-400 mt-0.5 shrink-0" />
                   {s}
                 </p>
@@ -2868,7 +2868,7 @@ function TeamDetailInner() {
               "flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors -mb-px",
               activeTab === tab.key
                 ? "text-orange-400 border-b-2 border-orange-500 bg-orange-500/5"
-                : "text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent"
+                : "text-muted-foreground hover:text-foreground border-b-2 border-transparent"
             )}
           >
             {tab.icon}
@@ -2880,14 +2880,14 @@ function TeamDetailInner() {
         {activeTab === "hierarchy" && (
           <div className="ml-auto pb-1 flex items-center gap-2">
             {/* View toggle */}
-            <div className="flex rounded-lg border border-zinc-700 overflow-hidden">
+            <div className="flex rounded-lg border border-border overflow-hidden">
               <button
                 onClick={() => setHierarchyView("visual")}
                 className={cn(
                   "flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium transition-colors",
                   hierarchyView === "visual"
                     ? "bg-orange-500/15 text-orange-400"
-                    : "text-zinc-500 hover:text-zinc-300"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <LayoutGrid className="h-3 w-3" />
@@ -2896,10 +2896,10 @@ function TeamDetailInner() {
               <button
                 onClick={() => setHierarchyView("list")}
                 className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium transition-colors border-l border-zinc-700",
+                  "flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium transition-colors border-l border-border",
                   hierarchyView === "list"
                     ? "bg-orange-500/15 text-orange-400"
-                    : "text-zinc-500 hover:text-zinc-300"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <List className="h-3 w-3" />
@@ -2911,7 +2911,7 @@ function TeamDetailInner() {
               size="sm"
               variant="outline"
               onClick={() => setShowAddMember(true)}
-              className="border-dashed border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 h-8"
+              className="border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 h-8"
             >
               <Plus className="h-3.5 w-3.5 mr-1.5" />
               Add Node
@@ -2928,8 +2928,8 @@ function TeamDetailInner() {
             {/* Chat mode warning banner */}
             {chatModeWarning && (
               <div className="mx-4 mt-3 flex items-center gap-3 rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-2.5 shrink-0">
-                <Info className="h-4 w-4 text-gray-400 shrink-0" />
-                <p className="flex-1 text-xs text-zinc-300">
+                <Info className="h-4 w-4 text-muted-foreground shrink-0" />
+                <p className="flex-1 text-xs text-foreground">
                   Some agents in this workflow are set to Chat mode. For autonomous task execution, convert them to Task Agents.
                 </p>
                 <Button
@@ -2937,7 +2937,7 @@ function TeamDetailInner() {
                   variant="outline"
                   onClick={convertToTask}
                   disabled={convertingToTask}
-                  className="shrink-0 border-blue-500/30 text-gray-400 hover:bg-white/[0.05] hover:text-blue-300 h-7 text-[11px]"
+                  className="shrink-0 border-blue-500/30 text-muted-foreground hover:bg-muted hover:text-blue-300 h-7 text-[11px]"
                 >
                   {convertingToTask ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Zap className="h-3 w-3 mr-1" />}
                   Convert All to Task
@@ -2946,17 +2946,17 @@ function TeamDetailInner() {
             )}
             {Object.keys(sharedContextPreview).length > 0 && (
               <div className="mx-4 mt-3 flex items-start gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 shrink-0">
-                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.05]">
-                  <Database className="h-4 w-4 text-gray-400" />
+                <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                  <Database className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-medium uppercase tracking-[0.14em] text-amber-200/80">
                     Shared Memory
                   </p>
-                  <p className="mt-1 text-sm text-zinc-200">
+                  <p className="mt-1 text-sm text-foreground">
                     {Object.keys(sharedContextPreview).length} context field(s) currently flow between workflow nodes.
                   </p>
-                  <p className="mt-1 text-xs text-zinc-400">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {Object.entries(sharedContextPreview)
                       .slice(0, 4)
                       .map(([key, value]) => `${key}: ${String(value)}`)
@@ -2966,13 +2966,13 @@ function TeamDetailInner() {
               </div>
             )}
             {team.members.length === 0 && hierarchyView === "list" ? (
-              <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-4 py-16">
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-4 py-16">
                 <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-orange-500/10">
                   <Users className="h-10 w-10 text-orange-500/50" />
                 </div>
                 <div className="text-center">
-                  <p className="text-sm font-medium text-zinc-300 mb-1">No members in this workflow yet</p>
-                  <p className="text-xs text-zinc-600 max-w-sm">
+                  <p className="text-sm font-medium text-foreground mb-1">No members in this workflow yet</p>
+                  <p className="text-xs text-muted-foreground max-w-sm">
                     {team.goal
                       ? "Build your workflow visually on the canvas, generate agents from your goal, or add them manually."
                       : "Open the visual canvas to drag & drop nodes, or add a goal to generate agents."}
@@ -2994,7 +2994,7 @@ function TeamDetailInner() {
                         variant="outline"
                         onClick={generateMembers}
                         disabled={generatingMembers}
-                        className="border-zinc-700 text-zinc-300 hover:text-zinc-100"
+                        className="border-border text-foreground hover:text-foreground"
                       >
                         {generatingMembers ? (
                           <>
@@ -3013,7 +3013,7 @@ function TeamDetailInner() {
                       size="sm"
                       variant="outline"
                       onClick={() => setShowAddMember(true)}
-                      className="border-zinc-700 text-zinc-300 hover:text-zinc-100"
+                      className="border-border text-foreground hover:text-foreground"
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Add Manually
@@ -3058,7 +3058,7 @@ function TeamDetailInner() {
                   minZoom={0.2}
                   maxZoom={1.5}
                   proOptions={{ hideAttribution: true }}
-                  className="bg-[#1a1918]"
+                  className="bg-card"
                   onNodeClick={(_event, node) => {
                     setSelectedMemberId(node.id);
                   }}
@@ -3070,7 +3070,7 @@ function TeamDetailInner() {
                       return roleColors[role]?.hex || "#52525b";
                     }}
                     maskColor="rgba(0,0,0,0.7)"
-                    className="!bg-zinc-900 !border-border rounded-lg"
+                    className="!bg-card !border-border rounded-lg"
                   />
                 </ReactFlow>
               </div>
@@ -3090,20 +3090,20 @@ function TeamDetailInner() {
                     placeholder="Task title..."
                     value={newTaskTitle}
                     onChange={(e) => setNewTaskTitle(e.target.value)}
-                    className="w-full bg-transparent border-b border-zinc-700 text-sm text-zinc-100 outline-none pb-2 placeholder:text-zinc-600"
+                    className="w-full bg-transparent border-b border-border text-sm text-foreground outline-none pb-2 placeholder:text-muted-foreground"
                   />
                   <textarea
                     placeholder="Description (optional)..."
                     value={newTaskDesc}
                     onChange={(e) => setNewTaskDesc(e.target.value)}
                     rows={2}
-                    className="w-full bg-transparent border border-zinc-800 rounded-lg text-sm text-zinc-300 outline-none p-2 placeholder:text-zinc-600 resize-none"
+                    className="w-full bg-transparent border border-border rounded-lg text-sm text-foreground outline-none p-2 placeholder:text-muted-foreground resize-none"
                   />
                   <div className="flex items-center gap-3">
                     <select
                       value={newTaskPriority}
                       onChange={(e) => setNewTaskPriority(e.target.value)}
-                      className="bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 px-3 py-1.5 outline-none"
+                      className="bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-1.5 outline-none"
                     >
                       <option value="LOW">Low</option>
                       <option value="MEDIUM">Medium</option>
@@ -3115,7 +3115,7 @@ function TeamDetailInner() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setShowNewTask(false)}
-                      className="text-zinc-500"
+                      className="text-muted-foreground"
                     >
                       Cancel
                     </Button>
@@ -3134,7 +3134,7 @@ function TeamDetailInner() {
                   variant="outline"
                   size="sm"
                   onClick={() => setShowNewTask(true)}
-                  className="border-dashed border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500"
+                  className="border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
                 >
                   <Plus className="h-4 w-4 mr-2" /> New Task
                 </Button>
@@ -3153,7 +3153,7 @@ function TeamDetailInner() {
                     <div className={cn("flex items-center gap-2 mb-3 text-sm font-medium", col.color)}>
                       {col.icon}
                       <span>{col.label}</span>
-                      <span className="text-xs bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded-full ml-auto">
+                      <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full ml-auto">
                         {colTasks.length}
                       </span>
                     </div>
@@ -3162,11 +3162,11 @@ function TeamDetailInner() {
                       {colTasks.map((task) => (
                         <div
                           key={task.id}
-                          className="rounded-xl border border-border bg-card p-3 hover:border-zinc-600 transition-colors"
+                          className="rounded-xl border border-border bg-card p-3 hover:border-foreground/20 transition-colors"
                         >
-                          <p className="text-sm font-medium text-zinc-200 mb-2">{task.title}</p>
+                          <p className="text-sm font-medium text-foreground mb-2">{task.title}</p>
                           <div className="flex items-center justify-between">
-                            <span className="text-xs text-zinc-500">
+                            <span className="text-xs text-muted-foreground">
                               {task.assignedToId
                                 ? memberMap.get(task.assignedToId) || "Unassigned"
                                 : "Unassigned"}
@@ -3181,13 +3181,13 @@ function TeamDetailInner() {
                               {task.priority}
                             </span>
                           </div>
-                          <p className="text-[11px] text-zinc-600 mt-2">{formatTime(task.createdAt)}</p>
+                          <p className="text-[11px] text-muted-foreground mt-2">{formatTime(task.createdAt)}</p>
                         </div>
                       ))}
 
                       {colTasks.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-zinc-800 p-4 flex items-center justify-center">
-                          <p className="text-xs text-zinc-700">No tasks</p>
+                        <div className="rounded-xl border border-dashed border-border p-4 flex items-center justify-center">
+                          <p className="text-xs text-muted-foreground">No tasks</p>
                         </div>
                       )}
                     </div>
@@ -3202,8 +3202,8 @@ function TeamDetailInner() {
         {activeTab === "activity" && (
           <div className="p-6 h-full overflow-auto">
             {activityFeed.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-zinc-500 gap-3">
-                <Activity className="h-10 w-10 text-zinc-700" />
+              <div className="flex flex-col items-center justify-center h-64 text-muted-foreground gap-3">
+                <Activity className="h-10 w-10 text-muted-foreground" />
                 <p>No activity yet.</p>
               </div>
             ) : (
@@ -3211,19 +3211,19 @@ function TeamDetailInner() {
                 {activityFeed.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-start gap-4 px-4 py-3 rounded-lg hover:bg-zinc-800/40 transition-colors"
+                    className="flex items-start gap-4 px-4 py-3 rounded-lg hover:bg-muted/40 transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-xs font-bold text-zinc-400">
+                    <div className="w-8 h-8 rounded-full bg-muted border border-border flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-xs font-bold text-muted-foreground">
                         {item.memberName.charAt(0).toUpperCase()}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-zinc-300">{item.description}</p>
+                      <p className="text-sm text-foreground">{item.description}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-zinc-600">{item.memberName}</span>
-                        <span className="text-zinc-700">·</span>
-                        <span className="text-xs text-zinc-600">{formatTime(item.timestamp)}</span>
+                        <span className="text-xs text-muted-foreground">{item.memberName}</span>
+                        <span className="text-muted-foreground">·</span>
+                        <span className="text-xs text-muted-foreground">{formatTime(item.timestamp)}</span>
                       </div>
                     </div>
                   </div>
@@ -3239,19 +3239,19 @@ function TeamDetailInner() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl">
               {[
                 { label: "Total Tasks", value: analytics.total, icon: <Target className="h-5 w-5 text-orange-400" /> },
-                { label: "Completed Tasks", value: analytics.completed, icon: <CheckCircle2 className="h-5 w-5 text-gray-400" /> },
-                { label: "Avg Completion Time", value: analytics.avgTime, icon: <Clock className="h-5 w-5 text-gray-400" /> },
-                { label: "Active Nodes", value: analytics.activeMembers, icon: <Users className="h-5 w-5 text-gray-400" /> },
+                { label: "Completed Tasks", value: analytics.completed, icon: <CheckCircle2 className="h-5 w-5 text-muted-foreground" /> },
+                { label: "Avg Completion Time", value: analytics.avgTime, icon: <Clock className="h-5 w-5 text-muted-foreground" /> },
+                { label: "Active Nodes", value: analytics.activeMembers, icon: <Users className="h-5 w-5 text-muted-foreground" /> },
               ].map((stat) => (
                 <div
                   key={stat.label}
                   className="rounded-xl border border-border bg-card p-6"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm text-zinc-500">{stat.label}</span>
+                    <span className="text-sm text-muted-foreground">{stat.label}</span>
                     {stat.icon}
                   </div>
-                  <p className="text-3xl font-bold text-zinc-100 font-[family-name:var(--font-dm-mono)]">
+                  <p className="text-3xl font-bold text-foreground font-[family-name:var(--font-dm-mono)]">
                     {stat.value}
                   </p>
                 </div>
@@ -3298,14 +3298,14 @@ function TeamDetailInner() {
                 teamId={teamId}
                 onRollback={fetchTeam}
               />
-              <div className="border-t border-zinc-800 pt-6">
-                <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-zinc-100">
+              <div className="border-t border-border pt-6">
+                <h3 className="mb-4 flex items-center gap-2 text-sm font-medium text-foreground">
                   <GitCompare className="h-4 w-4 text-orange-500" />
                   Changelog
                 </h3>
                 <WorkflowChangelog teamId={teamId} />
               </div>
-              <div className="border-t border-zinc-800 pt-6">
+              <div className="border-t border-border pt-6">
                 <WorkflowActivityFeed teamId={teamId} />
               </div>
             </div>
@@ -3336,7 +3336,7 @@ function TeamDetailInner() {
 
               <div className="space-y-3">
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium text-zinc-400">Max. gleichzeitige Ausführungen</label>
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Max. gleichzeitige Ausführungen</label>
                   <div className="flex items-center gap-3">
                     <input
                       type="number"
@@ -3344,7 +3344,7 @@ function TeamDetailInner() {
                       max={20}
                       value={maxConcurrent}
                       onChange={(e) => setMaxConcurrent(Math.max(1, Math.min(20, parseInt(e.target.value) || 5)))}
-                      className="w-24 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 focus:border-orange-500/50 focus:outline-none"
+                      className="w-24 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:border-orange-500/50 focus:outline-none"
                     />
                     <Button
                       size="sm"
@@ -3360,7 +3360,7 @@ function TeamDetailInner() {
                 </div>
 
                 {queueStatus && (
-                  <div className="flex items-center gap-4 text-xs text-zinc-400">
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
                       {queueStatus.running} laufend
@@ -3369,19 +3369,19 @@ function TeamDetailInner() {
                       <span className="h-2 w-2 rounded-full bg-cyan-500" />
                       {queueStatus.queued} wartend
                     </span>
-                    <span className="text-zinc-600">/ {queueStatus.maxConcurrent} max</span>
+                    <span className="text-muted-foreground">/ {queueStatus.maxConcurrent} max</span>
                   </div>
                 )}
 
                 {/* Prioritäts-Regeln (nur Anzeige) */}
-                <div className="pt-2 border-t border-zinc-800">
-                  <p className="text-xs font-medium text-zinc-400 mb-2">Prioritäts-Regeln</p>
+                <div className="pt-2 border-t border-border">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Prioritäts-Regeln</p>
                   <div className="space-y-1.5">
                     {(["URGENT", "HIGH", "MEDIUM", "LOW"] as const).map((p) => (
                       <div key={p} className="flex items-center gap-2 text-xs">
                         <span className={cn("inline-block h-2 w-2 rounded-full", priorityColors[p].bg.replace("/20", "/60"))} />
                         <span className={priorityColors[p].text}>{p}</span>
-                        <span className="text-zinc-600">— wird {p === "URGENT" ? "sofort" : p === "HIGH" ? "bevorzugt" : p === "MEDIUM" ? "normal" : "nachrangig"} verarbeitet</span>
+                        <span className="text-muted-foreground">— wird {p === "URGENT" ? "sofort" : p === "HIGH" ? "bevorzugt" : p === "MEDIUM" ? "normal" : "nachrangig"} verarbeitet</span>
                       </div>
                     ))}
                   </div>
@@ -3481,9 +3481,9 @@ function TeamDetailInner() {
       {/* ===== Assign Task Dialog (overlay) ===== */}
       {showAssignDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-border bg-zinc-900 shadow-2xl p-6">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-2xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-zinc-100 font-[family-name:var(--font-instrument)]">
+              <h2 className="text-lg font-semibold text-foreground font-[family-name:var(--font-instrument)]">
                 Assign Task to Workflow
               </h2>
               <button
@@ -3491,13 +3491,13 @@ function TeamDetailInner() {
                   setShowAssignDialog(false);
                   setAssignGoal("");
                 }}
-                className="text-zinc-500 hover:text-zinc-300"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <p className="text-sm text-zinc-500 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Describe the goal or task. Claude will decompose it into subtasks and assign them to workflow nodes.
             </p>
 
@@ -3507,7 +3507,7 @@ function TeamDetailInner() {
               value={assignGoal}
               onChange={(e) => setAssignGoal(e.target.value)}
               rows={4}
-              className="w-full bg-zinc-800/60 border border-zinc-700 rounded-xl text-sm text-zinc-200 outline-none p-4 placeholder:text-zinc-600 resize-none focus:border-orange-500/50 transition-colors"
+              className="w-full bg-muted/60 border border-border rounded-xl text-sm text-foreground outline-none p-4 placeholder:text-muted-foreground resize-none focus:border-orange-500/50 transition-colors"
             />
 
             <div className="flex justify-end gap-3 mt-4">
@@ -3518,7 +3518,7 @@ function TeamDetailInner() {
                   setShowAssignDialog(false);
                   setAssignGoal("");
                 }}
-                className="text-zinc-400"
+                className="text-muted-foreground"
               >
                 Cancel
               </Button>
@@ -3527,7 +3527,7 @@ function TeamDetailInner() {
                 variant="outline"
                 onClick={executeDebug}
                 disabled={debugRunning || assigning || !assignGoal.trim()}
-                className="border-violet-500/30 text-gray-400 hover:bg-white/[0.05] min-w-[100px]"
+                className="border-violet-500/30 text-muted-foreground hover:bg-muted min-w-[100px]"
               >
                 {debugRunning ? (
                   <div className="flex items-center gap-2">
@@ -3567,23 +3567,23 @@ function TeamDetailInner() {
       {/* Clone confirmation modal */}
       {showCloneModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-zinc-100 flex items-center gap-2 font-[family-name:var(--font-instrument)]">
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 font-[family-name:var(--font-instrument)]">
                 <Copy className="h-5 w-5 text-orange-400" />
                 Clone Workflow
               </h2>
-              <button onClick={() => setShowCloneModal(false)} className="text-zinc-500 hover:text-zinc-300">
+              <button onClick={() => setShowCloneModal(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <p className="text-sm text-zinc-400 mb-6">
+            <p className="text-sm text-muted-foreground mb-6">
               This will create a copy of this workflow with all agents, knowledge bases, and settings. The cloned workflow will be independent from the original.
             </p>
 
             <div className="flex justify-end gap-3">
-              <Button variant="ghost" size="sm" onClick={() => setShowCloneModal(false)} className="text-zinc-400">
+              <Button variant="ghost" size="sm" onClick={() => setShowCloneModal(false)} className="text-muted-foreground">
                 Cancel
               </Button>
               <Button

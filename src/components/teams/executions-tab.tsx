@@ -138,8 +138,8 @@ const statusStyles: Record<string, string> = {
   PARTIAL: "border-amber-500/30 bg-amber-500/10 text-amber-300",
   FAILED: "border-red-500/30 bg-red-500/10 text-red-300",
   REJECTED: "border-red-500/30 bg-red-500/10 text-red-200",
-  PENDING: "border-zinc-700 bg-zinc-800/80 text-zinc-300",
-  SKIPPED: "border-zinc-700 bg-zinc-800/80 text-zinc-400",
+  PENDING: "border-border bg-muted/80 text-foreground",
+  SKIPPED: "border-border bg-muted/80 text-muted-foreground",
   QUEUED: "border-cyan-500/30 bg-cyan-500/10 text-cyan-300",
 };
 
@@ -258,7 +258,7 @@ function getNodeTypeLabel(nodeType: string | null | undefined): string {
 }
 
 function getNodeTypeCategoryStyle(nodeType: string | null | undefined): string {
-  if (!nodeType) return "border-border bg-zinc-950/30";
+  if (!nodeType) return "border-border bg-background/30";
   if (nodeType.startsWith("trigger_")) return "border-amber-500/20 bg-amber-500/5";
   if (["if_condition", "switch", "filter", "transform"].includes(nodeType)) return "border-purple-500/20 bg-purple-500/5";
   if (["http_request", "send_email", "send_slack", "delay", "set_variable"].includes(nodeType)) return "border-blue-500/20 bg-blue-500/5";
@@ -266,7 +266,7 @@ function getNodeTypeCategoryStyle(nodeType: string | null | undefined): string {
   if (nodeType === "agent") return "border-orange-500/20 bg-orange-500/5";
   if (["google_sheets_read", "google_sheets_write", "gmail_send", "slack_send_integration", "calendar_create", "calendar_check", "notion_create", "airtable_create"].includes(nodeType)) return "border-green-500/20 bg-green-500/5";
   if (["ai_summarize", "ai_classify", "ai_extract", "computer_use"].includes(nodeType)) return "border-pink-500/20 bg-pink-500/5";
-  return "border-border bg-zinc-950/30";
+  return "border-border bg-background/30";
 }
 
 function formatNodeOutput(task: ExecutionTimelineItem): string {
@@ -398,7 +398,7 @@ function formatNodeOutput(task: ExecutionTimelineItem): string {
 const PRIORITY_BADGE: Record<number, { label: string; style: string }> = {
   0: { label: "Critical", style: "border-red-500/40 bg-red-500/15 text-red-300" },
   1: { label: "High", style: "border-orange-500/40 bg-orange-500/15 text-orange-300" },
-  2: { label: "Normal", style: "border-zinc-600 bg-zinc-800/80 text-zinc-400" },
+  2: { label: "Normal", style: "border-border bg-muted/80 text-muted-foreground" },
   3: { label: "Low", style: "border-blue-500/40 bg-blue-500/15 text-blue-300" },
 };
 
@@ -720,7 +720,7 @@ export function TeamExecutionsTab({
         <div className="space-y-3">
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">Execution History</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Execution History</p>
               {onOpenDiff && (
                 <button
                   onClick={onOpenDiff}
@@ -731,13 +731,13 @@ export function TeamExecutionsTab({
                 </button>
               )}
             </div>
-            <p className="mt-2 text-2xl font-semibold text-zinc-100">{executions.length}</p>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-2 text-2xl font-semibold text-foreground">{executions.length}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
               Operational runs with retries, approval gates, and shared memory.
             </p>
             {orchestrationCount !== null && orchestrationCount > 0 && (
-              <p className="mt-2 text-xs text-zinc-500">
-                <span className="font-medium text-zinc-400">{orchestrationCount.toLocaleString()}</span> orchestration decisions logged
+              <p className="mt-2 text-xs text-muted-foreground">
+                <span className="font-medium text-muted-foreground">{orchestrationCount.toLocaleString()}</span> orchestration decisions logged
               </p>
             )}
           </div>
@@ -747,10 +747,10 @@ export function TeamExecutionsTab({
               <Loader2 className="h-5 w-5 animate-spin text-orange-500" />
             </div>
           ) : executions.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-zinc-800 bg-card/40 p-6 text-center">
-              <Clock className="mx-auto h-8 w-8 text-zinc-500" />
-              <p className="mt-3 text-sm font-medium text-zinc-300">No executions yet</p>
-              <p className="mt-1 text-xs text-zinc-500">Run the team once to start building execution history.</p>
+            <div className="rounded-xl border border-dashed border-border bg-card/40 p-6 text-center">
+              <Clock className="mx-auto h-8 w-8 text-muted-foreground" />
+              <p className="mt-3 text-sm font-medium text-foreground">No executions yet</p>
+              <p className="mt-1 text-xs text-muted-foreground">Run the team once to start building execution history.</p>
             </div>
           ) : (
             executions.map((execution) => (
@@ -760,7 +760,7 @@ export function TeamExecutionsTab({
                   "w-full rounded-xl border px-4 py-3 transition-colors",
                   selectedExecutionId === execution.id
                     ? "border-orange-500/40 bg-orange-500/10"
-                    : "border-border bg-card hover:border-zinc-600"
+                    : "border-border bg-card hover:border-foreground/20"
                 )}
               >
                 <button
@@ -770,10 +770,10 @@ export function TeamExecutionsTab({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium text-zinc-100">
+                      <p className="text-sm font-medium text-foreground">
                         {execution.goal?.slice(0, 56) || "Workflow execution"}
                       </p>
-                      <p className="mt-1 text-xs text-zinc-500">{formatDateTime(execution.startedAt)}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(execution.startedAt)}</p>
                     </div>
                     <div className="flex flex-wrap items-center justify-end gap-2">
                       {execution.trigger === "scheduled" ? (
@@ -791,7 +791,7 @@ export function TeamExecutionsTab({
                       </span>
                     </div>
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-zinc-400">
+                  <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
                     <span>{execution.trigger === "scheduled" ? "Cron run" : "Manual run"}</span>
                     <span>{execution.completedTasks}/{execution.totalTasks} done</span>
                     <span>{execution.failedTasks} failed</span>
@@ -805,7 +805,7 @@ export function TeamExecutionsTab({
                   </div>
 
                   {execution.latestApproval && (
-                    <p className="mt-2 text-[11px] text-zinc-500">
+                    <p className="mt-2 text-[11px] text-muted-foreground">
                       Approval: {execution.latestApproval.status.toLowerCase()} · {execution.latestApproval.approverEmail}
                     </p>
                   )}
@@ -816,7 +816,7 @@ export function TeamExecutionsTab({
                     size="sm"
                     variant="outline"
                     onClick={() => setReplayExecutionId(execution.id)}
-                    className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                    className="border-border text-foreground hover:bg-muted"
                   >
                     <Play className="mr-2 h-4 w-4" />
                     Replay
@@ -825,7 +825,7 @@ export function TeamExecutionsTab({
                     size="sm"
                     variant="outline"
                     onClick={() => setDebugExecutionId(execution.id)}
-                    className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                    className="border-border text-foreground hover:bg-muted"
                   >
                     <Bug className="mr-2 h-4 w-4" />
                     Debug
@@ -838,7 +838,7 @@ export function TeamExecutionsTab({
 
         <div className="rounded-xl border border-border bg-card">
           {!selectedExecutionId ? (
-            <div className="flex h-[420px] items-center justify-center text-zinc-500">
+            <div className="flex h-[420px] items-center justify-center text-muted-foreground">
               Select an execution to inspect the timeline.
             </div>
           ) : loadingDetail ? (
@@ -846,7 +846,7 @@ export function TeamExecutionsTab({
               <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
             </div>
           ) : !detail ? (
-            <div className="flex h-[420px] items-center justify-center text-zinc-500">
+            <div className="flex h-[420px] items-center justify-center text-muted-foreground">
               Execution detail unavailable.
             </div>
           ) : (
@@ -862,14 +862,14 @@ export function TeamExecutionsTab({
                         Scheduled
                       </span>
                     ) : null}
-                    <p className="text-sm font-medium text-zinc-100">
+                    <p className="text-sm font-medium text-foreground">
                       Execution {detail.execution.id.slice(0, 8)}
                     </p>
                   </div>
-                  <p className="mt-2 text-sm text-zinc-400">
+                  <p className="mt-2 text-sm text-muted-foreground">
                     {detail.execution.goal || "No goal captured for this execution."}
                   </p>
-                  <div className="mt-3 flex flex-wrap gap-3 text-xs text-zinc-500">
+                  <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
                     <span>{detail.execution.trigger === "scheduled" ? "Triggered by cron schedule" : "Triggered manually"}</span>
                     <span>Started {formatDateTime(detail.execution.startedAt)}</span>
                     <span>Duration {formatDuration(detail.execution.durationMs)}</span>
@@ -877,7 +877,7 @@ export function TeamExecutionsTab({
                     <span>{detail.execution.failedTasks} failed</span>
                   </div>
                   {resolvedApproval && resolvedApproval.respondedAt && (
-                    <p className="mt-2 text-xs text-zinc-500">
+                    <p className="mt-2 text-xs text-muted-foreground">
                       {resolvedApproval.status === "APPROVED" ? "Approved" : resolvedApproval.status === "SKIPPED" ? "Skipped" : "Rejected"} by {resolvedApproval.respondedBy || resolvedApproval.approverEmail} at {formatDateTime(resolvedApproval.respondedAt)}
                     </p>
                   )}
@@ -888,7 +888,7 @@ export function TeamExecutionsTab({
                     size="sm"
                     variant="outline"
                     onClick={() => setReplayExecutionId(detail.execution.id)}
-                    className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                    className="border-border text-foreground hover:bg-muted"
                   >
                     <Play className="mr-2 h-4 w-4" />
                     Replay
@@ -897,7 +897,7 @@ export function TeamExecutionsTab({
                     size="sm"
                     variant="outline"
                     onClick={() => setDebugExecutionId(detail.execution.id)}
-                    className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                    className="border-border text-foreground hover:bg-muted"
                   >
                     <Bug className="mr-2 h-4 w-4" />
                     Debug
@@ -907,7 +907,7 @@ export function TeamExecutionsTab({
                       size="sm"
                       variant="outline"
                       onClick={() => onOpenLogs(detail.execution.id)}
-                      className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                      className="border-border text-foreground hover:bg-muted"
                     >
                       <Database className="mr-2 h-4 w-4" />
                       Logs
@@ -918,7 +918,7 @@ export function TeamExecutionsTab({
                       size="sm"
                       variant="outline"
                       onClick={() => onOpenProfiler(detail.execution.id)}
-                      className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                      className="border-border text-foreground hover:bg-muted"
                     >
                       <Timer className="mr-2 h-4 w-4" />
                       Profile
@@ -1011,41 +1011,41 @@ export function TeamExecutionsTab({
               </div>
 
               <div className="space-y-4 overflow-auto p-5">
-                <div className="rounded-xl border border-border bg-zinc-950/40 p-4">
+                <div className="rounded-xl border border-border bg-background/40 p-4">
                   <div className="flex items-center gap-2">
                     <Database className="h-4 w-4 text-amber-300" />
-                    <p className="text-sm font-semibold text-zinc-100">Workflow Knowledge</p>
+                    <p className="text-sm font-semibold text-foreground">Workflow Knowledge</p>
                   </div>
                   {Object.keys(detail.execution.executionContext || {}).length === 0 ? (
-                    <p className="mt-3 text-sm text-zinc-500">No shared context fields have been captured yet.</p>
+                    <p className="mt-3 text-sm text-muted-foreground">No shared context fields have been captured yet.</p>
                   ) : (
                     <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                      <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Current Context</p>
+                      <div className="rounded-lg border border-border bg-background/60 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Current Context</p>
                         <div className="mt-3 space-y-2">
                           {Object.entries(detail.execution.executionContext).map(([key, value]) => (
-                            <div key={key} className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2">
-                              <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">{key}</p>
-                              <p className="mt-1 text-xs text-zinc-200 break-words">{formatContextValue(value)}</p>
+                            <div key={key} className="rounded-lg border border-border bg-card/80 px-3 py-2">
+                              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{key}</p>
+                              <p className="mt-1 text-xs text-foreground break-words">{formatContextValue(value)}</p>
                             </div>
                           ))}
                         </div>
                       </div>
-                      <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Field Timeline</p>
+                      <div className="rounded-lg border border-border bg-background/60 p-3">
+                        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Field Timeline</p>
                         <div className="mt-3 space-y-2">
                           {detail.sharedContextTimeline.length === 0 ? (
-                            <p className="text-xs text-zinc-500">No field-level additions recorded yet.</p>
+                            <p className="text-xs text-muted-foreground">No field-level additions recorded yet.</p>
                           ) : (
                             detail.sharedContextTimeline.map((item, index) => (
                               <div
                                 key={`${item.key}-${index}`}
-                                className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2"
+                                className="rounded-lg border border-border bg-card/80 px-3 py-2"
                               >
-                                <p className="text-xs text-zinc-200">
+                                <p className="text-xs text-foreground">
                                   <span className="font-medium">{item.key}</span>: {formatContextValue(item.value)}
                                 </p>
-                                <p className="mt-1 text-[11px] text-zinc-500">
+                                <p className="mt-1 text-[11px] text-muted-foreground">
                                   Added by {item.addedBy} on task {item.taskIndex + 1} · {item.taskTitle}
                                   {item.addedAt ? ` · ${formatDateTime(item.addedAt)}` : ""}
                                 </p>
@@ -1059,7 +1059,7 @@ export function TeamExecutionsTab({
                 </div>
 
                 {detail.timeline.length === 0 ? (
-                  <div className="flex h-48 items-center justify-center text-zinc-500">
+                  <div className="flex h-48 items-center justify-center text-muted-foreground">
                     No task logs recorded for this execution.
                   </div>
                 ) : (
@@ -1099,20 +1099,20 @@ export function TeamExecutionsTab({
                                     )}
                                   >
                                     <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-                                      <span className="text-[9px] uppercase tracking-wider text-zinc-500">Task {pTask.taskIndex + 1}</span>
+                                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground">Task {pTask.taskIndex + 1}</span>
                                       <span className={cn("rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase", statusStyles[pTask.latestStatus] || statusStyles.PENDING)}>{pTask.latestStatus}</span>
                                     </div>
-                                    <p className="text-xs font-medium text-zinc-100 mb-1">{pTask.taskTitle}</p>
-                                    <p className="text-[10px] text-zinc-500 mb-2">{pTask.assignedAgentName || "Unassigned"}</p>
-                                    <div className="rounded-md border border-zinc-800 bg-zinc-950/60 p-2">
-                                      <pre className={cn("whitespace-pre-wrap break-words text-[10px]", pFailed ? "text-red-300" : "text-zinc-300")}>
+                                    <p className="text-xs font-medium text-foreground mb-1">{pTask.taskTitle}</p>
+                                    <p className="text-[10px] text-muted-foreground mb-2">{pTask.assignedAgentName || "Unassigned"}</p>
+                                    <div className="rounded-md border border-border bg-background/60 p-2">
+                                      <pre className={cn("whitespace-pre-wrap break-words text-[10px]", pFailed ? "text-red-300" : "text-foreground")}>
                                         {pFailed ? (pTask.latestError || "Error") : (pTask.latestOutput?.slice(0, 300) || "No output")}
                                         {!pFailed && pTask.latestOutput && pTask.latestOutput.length > 300 ? "…" : ""}
                                       </pre>
                                     </div>
                                     {pAttempt && (
                                       <div className="mt-1 space-y-1">
-                                        <p className="text-[9px] text-zinc-500">
+                                        <p className="text-[9px] text-muted-foreground">
                                           {formatDuration(pAttempt.startedAt && pAttempt.completedAt ? new Date(pAttempt.completedAt).getTime() - new Date(pAttempt.startedAt).getTime() : null)}
                                         </p>
                                         {pAttempt.fallbackEvent ? (
@@ -1158,19 +1158,19 @@ export function TeamExecutionsTab({
                                   ? isWorkflowNode
                                     ? getNodeTypeCategoryStyle(task.nodeType)
                                     : "border-green-500/20 bg-green-500/5"
-                                  : "border-border bg-zinc-950/30"
+                                  : "border-border bg-background/30"
                         )}
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
                               {isWorkflowNode ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                                <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
                                   {getNodeTypeIcon(task.nodeType)}
                                   {getNodeTypeLabel(task.nodeType)}
                                 </span>
                               ) : (
-                                <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                                <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
                                   Task {task.taskIndex + 1}
                                 </span>
                               )}
@@ -1178,7 +1178,7 @@ export function TeamExecutionsTab({
                                 {task.latestStatus}
                               </span>
                               {!isWorkflowNode && (
-                                <span className="rounded-full border border-zinc-700 bg-zinc-800/80 px-2 py-0.5 text-[10px] uppercase text-zinc-300">
+                                <span className="rounded-full border border-border bg-muted/80 px-2 py-0.5 text-[10px] uppercase text-foreground">
                                   {task.priority}
                                 </span>
                               )}
@@ -1188,8 +1188,8 @@ export function TeamExecutionsTab({
                                 </span>
                               )}
                             </div>
-                            <p className="mt-2 text-sm font-medium text-zinc-100">{displayTitle}</p>
-                            <p className="mt-1 text-xs text-zinc-500">
+                            <p className="mt-2 text-sm font-medium text-foreground">{displayTitle}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
                               {isWorkflowNode
                                 ? getNodeTypeLabel(task.nodeType)
                                 : task.assignedAgentName ? `Assigned to ${task.assignedAgentName}` : "Unassigned"}
@@ -1215,11 +1215,11 @@ export function TeamExecutionsTab({
                         </div>
 
                         {isWorkflowNode ? (
-                          <div className="mt-3 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
-                            <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                          <div className="mt-3 rounded-lg border border-border bg-background/60 p-3">
+                            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
                               {isFailed ? "Error" : "Result"}
                             </p>
-                            <pre className={cn("mt-2 whitespace-pre-wrap break-words text-xs", isFailed ? "text-red-300" : "text-zinc-300")}>
+                            <pre className={cn("mt-2 whitespace-pre-wrap break-words text-xs", isFailed ? "text-red-300" : "text-foreground")}>
                               {isFailed ? (task.latestError || "No error") : formatNodeOutput(task)}
                             </pre>
                             {task.nodeType === "computer_use" && !isFailed && task.latestOutput && (() => {
@@ -1245,17 +1245,17 @@ export function TeamExecutionsTab({
                           </div>
                         ) : (
                           <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                            <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
-                              <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">Input</p>
-                              <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-zinc-300">
+                            <div className="rounded-lg border border-border bg-background/60 p-3">
+                              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Input</p>
+                              <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-foreground">
                                 {previewValue(latestAttempt?.input)}
                               </pre>
                             </div>
-                            <div className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-3">
-                              <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                            <div className="rounded-lg border border-border bg-background/60 p-3">
+                              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
                                 {isFailed ? "Error" : "Output"}
                               </p>
-                              <pre className={cn("mt-2 whitespace-pre-wrap break-words text-xs", isFailed ? "text-red-300" : "text-zinc-300")}>
+                              <pre className={cn("mt-2 whitespace-pre-wrap break-words text-xs", isFailed ? "text-red-300" : "text-foreground")}>
                                 {isFailed ? (task.latestError || "No error recorded") : (task.latestOutput || "No output recorded")}
                               </pre>
                             </div>
@@ -1263,14 +1263,14 @@ export function TeamExecutionsTab({
                         )}
 
                         {(!isWorkflowNode || task.attempts.length > 1) && <div className="mt-4 space-y-2">
-                          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">{isWorkflowNode ? "Execution Log" : "Attempts"}</p>
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{isWorkflowNode ? "Execution Log" : "Attempts"}</p>
                           {task.attempts.map((attempt) => (
                             <div
                               key={attempt.id}
-                              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2"
+                              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-background/50 px-3 py-2"
                             >
                               <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-xs text-zinc-300">
+                                <div className="flex items-center gap-2 text-xs text-foreground">
                                   {attempt.status === "COMPLETED" ? (
                                     <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
                                   ) : attempt.status === "FAILED" || attempt.status === "REJECTED" ? (
@@ -1280,13 +1280,13 @@ export function TeamExecutionsTab({
                                   ) : attempt.status === "AWAITING_APPROVAL" ? (
                                     <AlertCircle className="h-3.5 w-3.5 text-amber-300" />
                                   ) : (
-                                    <AlertTriangle className="h-3.5 w-3.5 text-zinc-500" />
+                                    <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground" />
                                   )}
                                   <span>Attempt {attempt.attempt}</span>
-                                  <span className="rounded-full border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-[10px] uppercase text-zinc-400">
+                                  <span className="rounded-full border border-border bg-card px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
                                     {getStrategyLabel(attempt.strategy)}
                                   </span>
-                                  {attempt.agent?.name && <span className="text-zinc-500">· {attempt.agent.name}</span>}
+                                  {attempt.agent?.name && <span className="text-muted-foreground">· {attempt.agent.name}</span>}
                                 </div>
                                 {attempt.fallbackEvent ? (
                                   <p className="text-[11px] text-amber-300">
@@ -1294,7 +1294,7 @@ export function TeamExecutionsTab({
                                   </p>
                                 ) : null}
                               </div>
-                              <div className="flex flex-wrap gap-3 text-[11px] text-zinc-500">
+                              <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
                                 <span>{attempt.status}</span>
                                 <span>{formatDuration(attempt.durationMs)}</span>
                                 <span>{formatDateTime(attempt.completedAt || attempt.startedAt)}</span>

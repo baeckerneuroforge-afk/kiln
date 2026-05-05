@@ -164,7 +164,7 @@ export function NodeConfigPanel({
       {/* Backdrop */}
       <div
         className={cn(
-          "fixed inset-0 z-20 bg-black/30 backdrop-blur-[2px] transition-opacity duration-200",
+          "fixed inset-0 z-20 bg-muted/70 backdrop-blur-[2px] transition-opacity duration-200",
           isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         )}
         onClick={onClose}
@@ -173,12 +173,12 @@ export function NodeConfigPanel({
       {/* Slide-in panel */}
       <div
         className={cn(
-          "fixed top-0 right-0 h-full w-[400px] z-30 bg-[#1e1d1b] border-l border-[#332f2b] shadow-2xl transform transition-transform duration-200 flex flex-col",
+          "fixed top-0 right-0 h-full w-[400px] z-30 bg-card border-l border-border shadow-2xl transform transition-transform duration-200 flex flex-col",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#332f2b] shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
             {def && (
               <div
@@ -189,7 +189,7 @@ export function NodeConfigPanel({
               </div>
             )}
             <div>
-              <h3 className="text-sm font-semibold text-zinc-100">{def?.label || "Configure"}</h3>
+              <h3 className="text-sm font-semibold text-foreground">{def?.label || "Configure"}</h3>
               <span
                 className="inline-flex items-center text-[9px] font-bold uppercase tracking-wider mt-0.5 px-1.5 py-0.5 rounded"
                 style={{ color: catDef?.color || "#F97316", backgroundColor: `${catDef?.color || "#F97316"}12` }}
@@ -200,14 +200,14 @@ export function NodeConfigPanel({
           </div>
           <button
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-600 transition-colors hover:bg-[#332f2b] hover:text-zinc-300"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-[#332f2b] shrink-0">
+        <div className="flex border-b border-border shrink-0">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -215,8 +215,8 @@ export function NodeConfigPanel({
               className={cn(
                 "flex-1 py-2.5 text-xs font-medium transition-colors border-b-2",
                 activeTab === tab.id
-                  ? "text-zinc-200 border-orange-500"
-                  : "text-zinc-600 border-transparent hover:text-zinc-400"
+                  ? "text-foreground border-orange-500"
+                  : "text-muted-foreground border-transparent hover:text-muted-foreground"
               )}
             >
               {tab.label}
@@ -230,12 +230,12 @@ export function NodeConfigPanel({
             <>
               {/* Node label */}
               <div className="space-y-1.5">
-                <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">Name</label>
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Name</label>
                 <input
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
                   placeholder={def?.label || "Node name"}
-                  className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700"
+                  className="w-full bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground"
                 />
               </div>
 
@@ -289,13 +289,13 @@ export function NodeConfigPanel({
 
           {activeTab === "data" && (
             <div className="space-y-3">
-              <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">Node Data</p>
-              <div className="rounded-lg border border-[#332f2b] bg-[#1a1918] p-3">
-                <pre className="text-[11px] font-mono text-zinc-400 whitespace-pre-wrap break-words max-h-[400px] overflow-y-auto">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Node Data</p>
+              <div className="rounded-lg border border-border bg-card p-3">
+                <pre className="text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-words max-h-[400px] overflow-y-auto">
                   {JSON.stringify(config, null, 2)}
                 </pre>
               </div>
-              <p className="text-[10px] text-zinc-600">
+              <p className="text-[10px] text-muted-foreground">
                 Raw configuration data for this node. Edit values in the Config tab.
               </p>
             </div>
@@ -303,15 +303,15 @@ export function NodeConfigPanel({
 
           {activeTab === "notes" && (
             <div className="space-y-3">
-              <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">Notes</p>
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Notes</p>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Add notes about this node..."
                 rows={8}
-                className="w-full bg-[#1a1918] border border-[#332f2b] rounded-lg text-sm text-zinc-300 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
+                className="w-full bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground resize-none"
               />
-              <p className="text-[10px] text-zinc-600">
+              <p className="text-[10px] text-muted-foreground">
                 Notes are saved with the node configuration.
               </p>
             </div>
@@ -319,10 +319,10 @@ export function NodeConfigPanel({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-[#332f2b] px-5 py-3 flex items-center justify-between shrink-0">
+        <div className="border-t border-border px-5 py-3 flex items-center justify-between shrink-0">
           <button
             onClick={handleDelete}
-            className="text-[11px] text-zinc-600 hover:text-red-400 transition-colors"
+            className="text-[11px] text-muted-foreground hover:text-red-400 transition-colors"
           >
             Delete node
           </button>

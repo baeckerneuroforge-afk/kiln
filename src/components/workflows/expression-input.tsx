@@ -47,7 +47,7 @@ export function ExpressionInput({
     : [];
 
   const inputClass = cn(
-    "w-full bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-100 px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-600",
+    "w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground",
     hasExpression && "border-violet-500/40 bg-violet-500/5",
     missingVars.length > 0 && "border-amber-500/40 bg-amber-500/5",
     className
@@ -57,7 +57,7 @@ export function ExpressionInput({
     <div className="space-y-1.5">
       {label && (
         <div className="flex items-center gap-1.5">
-          <label className="text-xs font-medium text-zinc-400">{label}</label>
+          <label className="text-xs font-medium text-muted-foreground">{label}</label>
           {hasVarRef && (
             <span className="inline-flex items-center gap-0.5 text-[9px] text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded-full">
               <Variable className="h-2.5 w-2.5" />
@@ -95,7 +95,7 @@ export function ExpressionInput({
           Undefined variable{missingVars.length > 1 ? "s" : ""}: {missingVars.join(", ")}
         </div>
       )}
-      {hint && <p className="text-[10px] text-zinc-600">{hint}</p>}
+      {hint && <p className="text-[10px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -127,7 +127,7 @@ export function KeyValueEditor({
 
   return (
     <div className="space-y-1.5">
-      {label && <label className="text-xs font-medium text-zinc-400">{label}</label>}
+      {label && <label className="text-xs font-medium text-muted-foreground">{label}</label>}
       <div className="space-y-1.5">
         {pairs.map((pair, i) => (
           <div key={i} className="flex items-center gap-1.5">
@@ -135,17 +135,17 @@ export function KeyValueEditor({
               value={pair.key}
               onChange={(e) => update(i, "key", e.target.value)}
               placeholder={keyPlaceholder}
-              className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-100 px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+              className="flex-1 bg-muted border border-border rounded-lg text-xs text-foreground px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
             />
             <input
               value={pair.value}
               onChange={(e) => update(i, "value", e.target.value)}
               placeholder={valuePlaceholder}
-              className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-100 px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-zinc-600"
+              className="flex-1 bg-muted border border-border rounded-lg text-xs text-foreground px-2.5 py-1.5 outline-none focus:border-orange-500/60 placeholder:text-muted-foreground"
             />
             <button
               onClick={() => remove(i)}
-              className="text-zinc-600 hover:text-red-400 transition-colors text-xs px-1"
+              className="text-muted-foreground hover:text-red-400 transition-colors text-xs px-1"
             >
               ×
             </button>

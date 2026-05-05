@@ -228,24 +228,24 @@ export function PerformanceProfiler({
       {/* Panel */}
       <div
         className={cn(
-          "fixed top-0 right-0 h-full w-[600px] z-30 bg-zinc-900 border-l border-zinc-800 shadow-2xl transform transition-transform duration-200 flex flex-col",
+          "fixed top-0 right-0 h-full w-[600px] z-30 bg-card border-l border-border shadow-2xl transform transition-transform duration-200 flex flex-col",
           open ? "translate-x-0" : "translate-x-full"
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
             <div className="p-1.5 rounded-md bg-orange-500/15">
               <Flame className="w-4 h-4 text-orange-400" />
             </div>
-            <h2 className="text-sm font-semibold text-zinc-100">
+            <h2 className="text-sm font-semibold text-foreground">
               Performance Profiler
             </h2>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-zinc-400 hover:text-zinc-100"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
             onClick={onClose}
           >
             <X className="w-4 h-4" />
@@ -274,10 +274,10 @@ export function PerformanceProfiler({
               {/* --------------------------------------------------------- */}
               <section>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     Flame Chart
                   </h3>
-                  <span className="font-mono text-xs text-zinc-500">
+                  <span className="font-mono text-xs text-muted-foreground">
                     Gesamt: {formatDuration(stats.totalTime)}
                   </span>
                 </div>
@@ -306,7 +306,7 @@ export function PerformanceProfiler({
                           onMouseLeave={() => setHoveredStep(null)}
                           className={cn(
                             "relative w-full text-left rounded-md overflow-hidden transition-all",
-                            "bg-zinc-800/60 hover:bg-zinc-800",
+                            "bg-muted/60 hover:bg-muted",
                             isSelected && "ring-1 ring-orange-500/60"
                           )}
                           style={{ height: 32 }}
@@ -328,14 +328,14 @@ export function PerformanceProfiler({
                                 className="w-2 h-2 rounded-full shrink-0"
                                 style={{ backgroundColor: color }}
                               />
-                              <span className="text-xs text-zinc-200 truncate">
+                              <span className="text-xs text-foreground truncate">
                                 {step.taskTitle}
                               </span>
-                              <span className="text-[10px] text-zinc-500 font-mono shrink-0">
+                              <span className="text-[10px] text-muted-foreground font-mono shrink-0">
                                 {getCategoryLabel(step.nodeType)}
                               </span>
                             </div>
-                            <span className="text-xs font-mono text-zinc-400 shrink-0 ml-2">
+                            <span className="text-xs font-mono text-muted-foreground shrink-0 ml-2">
                               {formatDuration(step.metrics.responseTimeMs)}
                             </span>
                           </div>
@@ -343,33 +343,33 @@ export function PerformanceProfiler({
 
                         {/* Tooltip on hover */}
                         {isHovered && (
-                          <div className="absolute right-0 top-full mt-1 z-40 bg-zinc-950 border border-zinc-700 rounded-lg shadow-xl p-3 min-w-[220px] pointer-events-none">
-                            <p className="text-xs font-semibold text-zinc-100 mb-1.5">
+                          <div className="absolute right-0 top-full mt-1 z-40 bg-background border border-border rounded-lg shadow-xl p-3 min-w-[220px] pointer-events-none">
+                            <p className="text-xs font-semibold text-foreground mb-1.5">
                               {step.taskTitle}
                             </p>
                             <div className="space-y-1 text-[11px] font-mono">
-                              <div className="flex justify-between text-zinc-400">
+                              <div className="flex justify-between text-muted-foreground">
                                 <span>Dauer</span>
-                                <span className="text-zinc-200">
+                                <span className="text-foreground">
                                   {formatDuration(step.metrics.responseTimeMs)}
                                 </span>
                               </div>
-                              <div className="flex justify-between text-zinc-400">
+                              <div className="flex justify-between text-muted-foreground">
                                 <span>Tokens In</span>
-                                <span className="text-zinc-200">
+                                <span className="text-foreground">
                                   {formatTokens(step.metrics.tokensIn)}
                                 </span>
                               </div>
-                              <div className="flex justify-between text-zinc-400">
+                              <div className="flex justify-between text-muted-foreground">
                                 <span>Tokens Out</span>
-                                <span className="text-zinc-200">
+                                <span className="text-foreground">
                                   {formatTokens(step.metrics.tokensOut)}
                                 </span>
                               </div>
                               {step.metrics.model && (
-                                <div className="flex justify-between text-zinc-400">
+                                <div className="flex justify-between text-muted-foreground">
                                   <span>Modell</span>
-                                  <span className="text-zinc-200">
+                                  <span className="text-foreground">
                                     {step.metrics.model}
                                   </span>
                                 </div>
@@ -396,7 +396,7 @@ export function PerformanceProfiler({
                         className="w-2 h-2 rounded-full"
                         style={{ backgroundColor: item.color }}
                       />
-                      <span className="text-[10px] text-zinc-500">
+                      <span className="text-[10px] text-muted-foreground">
                         {item.label}
                       </span>
                     </div>
@@ -405,9 +405,9 @@ export function PerformanceProfiler({
 
                 {/* Selected Step Detail */}
                 {selectedStepData && (
-                  <div className="mt-3 p-3 rounded-lg bg-zinc-800/80 border border-zinc-700 space-y-2">
+                  <div className="mt-3 p-3 rounded-lg bg-muted/80 border border-border space-y-2">
                     <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold text-zinc-100">
+                      <p className="text-xs font-semibold text-foreground">
                         {selectedStepData.taskTitle}
                       </p>
                       <span
@@ -421,7 +421,7 @@ export function PerformanceProfiler({
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
-                      <div className="flex justify-between text-zinc-400">
+                      <div className="flex justify-between text-muted-foreground">
                         <span>Status</span>
                         <span
                           className={cn(
@@ -429,35 +429,35 @@ export function PerformanceProfiler({
                               ? "text-green-400"
                               : selectedStepData.status === "failed"
                               ? "text-red-400"
-                              : "text-zinc-200"
+                              : "text-foreground"
                           )}
                         >
                           {selectedStepData.status}
                         </span>
                       </div>
-                      <div className="flex justify-between text-zinc-400">
+                      <div className="flex justify-between text-muted-foreground">
                         <span>Dauer</span>
-                        <span className="text-zinc-200">
+                        <span className="text-foreground">
                           {formatDuration(selectedStepData.metrics.responseTimeMs)}
                         </span>
                       </div>
-                      <div className="flex justify-between text-zinc-400">
+                      <div className="flex justify-between text-muted-foreground">
                         <span>Tokens</span>
-                        <span className="text-zinc-200">
+                        <span className="text-foreground">
                           {formatTokens(selectedStepData.metrics.tokensIn)} /{" "}
                           {formatTokens(selectedStepData.metrics.tokensOut)}
                         </span>
                       </div>
-                      <div className="flex justify-between text-zinc-400">
+                      <div className="flex justify-between text-muted-foreground">
                         <span>Kosten</span>
-                        <span className="text-zinc-200">
+                        <span className="text-foreground">
                           ${selectedStepData.metrics.estimatedCost.toFixed(4)}
                         </span>
                       </div>
                       {selectedStepData.metrics.model && (
-                        <div className="flex justify-between text-zinc-400 col-span-2">
+                        <div className="flex justify-between text-muted-foreground col-span-2">
                           <span>Modell</span>
-                          <span className="text-zinc-200">
+                          <span className="text-foreground">
                             {selectedStepData.metrics.model}
                           </span>
                         </div>
@@ -471,7 +471,7 @@ export function PerformanceProfiler({
               {/* Section 2: Bottleneck Analysis                            */}
               {/* --------------------------------------------------------- */}
               <section>
-                <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                   Bottleneck-Analyse
                 </h3>
 
@@ -490,29 +490,29 @@ export function PerformanceProfiler({
                     return (
                       <div
                         key={step.nodeId}
-                        className="p-3 rounded-lg bg-zinc-800/60 border border-zinc-800 space-y-2"
+                        className="p-3 rounded-lg bg-muted/60 border border-border space-y-2"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono text-zinc-500">
+                            <span className="text-xs font-mono text-muted-foreground">
                               #{idx + 1}
                             </span>
                             <span
                               className="w-2 h-2 rounded-full"
                               style={{ backgroundColor: color }}
                             />
-                            <span className="text-xs font-medium text-zinc-200">
+                            <span className="text-xs font-medium text-foreground">
                               {step.taskTitle}
                             </span>
                           </div>
-                          <span className="text-xs font-mono text-zinc-400">
+                          <span className="text-xs font-mono text-muted-foreground">
                             {formatDuration(step.metrics.responseTimeMs)}
                           </span>
                         </div>
 
                         {/* Anteil-Balken */}
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 h-1.5 rounded-full bg-zinc-700 overflow-hidden">
+                          <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                             <div
                               className="h-full rounded-full transition-all"
                               style={{
@@ -521,7 +521,7 @@ export function PerformanceProfiler({
                               }}
                             />
                           </div>
-                          <span className="text-[10px] font-mono text-zinc-500 w-10 text-right">
+                          <span className="text-[10px] font-mono text-muted-foreground w-10 text-right">
                             {pct.toFixed(1)}%
                           </span>
                         </div>
@@ -529,7 +529,7 @@ export function PerformanceProfiler({
                         {/* Vorschlag */}
                         <div className="flex items-start gap-1.5">
                           <Zap className="w-3 h-3 text-amber-500 mt-0.5 shrink-0" />
-                          <span className="text-[11px] text-zinc-400 leading-relaxed">
+                          <span className="text-[11px] text-muted-foreground leading-relaxed">
                             {suggestion}
                           </span>
                         </div>
@@ -543,7 +543,7 @@ export function PerformanceProfiler({
               {/* Section 3: Summary Stats                                  */}
               {/* --------------------------------------------------------- */}
               <section>
-                <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                   Zusammenfassung
                 </h3>
 
@@ -600,10 +600,10 @@ export function PerformanceProfiler({
 
           {/* Kein Execution gewählt */}
           {!loading && !error && !executionId && (
-            <div className="flex flex-col items-center justify-center py-20 text-zinc-500 text-xs text-center space-y-2">
-              <Flame className="w-8 h-8 text-zinc-700" />
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground text-xs text-center space-y-2">
+              <Flame className="w-8 h-8 text-muted-foreground" />
               <p>Keine Ausführung ausgewählt</p>
-              <p className="text-zinc-600">
+              <p className="text-muted-foreground">
                 Wähle eine Workflow-Ausführung, um das Performance-Profil anzuzeigen.
               </p>
             </div>
@@ -630,16 +630,16 @@ function StatCard({
   sub?: string;
 }) {
   return (
-    <div className="p-3 rounded-lg bg-zinc-800/60 border border-zinc-800 space-y-1">
+    <div className="p-3 rounded-lg bg-muted/60 border border-border space-y-1">
       <div className="flex items-center gap-1.5">
         {icon}
-        <span className="text-[10px] text-zinc-500 uppercase tracking-wider">
+        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
           {label}
         </span>
       </div>
-      <p className="text-sm font-mono text-zinc-100 truncate">{value}</p>
+      <p className="text-sm font-mono text-foreground truncate">{value}</p>
       {sub && (
-        <p className="text-[10px] font-mono text-zinc-500">{sub}</p>
+        <p className="text-[10px] font-mono text-muted-foreground">{sub}</p>
       )}
     </div>
   );
