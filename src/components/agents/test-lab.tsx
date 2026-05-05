@@ -144,7 +144,7 @@ function SummaryCard({
   accent: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-card/60 p-4">
+    <div className="rounded-2xl border border-border bg-card/60 p-4">
       <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
       <p className={cn("mt-3 text-2xl font-semibold", accent)}>{value}</p>
     </div>
@@ -188,7 +188,7 @@ function ResponseCard({
         )}
       </div>
 
-      <div className="mt-4 min-h-[220px] rounded-xl border border-white/10 bg-black/20 p-4">
+      <div className="mt-4 min-h-[220px] rounded-xl border border-border bg-muted/60 p-4">
         {response ? (
           <p className="whitespace-pre-wrap text-sm leading-6 text-foreground/90">
             {response.text || "No response returned."}
@@ -394,7 +394,7 @@ export function TestLab({
                 Temp {currentConfig.temperature.toFixed(2)}
               </div>
             </div>
-            <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
+            <div className="mt-4 rounded-xl border border-border bg-muted/60 p-4">
               <p className="line-clamp-[10] whitespace-pre-wrap text-sm leading-6 text-foreground/85">
                 {currentConfig.systemPrompt}
               </p>
@@ -439,7 +439,7 @@ export function TestLab({
                   value={testPrompt}
                   onChange={(event) => setTestPrompt(event.target.value)}
                   rows={10}
-                  className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-foreground outline-none transition focus:border-kiln-orange/50"
+                  className="w-full rounded-xl border border-border bg-muted/60 px-4 py-3 text-sm text-foreground outline-none transition focus:border-kiln-orange/50"
                 />
               </div>
 
@@ -451,7 +451,7 @@ export function TestLab({
                   <select
                     value={testModel}
                     onChange={(event) => setTestModel(event.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-foreground outline-none transition focus:border-kiln-orange/50"
+                    className="w-full rounded-xl border border-border bg-muted/60 px-4 py-3 text-sm text-foreground outline-none transition focus:border-kiln-orange/50"
                   >
                     {ALL_MODELS.map((model) => (
                       <option key={model.id} value={model.id}>
@@ -472,7 +472,7 @@ export function TestLab({
                     step={0.05}
                     value={testTemperature}
                     onChange={(event) => setTestTemperature(Math.min(1, Math.max(0, Number(event.target.value) || 0)))}
-                    className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-foreground outline-none transition focus:border-kiln-orange/50"
+                    className="w-full rounded-xl border border-border bg-muted/60 px-4 py-3 text-sm text-foreground outline-none transition focus:border-kiln-orange/50"
                   />
                 </div>
               </div>
@@ -483,7 +483,7 @@ export function TestLab({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/[0.08] bg-card/70 p-5">
+      <div className="rounded-2xl border border-border bg-card/70 p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
           <div className="flex-1">
             <label className="mb-1.5 block text-xs uppercase tracking-[0.16em] text-muted-foreground">
@@ -494,7 +494,7 @@ export function TestLab({
               onChange={(event) => setMessage(event.target.value)}
               rows={3}
               placeholder="Ask both versions the exact same question..."
-              className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-foreground outline-none transition focus:border-kiln-orange/50"
+              className="w-full rounded-xl border border-border bg-muted/60 px-4 py-3 text-sm text-foreground outline-none transition focus:border-kiln-orange/50"
             />
           </div>
           <div className="flex gap-2">
@@ -514,7 +514,7 @@ export function TestLab({
       </div>
 
       {activeComparison && (
-        <div className="rounded-2xl border border-white/[0.08] bg-card/70 p-5">
+        <div className="rounded-2xl border border-border bg-card/70 p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-sm font-semibold text-foreground">Which is better?</p>
@@ -569,7 +569,7 @@ export function TestLab({
         </div>
       )}
 
-      <div className="rounded-2xl border border-white/[0.08] bg-card/70 p-5">
+      <div className="rounded-2xl border border-border bg-card/70 p-5">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold text-foreground">Comparison History</h3>
@@ -581,7 +581,7 @@ export function TestLab({
         </div>
 
         {history.length === 0 ? (
-          <div className="mt-6 rounded-xl border border-dashed border-white/10 px-6 py-12 text-center">
+          <div className="mt-6 rounded-xl border border-dashed border-border px-6 py-12 text-center">
             <Zap className="mx-auto h-7 w-7 text-muted-foreground/60" />
             <p className="mt-3 text-sm font-medium text-foreground">No comparisons yet</p>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -604,17 +604,17 @@ export function TestLab({
                     "w-full rounded-xl border px-4 py-4 text-left transition",
                     selected
                       ? "border-kiln-orange/30 bg-kiln-orange/5"
-                      : "border-white/10 bg-black/10 hover:border-white/20"
+                      : "border-border bg-muted/40 hover:border-border"
                   )}
                 >
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2 py-1">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-1">
                           <Clock3 className="h-3 w-3" />
                           {formatRelativeTime(item.createdAt)}
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2 py-1">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-1">
                           <Check className="h-3 w-3" />
                           Winner {item.winner || "Unrated"}
                         </span>

@@ -134,22 +134,22 @@ export function WebhooksTab({ agentId }: WebhooksTabProps) {
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-neutral-500" /></div>;
+    return <div className="flex items-center justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-medium text-white">Inbound Webhooks</h3>
-          <p className="mt-1 text-xs text-neutral-500">
+          <h3 className="text-sm font-medium text-foreground">Inbound Webhooks</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
             Receive HTTP requests from external services to trigger agent processing.
           </p>
         </div>
         <Button
           size="sm"
           onClick={() => setShowForm(!showForm)}
-          className="bg-[#F97316] text-white hover:bg-[#EA580C]"
+          className="bg-kiln-orange text-white hover:bg-kiln-orange/90"
         >
           <Plus className="mr-1.5 h-3.5 w-3.5" />
           New Webhook
@@ -158,9 +158,9 @@ export function WebhooksTab({ agentId }: WebhooksTabProps) {
 
       {/* Create Form */}
       {showForm && (
-        <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 space-y-4">
+        <div className="rounded-lg border border-border bg-muted p-4 space-y-4">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-neutral-400">Authentication</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Authentication</label>
             <div className="flex gap-2">
               {(["NONE", "HEADER_AUTH", "HMAC"] as const).map((t) => (
                 <button
@@ -168,7 +168,7 @@ export function WebhooksTab({ agentId }: WebhooksTabProps) {
                   onClick={() => setFormAuth(t)}
                   className={cn(
                     "rounded-md px-3 py-1.5 text-xs transition-colors",
-                    formAuth === t ? "bg-[#F97316] text-white" : "bg-white/[0.04] text-neutral-400 hover:bg-white/[0.08]"
+                    formAuth === t ? "bg-kiln-orange text-white" : "bg-muted text-muted-foreground hover:bg-muted"
                   )}
                 >
                   {t === "NONE" ? "None" : t === "HEADER_AUTH" ? "Bearer Token" : "HMAC"}
@@ -179,20 +179,20 @@ export function WebhooksTab({ agentId }: WebhooksTabProps) {
 
           {formAuth !== "NONE" && (
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-neutral-400">
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                 {formAuth === "HEADER_AUTH" ? "Bearer Token" : "HMAC Secret"}
               </label>
               <input
                 value={formAuthValue}
                 onChange={(e) => setFormAuthValue(e.target.value)}
                 placeholder={formAuth === "HEADER_AUTH" ? "your-secret-token" : "hmac-signing-secret"}
-                className="w-full rounded-md border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:border-[#F97316] focus:outline-none"
+                className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-kiln-orange focus:outline-none"
               />
             </div>
           )}
 
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-neutral-400">Response Mode</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Response Mode</label>
             <div className="flex gap-2">
               {(["IMMEDIATE", "AFTER_PROCESSING"] as const).map((m) => (
                 <button
@@ -200,7 +200,7 @@ export function WebhooksTab({ agentId }: WebhooksTabProps) {
                   onClick={() => setFormResponse(m)}
                   className={cn(
                     "rounded-md px-3 py-1.5 text-xs transition-colors",
-                    formResponse === m ? "bg-[#F97316] text-white" : "bg-white/[0.04] text-neutral-400 hover:bg-white/[0.08]"
+                    formResponse === m ? "bg-kiln-orange text-white" : "bg-muted text-muted-foreground hover:bg-muted"
                   )}
                 >
                   {m === "IMMEDIATE" ? "Immediate (async)" : "Wait for response"}
@@ -210,11 +210,11 @@ export function WebhooksTab({ agentId }: WebhooksTabProps) {
           </div>
 
           <div className="flex gap-2">
-            <Button size="sm" onClick={createWebhook} disabled={creating} className="bg-[#F97316] text-white hover:bg-[#EA580C]">
+            <Button size="sm" onClick={createWebhook} disabled={creating} className="bg-kiln-orange text-white hover:bg-kiln-orange/90">
               {creating ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
               Create
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setShowForm(false)} className="text-neutral-500">
+            <Button size="sm" variant="ghost" onClick={() => setShowForm(false)} className="text-muted-foreground">
               Cancel
             </Button>
           </div>
@@ -223,13 +223,13 @@ export function WebhooksTab({ agentId }: WebhooksTabProps) {
 
       {/* Webhook List */}
       {webhooks.length === 0 && !showForm && (
-        <div className="rounded-lg border border-dashed border-white/10 py-10 text-center text-sm text-neutral-500">
+        <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
           No webhooks configured. Create one to receive external events.
         </div>
       )}
 
       {webhooks.map((wh) => (
-        <div key={wh.id} className="rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+        <div key={wh.id} className="rounded-lg border border-border bg-muted overflow-hidden">
           {/* Header */}
           <div className="flex items-center gap-3 p-4">
             <button
@@ -242,27 +242,27 @@ export function WebhooksTab({ agentId }: WebhooksTabProps) {
             />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <code className="truncate text-xs text-neutral-300">
+                <code className="truncate text-xs text-foreground">
                   /api/webhooks/agent/{wh.path}
                 </code>
-                <button onClick={() => copyUrl(wh.path)} className="text-neutral-500 hover:text-white">
+                <button onClick={() => copyUrl(wh.path)} className="text-muted-foreground hover:text-foreground">
                   {copied === wh.path ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
                 </button>
               </div>
-              <div className="mt-1 flex items-center gap-3 text-[11px] text-neutral-500">
+              <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
                 <span>{wh.authType === "NONE" ? "No auth" : wh.authType === "HEADER_AUTH" ? "Bearer token" : "HMAC"}</span>
                 <span>{wh.responseMode === "IMMEDIATE" ? "Async" : "Sync"}</span>
                 <span>{wh.executions.length} executions</span>
               </div>
             </div>
             <div className="flex items-center gap-1.5">
-              <Button size="sm" variant="ghost" onClick={() => testWebhook(wh)} disabled={testing === wh.id} className="h-7 px-2 text-neutral-500 hover:text-white">
+              <Button size="sm" variant="ghost" onClick={() => testWebhook(wh)} disabled={testing === wh.id} className="h-7 px-2 text-muted-foreground hover:text-foreground">
                 {testing === wh.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setExpanded(expanded === wh.id ? null : wh.id)} className="h-7 px-2 text-neutral-500 hover:text-white">
+              <Button size="sm" variant="ghost" onClick={() => setExpanded(expanded === wh.id ? null : wh.id)} className="h-7 px-2 text-muted-foreground hover:text-foreground">
                 {expanded === wh.id ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => deleteWebhook(wh.id)} className="h-7 px-2 text-neutral-500 hover:text-red-400">
+              <Button size="sm" variant="ghost" onClick={() => deleteWebhook(wh.id)} className="h-7 px-2 text-muted-foreground hover:text-red-400">
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -270,9 +270,9 @@ export function WebhooksTab({ agentId }: WebhooksTabProps) {
 
           {/* Execution Log */}
           {expanded === wh.id && (
-            <div className="border-t border-white/[0.04]">
+            <div className="border-t border-border">
               {wh.executions.length === 0 ? (
-                <p className="px-4 py-6 text-center text-xs text-neutral-600">No executions yet</p>
+                <p className="px-4 py-6 text-center text-xs text-muted-foreground">No executions yet</p>
               ) : (
                 <div className="divide-y divide-white/[0.04]">
                   {wh.executions.map((ex) => (
@@ -283,20 +283,20 @@ export function WebhooksTab({ agentId }: WebhooksTabProps) {
                             "inline-block h-1.5 w-1.5 rounded-full",
                             ex.statusCode < 400 ? "bg-green-500" : "bg-red-500"
                           )} />
-                          <span className="text-xs text-neutral-400">{ex.statusCode}</span>
-                          <span className="text-xs text-neutral-600">{ex.duration}ms</span>
+                          <span className="text-xs text-muted-foreground">{ex.statusCode}</span>
+                          <span className="text-xs text-muted-foreground">{ex.duration}ms</span>
                           {ex.actionsExecuted && (ex.actionsExecuted as string[]).length > 0 && (
-                            <span className="text-xs text-[#F97316]">
+                            <span className="text-xs text-kiln-orange">
                               {(ex.actionsExecuted as string[]).join(", ")}
                             </span>
                           )}
                         </div>
-                        <span className="text-[11px] text-neutral-600">
+                        <span className="text-[11px] text-muted-foreground">
                           {new Date(ex.createdAt).toLocaleString()}
                         </span>
                       </div>
                       {ex.agentResponse && (
-                        <p className="mt-1.5 truncate text-xs text-neutral-500">
+                        <p className="mt-1.5 truncate text-xs text-muted-foreground">
                           {ex.agentResponse.slice(0, 200)}
                         </p>
                       )}

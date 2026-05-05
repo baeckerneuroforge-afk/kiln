@@ -38,7 +38,7 @@ const providerConfig: Record<string, { icon: React.ElementType; color: string; b
   gmail: { icon: Mail, color: "text-red-400", bg: "bg-red-500/10" },
   hubspot: { icon: BarChart3, color: "text-orange-400", bg: "bg-orange-500/10" },
   slack: { icon: MessageSquare, color: "text-purple-400", bg: "bg-purple-500/10" },
-  notion: { icon: FileText, color: "text-neutral-300", bg: "bg-neutral-500/10" },
+  notion: { icon: FileText, color: "text-foreground", bg: "bg-neutral-500/10" },
   calendly: { icon: Calendar, color: "text-blue-400", bg: "bg-blue-600/10" },
   stripe: { icon: CreditCard, color: "text-violet-400", bg: "bg-violet-500/10" },
   mailchimp: { icon: Mail, color: "text-yellow-400", bg: "bg-yellow-500/10" },
@@ -49,7 +49,7 @@ const providerConfig: Record<string, { icon: React.ElementType; color: string; b
   "google-sheets": { icon: Database, color: "text-emerald-400", bg: "bg-emerald-500/10" },
   zapier: { icon: Zap, color: "text-orange-400", bg: "bg-orange-600/10" },
   make: { icon: Globe, color: "text-violet-400", bg: "bg-violet-500/10" },
-  github: { icon: GitBranch, color: "text-neutral-300", bg: "bg-neutral-600/10" },
+  github: { icon: GitBranch, color: "text-foreground", bg: "bg-neutral-600/10" },
 };
 
 const defaultConfig = { icon: Plug, color: "text-muted-foreground", bg: "bg-muted" };

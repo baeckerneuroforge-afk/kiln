@@ -102,7 +102,7 @@ export function ModelRoutingTab({ agentId }: ModelRoutingTabProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin text-zinc-600" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -111,11 +111,11 @@ export function ModelRoutingTab({ agentId }: ModelRoutingTabProps) {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h3 className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <Cpu className="h-4 w-4 text-orange-400" />
           Model Routing
         </h3>
-        <p className="text-xs text-zinc-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Steuere welche AI-Modelle für verschiedene Aufgaben verwendet werden.
         </p>
       </div>
@@ -135,7 +135,7 @@ export function ModelRoutingTab({ agentId }: ModelRoutingTabProps) {
               "flex items-start gap-3 rounded-xl border p-3.5 text-left transition-all",
               strategy === id
                 ? `border-${color}-500/30 bg-${color}-500/5`
-                : "border-[#2a2a3a] bg-transparent hover:border-[#3a3a4a]"
+                : "border-border bg-transparent hover:border-foreground/20"
             )}
             style={strategy === id ? { borderColor: `var(--${color}, #F97316)30`, backgroundColor: `var(--${color}, #F97316)08` } : undefined}
           >
@@ -146,12 +146,12 @@ export function ModelRoutingTab({ agentId }: ModelRoutingTabProps) {
               <Icon className="h-4 w-4" style={{ color: strategy === id ? "#F97316" : "#71717a" }} />
             </div>
             <div>
-              <p className={cn("text-xs font-medium", strategy === id ? "text-zinc-100" : "text-zinc-400")}>{label}</p>
-              <p className="text-[10px] text-zinc-600 mt-0.5">{desc}</p>
+              <p className={cn("text-xs font-medium", strategy === id ? "text-foreground" : "text-muted-foreground")}>{label}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{desc}</p>
             </div>
             <div className={cn(
               "ml-auto h-4 w-4 rounded-full border-2 shrink-0 mt-1",
-              strategy === id ? "border-orange-500 bg-orange-500" : "border-zinc-700"
+              strategy === id ? "border-orange-500 bg-orange-500" : "border-border"
             )} />
           </button>
         ))}
@@ -161,23 +161,23 @@ export function ModelRoutingTab({ agentId }: ModelRoutingTabProps) {
       {strategy === "manual" && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <Info className="h-3.5 w-3.5 text-zinc-600" />
-            <p className="text-[10px] text-zinc-500">
+            <Info className="h-3.5 w-3.5 text-muted-foreground" />
+            <p className="text-[10px] text-muted-foreground">
               Wähle für jeden Task-Typ das bevorzugte Modell.
               Grüner Punkt = API Key konfiguriert.
             </p>
           </div>
 
-          <div className="rounded-xl border border-[#2a2a3a] overflow-hidden">
+          <div className="rounded-xl border border-border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-[11px]">
                 <thead>
-                  <tr className="border-b border-[#2a2a3a]">
-                    <th className="text-left px-3 py-2 text-zinc-500 font-medium">Task-Typ</th>
+                  <tr className="border-b border-border">
+                    <th className="text-left px-3 py-2 text-muted-foreground font-medium">Task-Typ</th>
                     {modelsWithAvailability.map((m) => (
-                      <th key={m.id} className="text-center px-2 py-2 text-zinc-500 font-medium whitespace-nowrap">
+                      <th key={m.id} className="text-center px-2 py-2 text-muted-foreground font-medium whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1">
-                          <span className={cn("h-1.5 w-1.5 rounded-full", m.available ? "bg-green-500" : "bg-zinc-700")} />
+                          <span className={cn("h-1.5 w-1.5 rounded-full", m.available ? "bg-green-500" : "bg-muted")} />
                           {m.displayName}
                         </div>
                       </th>
@@ -186,10 +186,10 @@ export function ModelRoutingTab({ agentId }: ModelRoutingTabProps) {
                 </thead>
                 <tbody>
                   {TASK_TYPES.map((tt) => (
-                    <tr key={tt.key} className="border-b border-[#2a2a3a] last:border-0">
+                    <tr key={tt.key} className="border-b border-border last:border-0">
                       <td className="px-3 py-2.5">
-                        <p className="text-zinc-300 font-medium">{tt.label}</p>
-                        <p className="text-[9px] text-zinc-600">{tt.description}</p>
+                        <p className="text-foreground font-medium">{tt.label}</p>
+                        <p className="text-[9px] text-muted-foreground">{tt.description}</p>
                       </td>
                       {modelsWithAvailability.map((m) => (
                         <td key={m.id} className="text-center px-2 py-2.5">
@@ -201,8 +201,8 @@ export function ModelRoutingTab({ agentId }: ModelRoutingTabProps) {
                               overrides[tt.key] === m.id
                                 ? "border-orange-500 bg-orange-500"
                                 : m.available
-                                  ? "border-zinc-700 hover:border-zinc-500"
-                                  : "border-zinc-800 opacity-30 cursor-not-allowed"
+                                  ? "border-border hover:border-foreground/30"
+                                  : "border-border opacity-30 cursor-not-allowed"
                             )}
                           />
                         </td>

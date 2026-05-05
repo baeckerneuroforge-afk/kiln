@@ -773,7 +773,7 @@ export default function AgentDetailPage() {
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05]">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
             <Bot className="h-5 w-5 text-gray-400" />
           </div>
           <div>
@@ -784,7 +784,7 @@ export default function AgentDetailPage() {
                 v{agent.currentVersion || 1} · Last edited {formatRelativeTime(agent.updatedAt)}
               </span>
               {agent.clonedFromName && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-purple-500/20 bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium text-gray-400">
+                <span className="inline-flex items-center gap-1 rounded-full border border-purple-500/20 bg-muted px-2 py-0.5 text-[10px] font-medium text-gray-400">
                   <GitFork className="h-2.5 w-2.5" />
                   Cloned from {agent.clonedFromName}
                 </span>
@@ -887,7 +887,7 @@ export default function AgentDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="mb-6 flex items-center gap-0.5 overflow-x-auto rounded-xl bg-white/[0.03] border border-white/[0.06] p-1 scrollbar-none">
+      <div className="mb-6 flex items-center gap-0.5 overflow-x-auto rounded-xl bg-muted border border-border p-1 scrollbar-none">
         {baseTabs.map((tab) => (
           <button
             key={tab.id}
@@ -895,8 +895,8 @@ export default function AgentDetailPage() {
             className={cn(
               "relative flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
               activeTab === tab.id
-                ? "bg-white/[0.08] text-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
+                ? "bg-muted text-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
             )}
           >
             <tab.icon className={cn("h-4 w-4", activeTab === tab.id && "text-gray-400")} />
@@ -914,8 +914,8 @@ export default function AgentDetailPage() {
                 className={cn(
                   "relative flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
                   activeTab === tab.id
-                    ? "bg-white/[0.08] text-gray-400 shadow-sm"
-                    : "text-muted-foreground hover:bg-white/[0.04] hover:text-purple-300"
+                    ? "bg-muted text-gray-400 shadow-sm"
+                    : "text-muted-foreground hover:bg-muted hover:text-purple-300"
                 )}
               >
                 <tab.icon className={cn("h-4 w-4", activeTab === tab.id && "text-gray-400")} />
@@ -929,7 +929,7 @@ export default function AgentDetailPage() {
       {/* Unlock Advanced — shown when Advanced Mode is off */}
       {!advancedMode && activeTab !== "embed" && (
         <div className="mb-6 flex items-center gap-3 rounded-xl border border-dashed border-purple-500/20 bg-purple-500/5 p-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05] shrink-0">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted shrink-0">
             <Bolt className="h-4 w-4 text-gray-400" />
           </div>
           <div className="flex-1">
@@ -1081,7 +1081,7 @@ export default function AgentDetailPage() {
                       size="sm"
                       variant="outline"
                       onClick={() => setShowPromptEditor(true)}
-                      className="border-purple-500/30 text-gray-400 hover:bg-white/[0.05] hover:text-purple-300"
+                      className="border-purple-500/30 text-gray-400 hover:bg-muted hover:text-purple-300"
                     >
                       <Code2 className="mr-1.5 h-3.5 w-3.5" />
                       Advanced Editor
@@ -1229,7 +1229,7 @@ export default function AgentDetailPage() {
               <div className="rounded-xl border border-border bg-card/50 p-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
                       <Brain className="h-4 w-4 text-gray-400" />
                     </div>
                     <div>
@@ -1263,7 +1263,7 @@ export default function AgentDetailPage() {
               <div className="rounded-xl border border-border bg-card/50 p-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
                       <Users className="h-4 w-4 text-gray-400" />
                     </div>
                     <div>
@@ -1297,7 +1297,7 @@ export default function AgentDetailPage() {
               <div className="rounded-xl border border-border bg-card/50 p-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
                       <ImageIcon className="h-4 w-4 text-gray-400" />
                     </div>
                     <div>
@@ -1346,7 +1346,7 @@ export default function AgentDetailPage() {
               <div className="rounded-xl border border-border bg-card/50 p-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
                       <Shield className="h-4 w-4 text-gray-400" />
                     </div>
                     <div>
@@ -1374,7 +1374,7 @@ export default function AgentDetailPage() {
                   </button>
                 </div>
                 {!showAiDisclaimer && (
-                  <div className="mt-3 flex items-start gap-2 rounded-lg bg-white/[0.05] p-3">
+                  <div className="mt-3 flex items-start gap-2 rounded-lg bg-muted p-3">
                     <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
                     <p className="text-xs text-gray-400">
                       The EU AI Act requires transparency about AI-powered interactions.
@@ -1387,7 +1387,7 @@ export default function AgentDetailPage() {
               <div className="rounded-xl border border-border bg-card/50 p-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
                       <Lock className="h-4 w-4 text-gray-400" />
                     </div>
                     <div>
@@ -1416,7 +1416,7 @@ export default function AgentDetailPage() {
                 </div>
                 {visibility === "INTERNAL" && (
                   <div className="mt-4">
-                    <div className="mb-3 flex items-start gap-2 rounded-lg bg-white/[0.05] p-3">
+                    <div className="mb-3 flex items-start gap-2 rounded-lg bg-muted p-3">
                       <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
                       <div className="text-xs text-purple-300">
                         <p className="font-medium text-gray-400 mb-1">Use cases</p>
@@ -1450,17 +1450,17 @@ export default function AgentDetailPage() {
                             type="checkbox"
                             checked={teamRoutingEnabled}
                             onChange={(e) => setTeamRoutingEnabled(e.target.checked)}
-                            className="h-4 w-4 rounded border-zinc-600 bg-zinc-900 text-orange-500 focus:ring-orange-500/30"
+                            className="h-4 w-4 rounded border-border bg-card text-orange-500 focus:ring-orange-500/30"
                           />
-                          <span className="text-xs text-zinc-300">Intent-basiertes Routing aktivieren</span>
+                          <span className="text-xs text-foreground">Intent-basiertes Routing aktivieren</span>
                         </label>
                         {teamRoutingEnabled && (
                           <div>
-                            <label className="mb-1.5 block text-[11px] font-medium text-zinc-400">Team auswählen</label>
+                            <label className="mb-1.5 block text-[11px] font-medium text-muted-foreground">Team auswählen</label>
                             <select
                               value={teamRoutingTeamId || ""}
                               onChange={(e) => setTeamRoutingTeamId(e.target.value || null)}
-                              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 focus:border-orange-500/50 focus:outline-none"
+                              className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground focus:border-orange-500/50 focus:outline-none"
                             >
                               <option value="">— Kein Team —</option>
                               {availableTeams.map((t) => (
@@ -1468,7 +1468,7 @@ export default function AgentDetailPage() {
                               ))}
                             </select>
                             {teamRoutingTeamId && (
-                              <p className="mt-2 text-[10px] text-zinc-500">
+                              <p className="mt-2 text-[10px] text-muted-foreground">
                                 Bei jeder Nachricht wird die Intention erkannt und der Agent gewechselt, wenn ein anderer besser passt (Confidence &gt; 80%).
                               </p>
                             )}
@@ -1484,7 +1484,7 @@ export default function AgentDetailPage() {
               {advancedMode && (userPlan === "PRO" || userPlan === "AGENCY" || userPlan === "ADMIN") && (
                 <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
                       <Link2 className="h-4 w-4 text-gray-400" />
                     </div>
                     <div>
@@ -1532,8 +1532,8 @@ export default function AgentDetailPage() {
                       <div className={cn(
                         "mt-2 flex items-center gap-2 rounded-lg px-3 py-2 text-xs",
                         domainVerified
-                          ? "border border-green-500/30 bg-white/[0.05] text-gray-400"
-                          : "border border-red-500/30 bg-white/[0.05] text-gray-400"
+                          ? "border border-green-500/30 bg-muted text-gray-400"
+                          : "border border-red-500/30 bg-muted text-gray-400"
                       )}>
                         {domainVerified ? (
                           <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
@@ -1732,7 +1732,7 @@ export default function AgentDetailPage() {
           {activeTab === "webhooks" && (
             <div className="space-y-10">
               <WebhooksTab agentId={agent.id} />
-              <div className="border-t border-white/[0.06] pt-8">
+              <div className="border-t border-border pt-8">
                 <EventSubscriptionsTab agentId={agent.id} />
               </div>
             </div>
@@ -1778,7 +1778,7 @@ export default function AgentDetailPage() {
                         )}
                       >
                         {/* Mini Preview */}
-                        <div className="mb-2.5 overflow-hidden rounded-lg border border-white/[0.06] bg-white">
+                        <div className="mb-2.5 overflow-hidden rounded-lg border border-border bg-white">
                           {/* Mini header */}
                           <div
                             className="h-5 flex items-center px-2"
@@ -1901,7 +1901,7 @@ export default function AgentDetailPage() {
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/[0.08] bg-black/10 px-3 py-2 text-sm text-foreground">
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
                         <input
                           type="checkbox"
                           checked={widgetAutoTheme}
@@ -1910,7 +1910,7 @@ export default function AgentDetailPage() {
                         />
                         Auto-theme from host site
                       </label>
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/[0.08] bg-black/10 px-3 py-2 text-sm text-foreground">
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
                         <input
                           type="checkbox"
                           checked={widgetSoundEnabled}
@@ -1922,7 +1922,7 @@ export default function AgentDetailPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-white/[0.08] bg-black/20 p-4">
+                  <div className="rounded-xl border border-border bg-muted/60 p-4">
                     <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
                       Preview
                     </p>
@@ -1961,7 +1961,7 @@ export default function AgentDetailPage() {
                       Show a context-aware prompt when visitors linger or scroll deep on the page.
                     </p>
                   </div>
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-white/[0.08] bg-black/10 px-3 py-1.5 text-xs font-medium text-foreground">
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground">
                     <input
                       type="checkbox"
                       checked={proactiveEnabled}
@@ -2020,7 +2020,7 @@ export default function AgentDetailPage() {
                         proactiveRules.map((rule, index) => (
                           <div
                             key={index}
-                            className="grid gap-3 rounded-lg border border-border bg-black/10 p-3 md:grid-cols-[180px,1fr,auto]"
+                            className="grid gap-3 rounded-lg border border-border bg-muted/40 p-3 md:grid-cols-[180px,1fr,auto]"
                           >
                             <input
                               type="text"
@@ -2105,7 +2105,7 @@ export default function AgentDetailPage() {
                   <label className="block text-sm font-medium text-foreground">
                     Chat Bubble Widget
                   </label>
-                  <span className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] font-semibold text-gray-400">
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-gray-400">
                     Recommended
                   </span>
                 </div>
@@ -2240,7 +2240,7 @@ export default function AgentDetailPage() {
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setShowCloneModal(false)}
           />
-          <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-[#242220] p-6 shadow-2xl mx-4">
+          <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl mx-4">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold text-foreground">Clone Agent</h3>
               <button
@@ -2354,7 +2354,7 @@ export default function AgentDetailPage() {
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setShowPublishModal(false)}
           />
-          <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-[#242220] p-6 shadow-2xl mx-4">
+          <div className="relative z-10 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl mx-4">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold text-foreground">Publish to Marketplace</h3>
               <button
@@ -2502,7 +2502,7 @@ function A2AProtocolSection({
     <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
             <Radio className="h-4 w-4 text-gray-400" />
           </div>
           <div>
@@ -2707,7 +2707,7 @@ function SavedLoginsSection({ agentId }: { agentId: string }) {
     <div className="rounded-xl border border-border bg-card/50 p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.05]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
             <Lock className="h-4 w-4 text-gray-400" />
           </div>
           <div>

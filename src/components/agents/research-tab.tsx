@@ -240,7 +240,7 @@ export function ResearchTab({ agentId }: ResearchTabProps) {
               <Lightbulb className="h-4.5 w-4.5 text-purple-400" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">Self-Learning</h3>
+              <h3 className="text-sm font-semibold text-foreground">Self-Learning</h3>
               <p className="text-sm text-muted-foreground">
                 When your agent can&apos;t answer a question, it will research the answer online and suggest adding it to your Knowledge Base.
               </p>
@@ -251,7 +251,7 @@ export function ResearchTab({ agentId }: ResearchTabProps) {
             disabled={togglingRag}
             className={cn(
               "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-              agenticRagEnabled ? "bg-purple-500" : "bg-zinc-700"
+              agenticRagEnabled ? "bg-purple-500" : "bg-muted"
             )}
           >
             <span
@@ -273,7 +273,7 @@ export function ResearchTab({ agentId }: ResearchTabProps) {
                 <Zap className="h-4.5 w-4.5 text-green-400" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-white">Auto-approve high-confidence answers</h3>
+                <h3 className="text-sm font-semibold text-foreground">Auto-approve high-confidence answers</h3>
                 <p className="text-sm text-muted-foreground">
                   Automatically add researched answers to your Knowledge Base without manual review.
                 </p>
@@ -283,7 +283,7 @@ export function ResearchTab({ agentId }: ResearchTabProps) {
               onClick={toggleAutoApprove}
               className={cn(
                 "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                autoApproveEnabled ? "bg-green-500" : "bg-zinc-700"
+                autoApproveEnabled ? "bg-green-500" : "bg-muted"
               )}
             >
               <span
@@ -305,7 +305,7 @@ export function ResearchTab({ agentId }: ResearchTabProps) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs text-muted-foreground">Minimum confidence threshold</label>
-                  <span className="text-xs font-mono text-white">{minConfidence}%</span>
+                  <span className="text-xs font-mono text-foreground">{minConfidence}%</span>
                 </div>
                 <input
                   type="range"
@@ -334,8 +334,8 @@ export function ResearchTab({ agentId }: ResearchTabProps) {
             className={cn(
               "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
               filter === f.id
-                ? "bg-white/10 text-white"
-                : "text-muted-foreground hover:text-white hover:bg-white/[0.04]"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
             )}
           >
             {f.label}
@@ -357,7 +357,7 @@ export function ResearchTab({ agentId }: ResearchTabProps) {
       {entries.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
           <Search className="mb-3 h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm font-medium text-zinc-300">
+          <p className="text-sm font-medium text-foreground">
             {!agenticRagEnabled
               ? "Enable Self-Learning to start"
               : "No research entries yet"}
@@ -423,7 +423,7 @@ export function ResearchTab({ agentId }: ResearchTabProps) {
                       })}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm font-medium text-white">{entry.question}</p>
+                  <p className="mt-2 text-sm font-medium text-foreground">{entry.question}</p>
                 </div>
               </div>
 
@@ -432,13 +432,13 @@ export function ResearchTab({ agentId }: ResearchTabProps) {
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <div className="rounded-lg border border-border/60 bg-background/50 p-3">
                     <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Existing KB Entry</p>
-                    <p className="text-sm text-zinc-400 leading-relaxed whitespace-pre-wrap">
+                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
                       {entry.conflictingContent}
                     </p>
                   </div>
                   <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-3">
                     <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-yellow-400">New Research</p>
-                    <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
+                    <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                       {entry.answer}
                     </p>
                   </div>
@@ -453,11 +453,11 @@ export function ResearchTab({ agentId }: ResearchTabProps) {
                       value={editedAnswer}
                       onChange={(e) => setEditedAnswer(e.target.value)}
                       rows={6}
-                      className="w-full bg-transparent text-sm text-zinc-300 leading-relaxed outline-none resize-none placeholder:text-zinc-600"
+                      className="w-full bg-transparent text-sm text-foreground leading-relaxed outline-none resize-none placeholder:text-muted-foreground"
                       placeholder="Edit the researched answer..."
                     />
                   ) : (
-                    <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
+                    <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                       {entry.answer}
                     </p>
                   )}
@@ -473,7 +473,7 @@ export function ResearchTab({ agentId }: ResearchTabProps) {
                       href={src.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:text-white hover:border-white/20"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:text-foreground hover:border-border"
                     >
                       <TrustBadge score={src.trustScore} />
                       <ExternalLink className="h-2.5 w-2.5" />
@@ -489,7 +489,7 @@ export function ResearchTab({ agentId }: ResearchTabProps) {
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:text-white hover:border-white/20"
+                      className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:text-foreground hover:border-border"
                     >
                       <ExternalLink className="h-2.5 w-2.5" />
                       {(() => { try { return new URL(url).hostname.replace("www.", ""); } catch { return url; } })()}

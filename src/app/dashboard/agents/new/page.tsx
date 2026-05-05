@@ -337,12 +337,12 @@ export default function NewAgentPage() {
               {/* Guided Wizard — Recommended */}
               <button
                 onClick={() => setMode("WIZARD")}
-                className="relative flex flex-col items-start rounded-xl border-2 border-[#3d3935] bg-card p-6 text-left transition-all hover:border-kiln-orange/60 hover:bg-[#2a2826]"
+                className="relative flex flex-col items-start rounded-xl border-2 border-foreground/20 bg-card p-6 text-left transition-all hover:border-kiln-orange/60 hover:bg-muted/40"
               >
                 <span className="absolute -top-2.5 right-4 rounded-full bg-kiln-orange px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
                   Recommended
                 </span>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.05] mb-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted mb-4">
                   <Sparkles className="h-6 w-6 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground">Guided Builder</h3>
@@ -359,7 +359,7 @@ export default function NewAgentPage() {
                 onClick={() => setMode("CHAT")}
                 className="flex flex-col items-start rounded-xl border border-border bg-card p-6 text-left transition-all hover:border-blue-500/30 hover:bg-blue-500/5"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.05] mb-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted mb-4">
                   <Code2 className="h-6 w-6 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground">Quick Create</h3>
@@ -376,7 +376,7 @@ export default function NewAgentPage() {
                 onClick={() => setMode("TASK")}
                 className="flex flex-col items-start rounded-xl border border-border bg-card p-6 text-left transition-all hover:border-violet-500/30 hover:bg-violet-500/5"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.05] mb-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted mb-4">
                   <Zap className="h-6 w-6 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground">Task Agent</h3>
@@ -424,7 +424,7 @@ export default function NewAgentPage() {
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.05]">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
               <Zap className="h-4 w-4 text-gray-400" />
             </div>
             <div>
@@ -451,7 +451,7 @@ export default function NewAgentPage() {
                 onClick={() => i <= stepIdx && setTaskStep(s.id)}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
                   i === stepIdx ? "bg-kiln-orange text-white" :
-                  i < stepIdx ? "bg-white/[0.05] text-gray-400 cursor-pointer" :
+                  i < stepIdx ? "bg-muted text-gray-400 cursor-pointer" :
                   "bg-muted text-muted-foreground"
                 }`}
               >
@@ -516,7 +516,7 @@ export default function NewAgentPage() {
                       key={t.id}
                       onClick={() => setTriggerType(t.id)}
                       className={`flex flex-col items-start rounded-lg border p-4 text-left transition-all ${
-                        triggerType === t.id ? "border-kiln-orange bg-kiln-orange/5" : "border-border hover:border-[#3d3935]"
+                        triggerType === t.id ? "border-kiln-orange bg-kiln-orange/5" : "border-border hover:border-foreground/20"
                       }`}
                     >
                       <h4 className="text-sm font-semibold text-foreground">{t.label}</h4>
@@ -568,7 +568,7 @@ export default function NewAgentPage() {
                       key={o.id}
                       onClick={() => setOutputType(o.id)}
                       className={`flex flex-col items-start rounded-lg border p-4 text-left transition-all ${
-                        outputType === o.id ? "border-kiln-orange bg-kiln-orange/5" : "border-border hover:border-[#3d3935]"
+                        outputType === o.id ? "border-kiln-orange bg-kiln-orange/5" : "border-border hover:border-foreground/20"
                       }`}
                     >
                       <h4 className="text-sm font-semibold text-foreground">{o.label}</h4>

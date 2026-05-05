@@ -158,7 +158,7 @@ function SchemaPane({ label, description, value, onChange }: SchemaPaneProps) {
   return (
     <div className="space-y-2">
       <div>
-        <p className="text-xs font-bold uppercase tracking-wider text-stone-400">{label}</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
         <p className="mt-0.5 text-[11px] text-muted-foreground">{description}</p>
       </div>
 

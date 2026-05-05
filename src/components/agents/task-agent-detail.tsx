@@ -141,7 +141,7 @@ const statusConfig = {
 function PipelineArrow() {
   return (
     <div className="hidden lg:flex items-center justify-center w-16 shrink-0">
-      <svg width="64" height="24" viewBox="0 0 64 24" fill="none" className="text-stone-600">
+      <svg width="64" height="24" viewBox="0 0 64 24" fill="none" className="text-muted-foreground">
         <line x1="0" y1="12" x2="52" y2="12" stroke="currentColor" strokeWidth="1.5" className="pipeline-arrow" />
         <polygon points="52,6 64,12 52,18" fill="currentColor" opacity="0.6" />
         <circle r="3" fill="#F97316" opacity="0.8">
@@ -156,7 +156,7 @@ function PipelineArrow() {
 function PipelineArrowDown() {
   return (
     <div className="flex lg:hidden items-center justify-center h-10">
-      <svg width="24" height="40" viewBox="0 0 24 40" fill="none" className="text-stone-600">
+      <svg width="24" height="40" viewBox="0 0 24 40" fill="none" className="text-muted-foreground">
         <line x1="12" y1="0" x2="12" y2="28" stroke="currentColor" strokeWidth="1.5" className="pipeline-arrow" />
         <polygon points="6,28 12,40 18,28" fill="currentColor" opacity="0.6" />
       </svg>
@@ -525,14 +525,14 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
                 <PipelineArrowDown />
                 {/* PRE-PROCESS BLOCK */}
                 <div className="w-full lg:w-[280px] shrink-0">
-                  <div className="h-full rounded-xl border border-dashed border-stone-500/30 bg-stone-500/[0.02] p-4">
+                  <div className="h-full rounded-xl border border-dashed border-border/30 bg-muted/30 p-4">
                     <div className="mb-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-stone-500/10">
-                          <Filter className="h-4.5 w-4.5 text-stone-400" />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted/10">
+                          <Filter className="h-4.5 w-4.5 text-muted-foreground" />
                         </div>
                         <div>
-                          <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Pre-Process</p>
+                          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Pre-Process</p>
                           <p className="text-[10px] text-muted-foreground">Filter & Transform</p>
                         </div>
                       </div>
@@ -543,7 +543,7 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
                         Remove
                       </button>
                     </div>
-                    <div className="rounded-lg bg-stone-800/20 px-1">
+                    <div className="rounded-lg bg-muted/20 px-1">
                       <PreProcessBlock config={preProcessConfig} onChange={setPreProcessConfig} />
                     </div>
                     <p className="mt-2 text-center text-[9px] text-muted-foreground/60">No LLM call · No credits</p>
@@ -559,13 +559,13 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
                     className="group flex flex-col items-center gap-0.5"
                     title="Add Pre-Process block"
                   >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-stone-600">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-muted-foreground">
                       <line x1="12" y1="0" x2="12" y2="24" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" />
                     </svg>
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-stone-600 bg-stone-800/50 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Plus className="h-3 w-3 text-stone-400" />
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-border bg-muted/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Plus className="h-3 w-3 text-muted-foreground" />
                     </div>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-stone-600">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-muted-foreground">
                       <line x1="12" y1="0" x2="12" y2="24" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" />
                     </svg>
                   </button>
@@ -573,7 +573,7 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
                 <div className="flex lg:hidden items-center justify-center h-8">
                   <button
                     onClick={() => setPreProcessConfig({ ...preProcessConfig, enabled: true })}
-                    className="flex items-center gap-1.5 text-[10px] text-stone-500 hover:text-stone-300 transition-colors"
+                    className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <Plus className="h-3 w-3" /> Add Pre-Process
                   </button>
@@ -708,14 +708,14 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
                 <PipelineArrowDown />
                 {/* POST-PROCESS BLOCK */}
                 <div className="w-full lg:w-[300px] shrink-0">
-                  <div className="h-full rounded-xl border border-dashed border-stone-500/30 bg-stone-500/[0.02] p-4">
+                  <div className="h-full rounded-xl border border-dashed border-border/30 bg-muted/30 p-4">
                     <div className="mb-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-stone-500/10">
-                          <Filter className="h-4.5 w-4.5 text-stone-400" />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted/10">
+                          <Filter className="h-4.5 w-4.5 text-muted-foreground" />
                         </div>
                         <div>
-                          <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Post-Process</p>
+                          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Post-Process</p>
                           <p className="text-[10px] text-muted-foreground">Transform & Route</p>
                         </div>
                       </div>
@@ -726,7 +726,7 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
                         Remove
                       </button>
                     </div>
-                    <div className="rounded-lg bg-stone-800/20 px-1">
+                    <div className="rounded-lg bg-muted/20 px-1">
                       <PostProcessBlock config={postProcessConfig} onChange={setPostProcessConfig} agents={allAgents} />
                     </div>
                     <p className="mt-2 text-center text-[9px] text-muted-foreground/60">No LLM call · No credits</p>
@@ -742,13 +742,13 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
                     className="group flex flex-col items-center gap-0.5"
                     title="Add Post-Process block"
                   >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-stone-600">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-muted-foreground">
                       <line x1="12" y1="0" x2="12" y2="24" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" />
                     </svg>
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-stone-600 bg-stone-800/50 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Plus className="h-3 w-3 text-stone-400" />
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-border bg-muted/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Plus className="h-3 w-3 text-muted-foreground" />
                     </div>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-stone-600">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-muted-foreground">
                       <line x1="12" y1="0" x2="12" y2="24" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" />
                     </svg>
                   </button>
@@ -756,7 +756,7 @@ export function TaskAgentDetail({ agent: initialAgent }: { agent: Agent }) {
                 <div className="flex lg:hidden items-center justify-center h-8">
                   <button
                     onClick={() => setPostProcessConfig({ ...postProcessConfig, enabled: true })}
-                    className="flex items-center gap-1.5 text-[10px] text-stone-500 hover:text-stone-300 transition-colors"
+                    className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <Plus className="h-3 w-3" /> Add Post-Process
                   </button>

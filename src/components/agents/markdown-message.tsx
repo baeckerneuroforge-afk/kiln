@@ -64,7 +64,7 @@ function parseBlocks(text: string) {
       return (
         <code
           key={i}
-          className="block rounded-lg bg-black/20 p-3 font-mono text-xs whitespace-pre-wrap overflow-x-auto"
+          className="block rounded-lg bg-muted/60 p-3 font-mono text-xs whitespace-pre-wrap overflow-x-auto"
         >
           {code}
         </code>
@@ -139,7 +139,7 @@ function renderInline(text: string): React.ReactNode {
         parts.push(
           <code
             key={key++}
-            className="rounded bg-black/20 px-1.5 py-0.5 font-mono text-xs"
+            className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-xs"
           >
             {first.match[1]}
           </code>

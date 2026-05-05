@@ -233,11 +233,11 @@ export function WatchLearnUploader({ agentId }: WatchLearnUploaderProps) {
 
       {/* Header */}
       <div>
-        <h3 className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <Video className="h-4 w-4 text-pink-400" />
           Watch & Learn
         </h3>
-        <p className="text-xs text-zinc-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Nimm dich auf, wie du eine Aufgabe erledigst. Der Agent lernt es und kann es danach selbst.
         </p>
       </div>
@@ -245,7 +245,7 @@ export function WatchLearnUploader({ agentId }: WatchLearnUploaderProps) {
       {/* Task Description */}
       {!sessionId && (
         <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">
+          <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
             Was machst du im Video? (optional)
           </label>
           <input
@@ -253,7 +253,7 @@ export function WatchLearnUploader({ agentId }: WatchLearnUploaderProps) {
             value={taskDescription}
             onChange={(e) => setTaskDescription(e.target.value)}
             placeholder="z.B. Preise auf competitor.com vergleichen"
-            className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-pink-500/60 transition-colors placeholder:text-zinc-700"
+            className="w-full bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2.5 outline-none focus:border-pink-500/60 transition-colors placeholder:text-muted-foreground"
           />
         </div>
       )}
@@ -269,7 +269,7 @@ export function WatchLearnUploader({ agentId }: WatchLearnUploaderProps) {
             "rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all",
             dragOver
               ? "border-pink-500/50 bg-pink-500/5"
-              : "border-[#2a2a3a] hover:border-pink-500/30 hover:bg-[#141418]",
+              : "border-border hover:border-pink-500/30 hover:bg-card",
             uploading && "pointer-events-none opacity-50"
           )}
         >
@@ -283,7 +283,7 @@ export function WatchLearnUploader({ agentId }: WatchLearnUploaderProps) {
           {uploading ? (
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="h-8 w-8 text-pink-400 animate-spin" />
-              <p className="text-sm text-zinc-400">Frames werden extrahiert...</p>
+              <p className="text-sm text-muted-foreground">Frames werden extrahiert...</p>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3">
@@ -291,8 +291,8 @@ export function WatchLearnUploader({ agentId }: WatchLearnUploaderProps) {
                 <Upload className="h-6 w-6 text-pink-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-zinc-300">Screen-Recording hochladen</p>
-                <p className="text-xs text-zinc-600 mt-1">MP4, WebM oder MOV · max 100MB</p>
+                <p className="text-sm font-medium text-foreground">Screen-Recording hochladen</p>
+                <p className="text-xs text-muted-foreground mt-1">MP4, WebM oder MOV · max 100MB</p>
               </div>
             </div>
           )}
@@ -301,13 +301,13 @@ export function WatchLearnUploader({ agentId }: WatchLearnUploaderProps) {
 
       {/* Processing Status */}
       {session && statusConfig && session.status !== "COMPLETED" && (
-        <div className="rounded-xl border border-[#2a2a3a] bg-[#141418] p-5">
+        <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-3">
             <statusConfig.icon className={cn("h-5 w-5", statusConfig.color, session.status !== "FAILED" && "animate-spin")} />
             <div className="flex-1">
               <p className={cn("text-sm font-medium", statusConfig.color)}>{statusConfig.label}</p>
               {session.frameCount > 0 && (
-                <p className="text-xs text-zinc-600 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Frame {session.framesAnalyzed} von {session.frameCount}
                 </p>
               )}
@@ -316,11 +316,11 @@ export function WatchLearnUploader({ agentId }: WatchLearnUploaderProps) {
               )}
             </div>
             {session.progress > 0 && session.status !== "FAILED" && (
-              <span className="text-xs font-medium text-zinc-400">{session.progress}%</span>
+              <span className="text-xs font-medium text-muted-foreground">{session.progress}%</span>
             )}
           </div>
           {session.progress > 0 && session.status !== "FAILED" && (
-            <div className="mt-3 h-1.5 rounded-full bg-zinc-800">
+            <div className="mt-3 h-1.5 rounded-full bg-muted">
               <div
                 className="h-1.5 rounded-full bg-pink-500 transition-all"
                 style={{ width: `${session.progress}%` }}
@@ -334,7 +334,7 @@ export function WatchLearnUploader({ agentId }: WatchLearnUploaderProps) {
       {session?.status === "COMPLETED" && editableSteps.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-zinc-200">
+            <p className="text-sm font-medium text-foreground">
               Erkannter Workflow ({editableSteps.length} Schritte)
             </p>
             <div className="flex gap-2">
@@ -355,7 +355,7 @@ export function WatchLearnUploader({ agentId }: WatchLearnUploaderProps) {
             {editableSteps.map((step, i) => (
               <div
                 key={i}
-                className="rounded-lg border border-[#2a2a3a] bg-[#141418] overflow-hidden"
+                className="rounded-lg border border-border bg-card overflow-hidden"
               >
                 <button
                   onClick={() => setExpandedStep(expandedStep === i ? null : i)}
@@ -365,42 +365,42 @@ export function WatchLearnUploader({ agentId }: WatchLearnUploaderProps) {
                     {step.stepNumber}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <span className="text-[10px] font-mono font-medium text-zinc-500 uppercase mr-2">
+                    <span className="text-[10px] font-mono font-medium text-muted-foreground uppercase mr-2">
                       {step.action}
                     </span>
-                    <span className="text-xs text-zinc-300 truncate">{step.target}</span>
+                    <span className="text-xs text-foreground truncate">{step.target}</span>
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); removeStep(i); }}
-                    className="text-zinc-700 hover:text-red-400 transition-colors"
+                    className="text-muted-foreground hover:text-red-400 transition-colors"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
                   {expandedStep === i ? (
-                    <ChevronDown className="h-3.5 w-3.5 text-zinc-600" />
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                   ) : (
-                    <ChevronRight className="h-3.5 w-3.5 text-zinc-600" />
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                   )}
                 </button>
 
                 {expandedStep === i && (
-                  <div className="border-t border-[#2a2a3a] px-3 py-2.5 space-y-1.5">
+                  <div className="border-t border-border px-3 py-2.5 space-y-1.5">
                     {step.url && (
-                      <p className="text-[10px] text-zinc-600">
-                        URL: <span className="text-zinc-400 font-mono">{step.url}</span>
+                      <p className="text-[10px] text-muted-foreground">
+                        URL: <span className="text-muted-foreground font-mono">{step.url}</span>
                       </p>
                     )}
                     {step.typedText && (
-                      <p className="text-[10px] text-zinc-600">
-                        Text: <span className="text-zinc-400">&quot;{step.typedText}&quot;</span>
+                      <p className="text-[10px] text-muted-foreground">
+                        Text: <span className="text-muted-foreground">&quot;{step.typedText}&quot;</span>
                       </p>
                     )}
                     {step.dataExtracted && step.dataExtracted.length > 0 && (
-                      <p className="text-[10px] text-zinc-600">
-                        Felder: <span className="text-zinc-400">{step.dataExtracted.join(", ")}</span>
+                      <p className="text-[10px] text-muted-foreground">
+                        Felder: <span className="text-muted-foreground">{step.dataExtracted.join(", ")}</span>
                       </p>
                     )}
-                    <p className="text-[10px] text-zinc-600 italic">{step.reasoning}</p>
+                    <p className="text-[10px] text-muted-foreground italic">{step.reasoning}</p>
                   </div>
                 )}
               </div>

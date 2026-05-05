@@ -73,7 +73,7 @@ export default function TemplatesPage() {
         {agentTemplates.map((template) => (
           <div
             key={template.id}
-            className="group flex flex-col rounded-xl border border-[#332f2b] bg-[#242220] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-all hover:border-[#3d3935] hover:shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
+            className="group flex flex-col rounded-xl border border-border bg-card p-5 shadow-[0_1px_2px_rgba(0,0,0,0.3)] transition-all hover:border-foreground/20 hover:shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
           >
             {/* Icon + Branche */}
             <div className="mb-3 flex items-start justify-between">
@@ -125,7 +125,7 @@ export default function TemplatesPage() {
                 return (
                   <span
                     key={action}
-                    className="rounded-md bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium text-gray-400"
+                    className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-gray-400"
                   >
                     {labels[action] || action}
                   </span>

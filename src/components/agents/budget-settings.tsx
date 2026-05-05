@@ -97,7 +97,7 @@ export function BudgetSettings({ agentId }: BudgetSettingsProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin text-zinc-600" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -113,11 +113,11 @@ export function BudgetSettings({ agentId }: BudgetSettingsProps) {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h3 className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <Wallet className="h-4 w-4 text-orange-400" />
           Budget Controls
         </h3>
-        <p className="text-xs text-zinc-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Setze Credit-Limits pro Ausführung. Monatliches Limit = dein Plan.
         </p>
       </div>
@@ -130,16 +130,16 @@ export function BudgetSettings({ agentId }: BudgetSettingsProps) {
             ? "border-red-500/30 bg-red-500/5"
             : planPercentUsed > 50
               ? "border-amber-500/30 bg-amber-500/5"
-              : "border-[#2a2a3a] bg-[#141418]"
+              : "border-border bg-card"
         )}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Plan-Credits</p>
-              <p className="mt-1 text-2xl font-semibold text-zinc-100">{planBalance} <span className="text-sm text-zinc-500">/ {planTotal}</span></p>
-              <p className="mt-0.5 text-xs text-zinc-500">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Plan-Credits</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{planBalance} <span className="text-sm text-muted-foreground">/ {planTotal}</span></p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 {creditsUsed} Credits von diesem Agent genutzt
                 {data.usage.monthlyCostCents > 0 && (
-                  <span className="text-zinc-600"> · {formatEuro(data.usage.monthlyCostCents)} API-Kosten</span>
+                  <span className="text-muted-foreground"> · {formatEuro(data.usage.monthlyCostCents)} API-Kosten</span>
                 )}
               </p>
             </div>
@@ -151,13 +151,13 @@ export function BudgetSettings({ agentId }: BudgetSettingsProps) {
                 )}>
                   {Math.round(planPercentUsed)}%
                 </p>
-                <p className="text-[10px] text-zinc-600">verbraucht</p>
+                <p className="text-[10px] text-muted-foreground">verbraucht</p>
               </div>
             )}
           </div>
 
           {planTotal > 0 && (
-            <div className="mt-3 h-2 rounded-full bg-zinc-800">
+            <div className="mt-3 h-2 rounded-full bg-muted">
               <div
                 className={cn(
                   "h-2 rounded-full transition-all",
@@ -173,7 +173,7 @@ export function BudgetSettings({ agentId }: BudgetSettingsProps) {
       {/* Budget Config */}
       <div className="space-y-4">
         <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">
+          <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
             Max Credits pro Ausführung
           </label>
           <input
@@ -183,15 +183,15 @@ export function BudgetSettings({ agentId }: BudgetSettingsProps) {
             value={maxCreditsPerRun}
             onChange={(e) => setMaxCreditsPerRun(e.target.value)}
             placeholder="Unbegrenzt"
-            className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700"
+            className="w-full bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground"
           />
-          <p className="text-[10px] text-zinc-600">
+          <p className="text-[10px] text-muted-foreground">
             Leer lassen = kein Limit pro Ausführung. 1 Credit ≈ 1 Haiku-Aufruf, 5 Credits ≈ 1 Opus-Aufruf.
           </p>
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">
+          <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
             Bei Budget-Überschreitung
           </label>
           <div className="grid gap-2">
@@ -207,19 +207,19 @@ export function BudgetSettings({ agentId }: BudgetSettingsProps) {
                   "flex items-start gap-3 rounded-xl border p-3 text-left transition-all",
                   behavior === id
                     ? `border-${color}-500/30 bg-${color}-500/5`
-                    : "border-[#2a2a3a] bg-transparent hover:border-[#3a3a4a]"
+                    : "border-border bg-transparent hover:border-foreground/20"
                 )}
               >
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg shrink-0 mt-0.5 bg-[#1a1a24]">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg shrink-0 mt-0.5 bg-card">
                   <Icon className="h-3.5 w-3.5" style={{ color: behavior === id ? "#F97316" : "#71717a" }} />
                 </div>
                 <div>
-                  <p className={cn("text-xs font-medium", behavior === id ? "text-zinc-100" : "text-zinc-400")}>{label}</p>
-                  <p className="text-[10px] text-zinc-600 mt-0.5">{desc}</p>
+                  <p className={cn("text-xs font-medium", behavior === id ? "text-foreground" : "text-muted-foreground")}>{label}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{desc}</p>
                 </div>
                 <div className={cn(
                   "ml-auto h-4 w-4 rounded-full border-2 shrink-0 mt-1",
-                  behavior === id ? "border-orange-500 bg-orange-500" : "border-zinc-700"
+                  behavior === id ? "border-orange-500 bg-orange-500" : "border-border"
                 )} />
               </button>
             ))}
@@ -229,8 +229,8 @@ export function BudgetSettings({ agentId }: BudgetSettingsProps) {
 
       {/* Model Breakdown */}
       {models.length > 0 && (
-        <div className="rounded-xl border border-[#2a2a3a] p-4">
-          <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide mb-3">
+        <div className="rounded-xl border border-border p-4">
+          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-3">
             Verbrauch nach Modell (30 Tage)
           </p>
           <div className="space-y-2">
@@ -238,12 +238,12 @@ export function BudgetSettings({ agentId }: BudgetSettingsProps) {
               <div key={model} className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-orange-500 shrink-0" />
-                  <span className="text-zinc-300 truncate max-w-[140px]">{model}</span>
+                  <span className="text-foreground truncate max-w-[140px]">{model}</span>
                 </div>
-                <div className="flex items-center gap-4 text-zinc-500">
+                <div className="flex items-center gap-4 text-muted-foreground">
                   <span>{stats.calls} Aufrufe</span>
                   <span className="text-orange-400 font-medium">{stats.creditsUsed || 0} Cr</span>
-                  <span className="text-zinc-600">{formatEuro(stats.costCents)}</span>
+                  <span className="text-muted-foreground">{formatEuro(stats.costCents)}</span>
                 </div>
               </div>
             ))}

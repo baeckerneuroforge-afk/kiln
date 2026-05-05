@@ -242,7 +242,7 @@ const channels = [
     name: "Notion",
     description: "Sync pages as Knowledge Base, export leads to databases",
     icon: FileText,
-    color: "text-neutral-300",
+    color: "text-foreground",
     bg: "bg-neutral-500/10",
     border: "border-neutral-500/20",
   },
@@ -2253,7 +2253,7 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                       <button
                         onClick={syncNotionNow}
                         disabled={notionSyncing}
-                        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-neutral-300 transition-colors hover:bg-neutral-500/10"
+                        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-neutral-500/10"
                       >
                         {notionSyncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                         Sync Now
@@ -2325,7 +2325,7 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                     // Step 1: Connect Notion workspace via OAuth
                     <div>
                       <div className="mb-4 rounded-lg border border-neutral-500/20 bg-neutral-500/5 p-3">
-                        <p className="text-xs font-medium text-neutral-300 mb-2">Setup Instructions</p>
+                        <p className="text-xs font-medium text-foreground mb-2">Setup Instructions</p>
                         <ol className="space-y-1.5 text-[11px] text-muted-foreground list-decimal list-inside">
                           <li>Click <span className="font-medium text-foreground">Connect Notion</span> below</li>
                           <li>Authorize KILN to access your Notion workspace</li>
@@ -2374,7 +2374,7 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                             onChange={(e) => setNotionSearchQuery(e.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); searchNotionPages(); } }}
                             placeholder="Search pages..."
-                            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/30 focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400/20"
+                            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/30 focus:border-border focus:outline-none focus:ring-1 focus:ring-neutral-400/20"
                           />
                           <button
                             onClick={searchNotionPages}
@@ -2454,7 +2454,7 @@ export function ChannelsTab({ agentId }: { agentId: string }) {
                           <select
                             value={selectedLeadDb}
                             onChange={(e) => setSelectedLeadDb(e.target.value)}
-                            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-neutral-400 focus:outline-none focus:ring-1 focus:ring-neutral-400/20"
+                            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-border focus:outline-none focus:ring-1 focus:ring-neutral-400/20"
                           >
                             <option value="">No lead export</option>
                             {notionDatabases.map((db) => (

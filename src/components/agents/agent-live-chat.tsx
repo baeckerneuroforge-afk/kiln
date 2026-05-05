@@ -415,10 +415,10 @@ export function AgentLiveChat({
                       {msg.approval.action}
                     </p>
                     {msg.approval.params && Object.keys(msg.approval.params).length > 0 && (
-                      <div className="mb-3 rounded bg-black/20 p-2 text-xs font-mono text-muted-foreground space-y-0.5">
+                      <div className="mb-3 rounded bg-muted/60 p-2 text-xs font-mono text-muted-foreground space-y-0.5">
                         {Object.entries(msg.approval.params).map(([k, v]) => (
                           <div key={k}>
-                            <span className="text-zinc-500">{k}:</span>{" "}
+                            <span className="text-muted-foreground">{k}:</span>{" "}
                             {typeof v === "string" && v.length > 80
                               ? v.slice(0, 80) + "..."
                               : String(v)}

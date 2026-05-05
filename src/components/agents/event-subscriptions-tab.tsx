@@ -121,22 +121,22 @@ export function EventSubscriptionsTab({ agentId }: EventSubscriptionsTabProps) {
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-neutral-500" /></div>;
+    return <div className="flex items-center justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-medium text-white">Event Subscriptions</h3>
-          <p className="mt-1 text-xs text-neutral-500">
+          <h3 className="text-sm font-medium text-foreground">Event Subscriptions</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
             Get notified via webhook when events occur (conversations, leads, task completions, etc.)
           </p>
         </div>
         <Button
           size="sm"
           onClick={() => setShowForm(!showForm)}
-          className="bg-[#F97316] text-white hover:bg-[#EA580C]"
+          className="bg-kiln-orange text-white hover:bg-kiln-orange/90"
         >
           <Plus className="mr-1.5 h-3.5 w-3.5" />
           Add Subscription
@@ -145,19 +145,19 @@ export function EventSubscriptionsTab({ agentId }: EventSubscriptionsTabProps) {
 
       {/* Create Form */}
       {showForm && (
-        <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 space-y-4">
+        <div className="rounded-lg border border-border bg-muted p-4 space-y-4">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-neutral-400">Webhook URL</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Webhook URL</label>
             <input
               value={formUrl}
               onChange={(e) => setFormUrl(e.target.value)}
               placeholder="https://your-server.com/webhook"
-              className="w-full rounded-md border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-neutral-600 focus:border-[#F97316] focus:outline-none"
+              className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-kiln-orange focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-xs font-medium text-neutral-400">Events</label>
+            <label className="mb-2 block text-xs font-medium text-muted-foreground">Events</label>
             <div className="grid grid-cols-2 gap-2">
               {ALL_EVENT_TYPES.map((evt) => (
                 <button
@@ -166,13 +166,13 @@ export function EventSubscriptionsTab({ agentId }: EventSubscriptionsTabProps) {
                   className={cn(
                     "flex items-center gap-2 rounded-md px-3 py-2 text-xs transition-colors text-left",
                     formEvents.has(evt.value)
-                      ? "bg-[#F97316]/10 text-[#F97316] border border-[#F97316]/30"
-                      : "bg-white/[0.03] text-neutral-400 border border-white/[0.06] hover:bg-white/[0.06]"
+                      ? "bg-kiln-orange/10 text-kiln-orange border border-kiln-orange/30"
+                      : "bg-muted text-muted-foreground border border-border hover:bg-muted"
                   )}
                 >
                   <span className={cn(
                     "h-3 w-3 rounded border flex-shrink-0 flex items-center justify-center",
-                    formEvents.has(evt.value) ? "border-[#F97316] bg-[#F97316]" : "border-neutral-600"
+                    formEvents.has(evt.value) ? "border-kiln-orange bg-kiln-orange" : "border-border"
                   )}>
                     {formEvents.has(evt.value) && <Check className="h-2 w-2 text-white" />}
                   </span>
@@ -187,11 +187,11 @@ export function EventSubscriptionsTab({ agentId }: EventSubscriptionsTabProps) {
           )}
 
           <div className="flex gap-2">
-            <Button size="sm" onClick={createSubscription} disabled={creating} className="bg-[#F97316] text-white hover:bg-[#EA580C]">
+            <Button size="sm" onClick={createSubscription} disabled={creating} className="bg-kiln-orange text-white hover:bg-kiln-orange/90">
               {creating ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
               Create
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setShowForm(false); setFormError(null); }} className="text-neutral-500">
+            <Button size="sm" variant="ghost" onClick={() => { setShowForm(false); setFormError(null); }} className="text-muted-foreground">
               Cancel
             </Button>
           </div>
@@ -200,37 +200,37 @@ export function EventSubscriptionsTab({ agentId }: EventSubscriptionsTabProps) {
 
       {/* Subscription List */}
       {subscriptions.length === 0 && !showForm && (
-        <div className="rounded-lg border border-dashed border-white/10 py-10 text-center text-sm text-neutral-500">
+        <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
           No event subscriptions configured. Add one to receive webhook notifications.
         </div>
       )}
 
       {subscriptions.map((sub) => (
-        <div key={sub.id} className="rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+        <div key={sub.id} className="rounded-lg border border-border bg-muted overflow-hidden">
           <div className="flex items-center gap-3 p-4">
             <span className={cn("h-3 w-3 rounded-full flex-shrink-0", sub.active ? "bg-green-500" : "bg-neutral-600")} />
             <div className="flex-1 min-w-0">
-              <code className="block truncate text-xs text-neutral-300">{sub.url}</code>
+              <code className="block truncate text-xs text-foreground">{sub.url}</code>
               <div className="mt-1 flex flex-wrap gap-1.5">
                 {sub.events.map((evt) => (
-                  <span key={evt} className="rounded bg-white/[0.04] px-1.5 py-0.5 text-[10px] text-neutral-400">
+                  <span key={evt} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                     {evt}
                   </span>
                 ))}
               </div>
               <div className="mt-1.5 flex items-center gap-2">
-                <span className="text-[11px] text-neutral-600">Secret:</span>
-                <code className="text-[11px] text-neutral-500">{sub.secret.slice(0, 12)}...</code>
-                <button onClick={() => copySecret(sub.secret)} className="text-neutral-500 hover:text-white">
+                <span className="text-[11px] text-muted-foreground">Secret:</span>
+                <code className="text-[11px] text-muted-foreground">{sub.secret.slice(0, 12)}...</code>
+                <button onClick={() => copySecret(sub.secret)} className="text-muted-foreground hover:text-foreground">
                   {copiedSecret === sub.secret ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
                 </button>
               </div>
             </div>
             <div className="flex items-center gap-1.5 flex-shrink-0">
-              <Button size="sm" variant="ghost" onClick={() => setExpanded(expanded === sub.id ? null : sub.id)} className="h-7 px-2 text-neutral-500 hover:text-white">
+              <Button size="sm" variant="ghost" onClick={() => setExpanded(expanded === sub.id ? null : sub.id)} className="h-7 px-2 text-muted-foreground hover:text-foreground">
                 {expanded === sub.id ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => deleteSubscription(sub.id)} className="h-7 px-2 text-neutral-500 hover:text-red-400">
+              <Button size="sm" variant="ghost" onClick={() => deleteSubscription(sub.id)} className="h-7 px-2 text-muted-foreground hover:text-red-400">
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -238,9 +238,9 @@ export function EventSubscriptionsTab({ agentId }: EventSubscriptionsTabProps) {
 
           {/* Delivery Log */}
           {expanded === sub.id && (
-            <div className="border-t border-white/[0.04]">
+            <div className="border-t border-border">
               {sub.deliveries.length === 0 ? (
-                <p className="px-4 py-6 text-center text-xs text-neutral-600">No deliveries yet</p>
+                <p className="px-4 py-6 text-center text-xs text-muted-foreground">No deliveries yet</p>
               ) : (
                 <div className="divide-y divide-white/[0.04]">
                   {sub.deliveries.map((del) => (
@@ -251,17 +251,17 @@ export function EventSubscriptionsTab({ agentId }: EventSubscriptionsTabProps) {
                             "inline-block h-1.5 w-1.5 rounded-full",
                             del.success ? "bg-green-500" : "bg-red-500"
                           )} />
-                          <span className="text-xs text-neutral-400">
+                          <span className="text-xs text-muted-foreground">
                             {del.statusCode ?? "—"}
                           </span>
-                          <span className="text-xs text-neutral-600">
+                          <span className="text-xs text-muted-foreground">
                             {del.responseTime != null ? `${del.responseTime}ms` : "—"}
                           </span>
-                          <span className="rounded bg-white/[0.04] px-1.5 py-0.5 text-[10px] text-[#F97316]">
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-kiln-orange">
                             {del.event}
                           </span>
                         </div>
-                        <span className="text-[11px] text-neutral-600">
+                        <span className="text-[11px] text-muted-foreground">
                           {new Date(del.createdAt).toLocaleString()}
                         </span>
                       </div>

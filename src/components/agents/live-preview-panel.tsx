@@ -187,7 +187,7 @@ export function LivePreviewPanel({ agentId, config }: LivePreviewPanelProps) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-xl border border-white/[0.08] bg-card/90 px-4 py-3 text-sm font-medium text-foreground shadow-xl backdrop-blur-sm transition-all hover:bg-card hover:border-kiln-orange/30 lg:static lg:mb-0"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-xl border border-border bg-card/90 px-4 py-3 text-sm font-medium text-foreground shadow-xl backdrop-blur-sm transition-all hover:bg-card hover:border-kiln-orange/30 lg:static lg:mb-0"
       >
         <Eye className="h-4 w-4 text-kiln-orange" />
         <span className="hidden lg:inline">Live Preview</span>
@@ -202,11 +202,11 @@ export function LivePreviewPanel({ agentId, config }: LivePreviewPanelProps) {
       <div className="hidden lg:block">
         <div className="sticky top-6">
           <div className={cn(
-            "overflow-hidden rounded-2xl border border-white/[0.08] bg-card/60 transition-all",
+            "overflow-hidden rounded-2xl border border-border bg-card/60 transition-all",
             isMinimized ? "h-[52px]" : "h-[600px] flex flex-col"
           )}>
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div className="flex items-center gap-2">
                 <Eye className="h-4 w-4 text-kiln-orange" />
                 <span className="text-sm font-semibold text-foreground">Live Preview</span>
@@ -218,7 +218,7 @@ export function LivePreviewPanel({ agentId, config }: LivePreviewPanelProps) {
                 {messages.length > 0 && !isMinimized && (
                   <button
                     onClick={() => setMessages([])}
-                    className="rounded-lg p-1.5 text-muted-foreground hover:bg-white/[0.06] hover:text-foreground transition-colors"
+                    className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                     title="Clear chat"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -226,7 +226,7 @@ export function LivePreviewPanel({ agentId, config }: LivePreviewPanelProps) {
                 )}
                 <button
                   onClick={() => setIsMinimized(!isMinimized)}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-white/[0.06] hover:text-foreground transition-colors"
+                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                   title={isMinimized ? "Maximize" : "Minimize"}
                 >
                   {isMinimized ? (
@@ -237,7 +237,7 @@ export function LivePreviewPanel({ agentId, config }: LivePreviewPanelProps) {
                 </button>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-white/[0.06] hover:text-foreground transition-colors"
+                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                   title="Close preview"
                 >
                   <ChevronRight className="h-3.5 w-3.5" />
@@ -268,7 +268,7 @@ export function LivePreviewPanel({ agentId, config }: LivePreviewPanelProps) {
                           "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm",
                           msg.role === "user"
                             ? "bg-kiln-orange text-white"
-                            : "bg-white/[0.06] text-foreground"
+                            : "bg-muted text-foreground"
                         )}
                       >
                         {msg.role === "assistant" && !msg.content && streaming ? (
@@ -293,7 +293,7 @@ export function LivePreviewPanel({ agentId, config }: LivePreviewPanelProps) {
                 </div>
 
                 {/* Input */}
-                <div className="border-t border-white/[0.08] px-3 py-3">
+                <div className="border-t border-border px-3 py-3">
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
@@ -308,7 +308,7 @@ export function LivePreviewPanel({ agentId, config }: LivePreviewPanelProps) {
                       onChange={(e) => setInput(e.target.value)}
                       placeholder="Try it..."
                       disabled={streaming}
-                      className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-kiln-orange/40 focus:outline-none focus:ring-1 focus:ring-kiln-orange/20 disabled:opacity-50"
+                      className="flex-1 rounded-xl border border-border bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-kiln-orange/40 focus:outline-none focus:ring-1 focus:ring-kiln-orange/20 disabled:opacity-50"
                     />
                     <Button
                       type="submit"
@@ -348,9 +348,9 @@ export function LivePreviewPanel({ agentId, config }: LivePreviewPanelProps) {
               className="flex-1 bg-black/50 backdrop-blur-sm"
               onClick={() => setIsMinimized(true)}
             />
-            <div className="h-[70vh] rounded-t-2xl border-t border-white/[0.08] bg-[#242220] flex flex-col animate-in slide-in-from-bottom duration-300">
+            <div className="h-[70vh] rounded-t-2xl border-t border-border bg-card flex flex-col animate-in slide-in-from-bottom duration-300">
               {/* Sheet header */}
-              <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-3">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
                 <div className="flex items-center gap-2">
                   <Eye className="h-4 w-4 text-kiln-orange" />
                   <span className="text-sm font-semibold text-foreground">Live Preview</span>
@@ -362,14 +362,14 @@ export function LivePreviewPanel({ agentId, config }: LivePreviewPanelProps) {
                   {messages.length > 0 && (
                     <button
                       onClick={() => setMessages([])}
-                      className="rounded-lg p-1.5 text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+                      className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   )}
                   <button
                     onClick={() => setIsMinimized(true)}
-                    className="rounded-lg p-1.5 text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"
+                    className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
                     <Minimize2 className="h-3.5 w-3.5" />
                   </button>
@@ -397,7 +397,7 @@ export function LivePreviewPanel({ agentId, config }: LivePreviewPanelProps) {
                         "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm",
                         msg.role === "user"
                           ? "bg-kiln-orange text-white"
-                          : "bg-white/[0.06] text-foreground"
+                          : "bg-muted text-foreground"
                       )}
                     >
                       {msg.role === "assistant" && !msg.content && streaming ? (
@@ -422,7 +422,7 @@ export function LivePreviewPanel({ agentId, config }: LivePreviewPanelProps) {
               </div>
 
               {/* Input */}
-              <div className="border-t border-white/[0.08] px-4 py-3 pb-safe">
+              <div className="border-t border-border px-4 py-3 pb-safe">
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -436,7 +436,7 @@ export function LivePreviewPanel({ agentId, config }: LivePreviewPanelProps) {
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Try it..."
                     disabled={streaming}
-                    className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-kiln-orange/40 focus:outline-none focus:ring-1 focus:ring-kiln-orange/20 disabled:opacity-50"
+                    className="flex-1 rounded-xl border border-border bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-kiln-orange/40 focus:outline-none focus:ring-1 focus:ring-kiln-orange/20 disabled:opacity-50"
                   />
                   <Button
                     type="submit"

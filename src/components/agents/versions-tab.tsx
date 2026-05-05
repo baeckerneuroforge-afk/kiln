@@ -182,7 +182,7 @@ export function VersionsTab({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 rounded-2xl border border-white/[0.08] bg-card/60 p-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card/60 p-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Version History</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -213,7 +213,7 @@ export function VersionsTab({
             return (
               <div
                 key={version.id}
-                className="overflow-hidden rounded-2xl border border-white/[0.08] bg-card/60"
+                className="overflow-hidden rounded-2xl border border-border bg-card/60"
               >
                 <div className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex min-w-0 flex-1 items-start gap-4">
@@ -226,7 +226,7 @@ export function VersionsTab({
                         <p className="text-sm font-semibold text-foreground">
                           v{version.version} → v{nextVersion}
                         </p>
-                        <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                        <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                           {formatRelativeTime(version.createdAt)}
                         </span>
                       </div>
@@ -284,19 +284,19 @@ export function VersionsTab({
                 </div>
 
                 {isExpanded && (
-                  <div className="border-t border-white/[0.08] px-5 py-4">
+                  <div className="border-t border-border px-5 py-4">
                     <div className="space-y-3">
                       {changes.length === 0 ? (
                         <p className="text-sm text-muted-foreground">No config differences to show.</p>
                       ) : (
                         changes.map((change) => (
-                          <div key={change.key} className="overflow-hidden rounded-xl border border-white/[0.08]">
-                            <div className="bg-white/[0.04] px-4 py-2">
+                          <div key={change.key} className="overflow-hidden rounded-xl border border-border">
+                            <div className="bg-muted px-4 py-2">
                               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                                 {change.label}
                               </p>
                             </div>
-                            <div className="grid gap-px bg-white/[0.08] lg:grid-cols-2">
+                            <div className="grid gap-px bg-muted lg:grid-cols-2">
                               <div className="bg-red-500/5 px-4 py-3">
                                 <p className="mb-2 text-[11px] uppercase tracking-[0.14em] text-red-300">Before</p>
                                 <pre className="whitespace-pre-wrap text-[12px] leading-5 text-red-100/90">
@@ -328,7 +328,7 @@ export function VersionsTab({
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setRestoreTarget(null)}
           />
-          <div className="relative z-10 mx-4 w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#242220] p-6 shadow-2xl">
+          <div className="relative z-10 mx-4 w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
             <h3 className="text-lg font-semibold text-foreground">
               Roll back to v{restoreTarget.version}?
             </h3>
