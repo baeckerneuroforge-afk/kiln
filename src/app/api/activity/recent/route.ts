@@ -34,44 +34,69 @@ export async function GET() {
   }
 
   try {
-    const agentScope = orgScopeFilter(scope);
-    const teamScope = orgScopeFilter(scope);
+    // Resolve the agent + team IDs in scope first, then query the child
+    // tables by ID. The earlier `agent: orgScopeFilter(scope)` form went
+    // through a Prisma to-one relation filter with an embedded `OR`, which
+    // didn't reliably surface legacy rows; doing the lookup explicitly
+    // mirrors GET /api/agents and removes the indirection.
+    const [agents, teams] = await Promise.all([
+      prisma.agent.findMany({
+        where: orgScopeFilter(scope),
+        select: { id: true },
+      }),
+      prisma.agentTeam.findMany({
+        where: orgScopeFilter(scope),
+        select: { id: true },
+      }),
+    ]);
+    const agentIds = agents.map((a) => a.id);
+    const teamIds = teams.map((t) => t.id);
+
+    if (agentIds.length === 0 && teamIds.length === 0) {
+      return Response.json({ events: [] });
+    }
 
     const [conversations, runs, executions] = await Promise.all([
-      prisma.conversation.findMany({
-        where: { agent: agentScope },
-        orderBy: { createdAt: "desc" },
-        take: PER_SOURCE_LIMIT,
-        select: {
-          id: true,
-          createdAt: true,
-          visitorName: true,
-          visitorEmail: true,
-          agent: { select: { id: true, name: true } },
-        },
-      }),
-      prisma.agentRun.findMany({
-        where: { agent: agentScope },
-        orderBy: { createdAt: "desc" },
-        take: PER_SOURCE_LIMIT,
-        select: {
-          id: true,
-          createdAt: true,
-          status: true,
-          agent: { select: { id: true, name: true } },
-        },
-      }),
-      prisma.teamExecution.findMany({
-        where: teamScope,
-        orderBy: { startedAt: "desc" },
-        take: PER_SOURCE_LIMIT,
-        select: {
-          id: true,
-          startedAt: true,
-          status: true,
-          team: { select: { id: true, name: true } },
-        },
-      }),
+      agentIds.length === 0
+        ? Promise.resolve([])
+        : prisma.conversation.findMany({
+            where: { agentId: { in: agentIds } },
+            orderBy: { createdAt: "desc" },
+            take: PER_SOURCE_LIMIT,
+            select: {
+              id: true,
+              createdAt: true,
+              visitorName: true,
+              visitorEmail: true,
+              agent: { select: { id: true, name: true } },
+            },
+          }),
+      agentIds.length === 0
+        ? Promise.resolve([])
+        : prisma.agentRun.findMany({
+            where: { agentId: { in: agentIds } },
+            orderBy: { createdAt: "desc" },
+            take: PER_SOURCE_LIMIT,
+            select: {
+              id: true,
+              createdAt: true,
+              status: true,
+              agent: { select: { id: true, name: true } },
+            },
+          }),
+      teamIds.length === 0
+        ? Promise.resolve([])
+        : prisma.teamExecution.findMany({
+            where: { teamId: { in: teamIds } },
+            orderBy: { startedAt: "desc" },
+            take: PER_SOURCE_LIMIT,
+            select: {
+              id: true,
+              startedAt: true,
+              status: true,
+              team: { select: { id: true, name: true } },
+            },
+          }),
     ]);
 
     const events: ActivityEvent[] = [
