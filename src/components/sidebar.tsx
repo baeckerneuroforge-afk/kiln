@@ -35,7 +35,8 @@ import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 import { WhatsNewBell } from "@/components/whats-new";
-import { OrgChangeRefresh, OrgSwitcher } from "@/components/org-switcher";
+import { OrgChangeRefresh } from "@/components/org-switcher";
+import { AgencyOrgSwitcher } from "@/components/agency-org-switcher";
 import { useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 
@@ -371,10 +372,10 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
 
         <Separator className={cn("my-2", isCollapsed ? "lg:mx-2" : "mx-3")} />
 
-        {/* Active organization */}
+        {/* Active organization — custom switcher with agency / sub-org grouping */}
         <OrgChangeRefresh />
         <div className="mb-1">
-          <OrgSwitcher collapsed={isCollapsed} />
+          <AgencyOrgSwitcher collapsed={isCollapsed} />
         </div>
 
         <Separator className={cn("my-2", isCollapsed ? "lg:mx-2" : "mx-3")} />
