@@ -7,104 +7,78 @@ import {
 
 const baseState = {
   authLoaded: true,
-  orgsLoaded: true,
   userId: "user_1",
-  membershipCount: 1,
   activeOrgId: null as string | null,
   pathname: "/dashboard",
   repairAttempted: false,
 };
 
-describe("decideOrgGuard", () => {
+describe("decideOrgGuard (server-authoritative variant)", () => {
   describe("loading and auth gating", () => {
-    it("waits while Clerk auth is loading", () => {
-      expect(
-        decideOrgGuard({ ...baseState, authLoaded: false }, "org_1")
-      ).toEqual({ kind: "wait" });
-    });
-
-    it("waits while the membership list is loading", () => {
-      expect(
-        decideOrgGuard({ ...baseState, orgsLoaded: false }, "org_1")
-      ).toEqual({ kind: "wait" });
+    it("waits while Clerk auth is still loading", () => {
+      expect(decideOrgGuard({ ...baseState, authLoaded: false })).toEqual({
+        kind: "wait",
+      });
     });
 
     it("noops for unauthenticated visitors (Clerk middleware handles them)", () => {
-      expect(decideOrgGuard({ ...baseState, userId: null }, null)).toEqual({
+      expect(decideOrgGuard({ ...baseState, userId: null })).toEqual({
         kind: "noop",
       });
+      expect(decideOrgGuard({ ...baseState, userId: undefined })).toEqual({
+        kind: "noop",
+      });
+    });
+  });
+
+  describe("happy path: active org in JWT", () => {
+    it("noops when auth().orgId is set — most common branch", () => {
       expect(
-        decideOrgGuard({ ...baseState, userId: undefined }, null)
+        decideOrgGuard({ ...baseState, activeOrgId: "org_personal" })
+      ).toEqual({ kind: "noop" });
+    });
+
+    it("noops on active org even when on the onboarding path (don't trap admins)", () => {
+      expect(
+        decideOrgGuard({
+          ...baseState,
+          activeOrgId: "org_personal",
+          pathname: ONBOARDING_PATH,
+        })
       ).toEqual({ kind: "noop" });
     });
   });
 
-  describe("happy paths", () => {
-    it("noops when an active org is already selected (most common branch)", () => {
+  describe("on onboarding page", () => {
+    it("noops when already on the onboarding path even with no active org", () => {
       expect(
-        decideOrgGuard({ ...baseState, activeOrgId: "org_1" }, "org_1")
-      ).toEqual({ kind: "noop" });
-    });
-
-    it("noops on the onboarding page itself even when zero memberships", () => {
-      expect(
-        decideOrgGuard(
-          {
-            ...baseState,
-            membershipCount: 0,
-            pathname: ONBOARDING_PATH,
-          },
-          null
-        )
+        decideOrgGuard({
+          ...baseState,
+          activeOrgId: null,
+          pathname: ONBOARDING_PATH,
+        })
       ).toEqual({ kind: "noop" });
     });
   });
 
-  describe("set-active fallback (the regression this commit fixes)", () => {
-    it("adopts the first membership when the user has orgs but none active", () => {
+  describe("repair → redirect fallback chain", () => {
+    it("triggers repair when no active org and repair hasn't been tried yet", () => {
       expect(
-        decideOrgGuard(
-          { ...baseState, membershipCount: 1, activeOrgId: null },
-          "org_personal"
-        )
-      ).toEqual({ kind: "set-active", orgId: "org_personal" });
-    });
-
-    it("adopts the first membership even with multiple memberships", () => {
-      expect(
-        decideOrgGuard(
-          { ...baseState, membershipCount: 3, activeOrgId: null },
-          "org_first"
-        )
-      ).toEqual({ kind: "set-active", orgId: "org_first" });
-    });
-
-    it("does NOT call set-active when active org is already set", () => {
-      expect(
-        decideOrgGuard(
-          { ...baseState, membershipCount: 3, activeOrgId: "org_1" },
-          "org_first"
-        )
-      ).toEqual({ kind: "noop" });
-    });
-  });
-
-  describe("repair fallback", () => {
-    it("triggers repair when the user has zero memberships and no active org", () => {
-      expect(
-        decideOrgGuard(
-          { ...baseState, membershipCount: 0, repairAttempted: false },
-          null
-        )
+        decideOrgGuard({
+          ...baseState,
+          activeOrgId: null,
+          repairAttempted: false,
+        })
       ).toEqual({ kind: "repair" });
     });
 
-    it("repair is gated to ONE attempt per session — afterwards we redirect", () => {
+    it("redirects to onboarding once repair has already been tried", () => {
       expect(
-        decideOrgGuard(
-          { ...baseState, membershipCount: 0, repairAttempted: true },
-          null
-        )
+        decideOrgGuard({
+          ...baseState,
+          activeOrgId: null,
+          repairAttempted: true,
+        })
       ).toEqual({ kind: "redirect-onboarding" });
     });
   });

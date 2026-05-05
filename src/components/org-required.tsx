@@ -1,44 +1,58 @@
 "use client";
 
 /**
- * OrgRequired — client-side guard that recovers users with broken org state
- * and falls back to the onboarding create-org flow only as a last resort.
+ * OrgRequired — server-authoritative org guard.
  *
- * Lifecycle (each step is gated on the previous failing):
+ * Why server-authoritative: the previous client-hook-based version
+ * (Phase 2.3a + the first hotfix) relied on `useUser().organizationMemberships`
+ * and `useOrganizationList()` to count org memberships. Both turned out to
+ * be unreliable in production:
  *
- *   1. Active org already selected (auth().orgId or useOrganization()) →
- *      nothing to do, return immediately. Most users hit this branch every
- *      render.
- *   2. User has at least one membership but no active selection → call
- *      Clerk's setActive() so subsequent server requests carry the org_id
- *      claim. This catches the "Phase 2.1 backfill ran, but the user's
- *      session was loaded before the org claim landed" race.
- *   3. Zero memberships AND zero active org → call /api/repair-personal-org
- *      once. The endpoint re-creates the membership / org if our DB knows
- *      about a personalOrgId that Clerk has lost track of.
- *   4. Repair couldn't help → redirect to the create-org onboarding page.
+ *   - `user.organizationMemberships` is a snapshot of memberships at the
+ *     time the user object was hydrated. Memberships created or repaired
+ *     server-side AFTER hydration are invisible to it until the session
+ *     reloads.
+ *   - `useOrganizationList` paginates and only populates `count` after a
+ *     fetch settles — the first render sees `count === 0` even when the
+ *     user has 5 organizations.
  *
- * Without steps 2 and 3 the dashboard would loop forever for users whose
- * Clerk membership got dropped after backfill — they'd land on the
- * onboarding page, create a SECOND org, and accumulate orphan workspaces.
+ * The result was a redirect loop for users who DO have orgs (the bug
+ * reported on 2026-05-05): every render saw zero memberships and bounced
+ * to /onboarding/create-organization.
  *
- * Render once anywhere in the dashboard tree (typically the layout). The
- * component renders nothing.
+ * The fix: trust only two signals.
+ *
+ *   1. `useAuth().orgId` — JWT-claim, set the moment Clerk picks an
+ *      active org. If present, we're done.
+ *   2. `POST /api/repair-personal-org` — server-side authoritative call
+ *      that uses the Clerk Backend SDK to look at the real membership
+ *      list, repair drift if needed, and return the orgId the user
+ *      should adopt.
+ *
+ * Decision tree:
+ *
+ *   - Auth still loading                           → wait
+ *   - Not signed in                                → noop (Clerk middleware redirects)
+ *   - Active org already set in JWT                → noop (happy path, common case)
+ *   - Already on the onboarding page               → noop
+ *   - Repair already attempted in this session     → redirect-onboarding
+ *   - Otherwise                                    → repair
+ *
+ * The "set-active" case from the previous version is folded into the
+ * repair endpoint — when memberships exist, the endpoint returns the
+ * first orgId and the client calls setActive() with it.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useAuth, useClerk, useOrganizationList, useUser } from "@clerk/nextjs";
+import { useAuth, useClerk } from "@clerk/nextjs";
 
 export const ONBOARDING_PATH = "/onboarding/create-organization";
 export const REPAIR_ENDPOINT = "/api/repair-personal-org";
 
 export type OrgGuardState = {
   authLoaded: boolean;
-  orgsLoaded: boolean;
   userId: string | null | undefined;
-  /** Number of org memberships visible to Clerk for the current user. */
-  membershipCount: number;
-  /** Active Clerk org id, or null if none selected. */
+  /** Active Clerk org id from auth().orgId, or null if none selected. */
   activeOrgId: string | null;
   pathname: string;
   /** True after we've already called /api/repair-personal-org once this
@@ -49,7 +63,6 @@ export type OrgGuardState = {
 export type OrgGuardDecision =
   | { kind: "wait" }
   | { kind: "noop" }
-  | { kind: "set-active"; orgId: string }
   | { kind: "repair" }
   | { kind: "redirect-onboarding" };
 
@@ -57,118 +70,86 @@ export type OrgGuardDecision =
  * Pure decision function — exported for unit testing. The React component
  * threads its hook state into this and dispatches on the result.
  */
-export function decideOrgGuard(
-  state: OrgGuardState,
-  firstMembershipOrgId: string | null
-): OrgGuardDecision {
-  if (!state.authLoaded || !state.orgsLoaded) return { kind: "wait" };
+export function decideOrgGuard(state: OrgGuardState): OrgGuardDecision {
+  if (!state.authLoaded) return { kind: "wait" };
   if (!state.userId) return { kind: "noop" }; // unauth — Clerk middleware handles
   if (state.activeOrgId) return { kind: "noop" }; // happy path
   if (state.pathname === ONBOARDING_PATH) return { kind: "noop" };
-
-  // Memberships exist but none active → adopt the first one. This is the
-  // common case for users whose session predates Phase 2.1.
-  if (state.membershipCount > 0 && firstMembershipOrgId) {
-    return { kind: "set-active", orgId: firstMembershipOrgId };
-  }
-
-  // Zero memberships. Try a repair before bouncing to onboarding so we
-  // don't accumulate orphan orgs from users whose Clerk membership got
-  // dropped after backfill.
-  if (!state.repairAttempted) return { kind: "repair" };
-
-  return { kind: "redirect-onboarding" };
+  if (state.repairAttempted) return { kind: "redirect-onboarding" };
+  return { kind: "repair" };
 }
 
 export function OrgRequired() {
   const router = useRouter();
   const pathname = usePathname();
   const { isLoaded: authLoaded, userId, orgId: activeOrgId } = useAuth();
-  const { isLoaded: userLoaded, user } = useUser();
   const { setActive } = useClerk();
-  // useOrganizationList is paginated; useUser().organizationMemberships is
-  // hydrated alongside the user object and avoids a second fetch. We read
-  // memberships from there preferentially and fall back to
-  // useOrganizationList only if the user object hasn't loaded yet.
-  const { isLoaded: orgsListLoaded, userMemberships } = useOrganizationList({
-    userMemberships: { infinite: false },
-  });
 
   const [repairAttempted, setRepairAttempted] = useState(false);
-  const [repairing, setRepairing] = useState(false);
   const repairInFlightRef = useRef(false);
-
-  // Source of truth for memberships: prefer the user object, fall back to
-  // the org list. Returns null when nothing has loaded yet.
-  const userMembershipsList = user?.organizationMemberships ?? null;
-  const orgsLoaded = userLoaded || orgsListLoaded;
-  const membershipCount =
-    userMembershipsList?.length ?? userMemberships?.count ?? 0;
-  const firstOrgId =
-    userMembershipsList?.[0]?.organization?.id ??
-    userMemberships?.data?.[0]?.organization?.id ??
-    null;
 
   const runRepair = useCallback(async () => {
     if (repairInFlightRef.current) return;
     repairInFlightRef.current = true;
-    setRepairing(true);
     try {
       const res = await fetch(REPAIR_ENDPOINT, { method: "POST" });
-      const body = await res.json().catch(() => ({}));
-      if (res.ok) {
-        if (body.orgId && setActive) {
-          // Adopt the recovered/created org as the active one so the next
-          // render sees activeOrgId and skips the guard entirely.
-          try {
-            await setActive({ organization: body.orgId });
-          } catch {
-            // setActive can fail if Clerk's session doesn't include the
-            // membership yet — a router.refresh forces re-hydration.
+      const body = (await res.json().catch(() => ({}))) as {
+        orgId?: string;
+        action?: string;
+      };
+
+      if (!res.ok || !body.orgId) {
+        // Endpoint couldn't resolve an org for this user — fall through to
+        // onboarding. setRepairAttempted in finally so the next render
+        // dispatches the redirect.
+        return;
+      }
+
+      if (setActive) {
+        try {
+          await setActive({ organization: body.orgId });
+          // setActive updates the Clerk session in place; router.refresh
+          // makes Server Components re-fetch with the new org claim.
+          router.refresh();
+          return;
+        } catch (err) {
+          // setActive failed because the client's session doesn't yet
+          // include this membership (the endpoint just created it on the
+          // server). Force a hard reload so Clerk re-fetches the session
+          // from scratch and the new org claim is picked up.
+          console.warn(
+            "[OrgRequired] setActive failed, forcing reload:",
+            err
+          );
+          if (typeof window !== "undefined") {
+            window.location.reload();
           }
+          return;
         }
-        router.refresh();
-      } else {
-        console.warn("[OrgRequired] repair endpoint failed:", body);
       }
     } catch (err) {
       console.warn("[OrgRequired] repair endpoint threw:", err);
     } finally {
-      setRepairAttempted(true);
-      setRepairing(false);
       repairInFlightRef.current = false;
+      setRepairAttempted(true);
     }
   }, [router, setActive]);
 
   useEffect(() => {
-    const decision = decideOrgGuard(
-      {
-        authLoaded,
-        orgsLoaded,
-        userId,
-        membershipCount,
-        activeOrgId: activeOrgId ?? null,
-        pathname,
-        repairAttempted,
-      },
-      firstOrgId
-    );
+    const decision = decideOrgGuard({
+      authLoaded,
+      userId,
+      activeOrgId: activeOrgId ?? null,
+      pathname,
+      repairAttempted,
+    });
 
     switch (decision.kind) {
       case "wait":
       case "noop":
         return;
-      case "set-active":
-        if (setActive) {
-          setActive({ organization: decision.orgId }).catch((err) => {
-            console.warn("[OrgRequired] setActive failed:", err);
-          });
-        }
-        return;
       case "repair":
-        if (!repairing) {
-          void runRepair();
-        }
+        void runRepair();
         return;
       case "redirect-onboarding":
         router.replace(ONBOARDING_PATH);
@@ -176,17 +157,12 @@ export function OrgRequired() {
     }
   }, [
     authLoaded,
-    orgsLoaded,
     userId,
     activeOrgId,
-    membershipCount,
-    firstOrgId,
     pathname,
     repairAttempted,
-    repairing,
     router,
     runRepair,
-    setActive,
   ]);
 
   return null;
