@@ -18,6 +18,7 @@ import { MetaAgentChat } from "@/components/meta-agent/meta-agent-chat";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { PWAInstallPrompt } from "@/components/mobile/pwa-install-prompt";
 import { OrgRequired } from "@/components/org-required";
+import { ClientModeBanner } from "@/components/client-mode-banner";
 
 export default function DashboardLayout({
   children,
@@ -78,6 +79,7 @@ export default function DashboardLayout({
                 <NotificationBell />
               </div>
             </div>
+            <ClientModeBanner />
             <UpgradeBanner />
             <CreditBanner />
             <ReferralApply />
