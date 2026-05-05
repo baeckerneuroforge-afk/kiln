@@ -2420,6 +2420,17 @@ model OrgBranding {
   showAgencyLogo Boolean  @default(true)
   agencyName     String?
 
+  // Custom Domain — Phase 2.3c. The agency points a hostname (e.g.
+  // kunde-portal.agentur.de) at our Vercel deployment via CNAME, and
+  // every request to that hostname renders this org's workspace.
+  // Verification flips to true once Vercel confirms SSL provisioning;
+  // unverified domains are NOT routed (middleware checks both fields).
+  customDomain     String?  @unique
+  domainVerified   Boolean  @default(false)
+  domainVerifiedAt DateTime?
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  @@index([customDomain])
 }
