@@ -91,6 +91,7 @@ enum Plan {
   FREE
   STARTER
   PRO
+  BUSINESS
   AGENCY
   ENTERPRISE
 }
@@ -2397,6 +2398,18 @@ model OrgRelationship {
   subOrgName   String
   subOrgStatus SubOrgStatus @default(ACTIVE)
 
+  // Phase 3 — Stripe Connect pricing. Pricing is configured by the agency
+  // and lives in the agency's connected Stripe account, not in KILN's
+  // platform account. KILN takes no application fee (GHL model).
+  pricingMode       SubOrgPricingMode @default(NONE)
+  monthlyPriceCents Int?
+  setupFeeCents     Int?
+  pricingCurrency   String?           @default("eur")
+  // IDs in the agency's connected account (returned by stripe.products.create
+  // / prices.create with { stripeAccount: <agencyAccountId> }).
+  stripeProductId   String?
+  stripePriceId     String?
+
   @@index([parentOrgId])
   @@index([childOrgId])
   @@index([parentOrgId, subOrgStatus])
@@ -2406,6 +2419,15 @@ enum SubOrgStatus {
   ACTIVE
   SUSPENDED
   ARCHIVED
+}
+
+/// How a sub-org is billed by its parent agency. NONE = free,
+/// FIXED = recurring Stripe subscription via the agency's connected account,
+/// CUSTOM = the agency invoices the client outside of KILN.
+enum SubOrgPricingMode {
+  NONE
+  FIXED
+  CUSTOM
 }
 
 /// White-label branding configured by an Agency org. The agency sees its
@@ -2433,4 +2455,91 @@ model OrgBranding {
   updatedAt      DateTime @updatedAt
 
   @@index([customDomain])
+}
+
+/// Phase 3 — Stripe Connect Express account owned by an agency. One row per
+/// agency org. Onboarding kicks off Stripe-hosted KYC/payout setup; we
+/// mirror the relevant readiness flags here so the dashboard can render
+/// status without a round-trip to Stripe on every page load.
+model AgencyStripeAccount {
+  id                 String    @id @default(cuid())
+  orgId              String    @unique // Clerk Org ID of the agency
+  stripeAccountId    String    @unique // acct_xxx
+
+  onboardingComplete Boolean   @default(false)
+  detailsSubmitted   Boolean   @default(false)
+  payoutsEnabled     Boolean   @default(false)
+  chargesEnabled     Boolean   @default(false)
+
+  // Currently/eventually due requirements + last sync timestamp. We refresh
+  // this on demand (manual button + on relevant webhook events).
+  requirementsJson   Json?
+  lastSyncedAt       DateTime?
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+/// Phase 3 — A sub-org's active subscription, billed by the parent agency
+/// through Stripe Connect. Customer + subscription IDs live in the agency's
+/// connected account; we cache the readable snapshot locally for revenue
+/// dashboards and gating.
+model SubOrgSubscription {
+  id                   String             @id @default(cuid())
+  subOrgId             String             @unique // Clerk Org ID
+  parentAgencyOrgId    String             // Clerk Org ID
+
+  stripeSubscriptionId String             @unique // sub_xxx (in connected acct)
+  stripeCustomerId     String             // cus_xxx (in connected acct)
+  stripePriceId        String             // price_xxx (in connected acct)
+  stripeProductId      String?
+
+  status               SubscriptionStatus @default(INCOMPLETE)
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+
+  // Snapshot of the price at subscription time so the agency can adjust
+  // pricing later without rewriting historical revenue.
+  priceAmount          Int                // cents
+  priceCurrency        String             @default("eur")
+  priceInterval        String             @default("month")
+
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([parentAgencyOrgId])
+  @@index([status])
+}
+
+enum SubscriptionStatus {
+  INCOMPLETE
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  TRIALING
+}
+
+/// Phase 3 — Cached snapshot of a paid invoice on a sub-org subscription.
+/// Sources from the connected account's invoice events. Used to compute
+/// trailing-90-day revenue without re-paginating Stripe.
+model SubOrgInvoice {
+  id                String    @id @default(cuid())
+  subOrgId          String
+  parentAgencyOrgId String
+
+  stripeInvoiceId   String    @unique // in_xxx (in connected acct)
+  amount            Int       // cents
+  currency          String    @default("eur")
+  status            String    // paid, open, void, uncollectible
+
+  invoiceDate       DateTime
+  paidAt            DateTime?
+
+  pdfUrl            String?
+  hostedInvoiceUrl  String?
+
+  createdAt         DateTime  @default(now())
+
+  @@index([parentAgencyOrgId, invoiceDate])
 }
