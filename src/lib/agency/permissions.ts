@@ -15,15 +15,18 @@
  */
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/admin";
-import { PLAN_LIMITS, type PlanType } from "@/lib/stripe";
+import {
+  isAgencyTierPlan as _isAgencyTierPlan,
+  PLAN_LIMITS,
+  type PlanType,
+} from "@/lib/stripe";
 
-/** Plan tiers eligible to manage Sub-Orgs. AGENCY and above. */
-const AGENCY_TIER_PLANS = new Set<PlanType>(["AGENCY", "ENTERPRISE"]);
-
-export function isAgencyTierPlan(plan: PlanType | null | undefined): boolean {
-  if (!plan) return false;
-  return AGENCY_TIER_PLANS.has(plan);
-}
+// Re-export the canonical tier predicate so existing callers
+// (`@/lib/agency/permissions`) keep working. Phase 3 broadens the meaning
+// of "agency tier" to include BUSINESS (5 sub-orgs, no Stripe Connect) —
+// the tier check now reads the per-plan maxSubOrgs flag instead of a
+// hard-coded set.
+export const isAgencyTierPlan = _isAgencyTierPlan;
 
 export function getMaxSubOrgs(plan: PlanType | null | undefined): number {
   if (!plan) return 0;

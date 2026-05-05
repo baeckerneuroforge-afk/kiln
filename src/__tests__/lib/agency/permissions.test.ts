@@ -28,7 +28,8 @@ import {
 } from "@/lib/agency/permissions";
 
 describe("isAgencyTierPlan", () => {
-  it("returns true for AGENCY and ENTERPRISE", () => {
+  it("returns true for BUSINESS, AGENCY, and ENTERPRISE", () => {
+    expect(isAgencyTierPlan("BUSINESS")).toBe(true);
     expect(isAgencyTierPlan("AGENCY")).toBe(true);
     expect(isAgencyTierPlan("ENTERPRISE")).toBe(true);
   });
@@ -43,12 +44,15 @@ describe("isAgencyTierPlan", () => {
 });
 
 describe("getMaxSubOrgs", () => {
-  it("returns the per-tier cap for AGENCY and ENTERPRISE", () => {
-    expect(getMaxSubOrgs("AGENCY")).toBe(25);
-    expect(getMaxSubOrgs("ENTERPRISE")).toBe(100);
+  it("returns the per-tier cap", () => {
+    expect(getMaxSubOrgs("BUSINESS")).toBe(5);
+    // AGENCY + ENTERPRISE are unlimited; we encode that as 999999 because
+    // Infinity does not survive JSON.stringify (becomes null).
+    expect(getMaxSubOrgs("AGENCY")).toBe(999999);
+    expect(getMaxSubOrgs("ENTERPRISE")).toBe(999999);
   });
 
-  it("returns 0 for plans without a maxSubOrgs entry", () => {
+  it("returns 0 for plans without sub-org support", () => {
     expect(getMaxSubOrgs("FREE")).toBe(0);
     expect(getMaxSubOrgs("PRO")).toBe(0);
   });
@@ -85,24 +89,31 @@ describe("canCreateSubOrg", () => {
     mockPrisma.user.findUnique.mockResolvedValueOnce({ plan: "AGENCY" });
     mockPrisma.orgRelationship.count.mockResolvedValueOnce(10);
     const r = await canCreateSubOrg("user_agency", "org_x");
-    expect(r).toEqual({ allowed: true, max: 25, current: 10 });
+    expect(r).toEqual({ allowed: true, max: 999999, current: 10 });
   });
 
-  it("rejects AGENCY when capacity reached", async () => {
-    mockPrisma.user.findUnique.mockResolvedValueOnce({ plan: "AGENCY" });
-    mockPrisma.orgRelationship.count.mockResolvedValueOnce(25);
-    const r = await canCreateSubOrg("user_agency", "org_x");
+  it("rejects BUSINESS when capacity reached at 5", async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({ plan: "BUSINESS" });
+    mockPrisma.orgRelationship.count.mockResolvedValueOnce(5);
+    const r = await canCreateSubOrg("user_biz", "org_x");
     expect(r.allowed).toBe(false);
     expect((r as { reason: string }).reason).toBe("capacity_reached");
-    expect((r as { current: number; max: number }).current).toBe(25);
-    expect((r as { current: number; max: number }).max).toBe(25);
+    expect((r as { current: number; max: number }).current).toBe(5);
+    expect((r as { current: number; max: number }).max).toBe(5);
   });
 
-  it("ENTERPRISE has higher cap (100)", async () => {
+  it("allows BUSINESS when under the 5-suborg cap", async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({ plan: "BUSINESS" });
+    mockPrisma.orgRelationship.count.mockResolvedValueOnce(2);
+    const r = await canCreateSubOrg("user_biz", "org_x");
+    expect(r).toEqual({ allowed: true, max: 5, current: 2 });
+  });
+
+  it("ENTERPRISE is unlimited (999999)", async () => {
     mockPrisma.user.findUnique.mockResolvedValueOnce({ plan: "ENTERPRISE" });
     mockPrisma.orgRelationship.count.mockResolvedValueOnce(50);
     const r = await canCreateSubOrg("user_ent", "org_x");
-    expect(r).toEqual({ allowed: true, max: 100, current: 50 });
+    expect(r).toEqual({ allowed: true, max: 999999, current: 50 });
   });
 });
 

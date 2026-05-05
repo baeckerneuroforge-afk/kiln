@@ -17,6 +17,12 @@ export const PLAN_LIMITS = {
     agents: 1,
     chatsPerMonth: 50,
     knowledgeBases: 1,
+    // Phase 3 — agency tier flags. FREE has no sub-orgs and no Connect.
+    maxSubOrgs: 0,
+    hasWhiteLabel: false,
+    hasCustomDomain: false,
+    hasStripeConnect: false,
+    hasRevenueDashboard: false,
     // Computer Use & Advanced Features
     computerUse: false,
     codeSandbox: false,
@@ -91,6 +97,12 @@ export const PLAN_LIMITS = {
     agents: 3,
     chatsPerMonth: 500,
     knowledgeBases: 3,
+    // STARTER stays for grandfathered subscribers; no agency tier features.
+    maxSubOrgs: 0,
+    hasWhiteLabel: false,
+    hasCustomDomain: false,
+    hasStripeConnect: false,
+    hasRevenueDashboard: false,
     computerUse: false,
     codeSandbox: false,
     agentSwarm: false,
@@ -153,9 +165,15 @@ export const PLAN_LIMITS = {
     outputPolishing: false,
   },
   PRO: {
-    agents: 10,
+    agents: 25,
     chatsPerMonth: 999999,
-    knowledgeBases: 10,
+    knowledgeBases: 25,
+    // Phase 3 — PRO is solo/team only; no sub-orgs, no Connect.
+    maxSubOrgs: 0,
+    hasWhiteLabel: false,
+    hasCustomDomain: false,
+    hasStripeConnect: false,
+    hasRevenueDashboard: false,
     computerUse: true,
     codeSandbox: true,
     agentSwarm: true,
@@ -217,11 +235,87 @@ export const PLAN_LIMITS = {
     agentWorkspaceMB: 1024,
     outputPolishing: true,
   },
+  BUSINESS: {
+    agents: 100,
+    chatsPerMonth: 999999,
+    knowledgeBases: 100,
+    // Phase 3: BUSINESS gets sub-orgs but no Stripe Connect / white-label /
+    // custom domain. The intent is "team-with-clients" without the agency
+    // operator stack.
+    maxSubOrgs: 5,
+    hasWhiteLabel: false,
+    hasCustomDomain: false,
+    hasStripeConnect: false,
+    hasRevenueDashboard: false,
+    computerUse: true,
+    codeSandbox: true,
+    agentSwarm: true,
+    maxSubAgents: 10,
+    deepResearch: true,
+    parallelBranches: 8,
+    scheduledWorkflows: 10,
+    maxStepsPerRun: 200,
+    diffDetection: true,
+    proofOfWork: true,
+    multiSite: false,
+    watchAndLearn: false,
+    agentBuildsAgents: false,
+    apiAutodiscovery: false,
+    zeroConfigWizard: false,
+    proceduralMemory: false,
+    modelRouting: "smart" as const,
+    verificationCheckpoints: true,
+    priorityExecution: false,
+    workflows: true,
+    maxMCPConnections: 25,
+    mcpTeamRoles: true,
+    marketplaceSelling: true,
+    roiDashboard: true,
+    roiPdfExport: true,
+    approvalWorkflows: true,
+    clientPortal: true,
+    auditTrail: true,
+    auditRetentionDays: 180,
+    notificationChannels: 4,
+    resellerBilling: false,
+    healthDashboard: true,
+    healthAlerts: true,
+    slaReports: false,
+    knowledgeGraph: true,
+    knowledgeGraphVisual: true,
+    voiceInterface: true,
+    agentCollaboration: true,
+    maxCollaborations: 10,
+    publicAgentDirectory: false,
+    customNodes: true,
+    customNodePublishing: false,
+    embedComponents: "all" as false | "chat_only" | "all",
+    sandboxAPI: true,
+    sandboxAPISessionsPerMonth: 500,
+    dataPipeline: true,
+    maxDataConnections: 5,
+    dataWriteEnabled: false,
+    dataExplorer: true,
+    webhookSubscriptions: 25,
+    webhookSSE: true,
+    teamMembers: 10,
+    rbacRoles: true,
+    multiTenantDashboard: true,
+    agentWorkspaceMB: 4096,
+    outputPolishing: true,
+  },
   AGENCY: {
     agents: 999999,
     chatsPerMonth: 999999,
     knowledgeBases: 999999,
-    maxSubOrgs: 25,
+    // Phase 3: AGENCY tier is unlimited sub-orgs + the full white-label
+    // agency operator stack (Stripe Connect, custom domain, revenue
+    // dashboard, branding inheritance to sub-orgs).
+    maxSubOrgs: 999999,
+    hasWhiteLabel: true,
+    hasCustomDomain: true,
+    hasStripeConnect: true,
+    hasRevenueDashboard: true,
     computerUse: true,
     codeSandbox: true,
     agentSwarm: true,
@@ -287,7 +381,12 @@ export const PLAN_LIMITS = {
     agents: 999999,
     chatsPerMonth: 50000,
     knowledgeBases: 999999,
-    maxSubOrgs: 100,
+    // ENTERPRISE inherits the full Phase 3 agency-operator stack like AGENCY.
+    maxSubOrgs: 999999,
+    hasWhiteLabel: true,
+    hasCustomDomain: true,
+    hasStripeConnect: true,
+    hasRevenueDashboard: true,
     computerUse: true,
     codeSandbox: true,
     agentSwarm: true,
@@ -362,7 +461,8 @@ export function getPlanLabel(plan: PlanType): string {
     FREE: "Free",
     STARTER: "Starter",
     PRO: "Pro",
-    AGENCY: "Business",
+    BUSINESS: "Business",
+    AGENCY: "Agency",
     ENTERPRISE: "Enterprise",
   };
   return labels[plan] || "Free";
@@ -372,12 +472,27 @@ export function getPlanPrice(plan: PlanType): string {
   const prices: Record<PlanType, string> = {
     FREE: "€0",
     STARTER: "€39",
-    PRO: "€99",
-    AGENCY: "€249",
+    PRO: "€97",
+    BUSINESS: "€297",
+    AGENCY: "€497",
     ENTERPRISE: "Custom",
   };
   return prices[plan] || "€0";
 }
+
+/**
+ * Phase 3 — canonical price catalog for the three current customer tiers,
+ * in cents. The string price IDs come from env so dev / preview / prod
+ * can each point at their own Stripe products.
+ */
+export const PLAN_PRICES: Record<
+  "PRO" | "BUSINESS" | "AGENCY",
+  { amount: number; currency: string; priceId: string | undefined }
+> = {
+  PRO: { amount: 9700, currency: "eur", priceId: process.env.STRIPE_PRICE_PRO },
+  BUSINESS: { amount: 29700, currency: "eur", priceId: process.env.STRIPE_PRICE_BUSINESS },
+  AGENCY: { amount: 49700, currency: "eur", priceId: process.env.STRIPE_PRICE_AGENCY },
+};
 
 // Stripe Price IDs für monatliche und jährliche Abrechnung
 export function getStripePriceId(plan: PlanType, annual = false): string | null {
@@ -386,4 +501,53 @@ export function getStripePriceId(plan: PlanType, annual = false): string | null 
     ? `NEXT_PUBLIC_STRIPE_${plan}_YEARLY_PRICE_ID`
     : `NEXT_PUBLIC_STRIPE_${plan}_PRICE_ID`;
   return process.env[envKey] || null;
+}
+
+/* ── Phase 3: agency-tier feature gating ───────────────────────────────── */
+
+type AgencyFlagKey =
+  | "maxSubOrgs"
+  | "hasWhiteLabel"
+  | "hasCustomDomain"
+  | "hasStripeConnect"
+  | "hasRevenueDashboard";
+
+function getAgencyFlag<K extends AgencyFlagKey>(
+  plan: PlanType | null | undefined,
+  key: K
+): K extends "maxSubOrgs" ? number : boolean {
+  // Cast through unknown — the per-tier types diverge but every tier we
+  // ship with carries every agency flag (see the PLAN_LIMITS literals).
+  const limits = plan ? (PLAN_LIMITS as Record<string, Record<string, unknown>>)[plan] : null;
+  const value = limits?.[key];
+  if (key === "maxSubOrgs") {
+    return (typeof value === "number" ? value : 0) as K extends "maxSubOrgs" ? number : boolean;
+  }
+  return Boolean(value) as K extends "maxSubOrgs" ? number : boolean;
+}
+
+/**
+ * "Is this plan eligible to manage Sub-Orgs?" Used as the broad gate for
+ * sub-org creation, branding, and the agency dashboard. BUSINESS gets
+ * sub-orgs (capped at 5) but not the Stripe Connect / white-label stack;
+ * use canConnectStripe / canHaveCustomDomain for those finer-grained checks.
+ */
+export function isAgencyTierPlan(plan: PlanType | null | undefined): boolean {
+  return getAgencyFlag(plan, "maxSubOrgs") > 0;
+}
+
+export function canConnectStripe(plan: PlanType | null | undefined): boolean {
+  return getAgencyFlag(plan, "hasStripeConnect");
+}
+
+export function canHaveCustomDomain(plan: PlanType | null | undefined): boolean {
+  return getAgencyFlag(plan, "hasCustomDomain");
+}
+
+export function canUseWhiteLabel(plan: PlanType | null | undefined): boolean {
+  return getAgencyFlag(plan, "hasWhiteLabel");
+}
+
+export function canViewRevenueDashboard(plan: PlanType | null | undefined): boolean {
+  return getAgencyFlag(plan, "hasRevenueDashboard");
 }

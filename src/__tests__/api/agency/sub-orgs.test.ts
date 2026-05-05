@@ -92,16 +92,19 @@ describe("POST /api/agency/sub-orgs", () => {
     expect(body.reason).toBe("wrong_tier");
   });
 
-  it("403 when capacity reached", async () => {
+  it("403 when BUSINESS plan hits its 5-suborg cap", async () => {
+    // AGENCY + ENTERPRISE are now unlimited; the BUSINESS tier (added in
+    // Phase 3) is the lowest plan that still has a hard cap, so we use it
+    // here to exercise the capacity_reached branch.
     mockAuth.mockResolvedValueOnce({ userId: AGENCY_USER, orgId: AGENCY_ORG });
-    mockPrisma.user.findUnique.mockResolvedValueOnce({ plan: "AGENCY" });
-    mockPrisma.orgRelationship.count.mockResolvedValueOnce(25);
+    mockPrisma.user.findUnique.mockResolvedValueOnce({ plan: "BUSINESS" });
+    mockPrisma.orgRelationship.count.mockResolvedValueOnce(5);
     const res = await listOrCreatePOST(makePostRequest({ name: "Acme" }));
     expect(res.status).toBe(403);
     const body = await res.json();
     expect(body.reason).toBe("capacity_reached");
-    expect(body.max).toBe(25);
-    expect(body.current).toBe(25);
+    expect(body.max).toBe(5);
+    expect(body.current).toBe(5);
   });
 
   it("creates the Clerk org with createdBy set to the caller", async () => {
