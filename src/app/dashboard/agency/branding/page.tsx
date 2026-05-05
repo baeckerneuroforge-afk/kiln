@@ -131,7 +131,7 @@ export default function AgencyBrandingPage() {
 
       <div className="space-y-5 rounded-xl border border-border bg-card p-5">
         <div>
-          <label className="text-xs font-bold uppercase tracking-wider text-stone-400">
+          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
             Agency name
           </label>
           <input
@@ -148,7 +148,7 @@ export default function AgencyBrandingPage() {
         </div>
 
         <div>
-          <label className="text-xs font-bold uppercase tracking-wider text-stone-400">
+          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
             Logo URL
           </label>
           <input
@@ -176,7 +176,7 @@ export default function AgencyBrandingPage() {
         </div>
 
         <div>
-          <label className="text-xs font-bold uppercase tracking-wider text-stone-400">
+          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
             Primary color
           </label>
           <div className="mt-1 flex items-center gap-2">

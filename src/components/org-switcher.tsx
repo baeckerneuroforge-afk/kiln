@@ -41,7 +41,7 @@ export function OrgSwitcher({ collapsed = false }: OrgSwitcherProps) {
             // Trigger button styling — matches the rest of the sidebar.
             organizationSwitcherTrigger: cn(
               "w-full justify-start gap-2 rounded-md px-2.5 py-2 text-[13px] text-foreground",
-              "border border-border bg-sidebar hover:bg-white/[0.03]",
+              "border border-border bg-sidebar hover:bg-sidebar-accent/60",
               "focus:outline-none focus-visible:ring-1 focus-visible:ring-kiln-orange/40",
               collapsed && "lg:justify-center lg:px-0"
             ),

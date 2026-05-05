@@ -116,7 +116,7 @@ export function AgencyOrgSwitcher({ collapsed = false }: AgencyOrgSwitcherProps)
       <button
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "flex w-full items-center gap-2 rounded-md border border-border bg-sidebar px-2.5 py-2 text-[13px] text-foreground hover:bg-white/[0.03] focus:outline-none focus-visible:ring-1 focus-visible:ring-kiln-orange/40",
+          "flex w-full items-center gap-2 rounded-md border border-border bg-sidebar px-2.5 py-2 text-[13px] text-foreground hover:bg-sidebar-accent/60 focus:outline-none focus-visible:ring-1 focus-visible:ring-kiln-orange/40",
           collapsed && "lg:justify-center lg:px-0"
         )}
         aria-haspopup="listbox"
