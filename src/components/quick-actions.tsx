@@ -34,7 +34,7 @@ const quickStartCards = [
   {
     title: "Deploy a Workflow",
     description: "Choose from pre-built workflow templates",
-    href: "/dashboard/workflows/templates",
+    href: "/dashboard/teams/new",
     icon: Sparkles,
   },
   {
@@ -322,7 +322,7 @@ const pathCards = [
     title: "An automated workflow",
     description:
       "Deploy a multi-agent workflow that automates your business processes",
-    href: "/dashboard/workflows/templates",
+    href: "/dashboard/teams/new",
     icon: GitBranch,
   },
   {

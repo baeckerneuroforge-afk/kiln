@@ -199,7 +199,7 @@ export function KeyboardShortcutProvider({
       // Ctrl/Cmd+T → Browse Templates (prevent new tab)
       if (mod && e.key.toLowerCase() === "t") {
         e.preventDefault();
-        router.push("/dashboard/workflows/templates");
+        router.push("/dashboard/teams/new");
         return;
       }
 
