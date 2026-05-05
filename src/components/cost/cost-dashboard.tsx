@@ -94,7 +94,7 @@ export function CostDashboard({ className }: CostDashboardProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -144,7 +144,7 @@ export function CostDashboard({ className }: CostDashboardProps) {
               </div>
             </div>
             {/* Plan credits progress bar */}
-            <div className="mt-3 h-1.5 rounded-full bg-zinc-800">
+            <div className="mt-3 h-1.5 rounded-full bg-muted">
               <div
                 className={cn(
                   "h-1.5 rounded-full transition-all",
@@ -308,11 +308,11 @@ export function CostDashboard({ className }: CostDashboardProps) {
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       <span>{agent.callCount} Aufrufe</span>
                       <span className="font-medium text-orange-400">{agent.creditsUsed} Credits</span>
-                      <span className="text-zinc-600">{formatEuro(agent.totalCostCents)}</span>
+                      <span className="text-muted-foreground">{formatEuro(agent.totalCostCents)}</span>
                     </div>
                   </div>
                   {agent.percentUsed !== null && (
-                    <div className="h-1.5 rounded-full bg-zinc-800">
+                    <div className="h-1.5 rounded-full bg-muted">
                       <div
                         className={cn(
                           "h-1.5 rounded-full transition-all",

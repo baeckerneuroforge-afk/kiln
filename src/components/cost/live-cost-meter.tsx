@@ -61,7 +61,7 @@ export function LiveCostMeter({ totalCreditsUsed, totalCostDollars, breakdown, b
 
   const colorClass =
     percentUsed === null
-      ? "text-zinc-400"
+      ? "text-muted-foreground"
       : percentUsed > 80
         ? "text-red-400"
         : percentUsed > 50
@@ -70,7 +70,7 @@ export function LiveCostMeter({ totalCreditsUsed, totalCostDollars, breakdown, b
 
   const borderClass =
     percentUsed === null
-      ? "border-[#2a2a3a]"
+      ? "border-border"
       : percentUsed > 80
         ? "border-red-500/30"
         : percentUsed > 50
@@ -78,7 +78,7 @@ export function LiveCostMeter({ totalCreditsUsed, totalCostDollars, breakdown, b
           : "border-emerald-500/30";
 
   return (
-    <div className={cn("rounded-xl border bg-[#141418]", borderClass, className)}>
+    <div className={cn("rounded-xl border bg-card", borderClass, className)}>
       {/* Compact View */}
       <button
         onClick={() => setExpanded(!expanded)}
@@ -90,16 +90,16 @@ export function LiveCostMeter({ totalCreditsUsed, totalCostDollars, breakdown, b
           {formatCredits(totalCreditsUsed)}
         </span>
         {budgetCapCredits && (
-          <span className="text-[10px] text-zinc-600">
+          <span className="text-[10px] text-muted-foreground">
             / {budgetCapCredits}
           </span>
         )}
         {/* € als sekundäre Anzeige */}
-        <span className="text-[10px] text-zinc-600 ml-1">
+        <span className="text-[10px] text-muted-foreground ml-1">
           ({formatCost(totalCostDollars)})
         </span>
         {percentUsed !== null && (
-          <div className="flex-1 mx-2 h-1.5 rounded-full bg-zinc-800 min-w-[40px]">
+          <div className="flex-1 mx-2 h-1.5 rounded-full bg-muted min-w-[40px]">
             <div
               className={cn(
                 "h-1.5 rounded-full transition-all",
@@ -110,23 +110,23 @@ export function LiveCostMeter({ totalCreditsUsed, totalCostDollars, breakdown, b
           </div>
         )}
         {expanded ? (
-          <ChevronUp className="h-3 w-3 text-zinc-600 shrink-0" />
+          <ChevronUp className="h-3 w-3 text-muted-foreground shrink-0" />
         ) : (
-          <ChevronDown className="h-3 w-3 text-zinc-600 shrink-0" />
+          <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
         )}
       </button>
 
       {/* Expanded Breakdown */}
       {expanded && breakdown.length > 0 && (
-        <div className="border-t border-[#2a2a3a] px-3 py-2 space-y-1.5">
+        <div className="border-t border-border px-3 py-2 space-y-1.5">
           {breakdown.map((item) => (
             <div key={item.model} className="flex items-center justify-between text-[10px]">
-              <span className="text-zinc-400">{shortModelName(item.model)}</span>
-              <div className="flex items-center gap-3 text-zinc-500">
+              <span className="text-muted-foreground">{shortModelName(item.model)}</span>
+              <div className="flex items-center gap-3 text-muted-foreground">
                 <span>{item.calls}x</span>
                 <span>{formatTokens(item.inputTokens + item.outputTokens)}</span>
                 <span className="text-orange-400 font-medium">{item.creditsUsed} Cr</span>
-                <span className="text-zinc-600">{formatCost(item.costDollars)}</span>
+                <span className="text-muted-foreground">{formatCost(item.costDollars)}</span>
               </div>
             </div>
           ))}

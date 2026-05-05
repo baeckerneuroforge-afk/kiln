@@ -78,10 +78,10 @@ interface IntelligenceData {
 }
 
 const sentimentColors: Record<string, string> = {
-  positive: "text-gray-400 bg-white/[0.05]",
-  negative: "text-gray-400 bg-white/[0.05]",
-  neutral: "text-zinc-400 bg-zinc-500/10",
-  high_interest: "text-gray-400 bg-white/[0.05]",
+  positive: "text-muted-foreground bg-muted",
+  negative: "text-muted-foreground bg-muted",
+  neutral: "text-muted-foreground bg-muted/10",
+  high_interest: "text-muted-foreground bg-muted",
 };
 
 const trendIcons: Record<string, React.ElementType> = {
@@ -137,8 +137,8 @@ export default function IntelligencePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.05]">
-            <Brain className="h-5 w-5 text-gray-400" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
+            <Brain className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
             <h1 className="text-xl font-semibold text-foreground">Business Intelligence</h1>
@@ -155,7 +155,7 @@ export default function IntelligencePage() {
               className={cn(
                 "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
                 days === d
-                  ? "bg-purple-500/15 text-gray-400"
+                  ? "bg-purple-500/15 text-muted-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
@@ -183,8 +183,8 @@ export default function IntelligencePage() {
       {alerts.length > 0 && (
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
           <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="h-4 w-4 text-gray-400" />
-            <span className="text-sm font-semibold text-gray-400">
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-semibold text-muted-foreground">
               {alerts.length} neue{alerts.length !== 1 ? " Trends" : "r Trend"} erkannt
             </span>
           </div>
@@ -197,7 +197,7 @@ export default function IntelligencePage() {
                 <div className="flex items-center gap-2 min-w-0">
                   <span className={cn(
                     "text-lg font-bold",
-                    alert.type === "decline" ? "text-gray-400" : alert.type === "new_topic" ? "text-gray-400" : "text-gray-400"
+                    alert.type === "decline" ? "text-muted-foreground" : alert.type === "new_topic" ? "text-muted-foreground" : "text-muted-foreground"
                   )}>
                     {alert.type === "decline" ? "↓" : "↑"}
                   </span>
@@ -241,12 +241,12 @@ export default function IntelligencePage() {
         <>
           {/* KPI Cards */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
-            <KPICard label="Topics" value={data.totalTopics} icon={BarChart3} color="text-gray-400" bgColor="bg-white/[0.05]" />
-            <KPICard label="Mentions" value={data.totalMentions} icon={Brain} color="text-gray-400" bgColor="bg-white/[0.05]" />
-            <KPICard label="Leads" value={data.totalLeads} icon={Target} color="text-gray-400" bgColor="bg-white/[0.05]" />
+            <KPICard label="Topics" value={data.totalTopics} icon={BarChart3} color="text-muted-foreground" bgColor="bg-muted" />
+            <KPICard label="Mentions" value={data.totalMentions} icon={Brain} color="text-muted-foreground" bgColor="bg-muted" />
+            <KPICard label="Leads" value={data.totalLeads} icon={Target} color="text-muted-foreground" bgColor="bg-muted" />
             <KPICard label="Termine" value={data.totalAppointments} icon={CalendarCheck} color="text-orange-400" bgColor="bg-orange-500/10" />
-            <KPICard label="Trending ↑" value={data.trendingUp.length} icon={TrendingUp} color="text-gray-400" bgColor="bg-white/[0.05]" />
-            <KPICard label="Wettbewerber" value={data.competitors.length} icon={Swords} color="text-gray-400" bgColor="bg-white/[0.05]" />
+            <KPICard label="Trending ↑" value={data.trendingUp.length} icon={TrendingUp} color="text-muted-foreground" bgColor="bg-muted" />
+            <KPICard label="Wettbewerber" value={data.competitors.length} icon={Swords} color="text-muted-foreground" bgColor="bg-muted" />
           </div>
 
           {/* Main Grid */}
@@ -276,7 +276,7 @@ export default function IntelligencePage() {
                             {topic.sentiment}
                           </span>
                           {topic.leadCount > 0 && (
-                            <span className="inline-flex items-center rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium text-gray-400">
+                            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                               {topic.leadCount} Leads
                             </span>
                           )}
@@ -296,10 +296,10 @@ export default function IntelligencePage() {
                             className={cn(
                               "h-3.5 w-3.5",
                               topic.trend === "increasing"
-                                ? "text-gray-400"
+                                ? "text-muted-foreground"
                                 : topic.trend === "decreasing"
-                                ? "text-gray-400"
-                                : "text-zinc-500"
+                                ? "text-muted-foreground"
+                                : "text-muted-foreground"
                             )}
                           />
                           <span className="text-sm font-semibold text-foreground tabular-nums">
@@ -318,7 +318,7 @@ export default function IntelligencePage() {
               {/* Trending Up */}
               <div className="rounded-xl border border-border bg-card/50 p-5">
                 <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-gray-400" />
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   Trending
                 </h2>
                 {data.trendingUp.length === 0 ? (
@@ -328,7 +328,7 @@ export default function IntelligencePage() {
                     {data.trendingUp.map((t) => (
                       <div key={t.topic} className="flex items-center justify-between">
                         <span className="text-xs text-foreground">{t.topic}</span>
-                        <span className="text-xs font-medium text-gray-400">{t.count}x</span>
+                        <span className="text-xs font-medium text-muted-foreground">{t.count}x</span>
                       </div>
                     ))}
                   </div>
@@ -338,7 +338,7 @@ export default function IntelligencePage() {
               {/* Cross-Agent Patterns */}
               <div className="rounded-xl border border-border bg-card/50 p-5">
                 <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Network className="h-4 w-4 text-gray-400" />
+                  <Network className="h-4 w-4 text-muted-foreground" />
                   Cross-Agent Patterns
                 </h2>
                 {data.crossAgentPatterns.length === 0 ? (
@@ -351,7 +351,7 @@ export default function IntelligencePage() {
                       <div key={p.topic} className="rounded-lg bg-amber-500/5 border border-amber-500/10 px-3 py-2">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-medium text-foreground">{p.topic}</span>
-                          <span className="text-[10px] text-gray-400">{p.agents} Agents</span>
+                          <span className="text-[10px] text-muted-foreground">{p.agents} Agents</span>
                         </div>
                         <p className="text-[10px] text-muted-foreground mt-0.5">
                           {p.totalMentions} Mentions insgesamt
@@ -369,7 +369,7 @@ export default function IntelligencePage() {
             {/* Revenue Topics */}
             <div className="rounded-xl border border-border bg-card/50 p-5">
               <h2 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
-                <Target className="h-4 w-4 text-gray-400" />
+                <Target className="h-4 w-4 text-muted-foreground" />
                 Revenue Topics
               </h2>
               <p className="text-[10px] text-muted-foreground mb-4">
@@ -407,15 +407,15 @@ export default function IntelligencePage() {
                           )}
                         </div>
                         <span className="text-xs text-muted-foreground text-right tabular-nums">{t.count}</span>
-                        <span className={cn("text-xs font-semibold text-right tabular-nums", isTop ? "text-gray-400" : "text-foreground")}>{t.leadCount}</span>
-                        <span className={cn("text-xs font-semibold text-right tabular-nums", t.conversionRate > data.avgConversionRate ? "text-gray-400" : "text-foreground")}>
+                        <span className={cn("text-xs font-semibold text-right tabular-nums", isTop ? "text-muted-foreground" : "text-foreground")}>{t.leadCount}</span>
+                        <span className={cn("text-xs font-semibold text-right tabular-nums", t.conversionRate > data.avgConversionRate ? "text-muted-foreground" : "text-foreground")}>
                           {(t.conversionRate * 100).toFixed(0)}%
                         </span>
                       </div>
                     );
                   })}
                   {data.revenueTopics.length > 0 && data.avgConversionRate > 0 && (
-                    <p className="text-[10px] text-gray-400/80 px-3 pt-2">
+                    <p className="text-[10px] text-muted-foreground/80 px-3 pt-2">
                       Gespräche über &quot;{data.revenueTopics[0].topic}&quot; generieren{" "}
                       {data.avgConversionRate > 0
                         ? `${(data.revenueTopics[0].conversionRate / data.avgConversionRate).toFixed(1)}x`
@@ -430,7 +430,7 @@ export default function IntelligencePage() {
             {/* Competitor Mentions */}
             <div className="rounded-xl border border-border bg-card/50 p-5">
               <h2 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
-                <Swords className="h-4 w-4 text-gray-400" />
+                <Swords className="h-4 w-4 text-muted-foreground" />
                 Wettbewerber-Erwähnungen
               </h2>
               <p className="text-[10px] text-muted-foreground mb-4">
@@ -498,7 +498,7 @@ export default function IntelligencePage() {
                           <div className="flex items-center gap-2">
                             <span className={cn(
                               "text-xs font-semibold tabular-nums",
-                              change > 0 ? "text-gray-400" : change < 0 ? "text-gray-400" : "text-muted-foreground"
+                              change > 0 ? "text-muted-foreground" : change < 0 ? "text-muted-foreground" : "text-muted-foreground"
                             )}>
                               ~{p.predictedNextWeek} ({change > 0 ? "+" : ""}{pct}%)
                             </span>
@@ -516,7 +516,7 @@ export default function IntelligencePage() {
             {/* AI Recommendations */}
             <div className="rounded-xl border border-border bg-card/50 p-5">
               <h2 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
-                <Users className="h-4 w-4 text-gray-400" />
+                <Users className="h-4 w-4 text-muted-foreground" />
                 AI-Empfehlungen
               </h2>
               <p className="text-[10px] text-muted-foreground mb-4">
@@ -530,7 +530,7 @@ export default function IntelligencePage() {
                 <div className="space-y-2">
                   {data.recommendations.map((r, i) => (
                     <div key={i} className="flex gap-3 rounded-lg bg-blue-500/5 border border-blue-500/10 px-3 py-2.5">
-                      <span className="text-xs font-bold text-gray-400 shrink-0">{i + 1}.</span>
+                      <span className="text-xs font-bold text-muted-foreground shrink-0">{i + 1}.</span>
                       <p className="text-xs text-foreground leading-relaxed">{r}</p>
                     </div>
                   ))}

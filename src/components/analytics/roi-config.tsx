@@ -128,7 +128,7 @@ export function ROIConfig({ agentId }: ROIConfigProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin text-zinc-600" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -137,30 +137,30 @@ export function ROIConfig({ agentId }: ROIConfigProps) {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h3 className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-orange-400" />
           ROI-Tracking
         </h3>
-        <p className="text-xs text-zinc-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Konfiguriere, welche manuelle Arbeit dieser Agent ersetzt.
         </p>
       </div>
 
       {/* Preset Dropdown */}
       <div className="space-y-1.5">
-        <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">
+        <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
           Was ersetzt dieser Agent?
         </label>
         <select
           value={preset}
           onChange={(e) => handlePresetChange(e.target.value)}
-          className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors appearance-none cursor-pointer"
+          className="w-full bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors appearance-none cursor-pointer"
         >
-          <option value="" className="bg-zinc-900 text-zinc-500">
+          <option value="" className="bg-card text-muted-foreground">
             Preset auswählen...
           </option>
           {PRESETS.map((p) => (
-            <option key={p.label} value={p.label} className="bg-zinc-900">
+            <option key={p.label} value={p.label} className="bg-card">
               {p.label}
               {p.minutes !== null ? ` (${p.minutes} Min.)` : ""}
             </option>
@@ -170,7 +170,7 @@ export function ROIConfig({ agentId }: ROIConfigProps) {
 
       {/* Manual Time Input */}
       <div className="space-y-1.5">
-        <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">
+        <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
           Manuelle Dauer (Minuten)
         </label>
         <input
@@ -180,16 +180,16 @@ export function ROIConfig({ agentId }: ROIConfigProps) {
           value={manualTimeMinutes}
           onChange={(e) => setManualTimeMinutes(e.target.value)}
           placeholder="z.B. 120"
-          className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700"
+          className="w-full bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground"
         />
-        <p className="text-[10px] text-zinc-600">
+        <p className="text-[10px] text-muted-foreground">
           Wie lange dauert diese Aufgabe manuell pro Ausführung?
         </p>
       </div>
 
       {/* Hourly Rate Input */}
       <div className="space-y-1.5">
-        <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">
+        <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
           Stundensatz (€)
         </label>
         <input
@@ -199,32 +199,32 @@ export function ROIConfig({ agentId }: ROIConfigProps) {
           value={hourlyRate}
           onChange={(e) => setHourlyRate(e.target.value)}
           placeholder="z.B. 50.00"
-          className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700"
+          className="w-full bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground"
         />
-        <p className="text-[10px] text-zinc-600">
+        <p className="text-[10px] text-muted-foreground">
           Interner oder externer Stundensatz der manuellen Arbeit.
         </p>
       </div>
 
       {/* Frequency Select */}
       <div className="space-y-1.5">
-        <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">
+        <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
           Häufigkeit
         </label>
         <select
           value={frequency}
           onChange={(e) => setFrequency(e.target.value as Frequency)}
-          className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors appearance-none cursor-pointer"
+          className="w-full bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors appearance-none cursor-pointer"
         >
-          <option value="daily" className="bg-zinc-900">Täglich</option>
-          <option value="weekly" className="bg-zinc-900">Wöchentlich</option>
-          <option value="monthly" className="bg-zinc-900">Monatlich</option>
+          <option value="daily" className="bg-card">Täglich</option>
+          <option value="weekly" className="bg-card">Wöchentlich</option>
+          <option value="monthly" className="bg-card">Monatlich</option>
         </select>
       </div>
 
       {/* Task Description */}
       <div className="space-y-1.5">
-        <label className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">
+        <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
           Beschreibung (optional)
         </label>
         <textarea
@@ -232,7 +232,7 @@ export function ROIConfig({ agentId }: ROIConfigProps) {
           onChange={(e) => setTaskDescription(e.target.value)}
           placeholder="z.B. Wöchentliche Marktanalyse für 3 Produktkategorien..."
           rows={3}
-          className="w-full bg-[#141418] border border-[#2a2a3a] rounded-lg text-sm text-zinc-100 px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-zinc-700 resize-none"
+          className="w-full bg-card border border-border rounded-lg text-sm text-foreground px-3 py-2.5 outline-none focus:border-orange-500/60 transition-colors placeholder:text-muted-foreground resize-none"
         />
       </div>
 
@@ -240,8 +240,8 @@ export function ROIConfig({ agentId }: ROIConfigProps) {
       {roiData &&
         roiData.monthlySavingsCents !== undefined &&
         roiData.roiMultiple !== undefined && (
-          <div className="rounded-xl border border-[#2a2a3a] bg-[#141418] p-4 space-y-2">
-            <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">
+          <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
               Geschätzte Ersparnis
             </p>
             <div className="flex items-baseline gap-3">

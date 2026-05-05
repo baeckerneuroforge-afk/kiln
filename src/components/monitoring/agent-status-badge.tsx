@@ -8,8 +8,8 @@ const STATUS_COLORS: Record<HealthStatus, string> = {
   healthy: "bg-green-500",
   warning: "bg-yellow-500",
   critical: "bg-red-500",
-  inactive: "bg-zinc-600",
-  loading: "bg-zinc-700",
+  inactive: "bg-muted",
+  loading: "bg-muted",
 };
 
 const STATUS_TOOLTIPS: Record<HealthStatus, string> = {
@@ -56,7 +56,7 @@ export function AgentStatusBadge({ agentId }: { agentId: string }) {
         }`}
       />
       {/* Tooltip */}
-      <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-zinc-800 px-2 py-1 text-[10px] text-zinc-300 opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+      <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-muted px-2 py-1 text-[10px] text-foreground opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
         {tooltip || STATUS_TOOLTIPS[status]}
       </div>
     </div>

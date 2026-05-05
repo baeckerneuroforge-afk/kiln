@@ -44,7 +44,7 @@ const STATUS_CONFIG = {
   healthy: { color: "#22C55E", bg: "bg-green-500/10", icon: CheckCircle2, label: "Gesund" },
   warning: { color: "#EAB308", bg: "bg-yellow-500/10", icon: AlertTriangle, label: "Warnung" },
   critical: { color: "#EF4444", bg: "bg-red-500/10", icon: XCircle, label: "Kritisch" },
-  inactive: { color: "#71717A", bg: "bg-zinc-500/10", icon: Minus, label: "Inaktiv" },
+  inactive: { color: "#71717A", bg: "bg-muted/10", icon: Minus, label: "Inaktiv" },
 };
 
 export function AgentHealthDashboard() {
@@ -87,16 +87,16 @@ export function AgentHealthDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (!health) {
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
-        <Activity className="mx-auto mb-3 h-8 w-8 text-zinc-600" />
-        <p className="text-xs text-zinc-500">Keine Health-Daten verfügbar.</p>
+      <div className="rounded-xl border border-border bg-card/50 p-8 text-center">
+        <Activity className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+        <p className="text-xs text-muted-foreground">Keine Health-Daten verfügbar.</p>
       </div>
     );
   }
@@ -105,12 +105,12 @@ export function AgentHealthDashboard() {
     <div className="space-y-6">
       {/* System Overview */}
       <div className="grid gap-4 sm:grid-cols-5">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 sm:col-span-2">
-          <div className="mb-1 text-[11px] text-zinc-500">Gesamte Uptime</div>
-          <div className="text-3xl font-bold text-zinc-100">
+        <div className="rounded-xl border border-border bg-card/50 p-4 sm:col-span-2">
+          <div className="mb-1 text-[11px] text-muted-foreground">Gesamte Uptime</div>
+          <div className="text-3xl font-bold text-foreground">
             {health.overallUptime}%
           </div>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-800">
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full transition-all"
               style={{
@@ -127,10 +127,10 @@ export function AgentHealthDashboard() {
           const Icon = config.icon;
 
           return (
-            <div key={status} className={`rounded-xl border border-zinc-800 ${config.bg} p-4`}>
+            <div key={status} className={`rounded-xl border border-border ${config.bg} p-4`}>
               <div className="mb-1 flex items-center gap-1.5">
                 <Icon className="h-3.5 w-3.5" style={{ color: config.color }} />
-                <span className="text-[11px] text-zinc-500">{config.label}</span>
+                <span className="text-[11px] text-muted-foreground">{config.label}</span>
               </div>
               <div className="text-2xl font-bold" style={{ color: config.color }}>
                 {count}
@@ -146,7 +146,7 @@ export function AgentHealthDashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bell className="h-4 w-4 text-orange-400" />
-              <h3 className="text-sm font-semibold text-zinc-100">
+              <h3 className="text-sm font-semibold text-foreground">
                 Aktive Alerts ({health.alerts.length})
               </h3>
             </div>
@@ -154,7 +154,7 @@ export function AgentHealthDashboard() {
               size="sm"
               variant="outline"
               onClick={acknowledgeAll}
-              className="text-xs h-7 border-zinc-700"
+              className="text-xs h-7 border-border"
             >
               <BellOff className="mr-1.5 h-3 w-3" />
               Alle bestätigen
@@ -174,14 +174,14 @@ export function AgentHealthDashboard() {
                 style={{ color: alert.severity === "critical" ? "#EF4444" : "#EAB308" }}
               />
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-zinc-200">{alert.message}</p>
-                <span className="text-[10px] text-zinc-600">
+                <p className="text-xs text-foreground">{alert.message}</p>
+                <span className="text-[10px] text-muted-foreground">
                   {new Date(alert.createdAt).toLocaleString("de-DE")}
                 </span>
               </div>
               <button
                 onClick={() => acknowledgeAlert(alert.id)}
-                className="shrink-0 rounded px-2 py-1 text-[10px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+                className="shrink-0 rounded px-2 py-1 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 OK
               </button>
@@ -192,7 +192,7 @@ export function AgentHealthDashboard() {
 
       {/* Agent Table */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-zinc-100">Agent Health</h3>
+        <h3 className="mb-3 text-sm font-semibold text-foreground">Agent Health</h3>
         <div className="space-y-1">
           {health.agents
             .sort((a, b) => {
@@ -207,36 +207,36 @@ export function AgentHealthDashboard() {
               return (
                 <div
                   key={agent.agentId}
-                  className="rounded-lg border border-zinc-800/50 bg-zinc-900/30 overflow-hidden"
+                  className="rounded-lg border border-border/50 bg-card/30 overflow-hidden"
                 >
                   <button
                     onClick={() => setExpandedAgent(isExpanded ? null : agent.agentId)}
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-zinc-800/20"
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/20"
                   >
                     <Icon className="h-4 w-4 shrink-0" style={{ color: config.color }} />
                     <div className="min-w-0 flex-1">
-                      <span className="text-sm font-medium text-zinc-200">{agent.agentName}</span>
+                      <span className="text-sm font-medium text-foreground">{agent.agentName}</span>
                     </div>
                     <div className="flex shrink-0 items-center gap-4 text-[11px]">
-                      <span className="text-zinc-500">
+                      <span className="text-muted-foreground">
                         <span style={{ color: config.color }}>{agent.uptime}%</span> uptime
                       </span>
-                      <span className="text-zinc-600">{agent.avgResponseTime}ms avg</span>
-                      <span className="text-zinc-600">{agent.totalRuns} runs</span>
+                      <span className="text-muted-foreground">{agent.avgResponseTime}ms avg</span>
+                      <span className="text-muted-foreground">{agent.totalRuns} runs</span>
                       {isExpanded ? (
-                        <ChevronUp className="h-3.5 w-3.5 text-zinc-600" />
+                        <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
                       ) : (
-                        <ChevronDown className="h-3.5 w-3.5 text-zinc-600" />
+                        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                       )}
                     </div>
                   </button>
 
                   {isExpanded && (
-                    <div className="border-t border-zinc-800/50 px-3 py-3 space-y-3">
+                    <div className="border-t border-border/50 px-3 py-3 space-y-3">
                       {/* Error Breakdown */}
                       {Object.keys(agent.errorBreakdown).length > 0 && (
                         <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+                          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                             Fehler-Verteilung
                           </span>
                           <div className="mt-1 flex flex-wrap gap-2">
@@ -255,18 +255,18 @@ export function AgentHealthDashboard() {
                       {/* Last Error */}
                       {agent.lastError && (
                         <div>
-                          <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+                          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                             Letzter Fehler
                           </span>
                           <div className="mt-1 flex items-center gap-2 text-[11px]">
-                            <Clock className="h-3 w-3 text-zinc-600" />
-                            <span className="text-zinc-500">
+                            <Clock className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-muted-foreground">
                               {new Date(agent.lastError.at).toLocaleString("de-DE")}
                             </span>
                             <span className="text-red-400">{agent.lastError.type}</span>
                           </div>
                           {agent.lastError.message && (
-                            <p className="mt-1 text-[11px] text-zinc-500 line-clamp-2">
+                            <p className="mt-1 text-[11px] text-muted-foreground line-clamp-2">
                               {agent.lastError.message}
                             </p>
                           )}
@@ -274,7 +274,7 @@ export function AgentHealthDashboard() {
                       )}
 
                       {/* Stats */}
-                      <div className="flex gap-4 text-[10px] text-zinc-600">
+                      <div className="flex gap-4 text-[10px] text-muted-foreground">
                         <span>Fehlerrate: {agent.failureRate}%</span>
                         <span>Ø Antwortzeit: {agent.avgResponseTime}ms</span>
                         <span>Runs: {agent.totalRuns}</span>

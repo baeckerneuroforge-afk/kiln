@@ -102,7 +102,7 @@ export function ModelAnalyticsSection() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -193,12 +193,12 @@ export function ModelAnalyticsSection() {
                   className="h-2 w-2 rounded-full shrink-0"
                   style={{ backgroundColor: MODEL_COLORS[id] || FALLBACK_COLOR }}
                 />
-                <span className="text-zinc-300">{shortModelName(id)}</span>
+                <span className="text-foreground">{shortModelName(id)}</span>
               </div>
-              <div className="flex items-center gap-4 text-zinc-500">
+              <div className="flex items-center gap-4 text-muted-foreground">
                 <span>{stats.calls} calls</span>
                 <span>{formatTokens(stats.tokensIn + stats.tokensOut)} tok</span>
-                <span className="text-zinc-300 font-medium">{formatCost(stats.cost)}</span>
+                <span className="text-foreground font-medium">{formatCost(stats.cost)}</span>
               </div>
             </div>
           ))}
@@ -212,7 +212,7 @@ export function ModelAnalyticsSection() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-emerald-300">Smart Routing Savings</p>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 vs. running everything on Opus
               </p>
             </div>
@@ -222,7 +222,7 @@ export function ModelAnalyticsSection() {
             <p className="text-4xl font-bold tracking-tight text-emerald-400">
               {savingsPercent}%
             </p>
-            <div className="pb-1 text-xs text-zinc-500">
+            <div className="pb-1 text-xs text-muted-foreground">
               <p>{formatCost(data.monthly.savings)} saved this month</p>
               <p className="mt-0.5">
                 Actual: {formatCost(data.monthly.totalCost)} · Opus-only: {formatCost(data.monthly.hypotheticalOpusCost)}
@@ -232,11 +232,11 @@ export function ModelAnalyticsSection() {
           {/* Visual bar */}
           <div className="mt-4 space-y-2">
             <div>
-              <div className="flex items-center justify-between text-[10px] text-zinc-500 mb-1">
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
                 <span>Smart Routing</span>
                 <span>{formatCost(data.monthly.totalCost)}</span>
               </div>
-              <div className="h-2 rounded-full bg-zinc-800">
+              <div className="h-2 rounded-full bg-muted">
                 <div
                   className="h-2 rounded-full bg-emerald-500"
                   style={{
@@ -246,12 +246,12 @@ export function ModelAnalyticsSection() {
               </div>
             </div>
             <div>
-              <div className="flex items-center justify-between text-[10px] text-zinc-500 mb-1">
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
                 <span>All Opus (hypothetical)</span>
                 <span>{formatCost(data.monthly.hypotheticalOpusCost)}</span>
               </div>
-              <div className="h-2 rounded-full bg-zinc-800">
-                <div className="h-2 rounded-full bg-zinc-600 w-full" />
+              <div className="h-2 rounded-full bg-muted">
+                <div className="h-2 rounded-full bg-muted w-full" />
               </div>
             </div>
           </div>
@@ -275,7 +275,7 @@ export function ModelAnalyticsSection() {
             <p className="pb-1 text-xs text-muted-foreground">parallel executions</p>
           </div>
           <div className="mt-3 rounded-lg border border-border bg-background/40 p-3">
-            <p className="text-[10px] text-zinc-500">
+            <p className="text-[10px] text-muted-foreground">
               Parallel execution enables agent swarms and fan-out/fan-in workflows to process
               sub-tasks concurrently, reducing total execution time.
             </p>

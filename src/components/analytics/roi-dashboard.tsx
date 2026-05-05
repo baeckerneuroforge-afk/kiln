@@ -33,26 +33,26 @@ function fmtInt(n: number): string {
 
 function SkeletonCard() {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 animate-pulse">
-      <div className="h-4 w-24 rounded bg-zinc-800 mb-4" />
-      <div className="h-8 w-32 rounded bg-zinc-800 mb-2" />
-      <div className="h-3 w-16 rounded bg-zinc-800" />
+    <div className="rounded-xl border border-border bg-card/50 p-6 animate-pulse">
+      <div className="h-4 w-24 rounded bg-muted mb-4" />
+      <div className="h-8 w-32 rounded bg-muted mb-2" />
+      <div className="h-3 w-16 rounded bg-muted" />
     </div>
   );
 }
 
 function SkeletonTable() {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 animate-pulse">
-      <div className="h-5 w-48 rounded bg-zinc-800 mb-6" />
+    <div className="rounded-xl border border-border bg-card/50 p-6 animate-pulse">
+      <div className="h-5 w-48 rounded bg-muted mb-6" />
       {[...Array(3)].map((_, i) => (
         <div key={i} className="flex gap-4 mb-4">
-          <div className="h-4 w-32 rounded bg-zinc-800" />
-          <div className="h-4 w-16 rounded bg-zinc-800" />
-          <div className="h-4 w-20 rounded bg-zinc-800" />
-          <div className="h-4 w-20 rounded bg-zinc-800" />
-          <div className="h-4 w-20 rounded bg-zinc-800" />
-          <div className="h-4 w-16 rounded bg-zinc-800" />
+          <div className="h-4 w-32 rounded bg-muted" />
+          <div className="h-4 w-16 rounded bg-muted" />
+          <div className="h-4 w-20 rounded bg-muted" />
+          <div className="h-4 w-20 rounded bg-muted" />
+          <div className="h-4 w-20 rounded bg-muted" />
+          <div className="h-4 w-16 rounded bg-muted" />
         </div>
       ))}
     </div>
@@ -97,22 +97,22 @@ export default function ROIDashboard() {
     data && data.agentBreakdown.some((a) => a.roiMultiple !== "—");
 
   return (
-    <div className="min-h-screen bg-stone-950 text-zinc-100 p-6 lg:p-10">
+    <div className="min-h-screen bg-background text-foreground p-6 lg:p-10">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-serif text-zinc-100">ROI Dashboard</h1>
-          <p className="text-sm text-zinc-500 mt-1">
+          <h1 className="text-2xl font-serif text-foreground">ROI Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Wie viel sparen deine AI Agents?
           </p>
         </div>
-        <div className="flex gap-1 rounded-lg border border-zinc-800 bg-zinc-900/50 p-1">
+        <div className="flex gap-1 rounded-lg border border-border bg-card/50 p-1">
           <button
             onClick={() => setPeriod("weekly")}
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
               period === "weekly"
                 ? "bg-orange-500/15 text-orange-400 border border-orange-500/30"
-                : "text-zinc-500 hover:text-zinc-300 border border-transparent"
+                : "text-muted-foreground hover:text-foreground border border-transparent"
             }`}
           >
             7 Tage
@@ -122,7 +122,7 @@ export default function ROIDashboard() {
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
               period === "monthly"
                 ? "bg-orange-500/15 text-orange-400 border border-orange-500/30"
-                : "text-zinc-500 hover:text-zinc-300 border border-transparent"
+                : "text-muted-foreground hover:text-foreground border border-transparent"
             }`}
           >
             30 Tage
@@ -149,22 +149,22 @@ export default function ROIDashboard() {
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {/* Zeitersparnis */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
-              <div className="flex items-center gap-2 text-zinc-500 text-sm mb-3">
+            <div className="rounded-xl border border-border bg-card/50 p-6">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
                 <Clock className="h-4 w-4" />
                 <span>Zeitersparnis</span>
               </div>
               <p className="text-3xl font-semibold text-green-400 tracking-tight">
                 {fmtInt(data.totalTimeSavedHours)}h
               </p>
-              <p className="text-xs text-zinc-600 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 {fmtInt(data.totalTimeSavedMinutes)} Minuten
               </p>
             </div>
 
             {/* Geldersparnis */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
-              <div className="flex items-center gap-2 text-zinc-500 text-sm mb-3">
+            <div className="rounded-xl border border-border bg-card/50 p-6">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
                 <Wallet className="h-4 w-4" />
                 <span>Geldersparnis</span>
               </div>
@@ -174,19 +174,19 @@ export default function ROIDashboard() {
             </div>
 
             {/* Agent-Kosten */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
-              <div className="flex items-center gap-2 text-zinc-500 text-sm mb-3">
+            <div className="rounded-xl border border-border bg-card/50 p-6">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
                 <CreditCard className="h-4 w-4" />
                 <span>Agent-Kosten</span>
               </div>
-              <p className="text-3xl font-semibold text-zinc-400 tracking-tight">
+              <p className="text-3xl font-semibold text-muted-foreground tracking-tight">
                 {fmt(data.totalEurosCost)}
               </p>
             </div>
 
             {/* ROI */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
-              <div className="flex items-center gap-2 text-zinc-500 text-sm mb-3">
+            <div className="rounded-xl border border-border bg-card/50 p-6">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
                 <TrendingUp className="h-4 w-4" />
                 <span>ROI</span>
               </div>
@@ -197,16 +197,16 @@ export default function ROIDashboard() {
           </div>
 
           {/* Per-Agent Breakdown Table */}
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 mb-8 overflow-hidden">
+          <div className="rounded-xl border border-border bg-card/50 mb-8 overflow-hidden">
             <div className="p-6 pb-4">
-              <h2 className="text-lg font-medium text-zinc-200">
+              <h2 className="text-lg font-medium text-foreground">
                 Aufschlüsselung nach Agent
               </h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-t border-zinc-800 text-zinc-500 text-left">
+                  <tr className="border-t border-border text-muted-foreground text-left">
                     <th className="px-6 py-3 font-medium">Agent</th>
                     <th className="px-6 py-3 font-medium text-right">Runs</th>
                     <th className="px-6 py-3 font-medium text-right">
@@ -237,29 +237,29 @@ export default function ROIDashboard() {
                     .map((agent) => (
                       <tr
                         key={agent.agentId}
-                        className="border-t border-zinc-800/50 hover:bg-zinc-800/20 transition-colors"
+                        className="border-t border-border/50 hover:bg-muted/20 transition-colors"
                       >
-                        <td className="px-6 py-4 text-zinc-200 font-medium">
+                        <td className="px-6 py-4 text-foreground font-medium">
                           {agent.agentName}
                         </td>
-                        <td className="px-6 py-4 text-zinc-400 text-right tabular-nums">
+                        <td className="px-6 py-4 text-muted-foreground text-right tabular-nums">
                           {fmtInt(agent.runsCompleted)}
                         </td>
-                        <td className="px-6 py-4 text-zinc-400 text-right tabular-nums">
+                        <td className="px-6 py-4 text-muted-foreground text-right tabular-nums">
                           {agent.roiMultiple === "—"
                             ? "—"
                             : `${fmtInt(agent.timeSavedHours)}h`}
                         </td>
                         <td className="px-6 py-4 text-right tabular-nums">
                           {agent.roiMultiple === "—" ? (
-                            <span className="text-zinc-600">—</span>
+                            <span className="text-muted-foreground">—</span>
                           ) : (
                             <span className="text-green-400">
                               €{fmt(agent.moneySaved)}
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-zinc-400 text-right tabular-nums">
+                        <td className="px-6 py-4 text-muted-foreground text-right tabular-nums">
                           {agent.roiMultiple === "—"
                             ? "—"
                             : `€${fmt(agent.eurosCost)}`}
@@ -287,14 +287,14 @@ export default function ROIDashboard() {
 
           {/* Motivational Insight */}
           {data.totalMoneySaved > 0 && (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 border-l-4 border-l-orange-500 p-6">
-              <p className="text-zinc-300 text-sm leading-relaxed">
+            <div className="rounded-xl border border-border bg-card/50 border-l-4 border-l-orange-500 p-6">
+              <p className="text-foreground text-sm leading-relaxed">
                 Deine Agents haben diesen Monat{" "}
-                <span className="text-zinc-100 font-medium">
+                <span className="text-foreground font-medium">
                   {fmtInt(data.totalTimeSavedHours)}h
                 </span>{" "}
                 Arbeit erledigt — für{" "}
-                <span className="text-zinc-100 font-medium">
+                <span className="text-foreground font-medium">
                   €{fmt(data.totalEurosCost)}
                 </span>{" "}
                 statt{" "}
@@ -308,14 +308,14 @@ export default function ROIDashboard() {
         </>
       ) : loading ? null : (
         /* Empty State */
-        <div className="flex flex-col items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/50 py-20 px-6">
-          <div className="rounded-full bg-zinc-800/50 p-4 mb-6">
-            <BarChart3 className="h-8 w-8 text-zinc-600" />
+        <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card/50 py-20 px-6">
+          <div className="rounded-full bg-muted/50 p-4 mb-6">
+            <BarChart3 className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h2 className="text-lg font-medium text-zinc-300 mb-2">
+          <h2 className="text-lg font-medium text-foreground mb-2">
             Noch kein ROI-Tracking eingerichtet
           </h2>
-          <p className="text-sm text-zinc-500 mb-6 text-center max-w-md">
+          <p className="text-sm text-muted-foreground mb-6 text-center max-w-md">
             Richte das ROI-Tracking für einen deiner Agents ein, um zu sehen wie
             viel Zeit und Geld du sparst.
           </p>

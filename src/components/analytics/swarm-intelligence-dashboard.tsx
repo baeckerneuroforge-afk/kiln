@@ -63,10 +63,10 @@ function qualityBar(q: number): string {
 
 function SkeletonCard() {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 animate-pulse">
-      <div className="h-4 w-24 rounded bg-zinc-800 mb-4" />
-      <div className="h-8 w-32 rounded bg-zinc-800 mb-2" />
-      <div className="h-3 w-16 rounded bg-zinc-800" />
+    <div className="rounded-xl border border-border bg-card/50 p-6 animate-pulse">
+      <div className="h-4 w-24 rounded bg-muted mb-4" />
+      <div className="h-8 w-32 rounded bg-muted mb-2" />
+      <div className="h-3 w-16 rounded bg-muted" />
     </div>
   );
 }
@@ -89,7 +89,7 @@ export default function SwarmIntelligenceDashboard() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <h2 className="text-xl font-semibold text-zinc-100 font-serif">Swarm Intelligence</h2>
+        <h2 className="text-xl font-semibold text-foreground font-serif">Swarm Intelligence</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
         </div>
@@ -99,10 +99,10 @@ export default function SwarmIntelligenceDashboard() {
 
   if (!data || data.totalExecutions === 0) {
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
-        <Brain className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-        <h3 className="text-zinc-300 font-medium mb-1">Noch keine Swarm-Daten</h3>
-        <p className="text-zinc-500 text-sm">
+      <div className="rounded-xl border border-border bg-card/50 p-8 text-center">
+        <Brain className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+        <h3 className="text-foreground font-medium mb-1">Noch keine Swarm-Daten</h3>
+        <p className="text-muted-foreground text-sm">
           Starte Agent Swarm Aufgaben, um hier Lern-Insights zu sehen.
         </p>
       </div>
@@ -110,12 +110,12 @@ export default function SwarmIntelligenceDashboard() {
   }
 
   const trendIcon = data.trend.qualityChangePercent > 0 ? "+" : "";
-  const trendColor = data.trend.qualityChangePercent > 0 ? "text-green-400" : data.trend.qualityChangePercent < 0 ? "text-red-400" : "text-zinc-400";
+  const trendColor = data.trend.qualityChangePercent > 0 ? "text-green-400" : data.trend.qualityChangePercent < 0 ? "text-red-400" : "text-muted-foreground";
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-zinc-100 font-serif flex items-center gap-2">
+        <h2 className="text-xl font-semibold text-foreground font-serif flex items-center gap-2">
           <Brain className="w-5 h-5 text-orange-400" />
           Swarm Intelligence
         </h2>
@@ -123,7 +123,7 @@ export default function SwarmIntelligenceDashboard() {
           <select
             value={selectedTaskType}
             onChange={(e) => setSelectedTaskType(e.target.value)}
-            className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-zinc-300 focus:outline-none focus:border-orange-500"
+            className="bg-card border border-border rounded-lg px-3 py-1.5 text-sm text-foreground focus:outline-none focus:border-orange-500"
           >
             <option value="">Alle Task-Typen</option>
             {data.byTaskType.map((t) => (
@@ -137,19 +137,19 @@ export default function SwarmIntelligenceDashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-          <div className="flex items-center gap-2 text-zinc-400 text-sm mb-3">
+        <div className="rounded-xl border border-border bg-card/50 p-5">
+          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
             <BarChart3 className="w-4 h-4" />
             Ausführungen
           </div>
-          <div className="text-2xl font-semibold text-zinc-100">{data.totalExecutions}</div>
-          <div className="text-xs text-zinc-500 mt-1">
+          <div className="text-2xl font-semibold text-foreground">{data.totalExecutions}</div>
+          <div className="text-xs text-muted-foreground mt-1">
             {data.trend.thisWeekCount} diese Woche
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-          <div className="flex items-center gap-2 text-zinc-400 text-sm mb-3">
+        <div className="rounded-xl border border-border bg-card/50 p-5">
+          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
             <TrendingUp className="w-4 h-4" />
             Ø Qualität
           </div>
@@ -161,35 +161,35 @@ export default function SwarmIntelligenceDashboard() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-          <div className="flex items-center gap-2 text-zinc-400 text-sm mb-3">
+        <div className="rounded-xl border border-border bg-card/50 p-5">
+          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
             <Zap className="w-4 h-4" />
             Ø Credits
           </div>
-          <div className="text-2xl font-semibold text-zinc-100">{fmt(data.averages.credits)}</div>
-          <div className="text-xs text-zinc-500 mt-1">
+          <div className="text-2xl font-semibold text-foreground">{fmt(data.averages.credits)}</div>
+          <div className="text-xs text-muted-foreground mt-1">
             Ø {fmt(data.averages.agents)} Agents
           </div>
         </div>
 
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-          <div className="flex items-center gap-2 text-zinc-400 text-sm mb-3">
+        <div className="rounded-xl border border-border bg-card/50 p-5">
+          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-3">
             <Timer className="w-4 h-4" />
             Ø Dauer
           </div>
-          <div className="text-2xl font-semibold text-zinc-100">{fmtMs(data.averages.timeMs)}</div>
-          <div className="text-xs text-zinc-500 mt-1">pro Swarm-Ausführung</div>
+          <div className="text-2xl font-semibold text-foreground">{fmtMs(data.averages.timeMs)}</div>
+          <div className="text-xs text-muted-foreground mt-1">pro Swarm-Ausführung</div>
         </div>
       </div>
 
       {/* Task Type Breakdown */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-        <h3 className="text-sm font-medium text-zinc-300 mb-4">Qualität nach Task-Typ</h3>
+      <div className="rounded-xl border border-border bg-card/50 p-5">
+        <h3 className="text-sm font-medium text-foreground mb-4">Qualität nach Task-Typ</h3>
         <div className="space-y-3">
           {data.byTaskType.map((t) => (
             <div key={t.taskType} className="flex items-center gap-3">
-              <span className="text-sm text-zinc-400 w-28 truncate">{t.taskType}</span>
-              <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
+              <span className="text-sm text-muted-foreground w-28 truncate">{t.taskType}</span>
+              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full ${qualityBar(t.avgQuality)}`}
                   style={{ width: `${Math.round(t.avgQuality * 100)}%` }}
@@ -198,8 +198,8 @@ export default function SwarmIntelligenceDashboard() {
               <span className={`text-sm font-mono w-12 text-right ${qualityColor(t.avgQuality)}`}>
                 {Math.round(t.avgQuality * 100)}%
               </span>
-              <span className="text-xs text-zinc-500 w-16 text-right">{t.count}x</span>
-              <span className="text-xs text-zinc-500 w-20 text-right">{fmt(t.avgCredits)} Cr</span>
+              <span className="text-xs text-muted-foreground w-16 text-right">{t.count}x</span>
+              <span className="text-xs text-muted-foreground w-20 text-right">{fmt(t.avgCredits)} Cr</span>
             </div>
           ))}
         </div>
@@ -207,15 +207,15 @@ export default function SwarmIntelligenceDashboard() {
 
       {/* Tool Correlations */}
       {data.toolCorrelations.length > 0 && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-          <h3 className="text-sm font-medium text-zinc-300 mb-4 flex items-center gap-2">
-            <Wrench className="w-4 h-4 text-zinc-500" />
+        <div className="rounded-xl border border-border bg-card/50 p-5">
+          <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
+            <Wrench className="w-4 h-4 text-muted-foreground" />
             Tool-Korrelationen
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-zinc-500 text-xs border-b border-zinc-800">
+                <tr className="text-muted-foreground text-xs border-b border-border">
                   <th className="text-left pb-2 font-normal">Tool</th>
                   <th className="text-right pb-2 font-normal">Qualität mit</th>
                   <th className="text-right pb-2 font-normal">Qualität ohne</th>
@@ -225,22 +225,22 @@ export default function SwarmIntelligenceDashboard() {
               </thead>
               <tbody>
                 {data.toolCorrelations.map((tc) => (
-                  <tr key={tc.tool} className="border-b border-zinc-800/50">
-                    <td className="py-2 text-zinc-300 font-mono">{tc.tool}</td>
+                  <tr key={tc.tool} className="border-b border-border/50">
+                    <td className="py-2 text-foreground font-mono">{tc.tool}</td>
                     <td className={`py-2 text-right ${qualityColor(tc.avgQualityWith)}`}>
                       {Math.round(tc.avgQualityWith * 100)}%
                     </td>
                     <td className={`py-2 text-right ${qualityColor(tc.avgQualityWithout)}`}>
                       {Math.round(tc.avgQualityWithout * 100)}%
                     </td>
-                    <td className="py-2 text-right text-zinc-400">{tc.usageCount}x</td>
+                    <td className="py-2 text-right text-muted-foreground">{tc.usageCount}x</td>
                     <td className="py-2 text-right">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${
                         tc.recommendation === "always"
                           ? "bg-green-500/10 text-green-400"
                           : tc.recommendation === "avoid"
                             ? "bg-red-500/10 text-red-400"
-                            : "bg-zinc-700/50 text-zinc-400"
+                            : "bg-muted/50 text-muted-foreground"
                       }`}>
                         {tc.recommendation === "always" ? "Immer" : tc.recommendation === "avoid" ? "Vermeiden" : "Situativ"}
                       </span>
