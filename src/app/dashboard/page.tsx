@@ -92,15 +92,15 @@ function StatCard({
   return (
     <div
       className={cn(
-        "rounded-xl border border-white/[0.06] bg-card/80 backdrop-blur-sm px-5 py-5",
-        "transition-all duration-300 hover:border-white/10"
+        "rounded-xl border border-border bg-card/80 backdrop-blur-sm px-5 py-5",
+        "transition-all duration-300 hover:border-foreground/20"
       )}
     >
-      <p className="text-3xl font-semibold tracking-tight text-gray-100">
+      <p className="text-3xl font-semibold tracking-tight text-foreground">
         {prefix}
         {displayed.toLocaleString("de-DE")}
       </p>
-      <p className="mt-1.5 text-sm text-gray-500">{label}</p>
+      <p className="mt-1.5 text-sm text-muted-foreground">{label}</p>
     </div>
   );
 }
@@ -161,11 +161,11 @@ export default function DashboardPage() {
 
       {/* Header */}
       <div className="mb-10">
-        <h1 className="font-serif text-3xl font-normal text-gray-100">
+        <h1 className="font-serif text-3xl font-normal text-foreground">
           {greeting}
           {firstName ? `, ${firstName}` : ""}
         </h1>
-        <p className="mt-2 text-sm text-gray-400">
+        <p className="mt-2 text-sm text-muted-foreground">
           Create AI Agents, Websites & Workflows — all in one place.
         </p>
       </div>
@@ -181,26 +181,26 @@ export default function DashboardPage() {
             key={mod.title}
             href={mod.href}
             className={cn(
-              "group relative overflow-hidden rounded-xl border border-[#332f2b] bg-[#242220] p-6",
+              "group relative overflow-hidden rounded-xl border border-border bg-card p-6",
               "transition-all duration-150 ease-out",
-              "hover:bg-[#2a2826] hover:border-[#3d3935]",
+              "hover:bg-muted/40 hover:border-foreground/20",
               !mod.active && "opacity-50"
             )}
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.05] group-hover:bg-white/[0.08] transition-colors">
-                <mod.icon className="h-5 w-5 text-gray-400 group-hover:text-gray-300 transition-colors" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted group-hover:bg-muted/70 transition-colors">
+                <mod.icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
               </div>
               {!mod.active && (
-                <span className="text-xs font-medium text-gray-500">
+                <span className="text-xs font-medium text-muted-foreground">
                   Coming Soon
                 </span>
               )}
             </div>
-            <h2 className="mb-1 text-base font-medium text-gray-200">
+            <h2 className="mb-1 text-base font-medium text-foreground">
               {mod.title}
             </h2>
-            <p className="mb-4 text-sm text-gray-400 leading-relaxed">
+            <p className="mb-4 text-sm text-muted-foreground leading-relaxed">
               {mod.description}
             </p>
             {mod.active && (

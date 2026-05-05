@@ -38,7 +38,7 @@ export function GettingStartedBanner() {
     <div className="relative mb-6 overflow-hidden rounded-xl border border-kiln-orange/20 bg-gradient-to-r from-kiln-orange/10 via-kiln-ember/5 to-transparent p-6">
       <button
         onClick={dismiss}
-        className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-white/[0.06] hover:text-neutral-300"
+        className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <X className="h-4 w-4" />
       </button>
@@ -48,8 +48,8 @@ export function GettingStartedBanner() {
           <Rocket className="h-5 w-5 text-kiln-orange" />
         </div>
         <div className="min-w-0">
-          <h3 className="font-serif text-lg text-white">Getting Started</h3>
-          <p className="mt-1 text-sm text-neutral-400">
+          <h3 className="font-serif text-lg text-foreground">Getting Started</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
             Create your first AI agent in under 2 minutes. No code required.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
@@ -62,7 +62,7 @@ export function GettingStartedBanner() {
             </Link>
             <Link
               href="/help#create-first-agent"
-              className="inline-flex items-center gap-2 rounded-lg bg-white/[0.06] px-4 py-2 text-sm font-medium text-neutral-300 transition-colors hover:bg-white/[0.1] hover:text-white"
+              className="inline-flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/70"
             >
               Read the Guide
             </Link>

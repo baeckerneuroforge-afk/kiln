@@ -120,7 +120,7 @@ export function WhatsNewBell() {
         onClick={handleOpen}
         className={cn(
           "relative flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-          open ? "bg-zinc-800 text-zinc-200" : "text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300"
+          open ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
         )}
       >
         <Bell className="h-4 w-4" />
@@ -133,14 +133,14 @@ export function WhatsNewBell() {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-zinc-800 bg-zinc-900 shadow-2xl z-50">
+        <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-border bg-card shadow-2xl z-50">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-            <h3 className="text-sm font-medium text-zinc-100">What&apos;s New</h3>
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <h3 className="text-sm font-medium text-foreground">What&apos;s New</h3>
             {unseenCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Check className="h-3 w-3" />
                 Mark all read
@@ -158,7 +158,7 @@ export function WhatsNewBell() {
                 <div
                   key={entry.id}
                   className={cn(
-                    "flex items-start gap-3 px-4 py-3 transition-colors hover:bg-zinc-800/40",
+                    "flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/60",
                     isNew && "bg-orange-500/[0.03]"
                   )}
                 >
@@ -167,7 +167,7 @@ export function WhatsNewBell() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
-                      <p className={cn("text-xs", isNew ? "font-medium text-zinc-200" : "text-zinc-400")}>
+                      <p className={cn("text-xs", isNew ? "font-medium text-foreground" : "text-muted-foreground")}>
                         {entry.title}
                       </p>
                       {isNew && (
@@ -176,7 +176,7 @@ export function WhatsNewBell() {
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-[10px] text-zinc-600">{relativeDate(entry.date)}</p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">{relativeDate(entry.date)}</p>
                   </div>
                 </div>
               );
@@ -184,7 +184,7 @@ export function WhatsNewBell() {
           </div>
 
           {/* Footer */}
-          <div className="border-t border-zinc-800 px-4 py-2.5">
+          <div className="border-t border-border px-4 py-2.5">
             <Link
               href="/changelog"
               className="flex items-center justify-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 transition-colors"

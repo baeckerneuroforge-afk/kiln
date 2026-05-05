@@ -34,7 +34,7 @@ export default function ClientsDashboardPage() {
   if (!isLoaded || loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-stone-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -45,13 +45,13 @@ export default function ClientsDashboardPage() {
   if (!hasAccess) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <div className="w-16 h-16 rounded-2xl bg-stone-800 flex items-center justify-center mb-4">
-          <Lock className="w-8 h-8 text-stone-500" />
+        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+          <Lock className="w-8 h-8 text-muted-foreground" />
         </div>
-        <h2 className="text-xl font-serif text-white mb-2">
+        <h2 className="text-xl font-serif text-foreground mb-2">
           Multi-Tenant Dashboard
         </h2>
-        <p className="text-stone-400 max-w-md mb-6">
+        <p className="text-muted-foreground max-w-md mb-6">
           Verwalte alle deine Kunden, Agents und Analytics an einem Ort.
           Verfügbar ab dem Business-Plan.
         </p>
@@ -69,14 +69,14 @@ export default function ClientsDashboardPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-serif text-white">Kunden-Dashboard</h1>
-        <p className="text-stone-400 mt-1">
+        <h1 className="text-2xl font-serif text-foreground">Kunden-Dashboard</h1>
+        <p className="text-muted-foreground mt-1">
           Verwalte alle deine Kunden und deren Agents
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-stone-800">
+      <div className="flex gap-1 border-b border-border">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -84,8 +84,8 @@ export default function ClientsDashboardPage() {
             className={cn(
               "flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors border-b-2",
               activeTab === tab.id
-                ? "text-gray-400 border-kiln-orange"
-                : "text-stone-500 border-transparent hover:text-stone-300"
+                ? "text-foreground border-kiln-orange"
+                : "text-muted-foreground border-transparent hover:text-foreground"
             )}
           >
             <tab.icon className="w-4 h-4" />
@@ -98,7 +98,7 @@ export default function ClientsDashboardPage() {
       {activeTab === "overview" && <MultiTenantDashboard />}
       {activeTab === "analytics" && <CrossClientAnalytics />}
       {activeTab === "operations" && (
-        <div className="text-center py-12 text-stone-500">
+        <div className="text-center py-12 text-muted-foreground">
           <Settings2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
           <p>Bulk-Operationen werden bald verfügbar sein.</p>
           <p className="text-sm mt-1">

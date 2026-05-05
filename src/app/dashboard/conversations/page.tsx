@@ -120,7 +120,7 @@ function statusClassName(status: ConversationRow["status"]) {
       return "bg-emerald-500/15 text-gray-400";
     case "COMPLETED":
     default:
-      return "bg-zinc-500/15 text-zinc-300";
+      return "bg-muted text-muted-foreground";
   }
 }
 
@@ -441,7 +441,7 @@ export default function ConversationsPage() {
                               message.role === "USER" && "border-[#332f2b] bg-kiln-orange/5",
                               message.role === "ASSISTANT" && "border-border bg-card",
                               message.role === "HUMAN" && "border-emerald-500/20 bg-emerald-500/5",
-                              message.role === "SYSTEM" && "border-zinc-800 bg-zinc-950/40"
+                              message.role === "SYSTEM" && "border-border bg-muted/40"
                             )}
                           >
                             <div className="flex items-center justify-between gap-3">

@@ -187,7 +187,7 @@ export default function AgentsPage() {
                       )}
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] font-medium tracking-wide w-fit text-gray-400">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium tracking-wide w-fit text-muted-foreground">
                         {agent.mode === "TASK" ? <><Zap className="h-2.5 w-2.5" />Task</> : <><MessageSquare className="h-2.5 w-2.5" />Chat</>}
                       </span>
                       <div className="flex items-center gap-1.5">

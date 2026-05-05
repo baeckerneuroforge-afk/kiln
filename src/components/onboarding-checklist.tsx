@@ -83,14 +83,14 @@ function ProgressCircle({
 
 function StepRow({ step }: { step: OnboardingStep }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-black/10 px-3 py-3">
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/50 px-3 py-3">
       <div className="flex min-w-0 items-center gap-3">
         <div
           className={cn(
             "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[11px]",
             step.completed
               ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-300"
-              : "border-white/10 bg-white/[0.04] text-muted-foreground"
+              : "border-border bg-muted text-muted-foreground"
           )}
         >
           {step.completed ? <Check className="h-3.5 w-3.5" /> : null}
@@ -217,7 +217,7 @@ export function OnboardingChecklist() {
       <button
         type="button"
         onClick={() => void updateHidden(false)}
-        className="fixed bottom-6 left-6 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-white/[0.08] bg-card/90 text-muted-foreground shadow-xl backdrop-blur transition hover:text-foreground"
+        className="fixed bottom-6 left-6 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card/90 text-muted-foreground shadow-xl backdrop-blur transition hover:text-foreground"
         aria-label="Re-open onboarding checklist"
       >
         <CircleHelp className="h-5 w-5" />
@@ -227,9 +227,9 @@ export function OnboardingChecklist() {
 
   return (
     <div className="fixed bottom-6 left-6 z-40 w-[340px] max-w-[calc(100vw-2rem)]">
-      <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#120E0B]/95 shadow-2xl backdrop-blur">
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card/95 shadow-2xl backdrop-blur">
         {status.allComplete && <CelebrationBurst />}
-        <div className="flex items-start justify-between gap-3 border-b border-white/[0.08] px-5 py-4">
+        <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
           <div className="flex items-start gap-3">
             <ProgressCircle completed={status.completedCount} total={status.totalCount} />
             <div className="pt-1">
@@ -245,7 +245,7 @@ export function OnboardingChecklist() {
           <button
             type="button"
             onClick={() => void updateHidden(true)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
             aria-label="Hide checklist"
           >
             <X className="h-4 w-4" />
@@ -267,7 +267,7 @@ export function OnboardingChecklist() {
             <div className="space-y-2">
               <Link
                 href="/dashboard/operations"
-                className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-black/10 px-3 py-3 text-sm text-foreground transition hover:border-kiln-orange/30 hover:bg-kiln-orange/5"
+                className="flex items-center justify-between rounded-xl border border-border bg-muted/50 px-3 py-3 text-sm text-foreground transition hover:border-kiln-orange/30 hover:bg-kiln-orange/5"
               >
                 <span className="flex items-center gap-2">
                   <Rocket className="h-4 w-4 text-kiln-orange" />
@@ -277,7 +277,7 @@ export function OnboardingChecklist() {
               </Link>
               <Link
                 href="/dashboard/teams"
-                className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-black/10 px-3 py-3 text-sm text-foreground transition hover:border-kiln-orange/30 hover:bg-kiln-orange/5"
+                className="flex items-center justify-between rounded-xl border border-border bg-muted/50 px-3 py-3 text-sm text-foreground transition hover:border-kiln-orange/30 hover:bg-kiln-orange/5"
               >
                 <span className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-kiln-orange" />
@@ -304,7 +304,7 @@ export function GettingStartedSection() {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-white/[0.06] bg-card/70 p-6">
+      <div className="rounded-2xl border border-border bg-card/70 p-6">
         <div className="h-6 w-40 rounded bg-muted" />
         <div className="mt-3 h-4 w-72 rounded bg-muted" />
         <div className="mt-6 grid gap-3 md:grid-cols-2">
@@ -341,13 +341,13 @@ export function GettingStartedSection() {
               </Link>
               <Link
                 href="/dashboard/teams"
-                className="inline-flex items-center gap-2 rounded-lg bg-white/[0.06] px-4 py-2 text-sm font-medium text-neutral-300 transition hover:bg-white/[0.1] hover:text-white"
+                className="inline-flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted/70"
               >
                 Explore Agent Teams
               </Link>
               <Link
                 href="/dashboard/integrations"
-                className="inline-flex items-center gap-2 rounded-lg bg-white/[0.06] px-4 py-2 text-sm font-medium text-neutral-300 transition hover:bg-white/[0.1] hover:text-white"
+                className="inline-flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted/70"
               >
                 Add More Integrations
               </Link>
@@ -356,7 +356,7 @@ export function GettingStartedSection() {
         </div>
       )}
 
-      <div className="rounded-2xl border border-white/[0.06] bg-card/70 p-6">
+      <div className="rounded-2xl border border-border bg-card/70 p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-kiln-orange">Getting Started</p>
@@ -377,7 +377,7 @@ export function GettingStartedSection() {
                 "rounded-2xl border p-4 transition",
                 step.completed
                   ? "border-emerald-400/20 bg-emerald-500/10"
-                  : "border-white/[0.06] bg-black/10 hover:border-kiln-orange/30 hover:bg-kiln-orange/5"
+                  : "border-border bg-muted/50 hover:border-kiln-orange/30 hover:bg-kiln-orange/5"
               )}
             >
               <div className="flex items-start justify-between gap-3">
@@ -387,7 +387,7 @@ export function GettingStartedSection() {
                       "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border",
                       step.completed
                         ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-300"
-                        : "border-white/10 bg-white/[0.04] text-muted-foreground"
+                        : "border-border bg-muted text-muted-foreground"
                     )}
                   >
                     {step.completed ? <Check className="h-4 w-4" /> : <Rocket className="h-3.5 w-3.5" />}
