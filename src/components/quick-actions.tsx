@@ -127,23 +127,43 @@ function ActivitySkeleton() {
 
 export function RecentActivityFeed() {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
+  const [hasAgents, setHasAgents] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchActivity() {
+    let cancelled = false;
+    async function load() {
       try {
-        const res = await fetch("/api/activity/recent");
-        if (res.ok) {
-          const data = await res.json();
-          setEvents(data.events ?? []);
+        // Fetch activity + agent count in parallel. The agent count drives
+        // which empty-state copy to show — "create your first agent" vs.
+        // "run an agent to see activity here" — so we know whether the user
+        // is genuinely empty or just hasn't run anything recently.
+        const [activityRes, agentsRes] = await Promise.allSettled([
+          fetch("/api/activity/recent"),
+          fetch("/api/agents"),
+        ]);
+
+        if (activityRes.status === "fulfilled" && activityRes.value.ok) {
+          const data = await activityRes.value.json();
+          if (!cancelled) setEvents(data.events ?? []);
         }
-      } catch {
-        // Silently handle — empty state will show
+
+        if (agentsRes.status === "fulfilled" && agentsRes.value.ok) {
+          const data = await agentsRes.value.json();
+          if (!cancelled) {
+            setHasAgents(Array.isArray(data) && data.length > 0);
+          }
+        } else if (!cancelled) {
+          setHasAgents(false);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
-    fetchActivity();
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -157,9 +177,33 @@ export function RecentActivityFeed() {
       ) : events.length === 0 ? (
         <div className="flex flex-col items-center justify-center px-5 py-10 text-center">
           <Bot className="mb-3 h-8 w-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            No recent activity yet. Create your first agent to get started.
-          </p>
+          {hasAgents ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Nothing yet. Run an agent to see activity here.
+              </p>
+              <Link
+                href="/dashboard/agents"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-kiln-orange transition-colors hover:text-kiln-orange/80"
+              >
+                Open agents
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                No agents yet. Create your first one to get started.
+              </p>
+              <Link
+                href="/dashboard/agents/new"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-kiln-orange transition-colors hover:text-kiln-orange/80"
+              >
+                Create agent
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </>
+          )}
         </div>
       ) : (
         <ul className="divide-y divide-border">
