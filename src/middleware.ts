@@ -66,12 +66,19 @@ const isPublicRoute = createRouteMatcher([
 export default clerkMiddleware(async (auth, request) => {
   const hostname = request.headers.get("host") || "";
 
-  // Custom Domain Detection: Unbekannte Domain → Agent-Lookup via /a/_custom-domain
+  // Custom Domain Detection: requests on a non-kilnbase hostname route into
+  // the resolver page at /a/_custom-domain, which looks up either an Agent
+  // (legacy single-agent custom domains) or an OrgBranding row (Phase 2.3c
+  // agency custom domains) and renders accordingly. The `x-kiln-host`
+  // header is attached for downstream debugging and to let server-side
+  // helpers detect agency-domain context without re-parsing the host.
   if (!isAppDomain(hostname) && !request.nextUrl.pathname.startsWith("/api/")) {
     const url = request.nextUrl.clone();
     url.pathname = `/a/_custom-domain`;
     url.searchParams.set("domain", hostname.split(":")[0].toLowerCase());
-    return NextResponse.rewrite(url);
+    const rewritten = NextResponse.rewrite(url);
+    rewritten.headers.set("x-kiln-host", hostname.split(":")[0].toLowerCase());
+    return rewritten;
   }
 
   // Referral-Code aus URL in Cookie speichern
