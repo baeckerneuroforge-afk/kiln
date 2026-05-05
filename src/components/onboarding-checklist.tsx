@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   Check,
+  ChevronDown,
   CircleHelp,
   PartyPopper,
   Rocket,
@@ -301,6 +302,15 @@ export function OnboardingChecklist() {
 
 export function GettingStartedSection() {
   const { status, loading } = useOnboardingStatus(true);
+  // Near-complete = at most one step left. Default that into a collapsed
+  // summary so the dashboard isn't dominated by a near-empty checklist; the
+  // user can still expand it if they want the full grid.
+  const nearComplete =
+    status.totalCount > 0 &&
+    !status.allComplete &&
+    status.completedCount >= status.totalCount - 1;
+  const [expanded, setExpanded] = useState<boolean | null>(null);
+  const isExpanded = expanded ?? !nearComplete;
 
   if (loading) {
     return (
@@ -316,58 +326,54 @@ export function GettingStartedSection() {
     );
   }
 
-  return (
-    <div className="space-y-6">
-      {status.allComplete && (
-        <div className="relative overflow-hidden rounded-2xl border border-emerald-400/20 bg-gradient-to-r from-emerald-500/15 to-transparent p-6">
-          <CelebrationBurst />
-          <div className="relative">
-            <div className="flex items-center gap-2">
-              <PartyPopper className="h-5 w-5 text-emerald-300" />
-              <h3 className="text-lg font-semibold text-foreground">
-                Congratulations! Your AI agent is live.
-              </h3>
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Here&apos;s what to do next: optimize conversion, connect more systems, and scale with teams.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link
-                href="/dashboard/operations"
-                className="inline-flex items-center gap-2 rounded-lg bg-kiln-orange px-4 py-2 text-sm font-medium text-white transition hover:bg-kiln-orange/90"
-              >
-                Operations Dashboard
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                href="/dashboard/teams"
-                className="inline-flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted/70"
-              >
-                Explore Agent Teams
-              </Link>
-              <Link
-                href="/dashboard/integrations"
-                className="inline-flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted/70"
-              >
-                Add More Integrations
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+  // Fully complete — render nothing on the dashboard. The user has finished
+  // activation; the floating <OnboardingChecklist /> popover (mounted by the
+  // dashboard layout) still shows the celebration state for users who want
+  // it. Reclaiming the real estate here is the bigger win.
+  if (status.allComplete) {
+    return null;
+  }
 
-      <div className="rounded-2xl border border-border bg-card/70 p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+  // No data yet (totalCount === 0 from the API) — bail rather than render a
+  // misleading "0 / 0" frame.
+  if (status.totalCount === 0) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-card/70 p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-4">
+          <ProgressCircle completed={status.completedCount} total={status.totalCount} />
           <div>
             <p className="text-xs uppercase tracking-[0.18em] text-kiln-orange">Getting Started</p>
-            <h2 className="mt-1 text-2xl font-semibold text-foreground">Activation Checklist</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Move from setup to first value. Finish the core steps that make an agent actually useful.
+            <h2 className="mt-1 text-xl font-semibold text-foreground">
+              {nearComplete ? "Almost there" : "Activation Checklist"}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {status.completedCount} of {status.totalCount} steps done
+              {nearComplete && " — finish the last one to launch."}
             </p>
           </div>
-          <ProgressCircle completed={status.completedCount} total={status.totalCount} />
         </div>
+        {nearComplete && (
+          <button
+            type="button"
+            onClick={() => setExpanded((prev) => !(prev ?? !nearComplete))}
+            className="inline-flex items-center gap-1.5 self-start rounded-md border border-border bg-muted/50 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            {isExpanded ? "Hide steps" : "Show steps"}
+            <ChevronDown
+              className={cn(
+                "h-3.5 w-3.5 transition-transform",
+                isExpanded && "rotate-180"
+              )}
+            />
+          </button>
+        )}
+      </div>
 
+      {isExpanded && (
         <div className="mt-6 grid gap-3 md:grid-cols-2">
           {status.steps.map((step) => (
             <Link
@@ -411,7 +417,7 @@ export function GettingStartedSection() {
             </Link>
           ))}
         </div>
-      </div>
+      )}
     </div>
   );
 }
