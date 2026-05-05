@@ -394,7 +394,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                 {section.label && !isCollapsed && (
                   <button
                     onClick={() => toggleSection(section.id)}
-                    className="flex w-full items-center gap-1 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-zinc-500 transition-colors hover:text-zinc-400"
+                    className="flex w-full items-center gap-1 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:text-foreground/80"
                   >
                     <ChevronRight
                       className={cn(
@@ -426,8 +426,8 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                               "group relative flex items-center rounded-md text-[13px] font-medium transition-all duration-150",
                               isCollapsed ? "lg:justify-center lg:px-0 lg:py-2 px-2.5 py-2 gap-2.5" : "gap-2.5 px-2.5 py-[7px]",
                               active
-                                ? "bg-white/[0.06] text-foreground"
-                                : "text-zinc-400 hover:bg-white/[0.03] hover:text-zinc-200"
+                                ? "bg-sidebar-accent text-foreground"
+                                : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
                             )}
                           >
                             {active && (
@@ -436,7 +436,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                             <item.icon
                               className={cn(
                                 "h-[16px] w-[16px] shrink-0 transition-colors",
-                                active ? "text-kiln-orange" : "text-zinc-500 group-hover:text-zinc-300"
+                                active ? "text-kiln-orange" : "text-muted-foreground group-hover:text-foreground"
                               )}
                             />
                             <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>
@@ -465,10 +465,10 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               className={cn(
                 "group relative flex items-center rounded-md text-[13px] font-medium transition-all duration-150",
                 isCollapsed ? "lg:justify-center lg:px-0 lg:py-2 px-2.5 py-2 gap-2.5" : "gap-2.5 px-2.5 py-[7px]",
-                "text-zinc-400 hover:bg-white/[0.03] hover:text-zinc-200"
+                "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
               )}
             >
-              <HelpCircle className="h-[16px] w-[16px] shrink-0 text-zinc-500" />
+              <HelpCircle className="h-[16px] w-[16px] shrink-0 text-muted-foreground" />
               <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>Help</span>
             </Link>
           </NavTooltip>
@@ -481,7 +481,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className={cn(
-                  "flex w-full items-center rounded-md transition-colors hover:bg-white/[0.03]",
+                  "flex w-full items-center rounded-md transition-colors hover:bg-sidebar-accent/60",
                   isCollapsed ? "lg:justify-center lg:px-0 lg:py-2 px-2.5 py-2 gap-2.5" : "gap-2.5 px-2.5 py-2"
                 )}
               >
