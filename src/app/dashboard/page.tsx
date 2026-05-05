@@ -1,7 +1,5 @@
 "use client";
 
-import { Bot, Globe, Workflow, ArrowRight } from "lucide-react";
-import Link from "next/link";
 import { GettingStartedSection } from "@/components/onboarding-checklist";
 import { QuickStartSection, RecentActivityFeed } from "@/components/quick-actions";
 import { SkeletonStat } from "@/components/ui/skeleton";
@@ -9,30 +7,6 @@ import { ErrorState } from "@/components/ui/error-state";
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useState, useCallback, useRef } from "react";
-
-const modules = [
-  {
-    title: "AI Agent Studio",
-    description: "Create intelligent chat agents with custom knowledge bases.",
-    icon: Bot,
-    href: "/dashboard/agents",
-    active: true,
-  },
-  {
-    title: "Site Builder",
-    description: "Generate websites and landing pages with natural language.",
-    icon: Globe,
-    href: "/dashboard/sites",
-    active: false,
-  },
-  {
-    title: "Workflows",
-    description: "Build multi-agent workflows with a visual editor.",
-    icon: Workflow,
-    href: "/dashboard/teams",
-    active: true,
-  },
-];
 
 // Zeitbasierte Begrüßung
 function getGreeting(): string {
@@ -174,47 +148,8 @@ export default function DashboardPage() {
         <GettingStartedSection />
       </div>
 
-      {/* Module Cards */}
-      <div className="grid gap-5 md:grid-cols-3">
-        {modules.map((mod) => (
-          <Link
-            key={mod.title}
-            href={mod.href}
-            className={cn(
-              "group relative overflow-hidden rounded-xl border border-border bg-card p-6",
-              "transition-all duration-150 ease-out",
-              "hover:bg-muted/40 hover:border-foreground/20",
-              !mod.active && "opacity-50"
-            )}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted group-hover:bg-muted/70 transition-colors">
-                <mod.icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-              </div>
-              {!mod.active && (
-                <span className="text-xs font-medium text-muted-foreground">
-                  Coming Soon
-                </span>
-              )}
-            </div>
-            <h2 className="mb-1 text-base font-medium text-foreground">
-              {mod.title}
-            </h2>
-            <p className="mb-4 text-sm text-muted-foreground leading-relaxed">
-              {mod.description}
-            </p>
-            {mod.active && (
-              <div className="flex items-center gap-1 text-sm font-medium text-primary transition-colors group-hover:text-primary/80">
-                Start
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </div>
-            )}
-          </Link>
-        ))}
-      </div>
-
       {/* Quick Start */}
-      <div className="mt-10">
+      <div>
         <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Quick Start
         </h2>
