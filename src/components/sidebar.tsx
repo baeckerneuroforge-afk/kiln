@@ -203,16 +203,19 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
   }
 
   useEffect(() => {
+    // /api/stripe/plan returns both plan AND agentCount, scoped by userId
+    // (NOT by active org). We use both fields here so the Clients link
+    // gating (requiresBusiness + minAgents) doesn't depend on the
+    // sidebar-mount-vs-org-activation race: a separate /api/agents fetch
+    // is org-scoped after Phase 2.2 and returns 0 when the active org
+    // hasn't been set yet, which would hide every minAgents-gated link.
     fetch("/api/stripe/plan")
       .then((res) => res.json())
-      .then((data) => setPlan(data.plan || "FREE"))
-      .catch(() => {});
-
-    fetch("/api/agents")
-      .then((res) => res.json())
       .then((data) => {
-        const agents = data.agents || data || [];
-        if (Array.isArray(agents)) setAgentCount(agents.length);
+        setPlan(data.plan || "FREE");
+        if (typeof data.agentCount === "number") {
+          setAgentCount(data.agentCount);
+        }
       })
       .catch(() => {});
   }, []);
