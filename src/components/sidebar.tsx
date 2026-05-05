@@ -122,6 +122,8 @@ const NAV_SECTIONS: NavSection[] = [
     defaultOpen: false,
     items: [
       { name: "Clients", href: "/dashboard/clients", icon: Building2, minAgents: 1, requiresBusiness: true },
+      { name: "Sub-orgs", href: "/dashboard/agency/sub-orgs", icon: Building2, minAgents: 0, requiresBusiness: true },
+      { name: "Branding", href: "/dashboard/agency/branding", icon: Settings, minAgents: 0, requiresBusiness: true },
       { name: "Data Explorer", href: "/dashboard/data-explorer", icon: Database, minAgents: 1 },
       { name: "Settings", href: "/dashboard/settings", icon: Settings, minAgents: 0 },
     ],
@@ -163,6 +165,14 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
+  // Agency white-label: when the active org is a sub-org, the branding API
+  // returns the parent agency's logo + name with isInherited=true.
+  const [agencyBrand, setAgencyBrand] = useState<{
+    logoUrl: string | null;
+    agencyName: string | null;
+    showAgencyLogo: boolean;
+    isInherited: boolean;
+  } | null>(null);
 
   // Section expand/collapse state
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
@@ -215,6 +225,20 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
         setPlan(data.plan || "FREE");
         if (typeof data.agentCount === "number") {
           setAgentCount(data.agentCount);
+        }
+      })
+      .catch(() => {});
+
+    fetch("/api/agency/branding")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.branding) {
+          setAgencyBrand({
+            logoUrl: data.branding.logoUrl ?? null,
+            agencyName: data.branding.agencyName ?? null,
+            showAgencyLogo: data.branding.showAgencyLogo ?? true,
+            isInherited: Boolean(data.isInherited),
+          });
         }
       })
       .catch(() => {});
@@ -289,14 +313,40 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
           isCollapsed && "lg:w-[60px]",
         )}
       >
-        {/* Header */}
+        {/* Header — agency branding overrides the KILN mark in sub-orgs */}
         <div className="flex items-center justify-between px-4 pt-5 pb-2">
           <Link href="/dashboard" className="flex items-center gap-2.5" onClick={onClose}>
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-kiln-orange to-kiln-ember shadow-lg shadow-kiln-orange/20">
-              <span className="font-serif text-base font-bold text-white">K</span>
-            </div>
-            <span className={cn("font-serif text-lg text-foreground transition-opacity duration-200", isCollapsed && "lg:hidden")}>
-              KILN
+            {agencyBrand?.isInherited &&
+            agencyBrand.showAgencyLogo &&
+            agencyBrand.logoUrl ? (
+              // White-label: render the agency's logo image. KILN moves to
+              // a "powered by" footer (handled by LegalFooter).
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={agencyBrand.logoUrl}
+                alt={agencyBrand.agencyName ?? "Agency"}
+                className="h-8 w-auto max-w-[140px] object-contain"
+              />
+            ) : (
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-kiln-orange to-kiln-ember shadow-lg shadow-kiln-orange/20">
+                <span className="font-serif text-base font-bold text-white">K</span>
+              </div>
+            )}
+            <span
+              className={cn(
+                "font-serif text-lg text-foreground transition-opacity duration-200",
+                isCollapsed && "lg:hidden",
+                agencyBrand?.isInherited &&
+                  agencyBrand.showAgencyLogo &&
+                  agencyBrand.logoUrl &&
+                  "hidden"
+              )}
+            >
+              {agencyBrand?.isInherited &&
+              agencyBrand.showAgencyLogo &&
+              agencyBrand.agencyName
+                ? agencyBrand.agencyName
+                : "KILN"}
             </span>
           </Link>
           <div className="flex items-center gap-1">
