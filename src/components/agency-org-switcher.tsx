@@ -17,32 +17,26 @@
  * Decision logic is split into a pure function `decideSwitcherSections`
  * (exported) so the bucket assignment can be tested without rendering.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, useClerk, useOrganization } from "@clerk/nextjs";
 import { Building2, ChevronDown, Plus, User } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import {
+  type AgencyEntry,
+  type Membership,
+  type SubOrgEntry,
+  type SwitcherData,
+  MEMBERSHIPS_ENDPOINT_PATH,
+} from "./agency-org-switcher-types";
 
-const MEMBERSHIPS_ENDPOINT = "/api/agency/memberships";
+const MEMBERSHIPS_ENDPOINT = MEMBERSHIPS_ENDPOINT_PATH;
 
-type Membership = {
-  orgId: string;
-  name: string;
-  imageUrl: string | null;
-};
-
-type SubOrgEntry = Membership & {
-  status: "ACTIVE" | "SUSPENDED" | "ARCHIVED";
-};
-
-type AgencyEntry = Membership & { subOrgs: SubOrgEntry[] };
-
-export type SwitcherData = {
-  personal: Membership | null;
-  agencies: AgencyEntry[];
-  other: Membership[];
-};
+// Re-export for callers that imported these from the .tsx in earlier commits.
+export type { AgencyEntry, Membership, SubOrgEntry, SwitcherData };
+export { MEMBERSHIPS_ENDPOINT_PATH };
+export { decideSwitcherSections } from "./agency-org-switcher-types";
 
 interface AgencyOrgSwitcherProps {
   collapsed?: boolean;
@@ -292,28 +286,5 @@ function Row({
   );
 }
 
-/* ── Pure decision helper for tests ── */
-
-/**
- * Sorts API response into the three render buckets. The server already
- * does the heavy lifting; this helper just re-asserts the contract so
- * UI tests can pin it independently.
- */
-export function decideSwitcherSections(data: SwitcherData): {
-  hasPersonal: boolean;
-  agencyCount: number;
-  totalSubOrgs: number;
-  otherCount: number;
-} {
-  return {
-    hasPersonal: data.personal !== null,
-    agencyCount: data.agencies.length,
-    totalSubOrgs: data.agencies.reduce(
-      (acc, a) => acc + a.subOrgs.length,
-      0
-    ),
-    otherCount: data.other.length,
-  };
-}
-
-export const MEMBERSHIPS_ENDPOINT_PATH = MEMBERSHIPS_ENDPOINT;
+// decideSwitcherSections + MEMBERSHIPS_ENDPOINT_PATH live in
+// ./agency-org-switcher-types.ts and are re-exported above.
