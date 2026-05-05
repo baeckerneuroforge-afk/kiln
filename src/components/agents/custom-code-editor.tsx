@@ -206,7 +206,7 @@ export function CustomCodeEditor({ code, description, onSave, onClose, saving }:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="mx-4 flex h-[85vh] w-full max-w-5xl flex-col rounded-2xl border border-border bg-[#1a1918] shadow-2xl">
+      <div className="mx-4 flex h-[85vh] w-full max-w-5xl flex-col rounded-2xl border border-border bg-card shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <div className="flex items-center gap-3">
@@ -285,7 +285,7 @@ export function CustomCodeEditor({ code, description, onSave, onClose, saving }:
           </div>
 
           {/* Sidebar: Templates + Docs */}
-          <div className="w-64 shrink-0 overflow-y-auto border-l border-border bg-[#1a1918] p-4">
+          <div className="w-64 shrink-0 overflow-y-auto border-l border-border bg-card p-4">
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Templates
             </h3>

@@ -84,7 +84,7 @@ export function MultiTenantDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-stone-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-foreground0" />
       </div>
     );
   }
@@ -135,19 +135,19 @@ export function MultiTenantDashboard() {
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground0" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Kunden suchen..."
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-stone-900 border border-stone-800 text-white placeholder:text-stone-600 focus:border-kiln-orange focus:outline-none text-sm"
+          className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-background border border-border text-foreground placeholder:text-muted-foreground focus:border-kiln-orange focus:outline-none text-sm"
         />
       </div>
 
       {/* Client Table */}
-      <div className="rounded-lg border border-stone-800 overflow-hidden">
-        <div className="bg-stone-900/50 px-4 py-3 flex items-center gap-4 text-xs text-stone-500 font-medium">
+      <div className="rounded-lg border border-border overflow-hidden">
+        <div className="bg-background/50 px-4 py-3 flex items-center gap-4 text-xs text-foreground0 font-medium">
           <div className="flex-1">Kunde</div>
           <div className="w-20 text-center">Agents</div>
           <div className="w-24 text-center">Ausführungen</div>
@@ -158,40 +158,40 @@ export function MultiTenantDashboard() {
         </div>
 
         {filteredClients.length === 0 ? (
-          <div className="text-center py-12 text-stone-500">
+          <div className="text-center py-12 text-foreground0">
             <Building2 className="w-8 h-8 mx-auto mb-2 opacity-30" />
             <p>Keine Kunden gefunden.</p>
           </div>
         ) : (
-          <div className="divide-y divide-stone-800/50">
+          <div className="divide-y divide-border/50">
             {filteredClients.map((client) => (
               <div key={client.id}>
                 {/* Client Row */}
-                <div className="px-4 py-3 flex items-center gap-4 hover:bg-stone-900/30 transition-colors">
+                <div className="px-4 py-3 flex items-center gap-4 hover:bg-background/30 transition-colors">
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm text-white truncate">{client.name}</div>
-                    <div className="text-xs text-stone-500 truncate">{client.email}</div>
+                    <div className="text-sm text-foreground truncate">{client.name}</div>
+                    <div className="text-xs text-foreground0 truncate">{client.email}</div>
                   </div>
-                  <div className="w-20 text-center text-sm text-stone-300">
+                  <div className="w-20 text-center text-sm text-foreground">
                     {client.agentCount}
                   </div>
-                  <div className="w-24 text-center text-sm text-stone-300">
+                  <div className="w-24 text-center text-sm text-foreground">
                     {client.totalRuns.toLocaleString("de-DE")}
                   </div>
                   <div className="w-24 text-center">
                     <HealthBadge score={client.healthScore} />
                   </div>
-                  <div className="w-24 text-right text-sm text-stone-300">
+                  <div className="w-24 text-right text-sm text-foreground">
                     €{client.revenue.toLocaleString("de-DE")}
                   </div>
-                  <div className="w-32 text-right text-xs text-stone-500">
+                  <div className="w-32 text-right text-xs text-foreground0">
                     {new Date(client.lastActive).toLocaleDateString("de-DE")}
                   </div>
                   <div className="w-20 flex items-center justify-end gap-1">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-stone-400 hover:text-white p-1"
+                      className="text-muted-foreground hover:text-foreground p-1"
                       onClick={() =>
                         setExpandedId(expandedId === client.id ? null : client.id)
                       }
@@ -205,7 +205,7 @@ export function MultiTenantDashboard() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-stone-400 hover:text-kiln-orange p-1"
+                      className="text-muted-foreground hover:text-kiln-orange p-1"
                     >
                       <ExternalLink className="w-4 h-4" />
                     </Button>
@@ -219,18 +219,18 @@ export function MultiTenantDashboard() {
                       {client.agents.map((agent) => (
                         <div
                           key={agent.id}
-                          className="flex items-center justify-between px-3 py-2 rounded bg-stone-900/50 text-sm"
+                          className="flex items-center justify-between px-3 py-2 rounded bg-background/50 text-sm"
                         >
                           <div className="flex items-center gap-2">
-                            <Bot className="w-3.5 h-3.5 text-stone-500" />
-                            <span className="text-stone-300">{agent.name}</span>
+                            <Bot className="w-3.5 h-3.5 text-foreground0" />
+                            <span className="text-foreground">{agent.name}</span>
                             <span
                               className={cn(
                                 "text-xs px-1.5 py-0.5 rounded",
                                 agent.status === "LIVE"
                                   ? "bg-kiln-green/10 text-kiln-green"
                                   : agent.status === "DRAFT"
-                                    ? "bg-stone-700/50 text-stone-400"
+                                    ? "bg-muted-foreground/50 text-muted-foreground"
                                     : "bg-yellow-500/10 text-yellow-400"
                               )}
                             >
@@ -238,7 +238,7 @@ export function MultiTenantDashboard() {
                             </span>
                           </div>
                           <div className="flex items-center gap-4">
-                            <span className="text-xs text-stone-500">
+                            <span className="text-xs text-foreground0">
                               {agent.conversations} Gespräche
                             </span>
                             <HealthBadge score={agent.healthScore} size="sm" />
@@ -275,14 +275,14 @@ function StatCard({
   subtitleColor?: string;
 }) {
   return (
-    <div className="rounded-lg border border-stone-800 bg-stone-900/30 p-4">
+    <div className="rounded-lg border border-border bg-background/30 p-4">
       <div className="flex items-center gap-2 mb-2">
         <Icon className={cn("w-4 h-4", color)} />
-        <span className="text-xs text-stone-500">{label}</span>
+        <span className="text-xs text-foreground0">{label}</span>
       </div>
-      <div className="text-xl font-serif text-white">{value}</div>
+      <div className="text-xl font-serif text-foreground">{value}</div>
       {subtitle && (
-        <div className={cn("text-xs mt-1", subtitleColor || "text-stone-500")}>
+        <div className={cn("text-xs mt-1", subtitleColor || "text-foreground0")}>
           {subtitle}
         </div>
       )}

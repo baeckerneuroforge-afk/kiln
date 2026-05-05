@@ -102,14 +102,14 @@ export function CrossClientAnalytics() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-stone-500" />
+        <Loader2 className="w-6 h-6 animate-spin text-foreground0" />
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="text-center py-12 text-stone-500">
+      <div className="text-center py-12 text-foreground0">
         Keine Daten verfügbar.
       </div>
     );
@@ -120,11 +120,11 @@ export function CrossClientAnalytics() {
       {/* Filters */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-stone-500" />
+          <Calendar className="w-4 h-4 text-foreground0" />
           <select
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value)}
-            className="text-sm bg-stone-900 border border-stone-700 rounded-md px-3 py-1.5 text-white focus:outline-none focus:border-kiln-orange"
+            className="text-sm bg-background border border-border rounded-md px-3 py-1.5 text-foreground focus:outline-none focus:border-kiln-orange"
           >
             <option value="7d">Letzte 7 Tage</option>
             <option value="30d">Letzte 30 Tage</option>
@@ -134,7 +134,7 @@ export function CrossClientAnalytics() {
 
           {data.clients.length > 0 && (
             <div className="flex items-center gap-1 ml-2">
-              <Filter className="w-4 h-4 text-stone-500" />
+              <Filter className="w-4 h-4 text-foreground0" />
               {data.clients.slice(0, 5).map((c) => (
                 <button
                   key={c.clientId}
@@ -143,7 +143,7 @@ export function CrossClientAnalytics() {
                     "text-xs px-2 py-0.5 rounded-full border transition-colors",
                     selectedClients.includes(c.clientId)
                       ? "border-kiln-orange/50 bg-kiln-orange/10 text-kiln-orange"
-                      : "border-stone-700 text-stone-500 hover:text-stone-300"
+                      : "border-border text-foreground0 hover:text-foreground"
                   )}
                 >
                   {c.clientName}
@@ -157,7 +157,7 @@ export function CrossClientAnalytics() {
           variant="ghost"
           size="sm"
           onClick={handleExportCSV}
-          className="text-stone-400 hover:text-white"
+          className="text-muted-foreground hover:text-foreground"
         >
           <Download className="w-4 h-4 mr-1" />
           CSV Export
@@ -199,8 +199,8 @@ export function CrossClientAnalytics() {
       </div>
 
       {/* Revenue per Client */}
-      <div className="rounded-lg border border-stone-800 bg-stone-900/30 p-4">
-        <h3 className="text-sm font-medium text-stone-400 mb-4 flex items-center gap-2">
+      <div className="rounded-lg border border-border bg-background/30 p-4">
+        <h3 className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
           <TrendingUp className="w-4 h-4" />
           Umsatz pro Kunde
         </h3>
@@ -214,12 +214,12 @@ export function CrossClientAnalytics() {
               return (
                 <div key={client.clientId} className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-stone-300">{client.clientName}</span>
-                    <span className="text-white font-mono">
+                    <span className="text-foreground">{client.clientName}</span>
+                    <span className="text-foreground font-mono">
                       €{client.revenue.toLocaleString("de-DE")}
                     </span>
                   </div>
-                  <div className="h-2 bg-stone-800 rounded-full overflow-hidden">
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full bg-gradient-to-r from-kiln-orange to-kiln-ember rounded-full transition-all duration-500"
                       style={{ width: `${width}%` }}
@@ -232,15 +232,15 @@ export function CrossClientAnalytics() {
       </div>
 
       {/* Cost per Client */}
-      <div className="rounded-lg border border-stone-800 bg-stone-900/30 p-4">
-        <h3 className="text-sm font-medium text-stone-400 mb-4 flex items-center gap-2">
+      <div className="rounded-lg border border-border bg-background/30 p-4">
+        <h3 className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
           <DollarSign className="w-4 h-4" />
           Kosten pro Kunde
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-stone-500 text-xs">
+              <tr className="text-foreground0 text-xs">
                 <th className="text-left py-2">Kunde</th>
                 <th className="text-right py-2">Agents</th>
                 <th className="text-right py-2">Runs</th>
@@ -249,13 +249,13 @@ export function CrossClientAnalytics() {
                 <th className="text-right py-2">Gesundheit</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-stone-800/50">
+            <tbody className="divide-y divide-border/50">
               {data.clients.map((client) => {
                 const cost = client.costCents / 100;
                 const margin = client.revenue > 0 ? ((client.revenue - cost) / client.revenue) * 100 : 0;
 
                 return (
-                  <tr key={client.clientId} className="text-stone-300">
+                  <tr key={client.clientId} className="text-foreground">
                     <td className="py-2">{client.clientName}</td>
                     <td className="py-2 text-right">{client.agentCount}</td>
                     <td className="py-2 text-right">{client.runs}</td>
@@ -309,12 +309,12 @@ function TotalCard({
   color: string;
 }) {
   return (
-    <div className="rounded-lg border border-stone-800 bg-stone-900/30 p-3">
+    <div className="rounded-lg border border-border bg-background/30 p-3">
       <div className="flex items-center gap-2 mb-1">
         <Icon className={cn("w-3.5 h-3.5", color)} />
-        <span className="text-xs text-stone-500">{label}</span>
+        <span className="text-xs text-foreground0">{label}</span>
       </div>
-      <div className="text-lg font-serif text-white">{value}</div>
+      <div className="text-lg font-serif text-foreground">{value}</div>
     </div>
   );
 }

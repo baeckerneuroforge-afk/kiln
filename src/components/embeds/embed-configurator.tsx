@@ -184,7 +184,7 @@ export function EmbedConfigurator({
   // Upgrade-Prompt wenn Plan Embeds nicht erlaubt
   if (planLevel === false) {
     return (
-      <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center">
+      <div className="rounded-xl border border-border bg-muted/40 p-8 text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-orange-500/10">
           <svg
             className="h-6 w-6 text-orange-500"
@@ -200,10 +200,10 @@ export function EmbedConfigurator({
             />
           </svg>
         </div>
-        <h3 className="text-lg font-semibold text-white">
+        <h3 className="text-lg font-semibold text-foreground">
           Embed-Komponenten freischalten
         </h3>
-        <p className="mt-2 text-sm text-white/60">
+        <p className="mt-2 text-sm text-muted-foreground">
           Upgrade deinen Plan, um Agent-Komponenten auf externen Websites
           einzubetten.
         </p>
@@ -231,7 +231,7 @@ export function EmbedConfigurator({
     <div className="space-y-6">
       {/* Komponenten-Auswahl */}
       <div>
-        <h3 className="mb-3 text-sm font-medium text-white/80">
+        <h3 className="mb-3 text-sm font-medium text-foreground/80">
           Komponente wählen
         </h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -242,14 +242,14 @@ export function EmbedConfigurator({
               className={`rounded-lg border p-3 text-left transition-all ${
                 selectedComponent === comp.type
                   ? "border-orange-500 bg-orange-500/10"
-                  : "border-white/10 bg-white/5 hover:border-white/20"
+                  : "border-border bg-muted/40 hover:border-foreground/20"
               }`}
             >
               <span className="text-xl">{comp.icon}</span>
-              <p className="mt-1.5 text-sm font-medium text-white">
+              <p className="mt-1.5 text-sm font-medium text-foreground">
                 {comp.label}
               </p>
-              <p className="mt-0.5 text-xs text-white/50">
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 {comp.description}
               </p>
             </button>
@@ -259,18 +259,18 @@ export function EmbedConfigurator({
           {lockedComponents.map((comp) => (
             <div
               key={comp.type}
-              className="relative rounded-lg border border-white/5 bg-white/[0.02] p-3 opacity-50"
+              className="relative rounded-lg border border-border bg-muted/40 p-3 opacity-50"
             >
               <span className="text-xl grayscale">{comp.icon}</span>
-              <p className="mt-1.5 text-sm font-medium text-white/60">
+              <p className="mt-1.5 text-sm font-medium text-muted-foreground">
                 {comp.label}
               </p>
-              <p className="mt-0.5 text-xs text-white/30">
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 Pro-Plan erforderlich
               </p>
               <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/20">
                 <svg
-                  className="h-5 w-5 text-white/40"
+                  className="h-5 w-5 text-muted-foreground"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -287,12 +287,12 @@ export function EmbedConfigurator({
 
       {/* Konfiguration */}
       {selectedComponent && (
-        <div className="space-y-4 rounded-lg border border-white/10 bg-white/5 p-4">
-          <h3 className="text-sm font-medium text-white/80">Konfiguration</h3>
+        <div className="space-y-4 rounded-lg border border-border bg-muted/40 p-4">
+          <h3 className="text-sm font-medium text-foreground/80">Konfiguration</h3>
 
           {/* Theme */}
           <div>
-            <label className="mb-1.5 block text-xs text-white/50">Theme</label>
+            <label className="mb-1.5 block text-xs text-muted-foreground">Theme</label>
             <div className="flex gap-2">
               {(["dark", "light", "auto"] as const).map((t) => (
                 <button
@@ -301,7 +301,7 @@ export function EmbedConfigurator({
                   className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                     theme === t
                       ? "bg-orange-500 text-white"
-                      : "bg-white/5 text-white/60 hover:bg-white/10"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted"
                   }`}
                 >
                   {t === "dark" ? "Dunkel" : t === "light" ? "Hell" : "Auto"}
@@ -313,26 +313,26 @@ export function EmbedConfigurator({
           {/* Abmessungen */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1.5 block text-xs text-white/50">
+              <label className="mb-1.5 block text-xs text-muted-foreground">
                 Breite
               </label>
               <input
                 type="text"
                 value={width}
                 onChange={(e) => setWidth(e.target.value)}
-                className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none focus:border-orange-500/50"
+                className="w-full rounded-md border border-border bg-muted/40 px-3 py-1.5 text-sm text-foreground outline-none focus:border-orange-500/50"
                 placeholder="100%"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs text-white/50">
+              <label className="mb-1.5 block text-xs text-muted-foreground">
                 Höhe
               </label>
               <input
                 type="text"
                 value={height}
                 onChange={(e) => setHeight(e.target.value)}
-                className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none focus:border-orange-500/50"
+                className="w-full rounded-md border border-border bg-muted/40 px-3 py-1.5 text-sm text-foreground outline-none focus:border-orange-500/50"
                 placeholder="500px"
               />
             </div>
@@ -340,13 +340,13 @@ export function EmbedConfigurator({
 
           {/* Branding Toggle */}
           <div className="flex items-center justify-between">
-            <label className="text-xs text-white/50">
+            <label className="text-xs text-muted-foreground">
               &quot;Powered by KILN&quot; anzeigen
             </label>
             <button
               onClick={() => setShowBranding(!showBranding)}
               className={`relative h-5 w-9 rounded-full transition-colors ${
-                showBranding ? "bg-orange-500" : "bg-white/10"
+                showBranding ? "bg-orange-500" : "bg-muted"
               }`}
             >
               <span
@@ -360,8 +360,8 @@ export function EmbedConfigurator({
       )}
 
       {/* Token-Verwaltung */}
-      <div className="space-y-4 rounded-lg border border-white/10 bg-white/5 p-4">
-        <h3 className="text-sm font-medium text-white/80">Embed-Tokens</h3>
+      <div className="space-y-4 rounded-lg border border-border bg-muted/40 p-4">
+        <h3 className="text-sm font-medium text-foreground/80">Embed-Tokens</h3>
 
         {/* Token erstellen */}
         <div className="flex gap-2">
@@ -370,7 +370,7 @@ export function EmbedConfigurator({
             value={newTokenLabel}
             onChange={(e) => setNewTokenLabel(e.target.value)}
             placeholder="Token-Label (optional)"
-            className="flex-1 rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white outline-none placeholder:text-white/30 focus:border-orange-500/50"
+            className="flex-1 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-orange-500/50"
           />
           <button
             onClick={createToken}
@@ -383,9 +383,9 @@ export function EmbedConfigurator({
 
         {/* Token-Liste */}
         {loadingTokens ? (
-          <p className="text-xs text-white/40">Lade Tokens...</p>
+          <p className="text-xs text-muted-foreground">Lade Tokens...</p>
         ) : tokens.length === 0 ? (
-          <p className="text-xs text-white/40">
+          <p className="text-xs text-muted-foreground">
             Noch keine Tokens vorhanden. Erstelle ein Token, um den Embed-Code
             zu generieren.
           </p>
@@ -397,23 +397,23 @@ export function EmbedConfigurator({
                 className={`flex items-center justify-between rounded-md border p-2.5 ${
                   selectedToken === t.token
                     ? "border-orange-500/50 bg-orange-500/5"
-                    : "border-white/5 bg-white/[0.02]"
+                    : "border-border bg-muted/40"
                 }`}
               >
                 <button
                   onClick={() => setSelectedToken(t.token)}
                   className="flex-1 text-left"
                 >
-                  <p className="text-xs font-medium text-white">
+                  <p className="text-xs font-medium text-foreground">
                     {t.label || "Embed Token"}
                   </p>
-                  <p className="mt-0.5 font-mono text-[10px] text-white/30">
+                  <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
                     {t.token.slice(0, 16)}...
                   </p>
                 </button>
                 <button
                   onClick={() => revokeToken(t.id)}
-                  className="ml-2 rounded p-1 text-white/30 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                  className="ml-2 rounded p-1 text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-400"
                   title="Token widerrufen"
                 >
                   <svg
@@ -440,14 +440,14 @@ export function EmbedConfigurator({
       {selectedComponent && selectedToken && (
         <div className="space-y-4">
           {/* HTML Embed Code */}
-          <div className="rounded-lg border border-white/10 bg-white/5 p-4">
+          <div className="rounded-lg border border-border bg-muted/40 p-4">
             <div className="mb-2 flex items-center justify-between">
-              <h4 className="text-xs font-medium text-white/60">
+              <h4 className="text-xs font-medium text-muted-foreground">
                 HTML Embed Code
               </h4>
               <button
                 onClick={() => copyToClipboard(embedCode, "embed")}
-                className="flex items-center gap-1 rounded px-2 py-1 text-xs text-white/50 transition-colors hover:bg-white/5 hover:text-white"
+                className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
               >
                 {copied === "embed" ? (
                   <>
@@ -486,20 +486,20 @@ export function EmbedConfigurator({
                 )}
               </button>
             </div>
-            <pre className="overflow-x-auto rounded-md bg-black/30 p-3 font-mono text-xs text-white/70">
+            <pre className="overflow-x-auto rounded-md bg-black/30 p-3 font-mono text-xs text-foreground/70">
               {embedCode}
             </pre>
           </div>
 
           {/* iframe Code */}
-          <div className="rounded-lg border border-white/10 bg-white/5 p-4">
+          <div className="rounded-lg border border-border bg-muted/40 p-4">
             <div className="mb-2 flex items-center justify-between">
-              <h4 className="text-xs font-medium text-white/60">
+              <h4 className="text-xs font-medium text-muted-foreground">
                 iframe Code
               </h4>
               <button
                 onClick={() => copyToClipboard(iframeCode, "iframe")}
-                className="flex items-center gap-1 rounded px-2 py-1 text-xs text-white/50 transition-colors hover:bg-white/5 hover:text-white"
+                className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
               >
                 {copied === "iframe" ? (
                   <>
@@ -538,18 +538,18 @@ export function EmbedConfigurator({
                 )}
               </button>
             </div>
-            <pre className="overflow-x-auto rounded-md bg-black/30 p-3 font-mono text-xs text-white/70">
+            <pre className="overflow-x-auto rounded-md bg-black/30 p-3 font-mono text-xs text-foreground/70">
               {iframeCode}
             </pre>
           </div>
 
           {/* Live-Vorschau */}
-          <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-            <h4 className="mb-3 text-xs font-medium text-white/60">
+          <div className="rounded-lg border border-border bg-muted/40 p-4">
+            <h4 className="mb-3 text-xs font-medium text-muted-foreground">
               Live-Vorschau
             </h4>
             <div
-              className="overflow-hidden rounded-lg border border-white/10"
+              className="overflow-hidden rounded-lg border border-border"
               style={{ height: "300px" }}
             >
               <iframe
