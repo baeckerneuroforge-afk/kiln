@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Palette, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/toast";
+import { CustomDomainSection } from "@/components/agency/custom-domain-section";
 
 type Branding = {
   logoUrl: string | null;
@@ -230,6 +231,10 @@ export default function AgencyBrandingPage() {
             </Button>
           </div>
         )}
+      </div>
+
+      <div className="mt-6">
+        <CustomDomainSection isInherited={isInherited} />
       </div>
     </div>
   );
