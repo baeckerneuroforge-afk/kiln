@@ -2377,3 +2377,49 @@ model SwarmIntelligence {
   @@index([promptVersionHash])
   @@index([createdAt])
 }
+
+/// ── Phase 2.3b: Sub-Org Hierarchy (Agency-Tier) ─────────────────────────
+///
+/// An Agency org can own one or more Sub-Orgs ("Client workspaces"). Both
+/// the parent and the child are real Clerk Organizations — this table
+/// records the parent → child relationship so we can list an Agency's
+/// sub-orgs, gate sub-org creation by plan tier, and route billing /
+/// branding from the Agency down to each child.
+model OrgRelationship {
+  id           String       @id @default(cuid())
+  parentOrgId  String       // Clerk Org ID of the Agency (parent)
+  childOrgId   String       @unique // Clerk Org ID of the Sub-Org (child)
+  createdAt    DateTime     @default(now())
+  createdBy    String       // Clerk user id who created the relationship
+
+  // Sub-Org metadata cached locally so the agency dashboard doesn't have
+  // to round-trip Clerk for every list render.
+  subOrgName   String
+  subOrgStatus SubOrgStatus @default(ACTIVE)
+
+  @@index([parentOrgId])
+  @@index([childOrgId])
+  @@index([parentOrgId, subOrgStatus])
+}
+
+enum SubOrgStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+/// White-label branding configured by an Agency org. The agency sees its
+/// own brand on its dashboard; sub-orgs inherit it (logo + agencyName
+/// shown in the sidebar, optional primary color override). One row per
+/// Clerk Org.
+model OrgBranding {
+  id             String   @id @default(cuid())
+  orgId          String   @unique // Clerk Org ID
+  logoUrl        String?
+  primaryColor   String?  // hex, e.g. #F97316
+  showAgencyLogo Boolean  @default(true)
+  agencyName     String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
