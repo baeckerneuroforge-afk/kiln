@@ -152,7 +152,7 @@ export default function DashboardPage() {
 
       {/* Recent Activity */}
       <div className="mt-10">
-        <RecentActivityFeed />
+        <RecentActivityFeed hasAgents={statsLoading ? null : stats.agents > 0} />
       </div>
     </div>
   );

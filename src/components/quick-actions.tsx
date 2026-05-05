@@ -125,42 +125,33 @@ function ActivitySkeleton() {
   );
 }
 
-export function RecentActivityFeed() {
+export function RecentActivityFeed({
+  hasAgents,
+}: {
+  // Empty-state copy depends on whether the caller has agents at all
+  // ("Create your first") vs. just no recent activity ("Run an agent to
+  // see activity here"). Passed in from the dashboard parent, which
+  // already fetches /api/agents for the stats stripe — keeping a single
+  // source of truth instead of re-fetching here.
+  // `null` = parent is still loading agent count; render the neutral state.
+  hasAgents: boolean | null;
+}) {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
-  const [hasAgents, setHasAgents] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      try {
-        // Fetch activity + agent count in parallel. The agent count drives
-        // which empty-state copy to show — "create your first agent" vs.
-        // "run an agent to see activity here" — so we know whether the user
-        // is genuinely empty or just hasn't run anything recently.
-        const [activityRes, agentsRes] = await Promise.allSettled([
-          fetch("/api/activity/recent"),
-          fetch("/api/agents"),
-        ]);
-
-        if (activityRes.status === "fulfilled" && activityRes.value.ok) {
-          const data = await activityRes.value.json();
-          if (!cancelled) setEvents(data.events ?? []);
-        }
-
-        if (agentsRes.status === "fulfilled" && agentsRes.value.ok) {
-          const data = await agentsRes.value.json();
-          if (!cancelled) {
-            setHasAgents(Array.isArray(data) && data.length > 0);
-          }
-        } else if (!cancelled) {
-          setHasAgents(false);
-        }
-      } finally {
+    fetch("/api/activity/recent")
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((data) => {
+        if (!cancelled) setEvents(data.events ?? []);
+      })
+      .catch(() => {
+        // Silently handle — empty state will render.
+      })
+      .finally(() => {
         if (!cancelled) setLoading(false);
-      }
-    }
-    load();
+      });
     return () => {
       cancelled = true;
     };
