@@ -1,12 +1,19 @@
 import { headers } from "next/headers";
 import { getStripe } from "@/lib/stripe";
 import { ResellerBilling } from "@/lib/billing/reseller-billing";
+import { handlePhase3ConnectEvent } from "@/lib/stripe/connect-webhook";
 import type Stripe from "stripe";
 
 export const dynamic = "force-dynamic";
 
-// Separater Webhook-Endpoint für Stripe Connect Events
-// NICHT den bestehenden /api/webhooks/stripe Endpoint verändern!
+// Stripe Connect webhook receiver. Two handlers run in sequence:
+//   - Phase 3 (current): mirrors events into AgencyStripeAccount /
+//     SubOrgSubscription / SubOrgInvoice. Routed by subscription metadata
+//     stamped at checkout (`kilnSubOrgId`, `kilnParentAgencyOrgId`).
+//   - Legacy ResellerBilling: keeps updating `clientSubscription` /
+//     `resellerAccount` for grandfathered reseller accounts.
+// Both target disjoint tables; calling both is safe and a no-op for any
+// event the handler can't resolve.
 export async function POST(request: Request) {
   const body = await request.text();
   const headersList = await headers();
@@ -30,6 +37,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    await handlePhase3ConnectEvent(event);
     await ResellerBilling.handleConnectWebhook(event);
     return Response.json({ received: true });
   } catch (err) {
