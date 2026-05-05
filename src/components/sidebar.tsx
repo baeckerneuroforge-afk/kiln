@@ -31,6 +31,7 @@ import {
   Globe,
   Search,
   Workflow,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -52,7 +53,12 @@ interface NavItem {
   icon: LucideIcon;
   minAgents: number;
   requiresPro?: boolean;
+  // Stripe-Connect-class features (AGENCY / ENTERPRISE / ADMIN only).
+  // Branding white-label, Stripe Connect, revenue dashboard. NOT BUSINESS.
   requiresBusiness?: boolean;
+  // Sub-org-class features (BUSINESS / AGENCY / ENTERPRISE / ADMIN).
+  // Sub-orgs page itself, multi-tenant management. Includes BUSINESS.
+  requiresAgencyTier?: boolean;
   tourId?: string;
 }
 
@@ -124,8 +130,9 @@ const NAV_SECTIONS: NavSection[] = [
     defaultOpen: false,
     items: [
       { name: "Clients", href: "/dashboard/clients", icon: Building2, minAgents: 1, requiresBusiness: true },
-      { name: "Sub-orgs", href: "/dashboard/agency/sub-orgs", icon: Building2, minAgents: 0, requiresBusiness: true },
+      { name: "Sub-orgs", href: "/dashboard/agency/sub-orgs", icon: Building2, minAgents: 0, requiresAgencyTier: true },
       { name: "Branding", href: "/dashboard/agency/branding", icon: Settings, minAgents: 0, requiresBusiness: true },
+      { name: "Billing", href: "/dashboard/agency/billing", icon: CreditCard, minAgents: 0, requiresBusiness: true },
       { name: "Data Explorer", href: "/dashboard/data-explorer", icon: Database, minAgents: 1 },
       { name: "Settings", href: "/dashboard/settings", icon: Settings, minAgents: 0 },
     ],
@@ -138,6 +145,7 @@ const planBadgeStyles: Record<string, string> = {
   FREE: "bg-muted text-muted-foreground",
   STARTER: "bg-blue-500/15 text-blue-400",
   PRO: "bg-kiln-orange/15 text-kiln-orange",
+  BUSINESS: "bg-sky-500/15 text-sky-400",
   AGENCY: "bg-purple-500/15 text-purple-400",
   ENTERPRISE: "bg-emerald-500/15 text-emerald-400",
   ADMIN: "bg-purple-500/15 text-purple-400",
@@ -268,12 +276,18 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
   // Check if an item should be visible based on plan/agent gates
   function isItemVisible(item: NavItem): boolean {
     if (item.requiresBusiness) {
+      // Stripe-Connect-class plans only — BUSINESS does NOT qualify.
       const isBusiness = ["AGENCY", "ENTERPRISE", "ADMIN"].includes(plan);
       if (!isBusiness) return false;
     }
+    if (item.requiresAgencyTier) {
+      // Anyone with sub-orgs — BUSINESS, AGENCY, ENTERPRISE, ADMIN.
+      const isAgencyTier = ["BUSINESS", "AGENCY", "ENTERPRISE", "ADMIN"].includes(plan);
+      if (!isAgencyTier) return false;
+    }
     if (agentCount < item.minAgents) {
       if (item.requiresPro) {
-        const isPro = ["PRO", "AGENCY", "ENTERPRISE", "ADMIN"].includes(plan);
+        const isPro = ["PRO", "BUSINESS", "AGENCY", "ENTERPRISE", "ADMIN"].includes(plan);
         if (isPro) return true;
       }
       return false;
