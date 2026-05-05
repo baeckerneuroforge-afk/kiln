@@ -2,11 +2,10 @@
 
 import { GettingStartedSection } from "@/components/onboarding-checklist";
 import { QuickStartSection, RecentActivityFeed } from "@/components/quick-actions";
-import { SkeletonStat } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 // Zeitbasierte Begrüßung
 function getGreeting(): string {
@@ -16,65 +15,37 @@ function getGreeting(): string {
   return "Good evening";
 }
 
-// CountUp Hook — animiert eine Zahl von 0 zum Zielwert
-function useCountUp(target: number, duration = 1500): number {
-  const [current, setCurrent] = useState(0);
-  const rafRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (target === 0) {
-      setCurrent(0);
-      return;
-    }
-
-    const startTime = performance.now();
-
-    function animate(now: number) {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      // Ease-out cubic
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCurrent(Math.round(eased * target));
-
-      if (progress < 1) {
-        rafRef.current = requestAnimationFrame(animate);
-      }
-    }
-
-    rafRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [target, duration]);
-
-  return current;
-}
-
-// Stat-Karte mit CountUp
-function StatCard({
+// One cell of the compact stats stripe. Renders a dim em-dash for zero so
+// empty accounts do not look like a wall of "0"s — the data isn't useful
+// yet, the cell shouldn't shout about it.
+function StatCell({
   label,
   value,
   prefix = "",
+  loading,
 }: {
   label: string;
   value: number;
   prefix?: string;
+  loading: boolean;
 }) {
-  const displayed = useCountUp(value);
-
   return (
-    <div
-      className={cn(
-        "rounded-xl border border-border bg-card/80 backdrop-blur-sm px-5 py-5",
-        "transition-all duration-300 hover:border-foreground/20"
-      )}
-    >
-      <p className="text-3xl font-semibold tracking-tight text-foreground">
-        {prefix}
-        {displayed.toLocaleString("de-DE")}
+    <div className="flex flex-col gap-1 px-5 py-3">
+      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
       </p>
-      <p className="mt-1.5 text-sm text-muted-foreground">{label}</p>
+      {loading ? (
+        <div className="h-6 w-14 animate-pulse rounded bg-muted" />
+      ) : value === 0 ? (
+        <p className="text-2xl font-semibold tracking-tight text-muted-foreground/60">
+          —
+        </p>
+      ) : (
+        <p className="text-2xl font-semibold tracking-tight text-foreground">
+          {prefix}
+          {value.toLocaleString("de-DE")}
+        </p>
+      )}
     </div>
   );
 }
@@ -132,9 +103,8 @@ export default function DashboardPage() {
 
   return (
     <div className="relative mx-auto max-w-5xl">
-
       {/* Header */}
-      <div className="mb-10">
+      <div className="mb-6">
         <h1 className="font-serif text-3xl font-normal text-foreground">
           {greeting}
           {firstName ? `, ${firstName}` : ""}
@@ -144,7 +114,31 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <div className="mb-10">
+      {/* Stats stripe — 4 cells, divided, above the fold. */}
+      <div className="mb-8">
+        {statsError ? (
+          <ErrorState message={statsError} onRetry={fetchStats} compact />
+        ) : (
+          <div
+            className={cn(
+              "grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border bg-card/60 sm:grid-cols-4 sm:divide-y-0"
+            )}
+          >
+            <StatCell label="Agents" value={stats.agents} loading={statsLoading} />
+            <StatCell label="Conversations" value={stats.conversations} loading={statsLoading} />
+            <StatCell label="Leads" value={stats.leads} loading={statsLoading} />
+            <StatCell
+              label="Est. Value"
+              value={stats.estimatedValue}
+              prefix="€"
+              loading={statsLoading}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Activation Checklist — hides itself when complete or near-complete. */}
+      <div className="mb-8">
         <GettingStartedSection />
       </div>
 
@@ -159,26 +153,6 @@ export default function DashboardPage() {
       {/* Recent Activity */}
       <div className="mt-10">
         <RecentActivityFeed />
-      </div>
-
-      {/* Stats */}
-      <div className="mt-10">
-        {statsLoading ? (
-          <div className="grid gap-4 md:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <SkeletonStat key={i} />
-            ))}
-          </div>
-        ) : statsError ? (
-          <ErrorState message={statsError} onRetry={fetchStats} compact />
-        ) : (
-          <div className="grid gap-4 md:grid-cols-4">
-            <StatCard label="Agents" value={stats.agents} />
-            <StatCard label="Conversations" value={stats.conversations} />
-            <StatCard label="Leads" value={stats.leads} />
-            <StatCard label="Est. Value" value={stats.estimatedValue} prefix="€" />
-          </div>
-        )}
       </div>
     </div>
   );
