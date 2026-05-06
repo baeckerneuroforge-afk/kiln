@@ -894,22 +894,54 @@ function NodePaletteSidebar({
 
           if (searchLower && filteredNodes.length === 0) return null;
 
+          // AI Agents header gets the kiln-orange tint so the
+          // headline use case stands out against the otherwise
+          // monochrome palette.
+          const isAgentsCategory = cat.id === "agents";
+
           return (
             <div key={cat.id}>
               {/* Category header */}
               <button
                 onClick={() => toggleCategory(cat.id)}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-muted"
+                className={cn(
+                  "flex w-full items-center gap-2 px-3 py-2 text-left transition-colors",
+                  isAgentsCategory
+                    ? "bg-kiln-orange/[0.04] hover:bg-kiln-orange/10"
+                    : "hover:bg-muted"
+                )}
               >
                 {isExpanded ? (
-                  <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <ChevronDown
+                    className={cn(
+                      "h-3 w-3 shrink-0",
+                      isAgentsCategory ? "text-kiln-orange" : "text-muted-foreground"
+                    )}
+                  />
                 ) : (
-                  <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <ChevronRight
+                    className={cn(
+                      "h-3 w-3 shrink-0",
+                      isAgentsCategory ? "text-kiln-orange" : "text-muted-foreground"
+                    )}
+                  />
                 )}
-                <span className="flex-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <span
+                  className={cn(
+                    "flex-1 text-[10px] font-semibold uppercase tracking-widest",
+                    isAgentsCategory ? "text-kiln-orange" : "text-muted-foreground"
+                  )}
+                >
                   {cat.label}
                 </span>
-                <span className="text-[10px] text-muted-foreground">{filteredNodes.length}</span>
+                <span
+                  className={cn(
+                    "text-[10px]",
+                    isAgentsCategory ? "text-kiln-orange/70" : "text-muted-foreground"
+                  )}
+                >
+                  {filteredNodes.length}
+                </span>
               </button>
 
               {/* Thin divider */}

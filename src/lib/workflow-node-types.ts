@@ -108,18 +108,23 @@ export interface WorkflowVariable {
 
 /* ========== Category Definitions ========== */
 
+// Order matters: top categories surface first in the node palette. AI
+// Agents leads because that's KILN's headline use case — operators
+// land here first when reaching for a node. Triggers and Integrations
+// follow as the most common second / third picks. Logic / Actions /
+// Control / AI Tools / Advanced trail behind.
 export const WORKFLOW_CATEGORIES: {
   id: WorkflowNodeCategory;
   label: string;
   icon: string;
   color: string;
 }[] = [
-  { id: "triggers", label: "Triggers", icon: "Zap", color: "#F59E0B" },
   { id: "agents", label: "AI Agents", icon: "Bot", color: "#F97316" },
+  { id: "triggers", label: "Triggers", icon: "Zap", color: "#F59E0B" },
+  { id: "integrations", label: "Integrations", icon: "Plug", color: "#22C55E" },
   { id: "logic", label: "Logic", icon: "GitBranch", color: "#8B5CF6" },
   { id: "actions", label: "Actions", icon: "Play", color: "#3B82F6" },
   { id: "control", label: "Control", icon: "Shield", color: "#06B6D4" },
-  { id: "integrations", label: "Integrations", icon: "Plug", color: "#22C55E" },
   { id: "ai_tools", label: "AI Tools", icon: "Sparkles", color: "#EC4899" },
   { id: "advanced", label: "Advanced", icon: "Layers", color: "#A855F7" },
 ];
