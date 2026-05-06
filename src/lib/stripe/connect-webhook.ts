@@ -163,6 +163,16 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   });
   if (!subRow) return;
 
+  // Phase 4: distinguish setup-fee invoices from recurring subscription
+  // invoices. Setup is a one-time line item with no `recurring.interval`
+  // — when EVERY line on the invoice lacks a recurring block, the
+  // invoice is a pure setup charge. Mixed invoices (setup + first
+  // monthly on the same charge) are tagged SUBSCRIPTION since they
+  // contain at least one recurring item; the agency dashboard will
+  // count the full invoice amount as monthly revenue. A future split
+  // would require per-line cents — out of scope here.
+  const invoiceType = inferInvoiceType(invoice);
+
   await prisma.subOrgInvoice.upsert({
     where: { stripeInvoiceId: invoice.id ?? "" },
     create: {
@@ -172,6 +182,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
       amount: invoice.amount_paid ?? 0,
       currency: invoice.currency ?? "eur",
       status: invoice.status ?? "paid",
+      invoiceType,
       invoiceDate: new Date((invoice.created ?? 0) * 1000),
       paidAt: invoice.status === "paid" ? new Date() : null,
       pdfUrl: invoice.invoice_pdf ?? null,
@@ -180,11 +191,33 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     update: {
       amount: invoice.amount_paid ?? 0,
       status: invoice.status ?? "paid",
+      invoiceType,
       paidAt: invoice.status === "paid" ? new Date() : null,
       pdfUrl: invoice.invoice_pdf ?? null,
       hostedInvoiceUrl: invoice.hosted_invoice_url ?? null,
     },
   });
+}
+
+/**
+ * Inspects the invoice line items and decides whether the invoice
+ * represents a one-time setup charge or a recurring-subscription bill.
+ *
+ *   - 0 lines:               default to SUBSCRIPTION (defensive).
+ *   - all lines non-recurring: SETUP_FEE.
+ *   - any line recurring:    SUBSCRIPTION (covers first-invoice mixed
+ *                            charges; setup + first monthly land here).
+ */
+export function inferInvoiceType(
+  invoice: Stripe.Invoice
+): "SUBSCRIPTION" | "SETUP_FEE" {
+  const lines = invoice.lines?.data ?? [];
+  if (lines.length === 0) return "SUBSCRIPTION";
+  const hasRecurring = lines.some((line) => {
+    const price = (line as { price?: Stripe.Price | null }).price;
+    return Boolean(price?.recurring);
+  });
+  return hasRecurring ? "SUBSCRIPTION" : "SETUP_FEE";
 }
 
 async function handleInvoiceFailed(invoice: Stripe.Invoice) {
