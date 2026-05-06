@@ -158,9 +158,9 @@ interface VisualTeamEditorProps {
   onPositionsChange?: (positions: Record<string, { x: number; y: number }>) => void;
   teamKnowledgeCount?: number;
   workflowNodes?: { id: string; type: WorkflowNodeType; label: string; position: { x: number; y: number }; config: Record<string, unknown> }[];
-  workflowEdges?: { sourceId: string; targetId: string; condition?: string; sourceHandle?: string }[];
+  workflowEdges?: { sourceId: string; targetId: string; condition?: string; sourceHandle?: string; mappings?: { source: string; target: string; expression?: string }[] }[];
   onWorkflowNodesChange?: (nodes: { id: string; type: WorkflowNodeType; label: string; position: { x: number; y: number }; config: Record<string, unknown> }[]) => void;
-  onWorkflowEdgesChange?: (edges: { sourceId: string; targetId: string; condition?: string; sourceHandle?: string }[]) => void;
+  onWorkflowEdgesChange?: (edges: { sourceId: string; targetId: string; condition?: string; sourceHandle?: string; mappings?: { source: string; target: string; expression?: string }[] }[]) => void;
   onWorkflowNodeClick?: (nodeId: string, nodeType: WorkflowNodeType, config: Record<string, unknown>) => void;
   onEdgeClick?: (edgeId: string, sourceNodeId: string, targetNodeId: string) => void;
   onVariablesClick?: () => void;
@@ -653,8 +653,14 @@ function AnimatedConnectionEdge({
   const isErrorEdge = data?.isErrorEdge as boolean;
   const flowData = data?.flowData as unknown;
   const flowStatus = data?.flowStatus as "success" | "error" | "none" | undefined;
+  const schemaMismatch = data?.schemaMismatch as boolean | undefined;
+  const mappingCount = (data?.mappingCount as number | undefined) || 0;
+  const dataLabel = data?.dataLabel as string | undefined;
 
-  // Edge color based on execution flow
+  // Edge color based on execution flow. The schema-mismatch warning
+  // colour is amber (#F59E0B) so it's visually distinct from both the
+  // error red and the executing orange — a "needs attention but not
+  // broken" state.
   const strokeColor = isErrorEdge
     ? "#EF4444"
     : isFallback
@@ -667,7 +673,9 @@ function AnimatedConnectionEdge({
             ? "#EF4444"
             : selected
               ? "#F97316"
-              : "#4a4540";
+              : schemaMismatch
+                ? "#F59E0B"
+                : "#4a4540";
 
   // Data preview for the midpoint badge
   const dataPreview = flowData
@@ -780,6 +788,33 @@ function AnimatedConnectionEdge({
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
             error
+          </div>
+        </EdgeLabelRenderer>
+      )}
+
+      {/* Schema-flow indicator. Three states:
+          - schemaMismatch (amber): target consumes input but no mappings
+          - mappingCount > 0 (green): explicit field mappings configured
+          - else: nothing rendered (avoid visual noise on trivial edges)
+          The pill is pointer-events-none — clicking the edge itself
+          (handled at the ReactFlow level) opens the data mapper. */}
+      {!isExecuting && !flowStatus && !data?.label && !isErrorEdge && (schemaMismatch || mappingCount > 0) && (
+        <EdgeLabelRenderer>
+          <div
+            className={cn(
+              "absolute pointer-events-none rounded-full border px-1.5 py-0.5 text-[8px] font-medium",
+              schemaMismatch
+                ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
+                : "bg-green-500/10 border-green-500/30 text-green-400"
+            )}
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+            title={
+              schemaMismatch
+                ? "Click the edge to map data fields"
+                : `${mappingCount} field${mappingCount === 1 ? "" : "s"} mapped — click to edit`
+            }
+          >
+            {dataLabel}
           </div>
         </EdgeLabelRenderer>
       )}
@@ -988,6 +1023,90 @@ function NodePaletteSidebar({
       </div>
     </div>
   );
+}
+
+/* ========== Helper: edge schema-flow analysis ========== */
+/**
+ * Heuristic schema-flow check for an edge between two workflow nodes.
+ *
+ * Returns whether the edge has explicit field mappings, and whether
+ * we suspect the operator forgot to wire something up — i.e. the
+ * target needs input data but no mappings exist and the source
+ * doesn't trivially passthrough.
+ *
+ * The check is deliberately permissive (no false-positive over-
+ * warning) because workflows can pass data via `{{ steps.X.output }}`
+ * expressions inside config fields, which we can't reliably trace
+ * without executing. So we only flag the "obvious mistake" pattern:
+ * an action/agent target that wants input but the edge carries
+ * neither mappings nor a recognizable trigger source.
+ */
+function computeEdgeSchemaFlow(
+  sourceType: string | undefined,
+  targetType: string | undefined,
+  mappingCount: number
+): { schemaMismatch: boolean; dataLabel: string | undefined } {
+  if (!sourceType || !targetType) {
+    return { schemaMismatch: false, dataLabel: undefined };
+  }
+
+  if (mappingCount > 0) {
+    return {
+      schemaMismatch: false,
+      dataLabel: mappingCount === 1 ? "1 field mapped" : `${mappingCount} fields mapped`,
+    };
+  }
+
+  // Target node types that consume structured input. If one of these
+  // is the target and there are no explicit mappings, the edge is a
+  // candidate for "schema mismatch" warning.
+  const TARGETS_NEEDING_INPUT = new Set([
+    "agent",
+    "llm_prompt",
+    "http_request",
+    "send_email",
+    "send_slack",
+    "transform",
+    "filter",
+    "if_condition",
+    "switch",
+    "approval_gate",
+    "sub_workflow",
+    "ai_summarize",
+    "ai_classify",
+    "ai_extract",
+    "google_sheets_write",
+    "gmail_send",
+    "slack_send_integration",
+    "notion_create",
+    "airtable_create",
+    "data_query",
+    "a2a_call",
+  ]);
+
+  // Source node types that don't really produce structured "output"
+  // worth mapping (triggers fire with whatever payload they receive,
+  // delay just emits the time elapsed, etc). These are exempt — no
+  // warning when the edge originates from one of these.
+  const PASSTHROUGH_SOURCES = new Set([
+    "trigger_webhook",
+    "trigger_schedule",
+    "trigger_lead",
+    "trigger_chat",
+    "trigger_manual",
+    "delay",
+    "set_variable",
+    "merge",
+    "parallel_merge",
+    "wait_webhook",
+    "wait_form",
+  ]);
+
+  if (TARGETS_NEEDING_INPUT.has(targetType) && !PASSTHROUGH_SOURCES.has(sourceType)) {
+    return { schemaMismatch: true, dataLabel: "no mapping" };
+  }
+
+  return { schemaMismatch: false, dataLabel: undefined };
 }
 
 /* ========== Helper: members to flow elements ========== */
@@ -1204,9 +1323,22 @@ function membersToFlowElements(
     });
   }
 
-  // Workflow edges
+  // Workflow edges. Each edge carries pre-computed schema-flow info
+  // (mapping count + mismatch flag) so the AnimatedConnectionEdge can
+  // render the right indicator without re-deriving from full state.
   if (workflowEdges && workflowEdges.length > 0) {
+    const wfNodeMap = new Map(
+      (workflowNodes || []).map((n) => [n.id, n])
+    );
     workflowEdges.forEach((we) => {
+      const isErrorEdge = we.sourceHandle === "error" || we.condition === "error";
+      const sourceNode = wfNodeMap.get(we.sourceId);
+      const targetNode = wfNodeMap.get(we.targetId);
+      const mappingCount = (we.mappings || []).length;
+      const { schemaMismatch, dataLabel } = isErrorEdge
+        ? { schemaMismatch: false, dataLabel: undefined }
+        : computeEdgeSchemaFlow(sourceNode?.type, targetNode?.type, mappingCount);
+
       edges.push({
         id: `wfe-${we.sourceId}-${we.targetId}`,
         source: we.sourceId,
@@ -1217,7 +1349,10 @@ function membersToFlowElements(
         data: {
           label: we.condition || undefined,
           executionActive: false,
-          isErrorEdge: we.sourceHandle === "error" || we.condition === "error",
+          isErrorEdge,
+          mappingCount,
+          schemaMismatch,
+          dataLabel,
         },
         markerEnd: { type: MarkerType.ArrowClosed, color: "#4a4540", width: 14, height: 14 },
       });
