@@ -46,6 +46,7 @@ import {
   Lightbulb,
   Cpu,
   Wallet,
+  Workflow,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -271,6 +272,14 @@ export default function AgentDetailPage() {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("config");
+  // Workflows that reference this agent (primary or fallback). Surfaced as
+  // a "Used in N workflows" badge in the header so operators can navigate
+  // back to the workflows that depend on the agent.
+  const [usedInWorkflows, setUsedInWorkflows] = useState<{
+    count: number;
+    workflows: Array<{ id: string; name: string; status: string; isPrimary: boolean }>;
+  } | null>(null);
+  const [showWorkflowsPopover, setShowWorkflowsPopover] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showPromptEditor, setShowPromptEditor] = useState(false);
 
@@ -395,6 +404,15 @@ export default function AgentDetailPage() {
     fetch("/api/stripe/plan")
       .then((res) => res.json())
       .then((data) => setUserPlan(data.plan || "FREE"))
+      .catch(() => {});
+
+    // "Used in N workflows" — surfaces the workflows that reference
+    // this agent so the operator can navigate from the agent back to
+    // the workflows that depend on it. Silent on error since the
+    // badge just hides itself when the count is 0.
+    fetch(`/api/agents/${params.id}/used-in-workflows`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => data && setUsedInWorkflows(data))
       .catch(() => {});
   }, [params.id, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -788,6 +806,15 @@ export default function AgentDetailPage() {
                   <GitFork className="h-2.5 w-2.5" />
                   Cloned from {agent.clonedFromName}
                 </span>
+              )}
+              {usedInWorkflows && usedInWorkflows.count > 0 && (
+                <UsedInWorkflowsBadge
+                  count={usedInWorkflows.count}
+                  workflows={usedInWorkflows.workflows}
+                  open={showWorkflowsPopover}
+                  onToggle={() => setShowWorkflowsPopover((v) => !v)}
+                  onClose={() => setShowWorkflowsPopover(false)}
+                />
               )}
             </div>
           </div>
@@ -2441,6 +2468,85 @@ export default function AgentDetailPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/* ── "Used in workflows" badge ───────────────────────────────────────
+ * Click toggles a small popover listing the workflows that reference
+ * this agent. Each list entry is a link straight to the workflow's
+ * editor — saves a trip back to the workflows list.
+ */
+
+function UsedInWorkflowsBadge({
+  count,
+  workflows,
+  open,
+  onToggle,
+  onClose,
+}: {
+  count: number;
+  workflows: Array<{ id: string; name: string; status: string; isPrimary: boolean }>;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <span className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="inline-flex items-center gap-1 rounded-full border border-blue-500/20 bg-blue-500/5 px-2 py-0.5 text-[10px] font-medium text-blue-600 transition-colors hover:bg-blue-500/10"
+      >
+        <Workflow className="h-2.5 w-2.5" />
+        Used in {count} workflow{count === 1 ? "" : "s"}
+      </button>
+      {open && (
+        <div
+          // Click-outside via overlay; popover content stops propagation.
+          className="fixed inset-0 z-40"
+          onClick={onClose}
+        >
+          <div
+            className="absolute z-50 mt-1.5 max-h-72 w-72 overflow-y-auto rounded-lg border border-border bg-card p-1 shadow-lg"
+            // Anchor to the badge's position via a parent absolute spot.
+            style={{ top: 0, left: 0, transform: "translate(0, 100%)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ul className="divide-y divide-border">
+              {workflows.map((wf) => (
+                <li key={wf.id}>
+                  <Link
+                    href={`/dashboard/teams/${wf.id}`}
+                    onClick={onClose}
+                    className="block rounded-md px-2.5 py-2 text-sm hover:bg-muted"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate font-medium text-foreground">
+                        {wf.name}
+                      </span>
+                      <span
+                        className={
+                          wf.status === "ACTIVE"
+                            ? "rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-medium text-emerald-600"
+                            : "rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground"
+                        }
+                      >
+                        {wf.status}
+                      </span>
+                    </div>
+                    {!wf.isPrimary && (
+                      <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                        Fallback role only
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+    </span>
   );
 }
 
