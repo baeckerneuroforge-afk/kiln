@@ -6,6 +6,7 @@ import {
   ExternalLink,
   Loader2,
   Plus,
+  Save,
   Search,
   Wrench,
   X,
@@ -206,7 +207,22 @@ export function AgentNodeConfig({
       )}
 
       {mode === "inline" && (
-        <InlineAgentSection config={config} onChange={onChange} />
+        <InlineAgentSection
+          config={config}
+          onChange={onChange}
+          onSavedAsStandalone={(created) => {
+            // Promote inline → standalone: register the new agent in
+            // the local list, switch the toggle to "existing" with the
+            // new agent selected, and strip the inline-only fields so
+            // the workflow node stops carrying a duplicate copy.
+            setAgents((prev) => [created, ...prev]);
+            setMode("existing");
+            onChange({
+              agentId: created.id,
+              goalOverride: config.goalOverride,
+            });
+          }}
+        />
       )}
 
       {/* Custom goal override — applies in either mode. */}
@@ -410,9 +426,11 @@ function ExistingAgentSection({
 function InlineAgentSection({
   config,
   onChange,
+  onSavedAsStandalone,
 }: {
   config: Record<string, unknown>;
   onChange: (config: Record<string, unknown>) => void;
+  onSavedAsStandalone: (created: AgentSummary) => void;
 }) {
   const systemPrompt = (config.systemPrompt as string) || "";
   const model = (config.model as string) || "claude-sonnet-4-6";
@@ -421,6 +439,32 @@ function InlineAgentSection({
   const maxTokens =
     typeof config.maxTokens === "number" ? config.maxTokens : 4096;
   const tooShort = systemPrompt.trim().length > 0 && systemPrompt.trim().length < 20;
+
+  // "Save as standalone" — promotes the inline-only config to a real
+  // reusable agent. We need a name; if the operator hasn't entered one
+  // yet, we surface a small inline name prompt rather than blocking.
+  const [showSaveAs, setShowSaveAs] = useState(false);
+  const [saveAsName, setSaveAsName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const canPromote = systemPrompt.trim().length >= 20;
+
+  async function handleSaveAsStandalone() {
+    setSaveError(null);
+    setSaving(true);
+    try {
+      const created = await createAgent({
+        name: saveAsName.trim(),
+        systemPrompt: systemPrompt.trim(),
+        llmModel: model.trim() || undefined,
+      });
+      onSavedAsStandalone(created);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save agent");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="space-y-3">
@@ -488,13 +532,88 @@ function InlineAgentSection({
         />
       </div>
 
-      <div className="rounded-lg border border-border bg-muted/40 p-3 text-[11px] text-muted-foreground">
-        Inline agents only live inside this workflow. To reuse this prompt
-        across workflows, save it as a standalone agent first under{" "}
-        <Link href="/dashboard/agents/new" className="text-kiln-orange hover:underline">
-          Agents → New
-        </Link>{" "}
-        and switch back to <em>Use existing agent</em>.
+      {/* Save-as-standalone CTA. Surfaces only after a real prompt is
+          drafted — there's no value in promoting a 3-character stub. */}
+      <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="text-[11px] text-muted-foreground leading-relaxed">
+            Inline agents only live inside this workflow. Promote to a
+            reusable agent to share across workflows, give it knowledge,
+            tools, and analytics.
+          </div>
+        </div>
+
+        {!showSaveAs ? (
+          <button
+            type="button"
+            onClick={() => {
+              setShowSaveAs(true);
+              setSaveAsName("");
+              setSaveError(null);
+            }}
+            disabled={!canPromote}
+            className="inline-flex items-center gap-1.5 rounded-md border border-orange-500/40 bg-orange-500/10 px-2.5 py-1 text-xs font-medium text-kiln-orange hover:bg-orange-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title={
+              canPromote
+                ? "Save this inline config as a reusable standalone agent"
+                : "Add at least 20 characters of system prompt first"
+            }
+          >
+            <Save className="h-3 w-3" />
+            Save as standalone agent →
+          </button>
+        ) : (
+          <div className="space-y-2 rounded-md border border-orange-500/30 bg-orange-500/5 p-2.5">
+            <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Agent name
+            </label>
+            <input
+              value={saveAsName}
+              onChange={(e) => setSaveAsName(e.target.value)}
+              placeholder="Lead Qualifier"
+              autoFocus
+              className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-orange-500/60"
+            />
+            {saveError && (
+              <p className="text-[11px] text-destructive">{saveError}</p>
+            )}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSaveAsStandalone}
+                disabled={saving || saveAsName.trim().length < 2}
+                className="inline-flex items-center gap-1.5 rounded-md bg-kiln-orange px-2.5 py-1 text-xs font-medium text-white hover:bg-kiln-orange/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Saving…
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-3 w-3" />
+                    Save agent
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSaveAs(false);
+                  setSaveError(null);
+                }}
+                disabled={saving}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              The new agent will replace the inline config — your workflow
+              will reference it by ID.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
