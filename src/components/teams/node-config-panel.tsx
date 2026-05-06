@@ -2024,6 +2024,15 @@ export function NodeConfigPanel({
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{nodeType.replace(/_/g, " ")}</p>
         </div>
         <button
+          onClick={handleTestNode}
+          disabled={testing}
+          title="Test this node with mock input"
+          className="flex h-7 items-center gap-1 rounded-lg border border-orange-500/30 bg-orange-500/10 px-2 text-[11px] font-medium text-orange-400 transition-colors hover:bg-orange-500/15 hover:border-orange-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {testing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3 fill-current" />}
+          Test
+        </button>
+        <button
           onClick={onClose}
           className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
