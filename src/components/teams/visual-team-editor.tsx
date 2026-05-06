@@ -24,6 +24,7 @@ import {
   useEdgesState,
   addEdge,
   Panel,
+  SelectionMode,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
@@ -78,6 +79,14 @@ import {
   Redo2,
   Plus,
   Copy,
+  Maximize2,
+  ZoomIn,
+  ZoomOut,
+  EyeOff,
+  Trash2,
+  StickyNote,
+  Power,
+  ClipboardPaste,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getModelDef } from "@/lib/ai";
@@ -94,6 +103,13 @@ import { NodeConfigPanel } from "./node-config-panel";
 import { CanvasErrorBoundary, NodeErrorBoundary } from "./canvas-error-boundary";
 import { getNodeIcon } from "@/components/workflows/node-icons";
 import { NodeSearch } from "@/components/workflows/node-search";
+import { CanvasContextMenu, type CanvasContextMenuItem } from "@/components/workflows/canvas-context-menu";
+import {
+  boundingTopLeft,
+  pickInternalEdges,
+  shouldConfirmBulkDelete,
+  PASTE_OFFSET_PX,
+} from "@/lib/canvas-clipboard";
 import { ExecutionTimelinePanel, type ExecutionTimelineData, type TimelineNodeEntry } from "@/components/workflows/execution-timeline";
 
 /* ========== Types ========== */
@@ -205,7 +221,7 @@ const NODE_WIDTH = 240;
 const NODE_HEIGHT = 80;
 
 /* ========== Handle Styles ========== */
-const handleBase = "!w-[10px] !h-[10px] !border-[2px] !border-border !rounded-full transition-colors";
+const handleBase = "!border-[2px] !border-border !rounded-full transition-colors";
 const handleInput = `${handleBase} !bg-muted-foreground hover:!bg-orange-400`;
 const handleOutput = `${handleBase} !bg-muted-foreground hover:!bg-orange-400`;
 
@@ -285,7 +301,7 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
   return (
     <div
       className={cn(
-        "rounded-xl bg-muted border border-foreground/20 shadow-lg min-w-[220px] max-w-[260px] transition-all duration-150",
+        "rounded-xl bg-muted border border-foreground/20 shadow-lg w-[240px] max-w-[280px] transition-all duration-150",
         selected && "border-orange-500/70 shadow-orange-500/10 shadow-xl",
         statusClasses,
         execStatus === "running" && "animate-pulse",
@@ -299,12 +315,17 @@ function VisualAgentNode({ data, selected }: NodeProps<Node<VisualNodeData>>) {
       />
 
       {/* Header row: icon + name + model */}
-      <div className="flex items-center gap-2.5 px-3 pt-3 pb-1">
-        <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", rc.bg)}>
-          <Bot className={cn("h-4.5 w-4.5", rc.text)} />
+      <div className="flex items-start gap-2.5 px-3 pt-3 pb-1">
+        <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", rc.bg)}>
+          <Bot className={cn("h-4 w-4", rc.text)} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold text-foreground truncate leading-tight">{data.agentName}</p>
+          <p
+            className="text-[13px] font-semibold text-foreground truncate leading-tight"
+            title={data.agentName}
+          >
+            {data.agentName}
+          </p>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className={cn("text-[9px] font-bold uppercase tracking-wider", rc.text)}>{role}</span>
             {execStatus && execStatus !== "pending" && (
@@ -423,17 +444,25 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
     preview = `${c.field || "field"} ${c.operator || "=="} ${c.value || "value"}`;
   }
 
+  const isDisabled = !!data.config?.disabled;
+
   return (
     <div
       className={cn(
-        "relative rounded-xl bg-muted border border-foreground/20 shadow-lg min-w-[200px] max-w-[240px] transition-all duration-150",
+        "relative rounded-xl bg-muted border border-foreground/20 shadow-lg w-[240px] max-w-[280px] transition-all duration-150",
         selected && "border-orange-500/70 shadow-orange-500/10 shadow-xl",
         statusRing,
         execStatus === "running" && "animate-pulse",
         execStatus === "completed" && "shadow-green-500/5",
         execStatus === "failed" && "shadow-red-500/10",
+        isDisabled && "opacity-50 grayscale",
       )}
     >
+      {isDisabled && (
+        <div className="absolute -top-2 -left-2 flex items-center gap-0.5 rounded-full bg-muted border border-border px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-muted-foreground shadow-md z-10">
+          <Power className="h-2 w-2" /> Disabled
+        </div>
+      )}
       {/* Execution status badge — top-right corner */}
       {execStatus && execStatus !== "pending" && (
         <div className={cn(
@@ -465,16 +494,25 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
       )}
 
       {/* Content */}
-      <div className="flex items-center gap-2.5 px-3 py-3">
+      <div className="flex items-start gap-2.5 px-3 py-3">
         <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
           style={{ backgroundColor: `${colors.hex}15` }}
         >
-          {getNodeIcon(nodeType, "h-4.5 w-4.5") || <span style={{ color: colors.hex }}><IconComp className="h-4.5 w-4.5" /></span>}
+          {getNodeIcon(nodeType, "h-4 w-4") || <span style={{ color: colors.hex }}><IconComp className="h-4 w-4" /></span>}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold text-foreground truncate leading-tight">{data.label as string}</p>
-          <p className="text-[10px] text-muted-foreground truncate mt-0.5" style={{ color: `${colors.hex}99` }}>
+          <p
+            className="text-[13px] font-semibold text-foreground truncate leading-tight"
+            title={data.label as string}
+          >
+            {data.label as string}
+          </p>
+          <p
+            className="text-[10px] text-muted-foreground truncate mt-0.5"
+            style={{ color: `${colors.hex}99` }}
+            title={data.description as string}
+          >
             {data.description as string}
           </p>
         </div>
@@ -523,14 +561,14 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
             type="source"
             position={Position.Right}
             id="true"
-            className="!w-[10px] !h-[10px] !border-[2px] !border-border !rounded-full !bg-green-500 !-right-[5px]"
+            className="!border-[2px] !border-border !rounded-full !bg-green-500 !-right-[5px]"
             style={{ top: "35%" }}
           />
           <Handle
             type="source"
             position={Position.Right}
             id="false"
-            className="!w-[10px] !h-[10px] !border-[2px] !border-border !rounded-full !bg-red-500 !-right-[5px]"
+            className="!border-[2px] !border-border !rounded-full !bg-red-500 !-right-[5px]"
             style={{ top: "65%" }}
           />
           {/* Labels for true/false */}
@@ -550,7 +588,7 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
               type="source"
               position={Position.Right}
               id="error"
-              className="!w-[7px] !h-[7px] !border-[1.5px] !border-border !rounded-full !bg-red-500/60 hover:!bg-red-400 !-right-[4px]"
+              className="!w-[7px] !h-[7px] !min-w-[7px] !min-h-[7px] !border-[1.5px] !border-border !rounded-full !bg-red-500/60 hover:!bg-red-400 !-right-[4px]"
               style={{ top: "75%" }}
             />
           )}
@@ -579,18 +617,18 @@ type FallbackNodeData = {
 
 function TeamKnowledgeNode({ data }: NodeProps<Node<KnowledgeNodeData>>) {
   return (
-    <div className="rounded-xl bg-muted border border-cyan-500/30 shadow-lg min-w-[180px] max-w-[200px]">
+    <div className="rounded-xl bg-muted border border-cyan-500/30 shadow-lg w-[220px] max-w-[280px]">
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-[10px] !h-[10px] !border-[2px] !border-border !rounded-full !bg-cyan-500 !-right-[5px]"
+        className="!border-[2px] !border-border !rounded-full !bg-cyan-500 !-right-[5px]"
       />
-      <div className="flex items-center gap-2.5 px-3 py-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15">
+      <div className="flex items-start gap-2.5 px-3 py-3">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-500/15">
           <BookOpen className="h-4 w-4 text-cyan-400" />
         </div>
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-foreground">Workflow Knowledge</p>
+          <p className="text-[13px] font-semibold text-foreground truncate">Workflow Knowledge</p>
           <p className="text-[10px] text-cyan-400/70 mt-0.5">
             {data.docCount} {data.docCount === 1 ? "Dokument" : "Dokumente"}
           </p>
@@ -604,20 +642,20 @@ function FallbackGhostNode({ data }: NodeProps<Node<FallbackNodeData>>) {
   const model = typeof data.llmModel === "string" ? getModelDef(data.llmModel) : null;
 
   return (
-    <div className="rounded-xl border border-dashed border-orange-500/30 bg-muted/80 shadow-lg min-w-[200px] max-w-[240px] opacity-90">
+    <div className="rounded-xl border border-dashed border-orange-500/30 bg-muted/80 shadow-lg w-[240px] max-w-[280px] opacity-90">
       <Handle
         type="target"
         position={Position.Left}
         isConnectable={false}
-        className="!w-[10px] !h-[10px] !border-[2px] !border-border !rounded-full !bg-orange-400 !-left-[5px]"
+        className="!border-[2px] !border-border !rounded-full !bg-orange-400 !-left-[5px]"
       />
-      <div className="flex items-center gap-2.5 px-3 py-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-500/15">
+      <div className="flex items-start gap-2.5 px-3 py-3">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-orange-500/15">
           <AlertTriangle className="h-4 w-4 text-orange-300" />
         </div>
         <div className="min-w-0">
           <p className="text-[9px] font-bold uppercase tracking-wider text-orange-300">Fallback</p>
-          <p className="truncate text-[13px] font-semibold text-foreground">{data.agentName}</p>
+          <p className="truncate text-[13px] font-semibold text-foreground" title={data.agentName}>{data.agentName}</p>
           {model && <p className="text-[10px] text-muted-foreground mt-0.5">{model.shortLabel}</p>}
         </div>
       </div>
@@ -634,6 +672,7 @@ function AnimatedConnectionEdge({
   targetY,
   sourcePosition,
   targetPosition,
+  sourceHandleId,
   data,
   selected,
 }: EdgeProps) {
@@ -657,10 +696,28 @@ function AnimatedConnectionEdge({
   const mappingCount = (data?.mappingCount as number | undefined) || 0;
   const dataLabel = data?.dataLabel as string | undefined;
 
+  // Branching-logic source handles (true/false) get distinct edge tints
+  // and persistent labels so users can read flow direction at a glance.
+  const isTrueBranch = sourceHandleId === "true";
+  const isFalseBranch = sourceHandleId === "false";
+  // Switch-case branches: handle id like "case-0", "case-1", "default"
+  const isSwitchCase = !!sourceHandleId && sourceHandleId.startsWith("case-");
+  const isSwitchDefault = sourceHandleId === "default";
+  const branchLabel = isTrueBranch
+    ? "true"
+    : isFalseBranch
+      ? "false"
+      : isSwitchCase
+        ? (data?.caseLabel as string) || sourceHandleId.replace("case-", "Case ")
+        : isSwitchDefault
+          ? "default"
+          : null;
+
   // Edge color based on execution flow. The schema-mismatch warning
   // colour is amber (#F59E0B) so it's visually distinct from both the
   // error red and the executing orange — a "needs attention but not
-  // broken" state.
+  // broken" state. Branch edges (true/false) use green/red tints by
+  // default — execution colours still take priority when active.
   const strokeColor = isErrorEdge
     ? "#EF4444"
     : isFallback
@@ -675,7 +732,11 @@ function AnimatedConnectionEdge({
               ? "#F97316"
               : schemaMismatch
                 ? "#F59E0B"
-                : "#4a4540";
+                : isTrueBranch
+                  ? "#22C55E80"
+                  : isFalseBranch
+                    ? "#EF444480"
+                    : "#4a4540";
 
   // Data preview for the midpoint badge
   const dataPreview = flowData
@@ -778,6 +839,27 @@ function AnimatedConnectionEdge({
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
             {data.label as string}
+          </div>
+        </EdgeLabelRenderer>
+      )}
+
+      {/* Branch label — always-visible pill for if/switch outputs so
+          flow direction is readable without hovering. Skipped when a
+          custom condition label already takes the spot. */}
+      {branchLabel && !data?.label && !isErrorEdge && (
+        <EdgeLabelRenderer>
+          <div
+            className={cn(
+              "absolute pointer-events-none rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider transition-all",
+              isTrueBranch
+                ? "bg-green-500/15 border-green-500/40 text-green-400"
+                : isFalseBranch
+                  ? "bg-red-500/15 border-red-500/40 text-red-400"
+                  : "bg-violet-500/15 border-violet-500/40 text-violet-300"
+            )}
+            style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY - 14}px)` }}
+          >
+            {branchLabel}
           </div>
         </EdgeLabelRenderer>
       )}
@@ -1339,8 +1421,17 @@ function membersToFlowElements(
         ? { schemaMismatch: false, dataLabel: undefined }
         : computeEdgeSchemaFlow(sourceNode?.type, targetNode?.type, mappingCount);
 
+      // Resolve switch case label from source node's config so each
+      // branch gets a readable name (e.g. "premium", "default").
+      let caseLabel: string | undefined;
+      if (sourceNode?.type === "switch" && we.sourceHandle?.startsWith("case-")) {
+        const idx = parseInt(we.sourceHandle.replace("case-", ""), 10);
+        const cases = (sourceNode.config?.cases as Array<{ label?: string }>) || [];
+        caseLabel = cases[idx]?.label;
+      }
+
       edges.push({
-        id: `wfe-${we.sourceId}-${we.targetId}`,
+        id: `wfe-${we.sourceId}-${we.targetId}-${we.sourceHandle || "default"}`,
         source: we.sourceId,
         target: we.targetId,
         sourceHandle: we.sourceHandle || undefined,
@@ -1353,6 +1444,7 @@ function membersToFlowElements(
           mappingCount,
           schemaMismatch,
           dataLabel,
+          caseLabel,
         },
         markerEnd: { type: MarkerType.ArrowClosed, color: "#4a4540", width: 14, height: 14 },
       });
@@ -1450,6 +1542,46 @@ function VisualTeamEditorInner({
   const [nodeSearchOpen, setNodeSearchOpen] = useState(false);
   const [nodeSearchPosition, setNodeSearchPosition] = useState<{ x: number; y: number } | undefined>();
 
+  // Multi-selection state — tracks IDs of selected workflow nodes
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+
+  // Right-click context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    nodeId?: string;
+    nodeType?: WorkflowNodeType;
+  } | null>(null);
+
+  // In-memory clipboard for copied nodes (persisted to sessionStorage for tab-switching)
+  const [clipboardNodes, setClipboardNodes] = useState<{
+    nodes: Array<{ type: WorkflowNodeType; label: string; config: Record<string, unknown>; relativePos: { x: number; y: number } }>;
+    edges: Array<{ sourceIdx: number; targetIdx: number; sourceHandle?: string }>;
+  } | null>(null);
+
+  // Restore clipboard from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("kiln-canvas-clipboard");
+      if (saved) setClipboardNodes(JSON.parse(saved));
+    } catch {
+      // Best-effort; ignore corrupted state.
+    }
+  }, []);
+
+  // Persist clipboard whenever it changes
+  useEffect(() => {
+    try {
+      if (clipboardNodes) {
+        sessionStorage.setItem("kiln-canvas-clipboard", JSON.stringify(clipboardNodes));
+      } else {
+        sessionStorage.removeItem("kiln-canvas-clipboard");
+      }
+    } catch {
+      // sessionStorage unavailable (private mode) — no-op
+    }
+  }, [clipboardNodes]);
+
   // Derived helpers
   const sidebarCollapsed = activePanel !== "palette";
 
@@ -1512,12 +1644,47 @@ function VisualTeamEditorInner({
     style.id = styleId;
     style.textContent = `
       @keyframes dashmove { 0% { stroke-dashoffset: 12; } 100% { stroke-dashoffset: 0; } }
-      .react-flow__edge.selected .react-flow__edge-path { stroke: #F97316 !important; }
-      .react-flow__handle { pointer-events: all !important; cursor: crosshair !important; z-index: 10 !important; transition: transform 0.15s, background-color 0.15s, opacity 0.15s; }
-      .react-flow__handle:hover { transform: scale(1.3); }
+      @keyframes kiln-handle-pulse {
+        0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.5); }
+        50% { box-shadow: 0 0 0 4px hsl(var(--primary) / 0.15); }
+      }
+      .react-flow__edge.selected .react-flow__edge-path { stroke: hsl(var(--primary)) !important; }
+
+      /* Theme-aware dot grid — overrides Background's hard-coded fill */
+      .kiln-canvas-bg circle { fill: hsl(var(--border) / 0.45) !important; }
+
+      /* Connection handles: 8x8 default, 12x12 hover with primary border + pulse */
+      .react-flow__handle {
+        pointer-events: all !important;
+        cursor: crosshair !important;
+        z-index: 10 !important;
+        width: 8px !important;
+        height: 8px !important;
+        transition: transform 0.15s, background-color 0.15s, box-shadow 0.15s, border-color 0.15s, width 0.15s, height 0.15s;
+      }
+      .react-flow__handle:hover {
+        width: 12px !important;
+        height: 12px !important;
+        border-color: hsl(var(--primary)) !important;
+        animation: kiln-handle-pulse 1.4s ease-in-out infinite;
+      }
       /* Connection drag feedback: valid targets glow orange, invalid dim */
-      .connecting .react-flow__handle.connectingto { background-color: #F97316 !important; transform: scale(1.4); box-shadow: 0 0 6px #F97316; }
-      .react-flow__handle.valid { background-color: #F97316 !important; transform: scale(1.3); }
+      .connecting .react-flow__handle.connectingto {
+        background-color: hsl(var(--primary)) !important;
+        width: 14px !important;
+        height: 14px !important;
+        box-shadow: 0 0 8px hsl(var(--primary) / 0.7);
+      }
+      .connecting .react-flow__handle.valid {
+        background-color: #22c55e !important;
+        border-color: #22c55e !important;
+        width: 14px !important;
+        height: 14px !important;
+        box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+      }
+
+      /* Multi-selection: nodes get an orange border ring */
+      .react-flow__node.selected > div { box-shadow: 0 0 0 2px hsl(var(--primary) / 0.7), 0 8px 24px hsl(0 0% 0% / 0.25) !important; }
     `;
     document.head.appendChild(style);
     return () => { style.remove(); };
@@ -1749,6 +1916,235 @@ function VisualTeamEditorInner({
     }
   }, [nodes.length, reactFlowInstance]);
 
+  // Zoom level indicator (subscribes to viewport)
+  const [zoomPercent, setZoomPercent] = useState(100);
+  useEffect(() => {
+    const update = () => {
+      const z = reactFlowInstance.getZoom();
+      setZoomPercent(Math.round(z * 100));
+    };
+    update();
+    const interval = setInterval(update, 200);
+    return () => clearInterval(interval);
+  }, [reactFlowInstance]);
+
+  const handleFitView = useCallback(() => {
+    reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
+  }, [reactFlowInstance]);
+
+  const handleZoomIn = useCallback(() => {
+    reactFlowInstance.zoomIn({ duration: 200 });
+  }, [reactFlowInstance]);
+
+  const handleZoomOut = useCallback(() => {
+    reactFlowInstance.zoomOut({ duration: 200 });
+  }, [reactFlowInstance]);
+
+  const handleZoomReset = useCallback(() => {
+    const v = reactFlowInstance.getViewport();
+    reactFlowInstance.setViewport({ x: v.x, y: v.y, zoom: 1 }, { duration: 200 });
+  }, [reactFlowInstance]);
+
+  // ── Multi-selection / clipboard helpers ───────────────────────────
+  // Copy currently-selected workflow nodes (plus internal edges) into
+  // the in-memory clipboard. Each node stores config + a relative
+  // position to the bounding box, so paste can offset the whole group.
+  const copySelectedNodes = useCallback(() => {
+    const allNodes = reactFlowInstance.getNodes();
+    const allEdges = reactFlowInstance.getEdges();
+    const selected = allNodes.filter((n) => n.selected && n.type === "workflowNode");
+    if (selected.length === 0) return;
+
+    const { x: minX, y: minY } = boundingTopLeft(selected.map((n) => ({ id: n.id, position: n.position })));
+    const idToIdx = new Map(selected.map((n, i) => [n.id, i]));
+    const selectedIds = new Set(selected.map((n) => n.id));
+
+    const internalEdges = pickInternalEdges(
+      allEdges.map((e) => ({ source: e.source, target: e.target, sourceHandle: e.sourceHandle || undefined })),
+      selectedIds,
+    ).map((e) => ({
+      sourceIdx: idToIdx.get(e.source)!,
+      targetIdx: idToIdx.get(e.target)!,
+      sourceHandle: e.sourceHandle,
+    }));
+
+    setClipboardNodes({
+      nodes: selected.map((n) => {
+        const nd = n.data as WorkflowNodeData;
+        return {
+          type: nd.nodeType,
+          label: nd.label as string,
+          config: { ...(nd.config as Record<string, unknown>) },
+          relativePos: { x: n.position.x - minX, y: n.position.y - minY },
+        };
+      }),
+      edges: internalEdges,
+    });
+  }, [reactFlowInstance]);
+
+  // Paste clipboard nodes into the canvas, offset 40px from original.
+  // Handles both single-node and multi-node groups including internal
+  // edges. The pasted group becomes the new selection.
+  const pasteFromClipboard = useCallback(() => {
+    if (!clipboardNodes || clipboardNodes.nodes.length === 0) return;
+
+    const viewport = reactFlowInstance.getViewport();
+    const baseX = -viewport.x / viewport.zoom + 100;
+    const baseY = -viewport.y / viewport.zoom + 100;
+    const offset = PASTE_OFFSET_PX;
+
+    const newIds: string[] = [];
+    const newFlowNodes: Node[] = [];
+    const newWfNodes: { id: string; type: WorkflowNodeType; label: string; position: { x: number; y: number }; config: Record<string, unknown> }[] = [];
+
+    clipboardNodes.nodes.forEach((cn) => {
+      const def = WORKFLOW_NODE_DEFINITIONS.find((d) => d.type === cn.type);
+      if (!def) return;
+      const newId = `wf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      newIds.push(newId);
+      const pos = {
+        x: baseX + cn.relativePos.x + offset,
+        y: baseY + cn.relativePos.y + offset,
+      };
+      newFlowNodes.push({
+        id: newId,
+        type: "workflowNode",
+        position: pos,
+        selected: true,
+        data: {
+          label: cn.label,
+          nodeType: cn.type,
+          category: def.category,
+          description: def.description,
+          iconName: def.icon,
+          config: cn.config,
+        },
+      });
+      newWfNodes.push({ id: newId, type: cn.type, label: cn.label, position: pos, config: cn.config });
+    });
+
+    const newFlowEdges: Edge[] = clipboardNodes.edges.map((ce) => ({
+      id: `e-${newIds[ce.sourceIdx]}-${newIds[ce.targetIdx]}`,
+      source: newIds[ce.sourceIdx],
+      target: newIds[ce.targetIdx],
+      sourceHandle: ce.sourceHandle,
+      type: "animated",
+      animated: true,
+      data: {},
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#4a4540", width: 14, height: 14 },
+    }));
+
+    const newWfEdges = clipboardNodes.edges.map((ce) => ({
+      sourceId: newIds[ce.sourceIdx],
+      targetId: newIds[ce.targetIdx],
+      sourceHandle: ce.sourceHandle,
+    }));
+
+    setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), ...newFlowNodes]);
+    setEdges((eds) => [...eds, ...newFlowEdges]);
+
+    if (onWorkflowNodesChange) {
+      onWorkflowNodesChange([...(wfNodes || []), ...newWfNodes]);
+    }
+    if (onWorkflowEdgesChange) {
+      onWorkflowEdgesChange([...(wfEdges || []), ...newWfEdges]);
+    }
+
+    setTimeout(() => {
+      pushHistory(reactFlowInstance.getNodes(), reactFlowInstance.getEdges());
+      updateUndoRedoState();
+    }, 50);
+  }, [clipboardNodes, reactFlowInstance, setNodes, setEdges, onWorkflowNodesChange, onWorkflowEdgesChange, wfNodes, wfEdges, pushHistory, updateUndoRedoState]);
+
+  // Bulk-delete all currently selected nodes. Confirms when 5+.
+  const handleBulkDelete = useCallback(() => {
+    const ids = selectedNodeIds;
+    if (ids.length === 0) return;
+    if (shouldConfirmBulkDelete(ids.length) && !confirm(`Delete ${ids.length} selected nodes?`)) return;
+
+    setNodes((nds) => nds.filter((n) => !ids.includes(n.id)));
+    setEdges((eds) => eds.filter((e) => !ids.includes(e.source) && !ids.includes(e.target)));
+    if (onWorkflowNodesChange && wfNodesRef.current) {
+      onWorkflowNodesChange(wfNodesRef.current.filter((n) => !ids.includes(n.id)));
+    }
+    if (onWorkflowEdgesChange && wfEdgesRef.current) {
+      onWorkflowEdgesChange(wfEdgesRef.current.filter((e) => !ids.includes(e.sourceId) && !ids.includes(e.targetId)));
+    }
+    setSelectedNodeIds([]);
+    setTimeout(() => {
+      pushHistory(reactFlowInstance.getNodes(), reactFlowInstance.getEdges());
+      updateUndoRedoState();
+    }, 50);
+  }, [selectedNodeIds, setNodes, setEdges, onWorkflowNodesChange, onWorkflowEdgesChange, reactFlowInstance, pushHistory, updateUndoRedoState]);
+
+  // Bulk-duplicate selected nodes (delegates to copy + paste)
+  const handleBulkDuplicate = useCallback(() => {
+    copySelectedNodes();
+    // Defer so clipboardNodes state updates before paste reads it
+    setTimeout(() => pasteFromClipboard(), 0);
+  }, [copySelectedNodes, pasteFromClipboard]);
+
+  // Single-node duplicate (Ctrl+D path) — operates on currently selected nodes
+  const duplicateSelected = useCallback(() => {
+    const selected = reactFlowInstance.getNodes().filter((n) => n.selected && n.type === "workflowNode");
+    if (selected.length === 0) return;
+    if (selected.length >= 2) {
+      handleBulkDuplicate();
+      return;
+    }
+    const n = selected[0];
+    const nd = n.data as WorkflowNodeData;
+    const newId = `wf-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const pos = { x: n.position.x + 50, y: n.position.y + 50 };
+    const newFlowNode: Node = {
+      id: newId,
+      type: "workflowNode",
+      position: pos,
+      selected: true,
+      data: { ...nd, label: `${nd.label as string} (copy)` },
+    };
+    const newWfNode = {
+      id: newId,
+      type: nd.nodeType,
+      label: `${nd.label as string} (copy)`,
+      position: pos,
+      config: { ...(nd.config as Record<string, unknown>) },
+    };
+    setNodes((nds) => [...nds.map((m) => ({ ...m, selected: false })), newFlowNode]);
+    if (onWorkflowNodesChange && wfNodes) {
+      onWorkflowNodesChange([...wfNodes, newWfNode]);
+    }
+    setTimeout(() => {
+      pushHistory(reactFlowInstance.getNodes(), reactFlowInstance.getEdges());
+      updateUndoRedoState();
+    }, 50);
+  }, [reactFlowInstance, setNodes, onWorkflowNodesChange, wfNodes, pushHistory, updateUndoRedoState, handleBulkDuplicate]);
+
+  // Toggle the disabled flag on a node — disabled nodes are skipped at
+  // run-time but stay in the canvas with their edges intact.
+  const toggleNodeDisabled = useCallback(
+    (nodeId: string) => {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== nodeId) return n;
+          const cfg = (n.data?.config as Record<string, unknown>) || {};
+          const nextDisabled = !cfg.disabled;
+          return { ...n, data: { ...n.data, config: { ...cfg, disabled: nextDisabled } } };
+        })
+      );
+      if (onWorkflowNodesChange && wfNodesRef.current) {
+        onWorkflowNodesChange(
+          wfNodesRef.current.map((n) =>
+            n.id === nodeId
+              ? { ...n, config: { ...(n.config || {}), disabled: !(n.config?.disabled as boolean) } }
+              : n
+          )
+        );
+      }
+    },
+    [setNodes, onWorkflowNodesChange]
+  );
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -1794,49 +2190,64 @@ function VisualTeamEditorInner({
         setNodeSearchOpen(true);
         return;
       }
+      // Cmd/Ctrl+K or Cmd/Ctrl+P → open node search command palette
+      if (ctrl && (e.key === "k" || e.key === "p")) {
+        e.preventDefault();
+        setNodeSearchOpen(true);
+        return;
+      }
+      // Cmd/Ctrl + "+" / "=" → zoom in
+      if (ctrl && (e.key === "+" || e.key === "=")) {
+        e.preventDefault();
+        handleZoomIn();
+        return;
+      }
+      // Cmd/Ctrl + "-" → zoom out
+      if (ctrl && e.key === "-") {
+        e.preventDefault();
+        handleZoomOut();
+        return;
+      }
+      // Cmd/Ctrl + 0 → reset zoom to 100%
+      if (ctrl && e.key === "0") {
+        e.preventDefault();
+        handleZoomReset();
+        return;
+      }
+      // Cmd/Ctrl + 1 → fit view
+      if (ctrl && e.key === "1") {
+        e.preventDefault();
+        handleFitView();
+        return;
+      }
+      // Ctrl+C → copy selected nodes to clipboard (in-memory)
+      if (ctrl && e.key === "c") {
+        e.preventDefault();
+        copySelectedNodes();
+        return;
+      }
+      // Ctrl+V → paste clipboard nodes (offset 40px from origin)
+      if (ctrl && e.key === "v") {
+        e.preventDefault();
+        pasteFromClipboard();
+        return;
+      }
       // Ctrl+D → duplicate selected nodes
       if (ctrl && e.key === "d") {
         e.preventDefault();
-        const selected = reactFlowInstance.getNodes().filter((n) => n.selected && n.type === "workflowNode");
-        if (selected.length === 0) return;
-        const newFlowNodes: Node[] = [];
-        const newWfNodes: typeof wfNodes extends (infer T)[] | undefined ? T[] : never[] = [];
-        selected.forEach((n) => {
-          const nd = n.data as WorkflowNodeData;
-          const newId = `wf-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-          const pos = { x: n.position.x + 50, y: n.position.y + 50 };
-          newFlowNodes.push({
-            id: newId,
-            type: "workflowNode",
-            position: pos,
-            data: { ...nd, label: `${nd.label} (copy)` },
-          });
-          newWfNodes.push({
-            id: newId,
-            type: nd.nodeType,
-            label: `${nd.label} (copy)`,
-            position: pos,
-            config: { ...(nd.config as Record<string, unknown>) },
-          });
-        });
-        setNodes((nds) => [...nds.map((n) => ({ ...n, selected: false })), ...newFlowNodes]);
-        if (onWorkflowNodesChange && wfNodes) {
-          onWorkflowNodesChange([...wfNodes, ...newWfNodes]);
-        }
-        // Push to undo history
-        setTimeout(() => {
-          const allNodes = reactFlowInstance.getNodes();
-          const allEdges = reactFlowInstance.getEdges();
-          pushHistory(allNodes, allEdges);
-          updateUndoRedoState();
-        }, 50);
+        duplicateSelected();
         return;
       }
     };
 
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [undo, redo, setNodes, setEdges, reactFlowInstance, onWorkflowNodesChange, wfNodes, pushHistory, updateUndoRedoState, nodeSearchOpen]);
+  }, [
+    undo, redo, setNodes, setEdges, reactFlowInstance,
+    onWorkflowNodesChange, wfNodes, pushHistory, updateUndoRedoState,
+    nodeSearchOpen, handleZoomIn, handleZoomOut, handleZoomReset, handleFitView,
+    copySelectedNodes, pasteFromClipboard, duplicateSelected,
+  ]);
 
   // Save positions on drag end (debounced)
   const handleNodeDragStop = useCallback(
@@ -2277,6 +2688,28 @@ function VisualTeamEditorInner({
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        selectionMode={SelectionMode.Partial}
+        selectionOnDrag={true}
+        panOnDrag={[1, 2]}
+        multiSelectionKeyCode={["Meta", "Control"]}
+        onSelectionChange={({ nodes: selNodes }) => {
+          setSelectedNodeIds(selNodes.filter((n) => n.type === "workflowNode").map((n) => n.id));
+        }}
+        onNodeContextMenu={(e, node) => {
+          e.preventDefault();
+          if (node.type !== "workflowNode") return;
+          setContextMenu({
+            x: e.clientX,
+            y: e.clientY,
+            nodeId: node.id,
+            nodeType: (node.data as WorkflowNodeData).nodeType,
+          });
+        }}
+        onPaneContextMenu={(e) => {
+          e.preventDefault();
+          const event = e as unknown as { clientX: number; clientY: number };
+          setContextMenu({ x: event.clientX, y: event.clientY });
+        }}
         onConnect={onConnect}
         onNodeDragStop={handleNodeDragStop}
         onDragOver={onDragOver}
@@ -2350,33 +2783,66 @@ function VisualTeamEditorInner({
         snapToGrid
         snapGrid={[20, 20]}
       >
-        {/* Dot grid background — subtle like n8n/Figma */}
+        {/* Dot grid background — theme-aware. Uses CSS-var color via
+            visual-team-editor-styles override; the prop is a fallback for
+            edge cases where the override doesn't apply. */}
         <Background
           variant={BackgroundVariant.Dots}
-          color="#332f2b"
           gap={20}
-          size={1}
+          size={1.5}
+          className="kiln-canvas-bg"
         />
 
         <MiniMap
           nodeColor={(node) => {
             if (node.type === "workflowNode") {
               const cat = (node.data as WorkflowNodeData)?.category;
-              return workflowNodeColors[cat]?.hex || "#4a4540";
+              return workflowNodeColors[cat]?.hex || "hsl(var(--primary))";
             }
             const role = (node.data as VisualNodeData)?.role;
-            return roleColors[role]?.hex || "#4a4540";
+            return roleColors[role]?.hex || "hsl(var(--primary))";
           }}
-          maskColor="rgba(10,10,18,0.8)"
-          className="!bg-card !border-border rounded-xl"
+          maskColor="hsl(var(--muted) / 0.6)"
+          className="!bg-card !border-border rounded-xl shadow-lg"
+          style={{ backgroundColor: "hsl(var(--card))" }}
           pannable
           zoomable
         />
 
-        <Controls
-          className="!bg-card !border-border !rounded-xl !shadow-xl [&>button]:!bg-muted [&>button]:!border-foreground/20 [&>button]:!text-muted-foreground [&>button:hover]:!bg-muted [&>button:hover]:!text-foreground"
-          showInteractive={false}
-        />
+        {/* Custom zoom controls — n8n/Figma-style with zoom-percent pill */}
+        <Panel position="bottom-left" className="!mb-4 !ml-4">
+          <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1 shadow-xl">
+            <button
+              onClick={handleZoomOut}
+              title="Zoom out (Ctrl+-)"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ZoomOut className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={handleZoomReset}
+              title="Reset zoom (Ctrl+0)"
+              className="min-w-[44px] rounded-lg px-1.5 py-1 text-[10px] font-mono font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              {zoomPercent}%
+            </button>
+            <button
+              onClick={handleZoomIn}
+              title="Zoom in (Ctrl++)"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ZoomIn className="h-3.5 w-3.5" />
+            </button>
+            <div className="mx-0.5 h-4 w-px bg-border" />
+            <button
+              onClick={handleFitView}
+              title="Fit to screen (Ctrl+1)"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </Panel>
 
         {/* Empty state overlay — rendered INSIDE ReactFlow so the canvas
             stays a valid drop target. Quick-start buttons one-click-add
@@ -2521,9 +2987,9 @@ function VisualTeamEditorInner({
           </div>
         </Panel>
 
-        {/* Execution legend */}
+        {/* Execution legend — sits above zoom controls when active */}
         {executionSteps && executionSteps.length > 0 && (
-          <Panel position="bottom-left" className="!mb-2 !ml-2">
+          <Panel position="bottom-left" className="!mb-16 !ml-4">
             <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-lg">
               <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5">Status</p>
               <div className="flex items-center gap-3">
@@ -2557,6 +3023,34 @@ function VisualTeamEditorInner({
             <kbd className="ml-1 rounded bg-card px-1 py-0.5 text-[9px] font-mono text-muted-foreground">/</kbd>
           </button>
         </Panel>
+
+        {/* Multi-selection floating toolbar — appears when 2+ nodes selected */}
+        {selectedNodeIds.length >= 2 && (
+          <Panel position="top-center" className="!mt-4">
+            <div className="flex items-center gap-1.5 rounded-xl border border-orange-500/40 bg-card px-2.5 py-1.5 shadow-xl shadow-orange-500/5">
+              <span className="text-[10px] font-medium text-orange-400 px-1.5">
+                {selectedNodeIds.length} selected
+              </span>
+              <div className="h-4 w-px bg-border" />
+              <button
+                onClick={() => handleBulkDuplicate()}
+                title="Duplicate (Ctrl+D)"
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Copy className="h-3 w-3" />
+                Duplicate
+              </button>
+              <button
+                onClick={() => handleBulkDelete()}
+                title="Delete (Backspace)"
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-red-400 transition-colors hover:bg-red-500/10"
+              >
+                <Trash2 className="h-3 w-3" />
+                Delete ({selectedNodeIds.length})
+              </button>
+            </div>
+          </Panel>
+        )}
       </ReactFlow>
 
       {/* Node Search Command Palette */}
@@ -2566,6 +3060,70 @@ function VisualTeamEditorInner({
         onSelectNode={handleNodeSearchSelect}
         position={nodeSearchPosition}
       />
+
+      {/* Right-click Context Menu — node-targeted or pane-only */}
+      {contextMenu && (
+        <CanvasContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          items={(() => {
+            const items: CanvasContextMenuItem[] = [];
+            if (contextMenu.nodeId) {
+              const nId = contextMenu.nodeId;
+              const targetNode = reactFlowInstance.getNode(nId);
+              const isDisabled = !!(targetNode?.data as WorkflowNodeData)?.config?.disabled;
+              items.push(
+                { id: "duplicate", label: "Duplicate", shortcut: "⌘D", icon: "copy", onClick: () => {
+                    setNodes((nds) => nds.map((n) => ({ ...n, selected: n.id === nId })));
+                    setTimeout(() => duplicateSelected(), 0);
+                  }
+                },
+                { id: "test", label: "Test This Node", icon: "test", onClick: () => {
+                    const wfNode = wfNodesRef.current?.find((n) => n.id === nId);
+                    if (wfNode) {
+                      setSelectedNode({ id: wfNode.id, type: wfNode.type, label: wfNode.label, config: wfNode.config });
+                      setActivePanel("config");
+                    }
+                  }
+                },
+                { id: "logs", label: "View Node Logs", icon: "logs", onClick: () => {
+                    const wfNode = wfNodesRef.current?.find((n) => n.id === nId);
+                    if (wfNode) {
+                      setSelectedNode({ id: wfNode.id, type: wfNode.type, label: wfNode.label, config: wfNode.config });
+                      setActivePanel("config");
+                    }
+                  }
+                },
+                { id: "__divider__", label: "", onClick: () => {} },
+                { id: "disable", label: isDisabled ? "Enable Node" : "Disable Node", icon: "disable", onClick: () => toggleNodeDisabled(nId) },
+                { id: "comment", label: "Add Annotation", icon: "comment", disabled: true, onClick: () => {} },
+                { id: "__divider__", label: "", onClick: () => {} },
+                { id: "delete", label: "Delete", shortcut: "⌫", icon: "delete", destructive: true, onClick: () => handleNodeDelete(nId) },
+              );
+            } else {
+              items.push(
+                { id: "add", label: "Add Node…", shortcut: "/", icon: "add", onClick: () => {
+                    const pos = reactFlowInstance.screenToFlowPosition({ x: contextMenu.x, y: contextMenu.y });
+                    setNodeSearchPosition(pos);
+                    setNodeSearchOpen(true);
+                  }
+                },
+                {
+                  id: "paste",
+                  label: "Paste",
+                  shortcut: "⌘V",
+                  icon: "paste",
+                  disabled: !clipboardNodes,
+                  onClick: () => pasteFromClipboard(),
+                },
+                { id: "comment", label: "Add Comment", icon: "comment", disabled: true, onClick: () => {} },
+              );
+            }
+            return items;
+          })()}
+        />
+      )}
 
       {/* Node Config Panel (right side) */}
       {selectedNode && (() => {
