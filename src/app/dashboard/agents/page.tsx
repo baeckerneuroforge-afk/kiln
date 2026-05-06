@@ -11,12 +11,14 @@ import {
   TrendingUp,
   Zap,
   Play,
+  Phone,
+  ClipboardList,
+  ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
-import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/toast";
 import { getModelDef } from "@/lib/ai";
@@ -153,13 +155,7 @@ export default function AgentsPage() {
       {error ? (
         <ErrorState message={error} onRetry={fetchAgents} />
       ) : agents.length === 0 ? (
-        <EmptyState
-          icon={<Bot className="h-7 w-7 text-muted-foreground" />}
-          title="Create your first AI agent"
-          description="Agents answer questions, qualify leads, and book meetings — around the clock."
-          actionLabel="Create agent"
-          actionHref="/dashboard/agents/new"
-        />
+        <FirstAgentEmptyState />
       ) : (
         /* Agent Cards Grid */
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -273,6 +269,91 @@ export default function AgentsPage() {
           </Link>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── First-agent empty state ──────────────────────────────────────────
+ *
+ * Shown when the agency has no agents yet. Drives the operator toward a
+ * quick-start template in three taps. The three cards below use the same
+ * route the future Templates page uses — /dashboard/agents/new?template=X
+ * — so the wizard can prefill defaults from the template id. For Phase 1
+ * the templates are stubs; the real catalog ships later.
+ */
+
+const QUICK_START_TEMPLATES = [
+  {
+    id: "voice-receptionist",
+    icon: Phone,
+    title: "Voice Receptionist",
+    description: "Answers calls, books appointments",
+  },
+  {
+    id: "chat-support",
+    icon: MessageSquare,
+    title: "Chat Support",
+    description: "Answers FAQs on your website",
+  },
+  {
+    id: "lead-qualifier",
+    icon: ClipboardList,
+    title: "Lead Qualifier",
+    description: "Qualifies prospects via WhatsApp",
+  },
+] as const;
+
+function FirstAgentEmptyState() {
+  return (
+    <div className="mx-auto flex max-w-3xl flex-col items-center py-10 text-center">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-muted/50">
+        <Bot className="h-7 w-7 text-muted-foreground" />
+      </div>
+      <h2 className="font-serif text-2xl text-foreground">
+        Create your first AI agent
+      </h2>
+      <p className="mt-2 max-w-md text-sm text-muted-foreground">
+        Agents answer questions, qualify leads, and book meetings — around
+        the clock.
+      </p>
+
+      <p className="mt-8 mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        Start with a template
+      </p>
+      <div className="grid w-full gap-3 sm:grid-cols-3">
+        {QUICK_START_TEMPLATES.map((tpl) => (
+          <Link
+            key={tpl.id}
+            href={`/dashboard/agents/new?template=${tpl.id}`}
+            className="group flex flex-col items-start gap-2 rounded-xl border border-border bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-kiln-orange/40 hover:bg-muted/40 hover:shadow-sm"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+              <tpl.icon className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <h3 className="text-sm font-semibold text-foreground">
+              {tpl.title}
+            </h3>
+            <p className="text-xs text-muted-foreground">{tpl.description}</p>
+            <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-kiln-orange transition-transform group-hover:translate-x-0.5">
+              Use <ArrowRight className="h-3 w-3" />
+            </span>
+          </Link>
+        ))}
+      </div>
+
+      <div className="my-8 flex w-full items-center gap-3">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          or
+        </span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+
+      <Link href="/dashboard/agents/new">
+        <Button variant="outline" size="sm" className="gap-2">
+          Build from scratch <ArrowRight className="h-3.5 w-3.5" />
+        </Button>
+      </Link>
     </div>
   );
 }
