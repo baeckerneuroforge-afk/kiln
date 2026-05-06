@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bot, ExternalLink, Loader2, Search, Wrench } from "lucide-react";
+import {
+  Bot,
+  ExternalLink,
+  Loader2,
+  Plus,
+  Search,
+  Wrench,
+  X,
+} from "lucide-react";
 import { ExpressionInput } from "../expression-input";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -15,6 +23,46 @@ interface AgentSummary {
   mode?: string;
   status?: string;
   _count?: { knowledgeEntries: number };
+}
+
+/**
+ * Helper: POSTs a new agent and returns the created summary or throws
+ * with the API's error message. Shared between the "Create new agent"
+ * inline flow (commit: inline-create) and the "Save as standalone"
+ * inline-builder flow (commit: save-as-standalone).
+ */
+async function createAgent(payload: {
+  name: string;
+  systemPrompt: string;
+  llmModel?: string;
+  description?: string;
+  welcomeMessage?: string;
+}): Promise<AgentSummary> {
+  const slug =
+    payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40) +
+    "-" +
+    Date.now().toString(36).slice(-4);
+  const res = await fetch("/api/agents", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: payload.name,
+      slug,
+      description: payload.description ?? "",
+      systemPrompt: payload.systemPrompt,
+      personality: { tone: "professional", language: "en", formality: "neutral" },
+      welcomeMessage: payload.welcomeMessage ?? "",
+      suggestedQuestions: [],
+      suggestedActions: [],
+      mode: "CHAT",
+      llmModel: payload.llmModel,
+    }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Failed to create agent");
+  }
+  return (await res.json()) as AgentSummary;
 }
 
 type AgentMode = "existing" | "inline";
@@ -146,11 +194,20 @@ export function AgentNodeConfig({
           onSearch={setSearch}
           onSelect={(id) => onChange({ ...config, agentId: id })}
           onSwitchToInline={() => switchMode("inline")}
+          onAgentCreated={(created) => {
+            // Add the new agent to the local list and select it. The
+            // workflow editor's local copy of the list updates instantly
+            // so the operator can keep configuring without re-fetching.
+            setAgents((prev) => [created, ...prev]);
+            onChange({ ...config, agentId: created.id });
+          }}
           totalAgents={agents.length}
         />
       )}
 
-      {mode === "inline" && <InlineAgentSection config={config} onChange={onChange} />}
+      {mode === "inline" && (
+        <InlineAgentSection config={config} onChange={onChange} />
+      )}
 
       {/* Custom goal override — applies in either mode. */}
       <ExpressionInput
@@ -191,6 +248,7 @@ function ExistingAgentSection({
   onSearch,
   onSelect,
   onSwitchToInline,
+  onAgentCreated,
   totalAgents,
 }: {
   agentId: string;
@@ -201,8 +259,10 @@ function ExistingAgentSection({
   onSearch: (v: string) => void;
   onSelect: (id: string) => void;
   onSwitchToInline: () => void;
+  onAgentCreated: (created: AgentSummary) => void;
   totalAgents: number;
 }) {
+  const [showCreate, setShowCreate] = useState(false);
   if (loading) {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-3">
@@ -214,17 +274,37 @@ function ExistingAgentSection({
 
   if (totalAgents === 0) {
     return (
-      <div className="flex flex-col items-start gap-2 rounded-lg border border-border bg-muted/40 px-3 py-3">
-        <p className="text-xs text-foreground">
-          You don&apos;t have any agents yet.
-        </p>
-        <button
-          type="button"
-          onClick={onSwitchToInline}
-          className="text-xs font-medium text-kiln-orange hover:text-kiln-orange/80 transition-colors"
-        >
-          Switch to Inline builder →
-        </button>
+      <div className="space-y-3">
+        <div className="flex flex-col items-start gap-2 rounded-lg border border-border bg-muted/40 px-3 py-3">
+          <p className="text-xs text-foreground">
+            You don&apos;t have any agents yet.
+          </p>
+          <div className="flex flex-wrap gap-3 text-xs">
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              className="font-medium text-kiln-orange hover:text-kiln-orange/80 transition-colors"
+            >
+              + Create new agent
+            </button>
+            <button
+              type="button"
+              onClick={onSwitchToInline}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Or use inline builder →
+            </button>
+          </div>
+        </div>
+        {showCreate && (
+          <CreateAgentInlineForm
+            onClose={() => setShowCreate(false)}
+            onCreated={(created) => {
+              setShowCreate(false);
+              onAgentCreated(created);
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -257,6 +337,28 @@ function ExistingAgentSection({
           </option>
         ))}
       </select>
+
+      {/* "Create new agent" inline shortcut. Avoids the page-jump round-
+          trip that breaks the operator's flow when they realize mid-
+          configuration they need a new agent. */}
+      {!showCreate ? (
+        <button
+          type="button"
+          onClick={() => setShowCreate(true)}
+          className="inline-flex items-center gap-1 text-xs font-medium text-kiln-orange hover:text-kiln-orange/80 transition-colors"
+        >
+          <Plus className="h-3 w-3" />
+          Create new agent
+        </button>
+      ) : (
+        <CreateAgentInlineForm
+          onClose={() => setShowCreate(false)}
+          onCreated={(created) => {
+            setShowCreate(false);
+            onAgentCreated(created);
+          }}
+        />
+      )}
 
       {selectedAgent && (
         <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
@@ -394,6 +496,141 @@ function InlineAgentSection({
         </Link>{" "}
         and switch back to <em>Use existing agent</em>.
       </div>
+    </div>
+  );
+}
+
+/**
+ * Inline form rendered directly inside the agent-node config panel.
+ * Lets the operator create a brand-new standalone agent without leaving
+ * the workflow editor — the form POSTs to /api/agents, then hands the
+ * result back so the parent can register it locally and auto-select it
+ * in the dropdown.
+ *
+ * Intentionally minimal (name + system prompt + model) — the operator
+ * can refine the agent under /dashboard/agents/<id> later. The goal is
+ * a 30-second create flow, not full agent configuration.
+ */
+function CreateAgentInlineForm({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (created: AgentSummary) => void;
+}) {
+  const [name, setName] = useState("");
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [model, setModel] = useState("claude-sonnet-4-6");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const canSave = name.trim().length >= 2 && systemPrompt.trim().length >= 20 && !saving;
+
+  async function handleSave() {
+    setError(null);
+    setSaving(true);
+    try {
+      const created = await createAgent({
+        name: name.trim(),
+        systemPrompt: systemPrompt.trim(),
+        llmModel: model.trim() || undefined,
+      });
+      onCreated(created);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create agent");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-foreground">New agent</p>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cancel"
+          className="text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      <div>
+        <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          Name
+        </label>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Lead Qualifier"
+          className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-orange-500/60"
+        />
+      </div>
+
+      <div>
+        <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          System prompt
+        </label>
+        <textarea
+          value={systemPrompt}
+          onChange={(e) => setSystemPrompt(e.target.value)}
+          rows={4}
+          placeholder="You are a sales qualification assistant. Score incoming leads on …"
+          className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-orange-500/60 resize-none"
+        />
+      </div>
+
+      <div>
+        <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          Model
+        </label>
+        <input
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+          placeholder="claude-sonnet-4-6"
+          className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-orange-500/60"
+        />
+      </div>
+
+      {error && (
+        <p className="text-[11px] text-destructive">{error}</p>
+      )}
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!canSave}
+          className="inline-flex items-center gap-1.5 rounded-md bg-kiln-orange px-3 py-1.5 text-xs font-medium text-white hover:bg-kiln-orange/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saving ? (
+            <>
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Creating…
+            </>
+          ) : (
+            <>
+              <Plus className="h-3 w-3" />
+              Create agent
+            </>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={saving}
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          Cancel
+        </button>
+      </div>
+
+      <p className="text-[10px] text-muted-foreground">
+        Tip: you can refine personality, knowledge base and tools later under{" "}
+        <em>Agents → {name.trim() || "your new agent"}</em>.
+      </p>
     </div>
   );
 }
