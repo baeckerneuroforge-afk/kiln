@@ -25,10 +25,9 @@ import type { GeneratedAgentConfig } from "@/types/agent";
 
 // Three primary creation paths from the choice page. The internal CHAT
 // (conversational quick-create) and TASK (autonomous task agent)
-// builders both live under "ADVANCED" — the user picks between them
-// via a sub-toggle inside that mode (commit: consolidate Power Mode).
+// builders both live under "Power Mode" — the user picks between them
+// via a sub-toggle inside that mode.
 type AgentMode = "CHAT" | "TASK" | "WIZARD";
-type AdvancedKind = "CHAT" | "TASK";
 type TaskStep = "describe" | "trigger" | "tools" | "output" | "review";
 
 export default function NewAgentPage() {
@@ -443,6 +442,42 @@ export default function NewAgentPage() {
     );
   }
 
+  // ─── Power Mode Sub-toggle ──────────────────────────────
+  // Inline component so it captures mode + setMode from the closure
+  // without prop drilling. Renders the [Chat ▸ Task] segmented control
+  // shown at the top of both Chat and Task builders so the operator
+  // can flip between the two without going back to the choice page.
+  function PowerModeToggle() {
+    return (
+      <div className="hidden items-center gap-1 rounded-md border border-border bg-muted/50 p-0.5 sm:inline-flex">
+        <button
+          onClick={() => setMode("CHAT")}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors",
+            mode === "CHAT"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <MessageSquare className="h-3 w-3" />
+          Chat builder
+        </button>
+        <button
+          onClick={() => setMode("TASK")}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors",
+            mode === "TASK"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Zap className="h-3 w-3" />
+          Task agent
+        </button>
+      </div>
+    );
+  }
+
   // ─── Task Agent Builder ──────────────────────────────────
   if (mode === "TASK") {
     const steps: { id: TaskStep; label: string }[] = [
@@ -464,12 +499,10 @@ export default function NewAgentPage() {
               <ArrowLeft className="h-4 w-4" />
             </button>
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
-              <Zap className="h-4 w-4 text-gray-400" />
+              <Wrench className="h-4 w-4 text-muted-foreground" />
             </div>
-            <div>
-              <h1 className="text-sm font-semibold text-foreground">New Task Agent</h1>
-              <p className="text-xs text-muted-foreground">Step {stepIdx + 1} of {steps.length}: {steps[stepIdx].label}</p>
-            </div>
+            <h1 className="text-sm font-semibold text-foreground">Power Mode</h1>
+            <PowerModeToggle />
           </div>
           <div className="flex items-center gap-2">
             {error && <p className="text-xs text-destructive">{error}</p>}
@@ -694,14 +727,10 @@ export default function NewAgentPage() {
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
-          <div>
-            <h1 className="text-sm font-semibold text-foreground">
-              {config?.name || "New Chat Agent"}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              {config ? "Configuration Generated" : "Describe your Agent"}
-            </p>
-          </div>
+          <h1 className="text-sm font-semibold text-foreground">
+            {config?.name || "Power Mode"}
+          </h1>
+          <PowerModeToggle />
         </div>
 
         <div className="flex items-center gap-3">
