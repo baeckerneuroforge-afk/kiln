@@ -60,6 +60,9 @@ interface NavItem {
   // Sub-org-class features (BUSINESS / AGENCY / ENTERPRISE / ADMIN).
   // Sub-orgs page itself, multi-tenant management. Includes BUSINESS.
   requiresAgencyTier?: boolean;
+  // One-line context shown in the hover tooltip — used to disambiguate
+  // visually-similar entries (e.g. Workflows vs Orchestration).
+  tooltipDescription?: string;
   tourId?: string;
 }
 
@@ -98,8 +101,21 @@ const NAV_SECTIONS: NavSection[] = [
     label: "Build",
     defaultOpen: true,
     items: [
-      { name: "Workflows", href: "/dashboard/teams", icon: Workflow, minAgents: 0, tourId: "workflows" },
-      { name: "Orchestration", href: "/dashboard/orchestration", icon: Network, minAgents: 2 },
+      {
+        name: "Workflows",
+        href: "/dashboard/teams",
+        icon: Workflow,
+        minAgents: 0,
+        tourId: "workflows",
+        tooltipDescription: "Multi-step workflows + visual editor",
+      },
+      {
+        name: "Orchestration",
+        href: "/dashboard/orchestration",
+        icon: Network,
+        minAgents: 2,
+        tooltipDescription: "Agent-to-agent handoffs (different from workflows)",
+      },
       { name: "Knowledge", href: "/dashboard/knowledge", icon: Waypoints, minAgents: 1 },
       { name: "Integrations", href: "/dashboard/integrations", icon: Plug, minAgents: 1, tourId: "integrations" },
     ],
@@ -153,13 +169,28 @@ const planBadgeStyles: Record<string, string> = {
   ADMIN: "bg-purple-500/15 text-purple-400",
 };
 
-function NavTooltip({ children, label, show }: { children: React.ReactNode; label: string; show: boolean }) {
+function NavTooltip({
+  children,
+  label,
+  description,
+  show,
+}: {
+  children: React.ReactNode;
+  label: string;
+  description?: string;
+  show: boolean;
+}) {
   if (!show) return <>{children}</>;
   return (
     <div className="group/tip relative">
       {children}
-      <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground opacity-0 shadow-lg transition-opacity group-hover/tip:opacity-100">
-        {label}
+      <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground opacity-0 shadow-lg transition-opacity group-hover/tip:opacity-100">
+        <div className="whitespace-nowrap">{label}</div>
+        {description && (
+          <div className="mt-0.5 max-w-[220px] whitespace-normal text-[10px] font-normal text-muted-foreground">
+            {description}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -434,7 +465,12 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                     {visibleItems.map((item) => {
                       const active = isActive(item.href);
                       return (
-                        <NavTooltip key={item.href} label={item.name} show={isCollapsed}>
+                        <NavTooltip
+                          key={item.href}
+                          label={item.name}
+                          description={item.tooltipDescription}
+                          show={isCollapsed}
+                        >
                           <Link
                             href={item.href}
                             onClick={onClose}
