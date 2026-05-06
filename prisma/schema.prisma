@@ -2401,14 +2401,20 @@ model OrgRelationship {
   // Phase 3 — Stripe Connect pricing. Pricing is configured by the agency
   // and lives in the agency's connected Stripe account, not in KILN's
   // platform account. KILN takes no application fee (GHL model).
-  pricingMode       SubOrgPricingMode @default(NONE)
-  monthlyPriceCents Int?
-  setupFeeCents     Int?
-  pricingCurrency   String?           @default("eur")
-  // IDs in the agency's connected account (returned by stripe.products.create
-  // / prices.create with { stripeAccount: <agencyAccountId> }).
-  stripeProductId   String?
-  stripePriceId     String?
+  //
+  // Phase 4 splits the price IDs by purpose: a Stripe Subscription with a
+  // setup fee is two prices on the same product — a recurring `monthly`
+  // price + a one-time `setup` price added as a checkout line item. Trial
+  // days delay the first charge of the recurring price, but the setup fee
+  // is charged immediately.
+  pricingMode          SubOrgPricingMode @default(NONE)
+  monthlyPriceCents    Int?
+  setupFeeCents        Int?
+  pricingCurrency      String?           @default("eur")
+  trialDays            Int?
+  stripeProductId      String?
+  stripeMonthlyPriceId String?
+  stripeSetupPriceId   String?
 
   @@index([parentOrgId])
   @@index([childOrgId])
@@ -2524,14 +2530,18 @@ enum SubscriptionStatus {
 /// Sources from the connected account's invoice events. Used to compute
 /// trailing-90-day revenue without re-paginating Stripe.
 model SubOrgInvoice {
-  id                String    @id @default(cuid())
+  id                String      @id @default(cuid())
   subOrgId          String
   parentAgencyOrgId String
 
-  stripeInvoiceId   String    @unique // in_xxx (in connected acct)
-  amount            Int       // cents
-  currency          String    @default("eur")
-  status            String    // paid, open, void, uncollectible
+  stripeInvoiceId   String      @unique // in_xxx (in connected acct)
+  amount            Int         // cents
+  currency          String      @default("eur")
+  status            String      // paid, open, void, uncollectible
+  // Phase 4 — distinguishes one-time setup-fee invoices from recurring
+  // monthly subscription invoices so the agency revenue dashboard can
+  // split MRR from one-shot setup revenue.
+  invoiceType       InvoiceType @default(SUBSCRIPTION)
 
   invoiceDate       DateTime
   paidAt            DateTime?
@@ -2539,7 +2549,16 @@ model SubOrgInvoice {
   pdfUrl            String?
   hostedInvoiceUrl  String?
 
-  createdAt         DateTime  @default(now())
+  createdAt         DateTime    @default(now())
 
   @@index([parentAgencyOrgId, invoiceDate])
+}
+
+/// Phase 4 — invoice categorization for sub-org revenue split. SETUP_FEE
+/// = one-time setup invoice; SUBSCRIPTION = recurring monthly bill;
+/// ADD_ON reserved for future per-seat / overage charges.
+enum InvoiceType {
+  SUBSCRIPTION
+  SETUP_FEE
+  ADD_ON
 }

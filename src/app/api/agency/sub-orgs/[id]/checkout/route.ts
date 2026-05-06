@@ -45,7 +45,7 @@ export async function POST(req: Request, { params }: Params) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (relationship.pricingMode !== "FIXED" || !relationship.stripePriceId) {
+  if (relationship.pricingMode !== "FIXED" || !relationship.stripeMonthlyPriceId) {
     return Response.json(
       { error: "Sub-org has no fixed-price subscription configured" },
       { status: 412 }
@@ -78,7 +78,7 @@ export async function POST(req: Request, { params }: Params) {
   try {
     const session = await createCheckoutSession({
       agencyAccountId: connect.stripeAccountId,
-      priceId: relationship.stripePriceId,
+      priceId: relationship.stripeMonthlyPriceId,
       successUrl,
       cancelUrl,
       customerEmail: email,

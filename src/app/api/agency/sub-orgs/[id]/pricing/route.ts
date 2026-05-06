@@ -41,7 +41,7 @@ export async function GET(_req: Request, { params }: Params) {
       setupFeeCents: true,
       pricingCurrency: true,
       stripeProductId: true,
-      stripePriceId: true,
+      stripeMonthlyPriceId: true,
     },
   });
   if (!relationship) {
@@ -128,7 +128,7 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     let productId = relationship.stripeProductId ?? null;
-    let priceId = relationship.stripePriceId ?? null;
+    let priceId = relationship.stripeMonthlyPriceId ?? null;
 
     try {
       const priceCurrency = (body.currency ?? "eur").toLowerCase();
@@ -157,7 +157,7 @@ export async function POST(req: Request, { params }: Params) {
           setupFeeCents: body.setupFeeCents ?? null,
           pricingCurrency: priceCurrency,
           stripeProductId: productId,
-          stripePriceId: priceId,
+          stripeMonthlyPriceId: priceId,
         },
       });
       return Response.json(updated);
@@ -169,10 +169,10 @@ export async function POST(req: Request, { params }: Params) {
 
   // NONE / CUSTOM: archive the existing price so it can't be reused, but
   // keep productId so a future FIXED switch reuses the same product.
-  if (relationship.stripePriceId) {
+  if (relationship.stripeMonthlyPriceId) {
     const connect = await getConnectAccount(orgId);
     if (connect) {
-      await archiveSubOrgPrice(connect.stripeAccountId, relationship.stripePriceId);
+      await archiveSubOrgPrice(connect.stripeAccountId, relationship.stripeMonthlyPriceId);
     }
   }
 
@@ -182,7 +182,7 @@ export async function POST(req: Request, { params }: Params) {
       pricingMode: mode,
       monthlyPriceCents: null,
       setupFeeCents: null,
-      stripePriceId: null,
+      stripeMonthlyPriceId: null,
     },
   });
   return Response.json(updated);

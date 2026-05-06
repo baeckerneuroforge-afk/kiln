@@ -22,7 +22,7 @@ type Pricing = {
   setupFeeCents: number | null;
   pricingCurrency: string | null;
   stripeProductId: string | null;
-  stripePriceId: string | null;
+  stripeMonthlyPriceId: string | null;
 };
 
 type Subscription = {
@@ -271,10 +271,10 @@ function PricingTab({
             />
             <span className="text-xs text-muted-foreground">/ month</span>
           </div>
-          {pricing?.stripePriceId && (
+          {pricing?.stripeMonthlyPriceId && (
             <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-emerald-600">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Stripe price configured ({pricing.stripePriceId.slice(0, 14)}…)
+              Stripe price configured ({pricing.stripeMonthlyPriceId.slice(0, 14)}…)
             </p>
           )}
         </div>
