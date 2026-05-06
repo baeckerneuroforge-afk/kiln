@@ -15,6 +15,11 @@ import {
   createWorkflowVersion,
 } from "@/lib/workflow-versioning";
 import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
+import {
+  assertNoSubWorkflowCycles,
+  extractSubWorkflowIdsFromConfig,
+  syncParentWorkflowReferences,
+} from "@/lib/workflow-subworkflows";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -99,10 +104,16 @@ export async function GET(
     }
 
     const userRole = await getTeamPermission(params.id, userId);
+    const usedAsSubWorkflowIn = await prisma.agentTeam.findMany({
+      where: { parentWorkflowIds: { has: params.id } },
+      select: { id: true, name: true },
+      orderBy: { updatedAt: "desc" },
+    });
 
     return Response.json({
       ...team,
       parentTeamName,
+      usedAsSubWorkflowIn,
       isOwner: team.userId === userId,
       sharedRole: team.userId === userId ? null : userRole,
       schedulePreview: getTeamSchedulePreview(
@@ -153,7 +164,7 @@ export async function PATCH(
     const prevSnapshot = snapshotWorkflowConfig(existing);
 
     const body = await request.json();
-    const { name, description, goal, status, config } = body;
+    const { name, description, goal, status, config, isSubWorkflow } = body;
     const saveNote = typeof body.saveNote === "string" ? body.saveNote.trim() : undefined;
     const mergedConfig =
       config !== undefined
@@ -169,6 +180,13 @@ export async function PATCH(
           }
         : undefined;
 
+    if (mergedConfig !== undefined) {
+      await assertNoSubWorkflowCycles(
+        params.id,
+        extractSubWorkflowIdsFromConfig(mergedConfig)
+      );
+    }
+
     const team = await prisma.agentTeam.update({
       where: { id: params.id },
       data: {
@@ -176,6 +194,7 @@ export async function PATCH(
         ...(description !== undefined && { description }),
         ...(goal !== undefined && { goal }),
         ...(status !== undefined && { status }),
+        ...(isSubWorkflow !== undefined && { isSubWorkflow: isSubWorkflow === true }),
         ...(mergedConfig !== undefined && {
           config: JSON.parse(
             JSON.stringify(mergedConfig)
@@ -183,6 +202,14 @@ export async function PATCH(
         }),
       },
     });
+
+    if (mergedConfig !== undefined) {
+      await syncParentWorkflowReferences(
+        params.id,
+        extractSubWorkflowIdsFromConfig(existing.config),
+        extractSubWorkflowIdsFromConfig(mergedConfig)
+      );
+    }
 
     // Auto-version: create a version snapshot if workflow content changed
     const newSnapshot = snapshotWorkflowConfig(team);

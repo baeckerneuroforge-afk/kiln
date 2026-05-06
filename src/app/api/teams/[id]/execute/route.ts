@@ -9,6 +9,10 @@ import {
   executeTeamExecution,
   loadTeamExecutionRuntimeContext,
 } from "@/lib/services/team-runtime";
+import {
+  executeWorkflow,
+  isWorkflowTeam,
+} from "@/lib/services/workflow-runtime";
 import { enqueueExecution, PRIORITY_VALUES } from "@/lib/execution-queue";
 import { canEditTeam } from "@/lib/team-permissions";
 
@@ -39,6 +43,26 @@ export async function POST(
       return Response.json(
         { error: "Goal is required." },
         { status: 400 }
+      );
+    }
+
+    if (isWorkflowTeam(team.config)) {
+      const result = await executeWorkflow({
+        teamId: params.id,
+        userId,
+        goal,
+        triggerPayload: body.triggerPayload,
+        triggerNodeId: body.triggerNodeId,
+        debugMode: body.debugMode === true,
+      });
+
+      return Response.json(
+        {
+          executionId: result.executionId,
+          status: result.status,
+          workflowMode: true,
+        },
+        { status: 201 }
       );
     }
 

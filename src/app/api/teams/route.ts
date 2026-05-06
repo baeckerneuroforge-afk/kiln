@@ -78,7 +78,7 @@ async function fetchRunStatsByTeamId(teamIds: string[]): Promise<Map<string, Run
 }
 
 // List all teams in the active org (owned + shared, with legacy fallback)
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     let scope;
     try {
@@ -95,8 +95,15 @@ export async function GET() {
     // Layer org filter on top of the existing owned/shared ACL: only teams
     // that belong to the active org (or are unmigrated and owned by the user)
     // come back.
+    const onlySubWorkflows =
+      request.nextUrl.searchParams.get("onlySubWorkflows") === "true";
+
     const teams = await prisma.agentTeam.findMany({
-      where: { id: { in: allTeamIds }, ...orgScopeFilter(scope) },
+      where: {
+        id: { in: allTeamIds },
+        ...orgScopeFilter(scope),
+        ...(onlySubWorkflows ? { isSubWorkflow: true } : {}),
+      },
       include: {
         members: {
           include: {
@@ -158,7 +165,7 @@ export async function POST(request: NextRequest) {
     const { userId, orgId } = scope;
 
     const body = await request.json();
-    const { name, description, goal, template: templateKey } = body;
+    const { name, description, goal, template: templateKey, isSubWorkflow } = body;
 
     if (!name && !templateKey) {
       return Response.json(
@@ -200,6 +207,7 @@ export async function POST(request: NextRequest) {
         name,
         description: description || null,
         goal: goal || null,
+        isSubWorkflow: isSubWorkflow === true,
       },
     });
 

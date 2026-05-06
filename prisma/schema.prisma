@@ -479,6 +479,8 @@ model AgentMemory {
   id          String   @id @default(cuid())
   agentId     String
   agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  workflowExecutionId String?
+  scope       MemoryScope @default(AGENT)
   sessionHash String   // Hash des sessionId — identifiziert wiederkehrende Besucher
   key         String   // z.B. "name", "preference", "question_asked"
   value       String   @db.Text
@@ -487,6 +489,8 @@ model AgentMemory {
 
   @@unique([agentId, sessionHash, key])
   @@index([agentId, sessionHash])
+  @@index([workflowExecutionId])
+  @@index([scope])
   @@index([orgId])
 }
 
@@ -1025,6 +1029,25 @@ enum ApprovalRequestStatus {
   SKIPPED
 }
 
+enum WorkflowVariableType {
+  STRING
+  NUMBER
+  SECRET
+  JSON
+}
+
+enum MemoryScope {
+  AGENT
+  WORKFLOW
+  GLOBAL
+}
+
+enum WorkflowDeadLetterStatus {
+  OPEN
+  RETRIED
+  DISCARDED
+}
+
 model AgentTeam {
   id            String          @id @default(cuid())
   userId        String
@@ -1036,6 +1059,8 @@ model AgentTeam {
   config        Json?
   status        AgentTeamStatus @default(ACTIVE)
   parentTeamId  String?         // Cloned/forked from this team
+  isSubWorkflow Boolean         @default(false)
+  parentWorkflowIds String[]    @default([])
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
@@ -1049,9 +1074,13 @@ model AgentTeam {
   versions       TeamVersion[]
   abTestsAsA     TeamABTest[]     @relation("ABTestTeamA")
   abTestsAsB     TeamABTest[]     @relation("ABTestTeamB")
+  workflowVariables WorkflowVariable[]
+  workflowComments  WorkflowComment[]
+  deadLetters       WorkflowDeadLetter[]
 
   @@index([userId])
   @@index([orgId])
+  @@index([isSubWorkflow])
 }
 
 model TeamPermission {
@@ -1143,9 +1172,11 @@ model TeamExecution {
   executionContext Json?
   contextCompactions  Int     @default(0) // Wie oft der Context komprimiert wurde
   outputQualityScore  Float?              // 0-100 Qualitäts-Score des Outputs
+  errorHandlingApplied Boolean @default(false)
 
   logs           TeamExecutionLog[]
   approvalRequests ApprovalRequest[]
+  deadLetters    WorkflowDeadLetter[]
 
   @@index([teamId])
   @@index([userId])
@@ -1206,6 +1237,57 @@ model ApprovalRequest {
   @@index([teamExecutionId])
   @@index([gateMemberId])
   @@index([taskIndex])
+}
+
+model WorkflowVariable {
+  id          String               @id @default(cuid())
+  agentTeamId String
+  agentTeam   AgentTeam            @relation(fields: [agentTeamId], references: [id], onDelete: Cascade)
+  name        String
+  value       String               @db.Text
+  type        WorkflowVariableType
+  isSecret    Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@unique([agentTeamId, name])
+  @@index([agentTeamId])
+}
+
+model WorkflowDeadLetter {
+  id             String                   @id @default(cuid())
+  agentTeamId    String
+  agentTeam      AgentTeam                @relation(fields: [agentTeamId], references: [id], onDelete: Cascade)
+  teamExecutionId String?
+  teamExecution  TeamExecution?          @relation(fields: [teamExecutionId], references: [id], onDelete: SetNull)
+  nodeId         String
+  nodeType       String
+  payload        Json?
+  error          String                   @db.Text
+  attempts       Int                      @default(0)
+  status         WorkflowDeadLetterStatus @default(OPEN)
+  createdAt      DateTime                 @default(now())
+  retriedAt      DateTime?
+  discardedAt    DateTime?
+
+  @@index([agentTeamId, status])
+  @@index([teamExecutionId])
+  @@index([nodeId])
+}
+
+model WorkflowComment {
+  id           String    @id @default(cuid())
+  agentTeamId  String
+  agentTeam    AgentTeam @relation(fields: [agentTeamId], references: [id], onDelete: Cascade)
+  content      String    @db.Text
+  position     Json
+  color        String    @default("yellow")
+  authorUserId String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([agentTeamId])
+  @@index([authorUserId])
 }
 
 // ── Team A/B Testing ────────────────────────────────────────
