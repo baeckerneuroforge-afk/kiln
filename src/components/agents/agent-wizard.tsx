@@ -414,7 +414,8 @@ export function AgentWizard({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="flex h-[calc(100vh-3rem)] flex-col">
-      {/* Top Bar */}
+      {/* Top Bar — title only; the stepper visualizes progress so the
+          redundant "Step N of M" subtitle was dropped. */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-3">
           <button
@@ -426,10 +427,7 @@ export function AgentWizard({ onBack }: { onBack: () => void }) {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-kiln-orange/10">
             <Sparkles className="h-4 w-4 text-kiln-orange" />
           </div>
-          <div>
-            <h1 className="text-sm font-semibold text-foreground">Agent Builder</h1>
-            <p className="text-xs text-muted-foreground">Step {stepIdx + 1} of {STEPS.length}: {STEPS[stepIdx].label}</p>
-          </div>
+          <h1 className="text-sm font-semibold text-foreground">Agent Builder</h1>
         </div>
         <div className="flex items-center gap-3">
           {error && <p className="text-xs text-destructive">{error}</p>}
@@ -442,8 +440,8 @@ export function AgentWizard({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      {/* Step Progress */}
-      <div className="flex items-center gap-1 border-b border-border px-6 py-2">
+      {/* Step Progress — single source of truth for "where am I". */}
+      <div className="flex items-center justify-center gap-1 border-b border-border px-6 py-3">
         {STEPS.map((s, i) => (
           <div key={s.id} className="flex items-center gap-1">
             <button
@@ -463,9 +461,10 @@ export function AgentWizard({ onBack }: { onBack: () => void }) {
         ))}
       </div>
 
-      {/* Step Content */}
+      {/* Step Content — vertically centered card so the wizard doesn't
+          drown in whitespace on tall screens. */}
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-2xl px-6 py-8">
+        <div className="mx-auto mt-8 max-w-2xl rounded-xl border border-border bg-card px-6 py-8 sm:px-8">
 
           {/* ─── Step 1: Goal ─── */}
           {step === "goal" && (
