@@ -266,7 +266,7 @@ export function BudgetSettings({ agentId }: BudgetSettingsProps) {
           ) : (
             <Save className="mr-1.5 h-3.5 w-3.5" />
           )}
-          {saved ? "Gespeichert" : "Speichern"}
+          {saved ? "Saved" : "Save"}
         </Button>
       </div>
     </div>

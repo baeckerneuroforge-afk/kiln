@@ -116,17 +116,17 @@ export function ModelRoutingTab({ agentId }: ModelRoutingTabProps) {
           Model Routing
         </h3>
         <p className="text-xs text-muted-foreground mt-1">
-          Steuere welche AI-Modelle für verschiedene Aufgaben verwendet werden.
+          Control which AI models handle different tasks.
         </p>
       </div>
 
       {/* Strategy Selection */}
       <div className="grid gap-2">
         {([
-          { id: "auto" as const, label: "Auto (KILN entscheidet)", icon: Settings2, desc: "Intelligente Modell-Auswahl basierend auf Task-Typ und Komplexität", color: "orange" },
-          { id: "cost_optimized" as const, label: "Kosten-Optimiert", icon: Wallet, desc: "Bevorzugt günstigere Modelle wenn die Qualität vergleichbar ist", color: "green" },
-          { id: "speed_optimized" as const, label: "Speed-Optimiert", icon: Zap, desc: "Immer das schnellste verfügbare Modell", color: "blue" },
-          { id: "manual" as const, label: "Manuell", icon: Settings2, desc: "Wähle für jeden Task-Typ das Modell selbst", color: "purple" },
+          { id: "auto" as const, label: "Auto (KILN decides)", icon: Settings2, desc: "Smart model selection based on task type and complexity", color: "orange" },
+          { id: "cost_optimized" as const, label: "Cost-Optimized", icon: Wallet, desc: "Prefer cheaper models when quality is comparable", color: "green" },
+          { id: "speed_optimized" as const, label: "Speed-Optimized", icon: Zap, desc: "Always use the fastest available model", color: "blue" },
+          { id: "manual" as const, label: "Manual", icon: Settings2, desc: "Choose the model for each task type yourself", color: "purple" },
         ]).map(({ id, label, icon: Icon, desc, color }) => (
           <button
             key={id}
@@ -163,8 +163,8 @@ export function ModelRoutingTab({ agentId }: ModelRoutingTabProps) {
           <div className="flex items-center gap-2">
             <Info className="h-3.5 w-3.5 text-muted-foreground" />
             <p className="text-[10px] text-muted-foreground">
-              Wähle für jeden Task-Typ das bevorzugte Modell.
-              Grüner Punkt = API Key konfiguriert.
+              Pick the preferred model for each task type.
+              Green dot = API key configured.
             </p>
           </div>
 
@@ -173,7 +173,7 @@ export function ModelRoutingTab({ agentId }: ModelRoutingTabProps) {
               <table className="w-full text-[11px]">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left px-3 py-2 text-muted-foreground font-medium">Task-Typ</th>
+                    <th className="text-left px-3 py-2 text-muted-foreground font-medium">Task type</th>
                     {modelsWithAvailability.map((m) => (
                       <th key={m.id} className="text-center px-2 py-2 text-muted-foreground font-medium whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1">
@@ -231,7 +231,7 @@ export function ModelRoutingTab({ agentId }: ModelRoutingTabProps) {
           ) : (
             <Save className="mr-1.5 h-3.5 w-3.5" />
           )}
-          {saved ? "Gespeichert" : "Speichern"}
+          {saved ? "Saved" : "Save"}
         </Button>
       </div>
     </div>

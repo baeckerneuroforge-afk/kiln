@@ -155,9 +155,9 @@ export default function AgentsPage() {
       ) : agents.length === 0 ? (
         <EmptyState
           icon={<Bot className="h-7 w-7 text-muted-foreground" />}
-          title="Erstelle deinen ersten AI Agent"
-          description="Agents beantworten Fragen, qualifizieren Leads und buchen Termine — rund um die Uhr."
-          actionLabel="Agent erstellen"
+          title="Create your first AI agent"
+          description="Agents answer questions, qualify leads, and book meetings — around the clock."
+          actionLabel="Create agent"
           actionHref="/dashboard/agents/new"
         />
       ) : (

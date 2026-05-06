@@ -346,7 +346,7 @@ export function WatchLearnUploader({ agentId }: WatchLearnUploaderProps) {
                 className="h-7 text-xs text-emerald-400 hover:text-emerald-300"
               >
                 {saving ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Save className="mr-1 h-3 w-3" />}
-                Speichern & Aktivieren
+                Save & Activate
               </Button>
             </div>
           </div>

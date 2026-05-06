@@ -1452,11 +1452,11 @@ export default function AgentDetailPage() {
                             onChange={(e) => setTeamRoutingEnabled(e.target.checked)}
                             className="h-4 w-4 rounded border-border bg-card text-orange-500 focus:ring-orange-500/30"
                           />
-                          <span className="text-xs text-foreground">Intent-basiertes Routing aktivieren</span>
+                          <span className="text-xs text-foreground">Enable intent-based routing</span>
                         </label>
                         {teamRoutingEnabled && (
                           <div>
-                            <label className="mb-1.5 block text-[11px] font-medium text-muted-foreground">Team auswählen</label>
+                            <label className="mb-1.5 block text-[11px] font-medium text-muted-foreground">Select team</label>
                             <select
                               value={teamRoutingTeamId || ""}
                               onChange={(e) => setTeamRoutingTeamId(e.target.value || null)}
@@ -2483,7 +2483,7 @@ function A2AProtocolSection({
   }, [loadA2AData]);
 
   async function regenerateKey() {
-    if (!confirm("Neuen A2A API Key generieren? Der alte Key wird ungültig.")) return;
+    if (!confirm("Generate a new A2A API key? The current key will be invalidated.")) return;
     setRegenerating(true);
     try {
       const res = await fetch(`/api/a2a/agents/${agentId}/key`, { method: "POST" });
@@ -2682,14 +2682,14 @@ function SavedLoginsSection({ agentId }: { agentId: string }) {
         body: JSON.stringify({ serviceName: newService, loginUrl: newUrl, username: newUsername, password: newPassword }),
       });
       if (res.ok) {
-        toast("Credential gespeichert");
+        toast("Credential saved");
         setNewService(""); setNewUrl(""); setNewUsername(""); setNewPassword("");
         setShowForm(false);
         await loadCredentials();
       } else {
-        toast("Fehler beim Speichern", "error");
+        toast("Save failed", "error");
       }
-    } catch { toast("Fehler", "error"); }
+    } catch { toast("Error", "error"); }
     setSaving(false);
   }
 
@@ -2697,7 +2697,7 @@ function SavedLoginsSection({ agentId }: { agentId: string }) {
     try {
       const res = await fetch(`/api/agents/${agentId}/credentials/${id}`, { method: "DELETE" });
       if (res.ok) {
-        toast("Credential gelöscht");
+        toast("Credential deleted");
         await loadCredentials();
       }
     } catch { /* ignore */ }

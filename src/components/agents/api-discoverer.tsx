@@ -258,7 +258,7 @@ export function ApiDiscoverer({ agentId }: ApiDiscovererProps) {
               <div>
                 <label className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <Shield className="h-2.5 w-2.5" />
-                  API-Key (optional — für Live-Test)
+                  API key (optional — for live test)
                 </label>
                 <input
                   type="password"

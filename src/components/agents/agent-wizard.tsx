@@ -46,7 +46,7 @@ const GOALS: GoalOption[] = [
 const INDUSTRIES = [
   "SaaS / Software", "E-Commerce", "Real Estate", "Coaching / Consulting",
   "Healthcare / Dental", "Restaurant / Hospitality", "Legal", "Finance / Insurance",
-  "Fitness / Wellness", "Marketing Agency", "Education", "Handwerk / Trades",
+  "Fitness / Wellness", "Marketing Agency", "Education", "Trades / Crafts",
   "Automotive", "Travel / Tourism", "Other",
 ];
 
@@ -58,8 +58,30 @@ const STEPS: { id: WizardStep; label: string }[] = [
   { id: "review", label: "Review" },
 ];
 
-/* ---------- System Prompt Generator ---------- */
+/* ---------- System Prompt Generator ───────────────────────────────────
+ * Generates the agent's system prompt as English by default. When the
+ * operator explicitly selects German (language === "de"), we emit a
+ * German prompt so a German-speaking agent stays linguistically natural.
+ * Other selections (en / fr / es / auto) get the English template plus
+ * an explicit "respond in <language>" footer — the agent runtime
+ * handles the actual language switching.
+ */
 function generateSystemPrompt(opts: {
+  goal: string;
+  businessName: string;
+  industry: string;
+  customGoal: string;
+  tone: number;
+  length: number;
+  language: string;
+  kbMode: string;
+  faqPairs: { q: string; a: string }[];
+}): string {
+  if (opts.language === "de") return generateGermanPrompt(opts);
+  return generateEnglishPrompt(opts);
+}
+
+function generateEnglishPrompt(opts: {
   goal: string;
   businessName: string;
   industry: string;
@@ -81,6 +103,78 @@ function generateSystemPrompt(opts: {
 
   const toneLabel = opts.tone <= 30 ? "formal and professional" : opts.tone >= 70 ? "casual and friendly" : "approachable yet professional";
   const lengthLabel = opts.length <= 30 ? "concise — keep responses short and to the point" : opts.length >= 70 ? "detailed — provide thorough, comprehensive answers" : "balanced — be informative without being verbose";
+
+  let prompt = `You are ${opts.businessName ? `the AI assistant for ${opts.businessName}` : "a professional AI assistant"}`;
+  if (opts.industry && opts.industry !== "Other") {
+    prompt += ` in the ${opts.industry} space`;
+  }
+  prompt += `. Your goal is to ${goalMap[opts.goal] || goalMap.custom}.\n\n`;
+
+  prompt += `Guidelines:\n`;
+  prompt += `- Communicate ${toneLabel}\n`;
+  prompt += `- Reply ${lengthLabel}\n`;
+  prompt += `- If you don't know the answer, say so honestly and offer to connect the visitor with a human\n`;
+
+  if (opts.goal === "leads" || opts.goal === "qualify") {
+    prompt += `- When a visitor shows interest, politely ask for their name and email\n`;
+    prompt += `- Use the lead-capture action as soon as you have an email\n`;
+  }
+
+  if (opts.goal === "booking") {
+    prompt += `- When a visitor wants to book, use the appointment-booking action\n`;
+    prompt += `- Surface available slots and confirm the booking explicitly\n`;
+  }
+
+  if (opts.goal === "service" || opts.goal === "support") {
+    prompt += `- For complex issues you cannot resolve, hand off to a human agent\n`;
+    prompt += `- Ask focused questions to narrow down the problem\n`;
+  }
+
+  if (opts.kbMode === "faq" && opts.faqPairs.some((f) => f.q && f.a)) {
+    prompt += `\n---\nFREQUENTLY ASKED QUESTIONS:\n`;
+    for (const faq of opts.faqPairs) {
+      if (faq.q && faq.a) {
+        prompt += `\nQ: ${faq.q}\nA: ${faq.a}\n`;
+      }
+    }
+    prompt += `---\nUse this FAQ to answer common questions.\n`;
+  }
+
+  if (opts.language !== "auto" && opts.language !== "en") {
+    const langMap: Record<string, string> = { fr: "French", es: "Spanish" };
+    prompt += `\nAlways respond in ${langMap[opts.language] || opts.language}.\n`;
+  } else if (opts.language === "auto") {
+    prompt += `\nIMPORTANT: Detect the visitor's language and ALWAYS reply in the same language.\n`;
+  }
+
+  return prompt;
+}
+
+function generateGermanPrompt(opts: {
+  goal: string;
+  businessName: string;
+  industry: string;
+  customGoal: string;
+  tone: number;
+  length: number;
+  language: string;
+  kbMode: string;
+  faqPairs: { q: string; a: string }[];
+}): string {
+  // German-language template — used when the operator explicitly picks
+  // German for the agent. The original wizard always emitted this; we
+  // now branch on language so non-German agents get an English prompt.
+  const goalMap: Record<string, string> = {
+    support: "Kundenfragen präzise und hilfreich zu beantworten",
+    leads: "Besucher zu engagieren, ihre Bedürfnisse zu verstehen und ihre Kontaktdaten zu erfassen",
+    booking: "Besuchern bei der Terminvereinbarung und Verfügbarkeitsprüfung zu helfen",
+    qualify: "Interessenten zu qualifizieren, indem du die richtigen Fragen stellst",
+    service: "exzellenten Kundenservice zu bieten, Probleme zu lösen und bei Bedarf zu eskalieren",
+    custom: opts.customGoal || "Besucher bei ihren Anliegen zu unterstützen",
+  };
+
+  const toneLabel = opts.tone <= 30 ? "formal und professionell" : opts.tone >= 70 ? "locker und freundlich" : "zugänglich und doch professionell";
+  const lengthLabel = opts.length <= 30 ? "knapp — halte die Antworten kurz und auf den Punkt" : opts.length >= 70 ? "ausführlich — gib gründliche, umfassende Antworten" : "ausgewogen — sei informativ ohne weitschweifig zu werden";
   const formalityLabel = opts.tone <= 30 ? "Sie" : "du";
 
   let prompt = `Du bist ${opts.businessName ? `der KI-Assistent von ${opts.businessName}` : "ein professioneller KI-Assistent"}`;
@@ -120,12 +214,7 @@ function generateSystemPrompt(opts: {
     prompt += `---\nNutze diese FAQ, um häufige Fragen zu beantworten.\n`;
   }
 
-  if (opts.language !== "auto") {
-    const langMap: Record<string, string> = { de: "Deutsch", en: "English", fr: "Französisch", es: "Spanisch" };
-    prompt += `\nAntworte immer auf ${langMap[opts.language] || opts.language}.\n`;
-  } else {
-    prompt += `\nWICHTIG: Erkenne die Sprache des Nutzers und antworte IMMER in derselben Sprache.\n`;
-  }
+  prompt += `\nAntworte immer auf Deutsch.\n`;
 
   return prompt;
 }
@@ -133,16 +222,16 @@ function generateSystemPrompt(opts: {
 /* ---------- Personality Preview ---------- */
 function PersonalityPreview({ tone, length, businessName }: { tone: number; length: number; businessName: string }) {
   const greeting = tone >= 70
-    ? `Hey! 👋 Schön, dass du da bist! Ich bin der Assistent von ${businessName || "uns"}. Was kann ich für dich tun?`
+    ? `Hey! 👋 Glad you stopped by! I'm the assistant from ${businessName || "our team"}. How can I help?`
     : tone <= 30
-      ? `Guten Tag. Willkommen bei ${businessName || "unserem Service"}. Wie kann ich Ihnen behilflich sein?`
-      : `Hallo! Willkommen bei ${businessName || "uns"}. Wie kann ich dir helfen?`;
+      ? `Good day. Welcome to ${businessName || "our service"}. How may I assist you?`
+      : `Hi! Welcome to ${businessName || "us"}. How can I help you?`;
 
   const answer = length >= 70
-    ? `Das ist eine großartige Frage! Lass mich dir eine ausführliche Antwort geben. Unser Service bietet verschiedene Möglichkeiten, die ich dir gerne im Detail erklären möchte. Zunächst einmal...`
+    ? `Great question! Let me give you a detailed answer. We offer several options, and I'd be happy to walk you through each one. To start with...`
     : length <= 30
-      ? `Ja, das ist möglich. Schreib mir deine E-Mail und ich sende dir die Details.`
-      : `Ja, das können wir anbieten! Ich schicke dir gerne mehr Details, wenn du möchtest.`;
+      ? `Yes, that's possible. Send me your email and I'll forward the details.`
+      : `Yes, we can do that! Happy to share more details if you'd like.`;
 
   return (
     <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
@@ -157,7 +246,7 @@ function PersonalityPreview({ tone, length, businessName }: { tone: number; leng
         </div>
         <div className="flex justify-end">
           <div className="rounded-lg rounded-br-sm bg-kiln-orange/10 px-3 py-2 text-xs text-foreground max-w-[85%]">
-            Könnt ihr mir dabei helfen?
+            Can you help me with that?
           </div>
         </div>
         <div className="flex justify-start">
@@ -264,16 +353,16 @@ export function AgentWizard({ onBack }: { onBack: () => void }) {
       const slug = businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40) + "-" + Date.now().toString(36).slice(-4);
       const toneLabel = tone <= 30 ? "formal, professional" : tone >= 70 ? "casual, friendly" : "approachable, professional";
       const welcomeMessage = tone >= 70
-        ? `Hey! 👋 Schön, dass du da bist! Ich bin der Assistent von ${businessName}. Was kann ich für dich tun?`
+        ? `Hey! 👋 Glad you stopped by! I'm the assistant from ${businessName}. How can I help?`
         : tone <= 30
-          ? `Guten Tag. Willkommen bei ${businessName}. Wie kann ich Ihnen behilflich sein?`
-          : `Hallo! Willkommen bei ${businessName}. Wie kann ich dir helfen?`;
+          ? `Good day. Welcome to ${businessName}. How may I assist you?`
+          : `Hi! Welcome to ${businessName}. How can I help you?`;
 
       const suggestedQuestions: string[] = [];
-      if (selectedGoal === "booking") suggestedQuestions.push("Kann ich einen Termin buchen?", "Wann habt ihr noch Termine frei?");
-      if (selectedGoal === "leads" || selectedGoal === "qualify") suggestedQuestions.push("Was bietet ihr an?", "Wie kann ich mehr erfahren?");
-      if (selectedGoal === "support" || selectedGoal === "service") suggestedQuestions.push("Ich brauche Hilfe", "Wie funktioniert das?");
-      if (suggestedQuestions.length === 0) suggestedQuestions.push("Was könnt ihr für mich tun?", "Erzähl mir mehr");
+      if (selectedGoal === "booking") suggestedQuestions.push("Can I book an appointment?", "What times do you have available?");
+      if (selectedGoal === "leads" || selectedGoal === "qualify") suggestedQuestions.push("What do you offer?", "How can I learn more?");
+      if (selectedGoal === "support" || selectedGoal === "service") suggestedQuestions.push("I need help", "How does this work?");
+      if (suggestedQuestions.length === 0) suggestedQuestions.push("What can you do for me?", "Tell me more");
 
       const res = await fetch("/api/agents", {
         method: "POST",
@@ -455,7 +544,7 @@ export function AgentWizard({ onBack }: { onBack: () => void }) {
                   type="text"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder="e.g. Müller Zahnmedizin, TechFlow GmbH"
+                  placeholder="e.g. Acme Inc., TechFlow GmbH"
                   className="w-full rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground focus:border-kiln-orange focus:outline-none focus:ring-1 focus:ring-kiln-orange"
                 />
               </div>
