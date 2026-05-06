@@ -41,6 +41,11 @@ import {
   isWriteTool,
   executeApprovedWriteTool,
 } from "@/lib/services/integration-tools";
+import {
+  buildScopedMemoryWhere,
+  formatMemoryPrompt,
+  normalizeWorkflowMemoryScope,
+} from "@/lib/workflow-memory-scope";
 // TODO: Wire getRoleMCPTools for MCP tool filtering per team role
 // import { getRoleMCPTools } from "@/lib/mcp/team-mcp-config";
 
@@ -522,6 +527,12 @@ async function runTeamMemberTask(
     executionContext
   );
   const visibleExecutionContext = getVisibleExecutionContext(executionContext);
+  const workflowExecutionId =
+    typeof executionContext._workflowExecutionId === "string"
+      ? executionContext._workflowExecutionId
+      : null;
+  const memoryScope = normalizeWorkflowMemoryScope(executionContext._workflowMemoryScope);
+  const memorySessionHash = workflowExecutionId || `team:${team.id}`;
 
   // Search both agent KB and team KB
   let knowledgeContext = "";
@@ -548,13 +559,29 @@ async function runTeamMemberTask(
     }
   }
 
+  let scopedMemoryPrompt = "";
+  if (agent.memoryEnabled) {
+    const memories = await prisma.agentMemory.findMany({
+      where: buildScopedMemoryWhere({
+        agentId: agent.id,
+        sessionHash: memorySessionHash,
+        workflowExecutionId,
+        scope: memoryScope,
+      }),
+      orderBy: { updatedAt: "desc" },
+      take: 20,
+      select: { key: true, value: true },
+    }).catch(() => []);
+    scopedMemoryPrompt = formatMemoryPrompt(memories);
+  }
+
   const systemPrompt = `${agent.systemPrompt}
 
 ${getRoleDirective(member.role)}
 You are working inside the team "${team.name}".
 Shared team context: ${JSON.stringify(visibleExecutionContext, null, 2)}.
 Use this information. After completing your task, include any new information you learned.
-Respond with the execution result only.${knowledgeContext}`;
+Respond with the execution result only.${knowledgeContext}${scopedMemoryPrompt}`;
 
   // Tools für dieses Team-Mitglied bauen
   const { tools: memberTools, integrations: agentIntegrations } =
@@ -750,6 +777,39 @@ Respond with the execution result only.${knowledgeContext}`;
     output,
     executionContext
   );
+
+  if (agent.memoryEnabled && Object.keys(structuredOutput).length > 0) {
+    await Promise.all(
+      Object.entries(structuredOutput)
+        .filter(([, value]) => value !== undefined && value !== null)
+        .slice(0, 20)
+        .map(([key, value]) =>
+          prisma.agentMemory.upsert({
+            where: {
+              agentId_sessionHash_key: {
+                agentId: agent.id,
+                sessionHash: memorySessionHash,
+                key,
+              },
+            },
+            update: {
+              value: typeof value === "string" ? value : JSON.stringify(value),
+              workflowExecutionId,
+              scope: memoryScope,
+            },
+            create: {
+              agentId: agent.id,
+              sessionHash: memorySessionHash,
+              key,
+              value: typeof value === "string" ? value : JSON.stringify(value),
+              workflowExecutionId,
+              scope: memoryScope,
+              orgId: agent.orgId,
+            },
+          }).catch(() => null)
+        )
+    );
+  }
 
   if (!tokensIn) {
     tokensIn =
