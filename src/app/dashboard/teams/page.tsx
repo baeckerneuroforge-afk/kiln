@@ -36,6 +36,7 @@ import {
   GraduationCap,
   CookingPot,
   GitFork,
+  Search,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -1746,6 +1747,13 @@ export default function TeamsPage() {
   const [creatingTemplate, setCreatingTemplate] = useState<string | null>(null);
   const [healthScores, setHealthScores] = useState<Record<string, { overall: number; color: "green" | "yellow" | "red"; direction: "up" | "down" | "stable" }>>({});
 
+  // Phase A polish: list-page filters + search. Defaults to "all" so the
+  // grid renders unchanged on first load; flipping the segmented control
+  // narrows the list client-side without re-fetching.
+  type StatusFilter = "all" | "active" | "paused";
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+
   // Import YAML state
   const [showImport, setShowImport] = useState(false);
   const [importYaml, setImportYaml] = useState("");
@@ -2119,11 +2127,68 @@ export default function TeamsPage() {
       ) : (
         /* Team cards grid */
         <>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-orange-400/60">
-            Your Workflows
-          </h2>
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-orange-400/60">
+              Your Workflows
+            </h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search workflows…"
+                  className="w-48 rounded-md border border-border bg-card pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-orange-500/60"
+                />
+              </div>
+              <div className="inline-flex items-center gap-0.5 rounded-md border border-border bg-card p-0.5">
+                {(["all", "active", "paused"] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setStatusFilter(f)}
+                    className={cn(
+                      "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                      statusFilter === f
+                        ? "bg-muted text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {f === "all" ? "All" : f === "active" ? "Active" : "Paused"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {teams.filter((t) => t.isOwner !== false).map((team) => {
+            {(() => {
+              const q = searchQuery.trim().toLowerCase();
+              const filtered = teams
+                .filter((t) => t.isOwner !== false)
+                .filter((t) => {
+                  if (statusFilter === "active") return t.status === "ACTIVE";
+                  if (statusFilter === "paused") return t.status !== "ACTIVE";
+                  return true;
+                })
+                .filter((t) => {
+                  if (!q) return true;
+                  return (
+                    t.name.toLowerCase().includes(q) ||
+                    (t.description ?? "").toLowerCase().includes(q) ||
+                    (t.goal ?? "").toLowerCase().includes(q)
+                  );
+                });
+              if (filtered.length === 0) {
+                return (
+                  <div className="col-span-full rounded-xl border border-dashed border-border bg-card/40 p-8 text-center">
+                    <p className="text-sm text-foreground">No workflows match.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Adjust the filter or search query.
+                    </p>
+                  </div>
+                );
+              }
+              return filtered.map((team) => {
               const taskCount = team._count?.tasks ?? 0;
 
               return (
@@ -2197,7 +2262,8 @@ export default function TeamsPage() {
                   </div>
                 </Link>
               );
-            })}
+            });
+            })()}
 
             {/* New Team card */}
             <button
