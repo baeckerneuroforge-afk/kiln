@@ -33,6 +33,10 @@ const isPublicRoute = createRouteMatcher([
   "/api/embed/(.*)",       // Embed Script JS
   "/api/waitlist",          // Waitlist Signup
   "/api/webhooks/stripe",   // Stripe Webhooks
+  "/api/webhooks/stripe-connect",  // Stripe Connect Webhooks (separate signing secret)
+  "/onboarding/:id",         // Sub-Org White-Label Onboarding (Phase 4)
+  "/onboarding/:id/success", // Onboarding success page after Stripe Checkout
+  "/api/onboarding/:id/checkout", // Public onboarding checkout (cuid as token)
   "/api/webhooks/telegram/(.*)", // Telegram Bot Webhooks
   "/api/webhooks/email/(.*)",    // Email Inbound Webhooks
   "/api/webhooks/github/(.*)",   // GitHub Webhook Events
