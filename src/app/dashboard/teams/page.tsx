@@ -54,6 +54,16 @@ interface TeamMember {
   role: "HEAD" | "COORDINATOR" | "EXECUTOR" | "REPORTER" | "APPROVAL_GATE";
 }
 
+interface RunStats {
+  totalRuns: number;
+  completedRuns: number;
+  failedRuns: number;
+  successRate: number | null;
+  avgDurationMs: number | null;
+  lastRunAt: string | null;
+  lastRunStatus: string | null;
+}
+
 interface Team {
   id: string;
   name: string;
@@ -67,6 +77,7 @@ interface Team {
   members: TeamMember[];
   _count: { tasks: number };
   createdAt: string;
+  runStats?: RunStats | null;
 }
 
 interface SuggestedRole {
@@ -244,6 +255,33 @@ function formatDate(dateStr: string): string {
     day: "numeric",
     year: "numeric",
   });
+}
+
+function formatRelativeTime(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const ts = new Date(iso).getTime();
+  if (!Number.isFinite(ts)) return null;
+  const diff = Date.now() - ts;
+  if (diff < 60_000) return "just now";
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  const years = Math.floor(days / 365);
+  return `${years}y ago`;
+}
+
+function formatDurationMs(ms: number | null | undefined): string | null {
+  if (ms === null || ms === undefined || !Number.isFinite(ms) || ms < 0) return null;
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  const minutes = ms / 60_000;
+  if (minutes < 60) return `${minutes.toFixed(1)}m`;
+  return `${(minutes / 60).toFixed(1)}h`;
 }
 
 function roleCounts(members: TeamMember[]): string {
@@ -2190,6 +2228,13 @@ export default function TeamsPage() {
               }
               return filtered.map((team) => {
               const taskCount = team._count?.tasks ?? 0;
+              const stats = team.runStats;
+              const successRatePct =
+                stats && stats.totalRuns > 0 && stats.successRate !== null
+                  ? Math.round(stats.successRate * 100)
+                  : null;
+              const lastRunRelative = formatRelativeTime(stats?.lastRunAt);
+              const avgDurationStr = formatDurationMs(stats?.avgDurationMs ?? null);
 
               return (
                 <Link
@@ -2259,6 +2304,51 @@ export default function TeamsPage() {
                         <span>{formatDate(team.createdAt)}</span>
                       </div>
                     </div>
+
+                    {/* Run-stats row. Surfaces only after the first
+                        execution — empty workflows don't get a "0 runs"
+                        line that would just take up vertical space. */}
+                    {stats && stats.totalRuns > 0 && (
+                      <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
+                        <div className="flex items-center gap-1.5">
+                          {successRatePct !== null ? (
+                            <span
+                              className={
+                                successRatePct >= 90
+                                  ? "inline-flex items-center gap-1 text-green-400"
+                                  : successRatePct >= 60
+                                    ? "inline-flex items-center gap-1 text-amber-400"
+                                    : "inline-flex items-center gap-1 text-red-400"
+                              }
+                              title={`${stats.completedRuns} of ${stats.totalRuns} runs succeeded`}
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                              {successRatePct}%
+                            </span>
+                          ) : null}
+                          <span className="text-muted-foreground">
+                            · {stats.totalRuns} run{stats.totalRuns !== 1 ? "s" : ""}
+                          </span>
+                          {avgDurationStr && (
+                            <span className="text-muted-foreground" title="Average duration of completed runs">
+                              · {avgDurationStr} avg
+                            </span>
+                          )}
+                        </div>
+                        {lastRunRelative && (
+                          <span
+                            className="truncate"
+                            title={
+                              stats.lastRunAt
+                                ? `Last run: ${new Date(stats.lastRunAt).toLocaleString()}`
+                                : undefined
+                            }
+                          >
+                            {lastRunRelative}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </Link>
               );
