@@ -1204,6 +1204,45 @@ export function VisualTeamEditor(props: VisualTeamEditorProps) {
   );
 }
 
+/* ── Empty-state quick-start chip ──────────────────────────────────
+ * One of four buttons rendered on a brand-new workflow canvas.
+ * Clicking adds a node of the chosen type at the canvas center.
+ */
+function QuickStartChip({
+  label,
+  description,
+  onClick,
+  primary = false,
+}: {
+  label: string;
+  description: string;
+  onClick: () => void;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex flex-col items-start gap-0.5 rounded-lg border px-3 py-2 text-left transition-all hover:-translate-y-0.5",
+        primary
+          ? "border-kiln-orange/40 bg-kiln-orange/5 hover:bg-kiln-orange/10 hover:border-kiln-orange/60"
+          : "border-border bg-card hover:bg-muted/40 hover:border-foreground/20"
+      )}
+    >
+      <span
+        className={cn(
+          "text-xs font-semibold",
+          primary ? "text-kiln-orange" : "text-foreground"
+        )}
+      >
+        {label}
+      </span>
+      <span className="text-[10px] text-muted-foreground">{description}</span>
+    </button>
+  );
+}
+
 function VisualTeamEditorInner({
   teamId,
   members,
@@ -1938,6 +1977,77 @@ function VisualTeamEditorInner({
 
   const isEmpty = members.length === 0 && (!wfNodes || wfNodes.length === 0) && nodes.length === 0;
 
+  // Drops a node of the given type into the canvas center. Used by the
+  // empty-state quick-start buttons so brand-new workflows aren't
+  // staring at a blank canvas — operators get a one-click on-ramp.
+  const addNodeAtCenter = useCallback(
+    (type: WorkflowNodeType) => {
+      const def = WORKFLOW_NODE_DEFINITIONS.find((d) => d.type === type);
+      if (!def) return;
+
+      // Calculate canvas center in flow coordinates. Falls back to (0,0)
+      // when the wrapper isn't measured yet (very first paint).
+      let position = { x: 0, y: 0 };
+      try {
+        const wrap = reactFlowWrapper.current;
+        if (wrap) {
+          const rect = wrap.getBoundingClientRect();
+          position = reactFlowInstance.screenToFlowPosition({
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2,
+          });
+        }
+      } catch {
+        // Best-effort; the node still drops at (0,0) if anything throws.
+      }
+
+      const wfNode = createWorkflowNode(type, position);
+      const newFlowNode: Node = {
+        id: wfNode.id,
+        type: "workflowNode",
+        position,
+        data: {
+          label: wfNode.label,
+          nodeType: wfNode.type,
+          category: def.category,
+          description: def.description,
+          iconName: def.icon,
+          config: wfNode.config,
+        },
+      };
+
+      setNodes((nds) => [...nds, newFlowNode]);
+      if (onWorkflowNodesChange) {
+        const currentWfNodes = wfNodes || [];
+        onWorkflowNodesChange([
+          ...currentWfNodes,
+          {
+            id: wfNode.id,
+            type: wfNode.type,
+            label: wfNode.label,
+            position,
+            config: wfNode.config,
+          },
+        ]);
+      }
+
+      setTimeout(() => {
+        const allN = reactFlowInstance.getNodes();
+        const allE = reactFlowInstance.getEdges();
+        pushHistory(allN, allE);
+        updateUndoRedoState();
+      }, 50);
+    },
+    [
+      reactFlowInstance,
+      setNodes,
+      onWorkflowNodesChange,
+      wfNodes,
+      pushHistory,
+      updateUndoRedoState,
+    ]
+  );
+
   // Execution status label
   const execLabel =
     executionStatus === "running"
@@ -2101,26 +2211,58 @@ function VisualTeamEditorInner({
           showInteractive={false}
         />
 
-        {/* Empty state overlay — rendered INSIDE ReactFlow so drop target stays active */}
+        {/* Empty state overlay — rendered INSIDE ReactFlow so the canvas
+            stays a valid drop target. Quick-start buttons one-click-add
+            a node at the canvas center; the drag-and-drop path from the
+            palette also still works. */}
         {isEmpty && (
-          <Panel position="top-center" className="!mt-[25%]">
-            <div className="flex flex-col items-center gap-4 pointer-events-auto">
+          <Panel position="top-center" className="!mt-[18%]">
+            <div className="flex flex-col items-center gap-5 pointer-events-auto">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-500/10 border border-orange-500/20">
-                <LayoutGrid className="h-7 w-7 text-orange-500/50" />
+                <LayoutGrid className="h-7 w-7 text-orange-500/60" />
               </div>
               <div className="text-center">
-                <p className="text-sm font-medium text-foreground mb-1">Start building your workflow</p>
-                <p className="text-xs text-muted-foreground max-w-xs">
-                  Drag nodes from the palette and drop them here
+                <p className="text-sm font-medium text-foreground">
+                  Start building your workflow
                 </p>
+                <p className="mt-1 text-xs text-muted-foreground max-w-xs">
+                  Pick a starting node — or drag one from the library on
+                  the left.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <QuickStartChip
+                  label="+ Trigger"
+                  description="Webhook / Schedule / Manual"
+                  onClick={() => addNodeAtCenter("trigger_manual")}
+                />
+                <QuickStartChip
+                  label="+ AI Agent"
+                  description="Use existing or inline"
+                  onClick={() => addNodeAtCenter("agent")}
+                  primary
+                />
+                <QuickStartChip
+                  label="+ Integration"
+                  description="Slack, Sheets, Notion…"
+                  onClick={() => addNodeAtCenter("slack_send_integration")}
+                />
+                <QuickStartChip
+                  label="+ Action"
+                  description="HTTP / Email / Slack"
+                  onClick={() => addNodeAtCenter("http_request")}
+                />
               </div>
               {sidebarCollapsed && (
                 <button
-                  onClick={() => { setSelectedNode(null); setActivePanel("palette"); }}
-                  className="flex items-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-1.5 text-xs font-medium text-orange-400 transition-colors hover:bg-orange-500/20"
+                  onClick={() => {
+                    setSelectedNode(null);
+                    setActivePanel("palette");
+                  }}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   <PanelLeft className="h-3.5 w-3.5" />
-                  Show Node Palette
+                  Show node palette
                 </button>
               )}
             </div>
