@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getConnectAccount } from "@/lib/stripe/connect";
-import { createCheckoutSession } from "@/lib/stripe/connect-pricing";
+import { createBrandedCheckoutSession } from "@/lib/stripe/connect-pricing";
 import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
 
 export const dynamic = "force-dynamic";
@@ -76,9 +76,14 @@ export async function POST(req: Request, { params }: Params) {
   const email = await getUserEmailOrPlaceholder(userId);
 
   try {
-    const session = await createCheckoutSession({
+    // Branded session = monthly + setup line items + trial. The
+    // agency-side flow always wires the full set; if setup or trial are
+    // unset on the relationship, the helper just skips them.
+    const session = await createBrandedCheckoutSession({
       agencyAccountId: connect.stripeAccountId,
-      priceId: relationship.stripeMonthlyPriceId,
+      monthlyPriceId: relationship.stripeMonthlyPriceId,
+      setupPriceId: relationship.stripeSetupPriceId,
+      trialDays: relationship.trialDays,
       successUrl,
       cancelUrl,
       customerEmail: email,
