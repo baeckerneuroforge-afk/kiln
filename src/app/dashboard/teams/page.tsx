@@ -189,19 +189,19 @@ const TEAM_TEMPLATE_SHOWCASE = [
   {
     id: "shk-betrieb-lead-pipeline",
     label: "SHK-Betrieb Pipeline",
-    description: "Qualifiziert Anfragen für SHK-Betriebe mit Dringlichkeits-Bewertung.",
+    description: "Qualifies HVAC service inquiries with urgency scoring.",
     agents: "3 agents",
     flow: "Qualifier → Booker / Follow-Up",
     icon: Hammer,
     color: "text-muted-foreground",
     bg: "bg-muted",
     border: "border-border",
-    industry: "Handwerk",
+    industry: "Trades",
   },
   {
     id: "immobilienmakler-pipeline",
     label: "Immobilienmakler Pipeline",
-    description: "Qualifiziert Interessenten, matcht Objekte und bucht Besichtigungen.",
+    description: "Qualifies leads, matches listings, and books viewings.",
     agents: "3 agents",
     flow: "Qualifier → Matcher → Booker",
     icon: Building2,
@@ -232,7 +232,7 @@ const TEAM_TEMPLATE_SHOWCASE = [
     color: "text-muted-foreground",
     bg: "bg-muted",
     border: "border-border",
-    industry: "Handwerk",
+    industry: "Trades",
   },
 ];
 
@@ -1924,6 +1924,11 @@ export default function TeamsPage() {
         </div>
       </div>
 
+      {/* Templates showcase — only rendered when the operator already has
+          at least one workflow. The brand-new empty state renders its own
+          quick-start cards below; showing both would double the surface
+          for the same templates. */}
+      {teams.length > 0 && (
       <div className="mb-8 rounded-2xl border border-border bg-card/60 p-5">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -1982,8 +1987,12 @@ export default function TeamsPage() {
           })}
         </div>
       </div>
+      )}
 
-      {/* Quick Templates */}
+      {/* Quick Templates — also gated on having at least one workflow.
+          Brand-new accounts see the rich empty state below, not these
+          starter pills. */}
+      {teams.length > 0 && (
       <div className="mb-8">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-orange-400/60">
           Quick Start Templates
@@ -2031,6 +2040,7 @@ export default function TeamsPage() {
           })}
         </div>
       </div>
+      )}
 
       {/* Error state */}
       {error ? (
@@ -2042,26 +2052,68 @@ export default function TeamsPage() {
           }}
         />
       ) : teams.length === 0 ? (
-        /* Empty state */
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 py-16">
-          <div className="relative mb-6">
-            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-muted">
-              <Users className="h-10 w-10 text-muted-foreground" />
-            </div>
-            <div className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-kiln-orange shadow-lg">
-              <Plus className="h-3.5 w-3.5 text-white" />
-            </div>
+        /* Rich empty state — three quick-start template cards above a
+           "Build from scratch" CTA. Templates link straight into the
+           one-click deploy flow at /dashboard/teams/new?template=…. */
+        <div className="mx-auto flex max-w-3xl flex-col items-center py-10 text-center">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-muted/50">
+            <Users className="h-7 w-7 text-muted-foreground" />
           </div>
-          <h2 className="mb-2 text-xl font-semibold text-foreground">
-            No workflows yet
+          <h2 className="font-serif text-2xl text-foreground">
+            Create your first workflow
           </h2>
-          <p className="mb-6 max-w-md text-center text-sm text-muted-foreground">
-            Use a Quick Start Template above, or create a custom workflow with
-            AI-generated structure.
+          <p className="mt-2 max-w-md text-sm text-muted-foreground">
+            Workflows orchestrate multiple AI agents to handle multi-step
+            jobs — qualifying leads, processing documents, customer
+            triage. Start from a template or build from scratch.
           </p>
-          <Button onClick={() => setShowCreate(true)}>
-            <Sparkles className="mr-2 h-4 w-4" />
-            Create Custom Workflow
+
+          <p className="mt-8 mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Start with a template
+          </p>
+          <div className="grid w-full gap-3 sm:grid-cols-3">
+            {TEAM_TEMPLATE_SHOWCASE.slice(0, 3).map((tpl) => {
+              const Icon = tpl.icon;
+              return (
+                <Link
+                  key={tpl.id}
+                  href={`/dashboard/teams/new?template=${tpl.id}`}
+                  className="group flex flex-col gap-2 rounded-xl border border-border bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-kiln-orange/40 hover:shadow-sm"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+                      <Icon className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">
+                      {tpl.agents}
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {tpl.label}
+                  </h3>
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    {tpl.description}
+                  </p>
+                  <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-kiln-orange transition-transform group-hover:translate-x-0.5">
+                    Use <ArrowRight className="h-3 w-3" />
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="my-8 flex w-full items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              or
+            </span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
+          <Button variant="outline" size="sm" onClick={() => setShowCreate(true)} className="gap-2">
+            <Sparkles className="h-3.5 w-3.5" />
+            Build from scratch
+            <ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </div>
       ) : (
