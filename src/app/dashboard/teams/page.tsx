@@ -1845,8 +1845,13 @@ export default function TeamsPage() {
     fetchTeams();
   }, []);
 
-  // Quick template creation — creates team from template with all agents instantly
-  async function createFromTemplate(templateKey: string) {
+  // Quick template creation — creates team from template with all agents
+  // instantly. Used both by the QUICK_TEMPLATES pills (legacy keys like
+  // "sales") and by the multi-agent showcase cards (template IDs like
+  // "sales-pipeline"). The optional `displayLabel` argument lets the
+  // showcase pass through a friendlier name; QUICK_TEMPLATES carry their
+  // own label so the lookup fallback stays.
+  async function createFromTemplate(templateKey: string, displayLabel?: string) {
     setCreatingTemplate(templateKey);
     try {
       const tpl = QUICK_TEMPLATES.find((t) => t.key === templateKey);
@@ -1854,7 +1859,7 @@ export default function TeamsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: tpl?.label || "New Workflow",
+          name: displayLabel || tpl?.label || "New Workflow",
           template: templateKey,
         }),
       });
@@ -1997,16 +2002,28 @@ export default function TeamsPage() {
         <div className="grid gap-3 lg:grid-cols-4">
           {TEAM_TEMPLATE_SHOWCASE.map((template) => {
             const Icon = template.icon;
+            const isCreating = creatingTemplate === template.id;
+            const otherCreating = creatingTemplate !== null && !isCreating;
 
             return (
-              <Link
+              <button
                 key={template.id}
-                href={`/dashboard/teams/new?template=${template.id}`}
-                className="rounded-xl border border-border bg-card p-4 transition-all duration-150 hover:bg-muted/40 hover:border-foreground/20"
+                type="button"
+                onClick={() => createFromTemplate(template.id, template.label)}
+                disabled={creatingTemplate !== null}
+                className={cn(
+                  "text-left rounded-xl border border-border bg-card p-4 transition-all duration-150 hover:bg-muted/40 hover:border-foreground/20 disabled:cursor-not-allowed",
+                  otherCreating && "opacity-50",
+                  isCreating && "border-kiln-orange/50 bg-orange-500/[0.06]"
+                )}
               >
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
-                    <Icon className="h-4 w-4 text-muted-foreground" />
+                    {isCreating ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-kiln-orange" />
+                    ) : (
+                      <Icon className="h-4 w-4 text-muted-foreground" />
+                    )}
                   </div>
                   <div className="flex items-center gap-1.5">
                     {"industry" in template && template.industry && (
@@ -2028,7 +2045,12 @@ export default function TeamsPage() {
                 <div className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-xs font-mono text-muted-foreground">
                   {template.flow}
                 </div>
-              </Link>
+                {isCreating && (
+                  <div className="mt-2 text-[10px] font-medium text-kiln-orange">
+                    Creating workflow…
+                  </div>
+                )}
+              </button>
             );
           })}
         </div>
@@ -2120,15 +2142,27 @@ export default function TeamsPage() {
           <div className="grid w-full gap-3 sm:grid-cols-3">
             {TEAM_TEMPLATE_SHOWCASE.slice(0, 3).map((tpl) => {
               const Icon = tpl.icon;
+              const isCreating = creatingTemplate === tpl.id;
+              const otherCreating = creatingTemplate !== null && !isCreating;
               return (
-                <Link
+                <button
                   key={tpl.id}
-                  href={`/dashboard/teams/new?template=${tpl.id}`}
-                  className="group flex flex-col gap-2 rounded-xl border border-border bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-kiln-orange/40 hover:shadow-sm"
+                  type="button"
+                  onClick={() => createFromTemplate(tpl.id, tpl.label)}
+                  disabled={creatingTemplate !== null}
+                  className={cn(
+                    "group flex flex-col gap-2 rounded-xl border border-border bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-kiln-orange/40 hover:shadow-sm disabled:cursor-not-allowed",
+                    otherCreating && "opacity-50",
+                    isCreating && "border-kiln-orange/50 bg-orange-500/[0.06]"
+                  )}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
-                      <Icon className="h-4 w-4 text-muted-foreground" />
+                      {isCreating ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-kiln-orange" />
+                      ) : (
+                        <Icon className="h-4 w-4 text-muted-foreground" />
+                      )}
                     </div>
                     <span className="text-[10px] text-muted-foreground">
                       {tpl.agents}
@@ -2141,9 +2175,10 @@ export default function TeamsPage() {
                     {tpl.description}
                   </p>
                   <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-kiln-orange transition-transform group-hover:translate-x-0.5">
-                    Use <ArrowRight className="h-3 w-3" />
+                    {isCreating ? "Creating…" : "Use"}
+                    {!isCreating && <ArrowRight className="h-3 w-3" />}
                   </span>
-                </Link>
+                </button>
               );
             })}
           </div>
