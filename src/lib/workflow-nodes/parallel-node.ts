@@ -8,7 +8,13 @@ import type { ExpressionContext } from "@/lib/workflow-expressions";
 
 /* ── Types ── */
 
-export type ParallelMergeStrategy = "wait_all" | "first_completed" | "n_of_m";
+export type ParallelMergeStrategy =
+  | "concat"
+  | "first_wins"
+  | "all_required"
+  | "wait_all"
+  | "first_completed"
+  | "n_of_m";
 
 export interface ParallelSplitResult {
   /** Alle Output-Handles die aktiviert werden sollen */
@@ -35,7 +41,7 @@ export function executeParallelSplit(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _context: ExpressionContext
 ): ParallelSplitResult {
-  const branchCount = Number(config.branches) || 2;
+  const branchCount = Math.max(2, Math.min(5, Number(config.branches) || 3));
 
   // Generiere Handle-Namen: branch_0, branch_1, ...
   const outputHandles: string[] = [];
@@ -66,13 +72,15 @@ export function executeParallelMerge(
   context: ExpressionContext,
   mergeExtra?: { branchesCompleted: number; branchesExpected: number }
 ): ParallelMergeResult {
-  const strategy = (config.mergeStrategy as ParallelMergeStrategy) || "wait_all";
+  const strategy = (config.mergeStrategy as ParallelMergeStrategy) || "concat";
   const nRequired = Number(config.nRequired) || 0;
   const completed = mergeExtra?.branchesCompleted || 0;
   const expected = mergeExtra?.branchesExpected || 1;
   const resultKey = String(config.resultKey || "parallelResult");
 
   switch (strategy) {
+    case "concat":
+    case "all_required":
     case "wait_all": {
       if (completed < expected) {
         return {
@@ -85,7 +93,7 @@ export function executeParallelMerge(
       return {
         contextDelta: {
           [resultKey]: {
-            strategy: "wait_all",
+            strategy,
             branchesCompleted: completed,
             mergedAt: new Date().toISOString(),
           },
@@ -95,12 +103,13 @@ export function executeParallelMerge(
       };
     }
 
+    case "first_wins":
     case "first_completed": {
       if (completed >= 1) {
         return {
           contextDelta: {
             [resultKey]: {
-              strategy: "first_completed",
+              strategy,
               branchesCompleted: completed,
               mergedAt: new Date().toISOString(),
             },
