@@ -7,10 +7,21 @@ interface ConfigProps {
   onChange: (config: Record<string, unknown>) => void;
 }
 
-function FieldLabel({ label, hint }: { label: string; hint?: string }) {
+function FieldLabel({
+  label,
+  hint,
+  required,
+}: {
+  label: string;
+  hint?: string;
+  required?: boolean;
+}) {
   return (
     <div className="space-y-0.5">
-      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      <label className="text-xs font-medium text-muted-foreground">
+        {label}
+        {required && <span className="ml-1 text-destructive">*</span>}
+      </label>
       {hint && (
         <p className="flex items-start gap-1 text-[10px] text-muted-foreground">
           <Info className="h-3 w-3 mt-0.5 shrink-0" />

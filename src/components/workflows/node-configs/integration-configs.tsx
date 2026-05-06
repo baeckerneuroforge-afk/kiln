@@ -8,10 +8,21 @@ interface ConfigProps {
   onChange: (config: Record<string, unknown>) => void;
 }
 
-function FieldLabel({ label, hint }: { label: string; hint?: string }) {
+function FieldLabel({
+  label,
+  hint,
+  required,
+}: {
+  label: string;
+  hint?: string;
+  required?: boolean;
+}) {
   return (
     <div className="space-y-0.5">
-      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      <label className="text-xs font-medium text-muted-foreground">
+        {label}
+        {required && <span className="ml-1 text-destructive">*</span>}
+      </label>
       {hint && (
         <p className="flex items-start gap-1 text-[10px] text-muted-foreground">
           <Info className="h-3 w-3 mt-0.5 shrink-0" />
@@ -72,7 +83,7 @@ export function GoogleSheetsReadConfig({ config, onChange }: ConfigProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <FieldLabel label="Spreadsheet ID" hint="Aus der URL: docs.google.com/spreadsheets/d/{ID}/..." />
+        <FieldLabel label="Spreadsheet ID" hint="From the URL: docs.google.com/spreadsheets/d/{ID}/..." required />
         <ConfigInput
           value={String(config.spreadsheetId || "")}
           onChange={(v) => onChange({ ...config, spreadsheetId: v })}
@@ -111,7 +122,7 @@ export function GoogleSheetsWriteConfig({ config, onChange }: ConfigProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <FieldLabel label="Spreadsheet ID" />
+        <FieldLabel label="Spreadsheet ID" required />
         <ConfigInput
           value={String(config.spreadsheetId || "")}
           onChange={(v) => onChange({ ...config, spreadsheetId: v })}
@@ -147,7 +158,7 @@ export function GmailSendConfig({ config, onChange }: ConfigProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <FieldLabel label="Recipient (To)" />
+        <FieldLabel label="Recipient (To)" required />
         <ConfigInput
           value={String(config.to || "")}
           onChange={(v) => onChange({ ...config, to: v })}
@@ -155,7 +166,7 @@ export function GmailSendConfig({ config, onChange }: ConfigProps) {
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Subject" />
+        <FieldLabel label="Subject" required />
         <ConfigInput
           value={String(config.subject || "")}
           onChange={(v) => onChange({ ...config, subject: v })}
@@ -163,7 +174,7 @@ export function GmailSendConfig({ config, onChange }: ConfigProps) {
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Message" />
+        <FieldLabel label="Message" required />
         <ConfigTextarea
           value={String(config.body || "")}
           onChange={(v) => onChange({ ...config, body: v })}
@@ -189,7 +200,7 @@ export function SlackSendIntegrationConfig({ config, onChange }: ConfigProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <FieldLabel label="Channel" hint="Channel name (#general) or channel ID" />
+        <FieldLabel label="Channel" hint="Channel name (#general) or channel ID" required />
         <ConfigInput
           value={String(config.channel || "")}
           onChange={(v) => onChange({ ...config, channel: v })}
@@ -197,7 +208,7 @@ export function SlackSendIntegrationConfig({ config, onChange }: ConfigProps) {
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Message" />
+        <FieldLabel label="Message" required />
         <ConfigTextarea
           value={String(config.message || "")}
           onChange={(v) => onChange({ ...config, message: v })}
@@ -223,7 +234,7 @@ export function CalendarCreateConfig({ config, onChange }: ConfigProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <FieldLabel label="Title" />
+        <FieldLabel label="Title" required />
         <ConfigInput
           value={String(config.title || "")}
           onChange={(v) => onChange({ ...config, title: v })}
