@@ -1,11 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import { GettingStartedSection } from "@/components/onboarding-checklist";
 import { QuickStartSection, RecentActivityFeed } from "@/components/quick-actions";
 import { ErrorState } from "@/components/ui/error-state";
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useState, useCallback } from "react";
+
+// Plans that get the agency-tier dashboard treatment (MRR + sub-org KPIs
+// always visible, even when zero). Mirrors the BUSINESS / AGENCY /
+// ENTERPRISE / ADMIN gate used elsewhere; kept inline because this is
+// the only client-side place that needs it.
+const AGENCY_TIER_PLANS = new Set(["BUSINESS", "AGENCY", "ENTERPRISE", "ADMIN"]);
 
 // Zeitbasierte Begrüßung
 function getGreeting(): string {
@@ -90,6 +97,7 @@ export default function DashboardPage() {
     newSubOrgs30d: 0,
     stripeConnectStatus: "not_onboarded",
   });
+  const [plan, setPlan] = useState<string | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState<string | null>(null);
 
@@ -97,17 +105,30 @@ export default function DashboardPage() {
     setStatsLoading(true);
     setStatsError(null);
     try {
-      const res = await fetch("/api/analytics/overview");
-      if (!res.ok) throw new Error("Stats fetch failed");
-      const data = await res.json();
-      setStats({
-        agents: data.agents ?? 0,
-        conversations: data.conversations ?? 0,
-        mrr: data.mrr ?? 0,
-        activeSubOrgs: data.activeSubOrgs ?? 0,
-        newSubOrgs30d: data.newSubOrgs30d ?? 0,
-        stripeConnectStatus: data.stripeConnectStatus ?? "not_onboarded",
-      });
+      // Fetch overview + plan in parallel. Plan is needed to decide
+      // whether the stats stripe stays visible at zero (agency-tier:
+      // yes, MRR=0 is informative; PRO/FREE: hide, no sub-org concept).
+      const [overviewRes, planRes] = await Promise.allSettled([
+        fetch("/api/analytics/overview"),
+        fetch("/api/stripe/plan"),
+      ]);
+      if (overviewRes.status === "fulfilled" && overviewRes.value.ok) {
+        const data = await overviewRes.value.json();
+        setStats({
+          agents: data.agents ?? 0,
+          conversations: data.conversations ?? 0,
+          mrr: data.mrr ?? 0,
+          activeSubOrgs: data.activeSubOrgs ?? 0,
+          newSubOrgs30d: data.newSubOrgs30d ?? 0,
+          stripeConnectStatus: data.stripeConnectStatus ?? "not_onboarded",
+        });
+      } else {
+        throw new Error("Stats fetch failed");
+      }
+      if (planRes.status === "fulfilled" && planRes.value.ok) {
+        const data = await planRes.value.json();
+        setPlan(data.plan ?? null);
+      }
     } catch {
       setStatsError("Stats konnten nicht geladen werden.");
     } finally {
@@ -122,17 +143,65 @@ export default function DashboardPage() {
   const greeting = getGreeting();
   const firstName = user?.firstName;
 
-  // Brand-new accounts have nothing meaningful in the stripe — every cell
-  // would render as "—". Skip the whole row in that case so the empty-state
-  // path on the dashboard is the activation checklist + Quick Start, not
-  // four em-dashes pretending to be data.
-  const allStatsZero =
-    !statsLoading &&
-    !statsError &&
+  // Hide-stripe logic differs by plan tier:
+  //   - Agency tier (BUSINESS / AGENCY / ENTERPRISE / ADMIN): always show.
+  //     MRR=0 with the "Connect Stripe to track revenue" hint is more
+  //     valuable than nothing — it surfaces the path forward.
+  //   - PRO / FREE: only show when at least one tile has a non-zero
+  //     value. They have no sub-org concept; an empty row is just noise.
+  const isAgencyTier = plan ? AGENCY_TIER_PLANS.has(plan) : false;
+  const allDataZero =
     stats.agents === 0 &&
     stats.conversations === 0 &&
     stats.mrr === 0 &&
     stats.activeSubOrgs === 0;
+  const hideStripe =
+    !statsLoading && !statsError && allDataZero && !isAgencyTier;
+
+  // Build the MRR tile's sub-line based on Stripe Connect status. Drives
+  // the user toward the next concrete action they can take (onboard,
+  // resume, or sit tight) rather than just rendering an em-dash.
+  const mrrHint = (() => {
+    if (stats.mrr > 0) return undefined;
+    if (stats.stripeConnectStatus === "not_onboarded") {
+      return (
+        <Link
+          href="/dashboard/agency/billing"
+          className="text-kiln-orange transition-colors hover:text-kiln-orange/80"
+        >
+          Connect Stripe to track revenue →
+        </Link>
+      );
+    }
+    if (stats.stripeConnectStatus === "pending") {
+      return (
+        <Link
+          href="/dashboard/agency/billing"
+          className="text-kiln-orange transition-colors hover:text-kiln-orange/80"
+        >
+          Complete Stripe onboarding →
+        </Link>
+      );
+    }
+    return "No active subscriptions yet";
+  })();
+
+  // Sub-Orgs sub-line: prefer "+N new (30d)" when there's growth to
+  // celebrate, otherwise nudge brand-new agency-tier users toward the
+  // first sub-org.
+  const subOrgsHint =
+    stats.newSubOrgs30d > 0
+      ? `+${stats.newSubOrgs30d} new (30d)`
+      : stats.activeSubOrgs === 0 && isAgencyTier
+      ? (
+          <Link
+            href="/dashboard/agency/sub-orgs"
+            className="text-kiln-orange transition-colors hover:text-kiln-orange/80"
+          >
+            Create your first →
+          </Link>
+        )
+      : undefined;
 
   return (
     <div className="relative mx-auto max-w-5xl">
@@ -148,12 +217,14 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats stripe — 4 cells, divided, above the fold.
-          Hidden entirely when the account has nothing to show yet. */}
+          Agency-tier callers see it unconditionally (MRR=0 still
+          contains a CTA hint); PRO/FREE callers see it only when at
+          least one tile has data. */}
       {statsError ? (
         <div className="mb-8">
           <ErrorState message={statsError} onRetry={fetchStats} compact />
         </div>
-      ) : allStatsZero ? null : (
+      ) : hideStripe ? null : (
         <div className="mb-8">
           <div
             className={cn(
@@ -164,6 +235,7 @@ export default function DashboardPage() {
               label="MRR"
               display={stats.mrr === 0 ? null : formatEuros(stats.mrr)}
               loading={statsLoading}
+              hint={mrrHint}
             />
             <StatCell
               label="Active Sub-Orgs"
@@ -173,11 +245,7 @@ export default function DashboardPage() {
                   : stats.activeSubOrgs.toLocaleString("de-DE")
               }
               loading={statsLoading}
-              hint={
-                stats.newSubOrgs30d > 0
-                  ? `+${stats.newSubOrgs30d} new (30d)`
-                  : undefined
-              }
+              hint={subOrgsHint}
             />
             <StatCell
               label="Active Agents"
