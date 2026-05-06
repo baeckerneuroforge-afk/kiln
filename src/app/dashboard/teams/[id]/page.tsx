@@ -3329,14 +3329,14 @@ function TeamDetailInner() {
                   <Layers className="h-4 w-4 text-cyan-400" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground">Queue & Priorität</h3>
-                  <p className="text-xs text-muted-foreground">Parallelität und Prioritäts-Regeln konfigurieren.</p>
+                  <h3 className="text-sm font-semibold text-foreground">Queue & priority</h3>
+                  <p className="text-xs text-muted-foreground">Configure concurrency and priority rules.</p>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Max. gleichzeitige Ausführungen</label>
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Max concurrent executions</label>
                   <div className="flex items-center gap-3">
                     <input
                       type="number"
@@ -3354,7 +3354,7 @@ function TeamDetailInner() {
                       className="text-xs"
                     >
                       {savingQueue ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                      Speichern
+                      Save
                     </Button>
                   </div>
                 </div>
@@ -3363,25 +3363,25 @@ function TeamDetailInner() {
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
-                      {queueStatus.running} laufend
+                      {queueStatus.running} running
                     </span>
                     <span className="flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-cyan-500" />
-                      {queueStatus.queued} wartend
+                      {queueStatus.queued} queued
                     </span>
                     <span className="text-muted-foreground">/ {queueStatus.maxConcurrent} max</span>
                   </div>
                 )}
 
-                {/* Prioritäts-Regeln (nur Anzeige) */}
+                {/* Priority rules (read-only display) */}
                 <div className="pt-2 border-t border-border">
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Prioritäts-Regeln</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Priority rules</p>
                   <div className="space-y-1.5">
                     {(["URGENT", "HIGH", "MEDIUM", "LOW"] as const).map((p) => (
                       <div key={p} className="flex items-center gap-2 text-xs">
                         <span className={cn("inline-block h-2 w-2 rounded-full", priorityColors[p].bg.replace("/20", "/60"))} />
                         <span className={priorityColors[p].text}>{p}</span>
-                        <span className="text-muted-foreground">— wird {p === "URGENT" ? "sofort" : p === "HIGH" ? "bevorzugt" : p === "MEDIUM" ? "normal" : "nachrangig"} verarbeitet</span>
+                        <span className="text-muted-foreground">— processed {p === "URGENT" ? "immediately" : p === "HIGH" ? "first" : p === "MEDIUM" ? "normally" : "last"}</span>
                       </div>
                     ))}
                   </div>

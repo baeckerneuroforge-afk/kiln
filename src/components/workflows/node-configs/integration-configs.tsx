@@ -80,7 +80,7 @@ export function GoogleSheetsReadConfig({ config, onChange }: ConfigProps) {
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Bereich (Range)" hint="z.B. Sheet1!A1:D10 oder Sheet1!A:Z für alle Spalten" />
+        <FieldLabel label="Range" hint="e.g. Sheet1!A1:D10 or Sheet1!A:Z for all columns" />
         <ConfigInput
           value={String(config.range || "Sheet1!A:Z")}
           onChange={(v) => onChange({ ...config, range: v })}
@@ -88,7 +88,7 @@ export function GoogleSheetsReadConfig({ config, onChange }: ConfigProps) {
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Result Key" hint="Name der Variable im Workflow-Context" />
+        <FieldLabel label="Result Key" hint="Variable name in the workflow context" />
         <ConfigInput
           value={String(config.resultKey || "sheetsData")}
           onChange={(v) => onChange({ ...config, resultKey: v })}
@@ -119,7 +119,7 @@ export function GoogleSheetsWriteConfig({ config, onChange }: ConfigProps) {
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Ziel-Sheet" hint="Name des Sheets, in das geschrieben wird" />
+        <FieldLabel label="Target sheet" hint="Name of the sheet to write to" />
         <ConfigInput
           value={String(config.range || "Sheet1")}
           onChange={(v) => onChange({ ...config, range: v })}
@@ -127,7 +127,7 @@ export function GoogleSheetsWriteConfig({ config, onChange }: ConfigProps) {
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Werte" hint="Komma-separierte Werte, die als neue Zeile angehängt werden. {{ expressions }} möglich." />
+        <FieldLabel label="Values" hint="Comma-separated values appended as a new row. {{ expressions }} supported." />
         <ConfigTextarea
           value={valuesStr}
           onChange={(v) => {
@@ -147,7 +147,7 @@ export function GmailSendConfig({ config, onChange }: ConfigProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <FieldLabel label="Empfänger (To)" />
+        <FieldLabel label="Recipient (To)" />
         <ConfigInput
           value={String(config.to || "")}
           onChange={(v) => onChange({ ...config, to: v })}
@@ -155,24 +155,24 @@ export function GmailSendConfig({ config, onChange }: ConfigProps) {
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Betreff" />
+        <FieldLabel label="Subject" />
         <ConfigInput
           value={String(config.subject || "")}
           onChange={(v) => onChange({ ...config, subject: v })}
-          placeholder="Danke für Ihre Anfrage"
+          placeholder="Thank you for your inquiry"
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Nachricht" />
+        <FieldLabel label="Message" />
         <ConfigTextarea
           value={String(config.body || "")}
           onChange={(v) => onChange({ ...config, body: v })}
-          placeholder="Hallo {{ lead.name }},&#10;&#10;vielen Dank für Ihre Nachricht..."
+          placeholder="Hi {{ lead.name }},&#10;&#10;thanks for your message…"
           rows={5}
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Reply-To Message ID" hint="Optional: Als Antwort auf eine bestehende E-Mail" />
+        <FieldLabel label="Reply-To Message ID" hint="Optional — reply to an existing email" />
         <ConfigInput
           value={String(config.replyToMessageId || "")}
           onChange={(v) => onChange({ ...config, replyToMessageId: v })}
@@ -189,7 +189,7 @@ export function SlackSendIntegrationConfig({ config, onChange }: ConfigProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <FieldLabel label="Channel" hint="Channel-Name (#general) oder Channel-ID" />
+        <FieldLabel label="Channel" hint="Channel name (#general) or channel ID" />
         <ConfigInput
           value={String(config.channel || "")}
           onChange={(v) => onChange({ ...config, channel: v })}
@@ -197,16 +197,16 @@ export function SlackSendIntegrationConfig({ config, onChange }: ConfigProps) {
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Nachricht" />
+        <FieldLabel label="Message" />
         <ConfigTextarea
           value={String(config.message || "")}
           onChange={(v) => onChange({ ...config, message: v })}
-          placeholder="Neuer Lead: {{ lead.name }} ({{ lead.email }})"
+          placeholder="New lead: {{ lead.name }} ({{ lead.email }})"
           rows={4}
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Thread (optional)" hint="Thread-Timestamp für Antworten in einem Thread" />
+        <FieldLabel label="Thread (optional)" hint="Thread timestamp to reply within a thread" />
         <ConfigInput
           value={String(config.threadTs || "")}
           onChange={(v) => onChange({ ...config, threadTs: v })}
@@ -223,11 +223,11 @@ export function CalendarCreateConfig({ config, onChange }: ConfigProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <FieldLabel label="Titel" />
+        <FieldLabel label="Title" />
         <ConfigInput
           value={String(config.title || "")}
           onChange={(v) => onChange({ ...config, title: v })}
-          placeholder="Meeting mit {{ lead.name }}"
+          placeholder="Meeting with {{ lead.name }}"
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -240,7 +240,7 @@ export function CalendarCreateConfig({ config, onChange }: ConfigProps) {
           />
         </div>
         <div className="space-y-1.5">
-          <FieldLabel label="Ende (ISO)" />
+          <FieldLabel label="End (ISO)" />
           <ConfigInput
             value={String(config.end || "")}
             onChange={(v) => onChange({ ...config, end: v })}
@@ -249,7 +249,7 @@ export function CalendarCreateConfig({ config, onChange }: ConfigProps) {
         </div>
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Beschreibung" />
+        <FieldLabel label="Description" />
         <ConfigTextarea
           value={String(config.description || "")}
           onChange={(v) => onChange({ ...config, description: v })}
@@ -258,7 +258,7 @@ export function CalendarCreateConfig({ config, onChange }: ConfigProps) {
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Teilnehmer E-Mail" />
+        <FieldLabel label="Attendee email" />
         <ConfigInput
           value={String(config.attendeeEmail || "")}
           onChange={(v) => onChange({ ...config, attendeeEmail: v })}
@@ -266,7 +266,7 @@ export function CalendarCreateConfig({ config, onChange }: ConfigProps) {
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Zeitzone" />
+        <FieldLabel label="Timezone" />
         <ConfigInput
           value={String(config.timezone || "Europe/Berlin")}
           onChange={(v) => onChange({ ...config, timezone: v })}
@@ -284,7 +284,7 @@ export function CalendarCheckConfig({ config, onChange }: ConfigProps) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <FieldLabel label="Von (ISO)" />
+          <FieldLabel label="From (ISO)" />
           <ConfigInput
             value={String(config.startDate || "")}
             onChange={(v) => onChange({ ...config, startDate: v })}
@@ -292,7 +292,7 @@ export function CalendarCheckConfig({ config, onChange }: ConfigProps) {
           />
         </div>
         <div className="space-y-1.5">
-          <FieldLabel label="Bis (ISO)" />
+          <FieldLabel label="To (ISO)" />
           <ConfigInput
             value={String(config.endDate || "")}
             onChange={(v) => onChange({ ...config, endDate: v })}
@@ -430,7 +430,7 @@ export function AirtableCreateConfig({ config, onChange }: ConfigProps) {
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="API Token (optional)" hint="Nur nötig wenn keine Airtable-Integration verbunden ist" />
+        <FieldLabel label="API Token (optional)" hint="Only needed if no Airtable integration is connected" />
         <ConfigInput
           value={String(config.apiToken || "")}
           onChange={(v) => onChange({ ...config, apiToken: v })}
@@ -456,15 +456,15 @@ export function AiSummarizeConfig({ config, onChange }: ConfigProps) {
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Länge" />
+        <FieldLabel label="Length" />
         <select
           value={String(config.maxLength || "kurz")}
           onChange={(e) => onChange({ ...config, maxLength: e.target.value })}
           className="w-full bg-muted border border-border rounded-lg text-sm text-foreground px-3 py-2 outline-none focus:border-pink-500/60 transition-colors"
         >
-          <option value="kurz">Kurz (2-3 Sätze)</option>
+          <option value="short">Short (2–3 sentences)</option>
           <option value="mittel">Mittel (1 Absatz)</option>
-          <option value="lang">Lang (3 Absätze)</option>
+          <option value="long">Long (3 paragraphs)</option>
         </select>
       </div>
       <div className="space-y-1.5">
@@ -476,7 +476,7 @@ export function AiSummarizeConfig({ config, onChange }: ConfigProps) {
         >
           <option value="de">Deutsch</option>
           <option value="en">Englisch</option>
-          <option value="fr">Französisch</option>
+          <option value="fr">French</option>
           <option value="es">Spanisch</option>
         </select>
       </div>
@@ -507,7 +507,7 @@ export function AiClassifyConfig({ config, onChange }: ConfigProps) {
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Kategorien" hint="Komma-separierte Liste der möglichen Kategorien" />
+        <FieldLabel label="Categories" hint="Comma-separated list of possible categories" />
         <ConfigTextarea
           value={String(config.categories || "")}
           onChange={(v) => onChange({ ...config, categories: v })}
@@ -572,7 +572,7 @@ export function ComputerUseConfig({ config, onChange }: ConfigProps) {
         <ConfigTextarea
           value={String(config.task || "")}
           onChange={(v) => onChange({ ...config, task: v })}
-          placeholder="Finde die aktuellen Preise für das Pro-Paket und extrahiere alle Features"
+          placeholder="Find the current pricing for the Pro plan and extract all features"
           rows={3}
         />
       </div>
@@ -629,7 +629,7 @@ export function ComputerUseConfig({ config, onChange }: ConfigProps) {
       </div>
       {!!config.extractData && (
         <div className="space-y-1.5">
-          <FieldLabel label="Daten-Schema" hint="JSON-Schema oder Feldbeschreibung für die zu extrahierenden Daten" />
+          <FieldLabel label="Data schema" hint="JSON schema or field description for the data to extract" />
           <ConfigTextarea
             value={String(config.dataSchema || "")}
             onChange={(v) => onChange({ ...config, dataSchema: v })}
@@ -652,7 +652,7 @@ export function ComputerUseConfig({ config, onChange }: ConfigProps) {
         <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-3">Erweitert</p>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <FieldLabel label="Schritt-Verifikation" hint="Prüft ob jede Aktion erfolgreich war" />
+            <FieldLabel label="Step verification" hint="Verify that each action succeeded" />
             <button
               onClick={() => onChange({ ...config, enableVerification: config.enableVerification === false ? true : false })}
               className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
@@ -667,7 +667,7 @@ export function ComputerUseConfig({ config, onChange }: ConfigProps) {
             </button>
           </div>
           <div className="flex items-center justify-between">
-            <FieldLabel label="Prozedurales Lernen" hint="Agent merkt sich erfolgreiche Abläufe" />
+            <FieldLabel label="Procedural learning" hint="Agent remembers successful runs" />
             <button
               onClick={() => onChange({ ...config, enableProceduralMemory: config.enableProceduralMemory === false ? true : false })}
               className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
@@ -682,7 +682,7 @@ export function ComputerUseConfig({ config, onChange }: ConfigProps) {
             </button>
           </div>
           <div className="flex items-center justify-between">
-            <FieldLabel label="Code-Ausführung" hint="Erlaubt dem Agent Python/JS Code auszuführen" />
+            <FieldLabel label="Code execution" hint="Lets the agent execute Python/JS code" />
             <button
               onClick={() => onChange({ ...config, enableCodeExecution: !config.enableCodeExecution })}
               className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
@@ -702,7 +702,7 @@ export function ComputerUseConfig({ config, onChange }: ConfigProps) {
       {/* Login/Credentials Section */}
       <div className="border-t border-border/50 pt-4 mt-4">
         <div className="flex items-center justify-between mb-3">
-          <FieldLabel label="Login erforderlich" hint="Für geschützte Seiten mit Login" />
+          <FieldLabel label="Login required" hint="For protected pages behind a login" />
           <button
             onClick={() => onChange({ ...config, requiresLogin: !config.requiresLogin })}
             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
@@ -734,16 +734,16 @@ export function DeepResearchConfig({ config, onChange }: ConfigProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <FieldLabel label="Forschungsthema" hint="Thema oder Frage für die Recherche. Unterstützt {{ expressions }}." />
+        <FieldLabel label="Research topic" hint="Topic or question for the research. Supports {{ expressions }}." />
         <ConfigTextarea
           value={String(config.topic || "")}
           onChange={(v) => onChange({ ...config, topic: v })}
-          placeholder="Aktuelle Markttrends im Bereich KI-Chatbots für den Kundenservice"
+          placeholder="Current market trends in customer-service AI chatbots"
           rows={3}
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Tiefe" hint="Wie gründlich soll recherchiert werden?" />
+        <FieldLabel label="Depth" hint="How thorough should the research be?" />
         <div className="flex gap-2">
           {(["quick", "standard", "deep"] as const).map((d) => (
             <button
@@ -845,11 +845,11 @@ export function CodeSandboxConfig({ config, onChange }: ConfigProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <FieldLabel label="Aufgabe / Ziel" hint="Beschreibe was der Code tun soll. Der Agent schreibt und führt den Code automatisch aus." />
+        <FieldLabel label="Task / Goal" hint="Describe what the code should do. The agent writes and runs the code automatically." />
         <ConfigTextarea
           value={String(config.goal || "")}
           onChange={(v) => onChange({ ...config, goal: v })}
-          placeholder="Analysiere die CSV-Daten aus dem vorherigen Schritt, erstelle ein Balkendiagramm und speichere es als PNG"
+          placeholder="Analyze the CSV data from the previous step, build a bar chart, and save it as PNG"
           rows={3}
         />
       </div>
@@ -872,7 +872,7 @@ export function CodeSandboxConfig({ config, onChange }: ConfigProps) {
         </div>
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Max. Iterationen" hint="Wie oft darf der Agent den Code überarbeiten (1-10)" />
+        <FieldLabel label="Max iterations" hint="How many times the agent can revise the code (1–10)" />
         <ConfigInput
           value={String(config.maxIterations || "5")}
           onChange={(v) => onChange({ ...config, maxIterations: parseInt(v) || 5 })}
@@ -881,7 +881,7 @@ export function CodeSandboxConfig({ config, onChange }: ConfigProps) {
         />
       </div>
       <div className="space-y-1.5">
-        <FieldLabel label="Pakete vorinstallieren" hint="pip/npm Pakete die vor der Ausführung installiert werden" />
+        <FieldLabel label="Pre-install packages" hint="pip/npm packages installed before execution" />
         <div className="flex gap-2">
           <input
             value={newPkg}
@@ -1089,7 +1089,7 @@ function CredentialSelector({
               disabled={saving || !newService.trim() || !newUrl.trim() || !newUsername.trim() || !newPassword}
               className="flex-1 rounded-lg bg-pink-600 hover:bg-pink-500 disabled:opacity-50 px-3 py-1.5 text-xs font-medium text-white transition-colors"
             >
-              {saving ? "Speichern..." : "Credential speichern"}
+              {saving ? "Saving…" : "Save credential"}
             </button>
             <button
               onClick={() => setShowAddForm(false)}
@@ -1100,7 +1100,7 @@ function CredentialSelector({
           </div>
           <p className="text-[9px] text-muted-foreground flex items-center gap-1">
             <Lock className="h-2.5 w-2.5" />
-            Credentials werden verschlüsselt gespeichert (AES-256-GCM)
+            Credentials are stored encrypted (AES-256-GCM)
           </p>
         </div>
       ) : (
@@ -1108,7 +1108,7 @@ function CredentialSelector({
           onClick={() => setShowAddForm(true)}
           className="flex items-center gap-1.5 text-[11px] text-pink-400 hover:text-pink-300 transition-colors"
         >
-          <Plus className="h-3 w-3" /> Neues Credential hinzufügen
+          <Plus className="h-3 w-3" /> Add new credential
         </button>
       )}
     </div>
