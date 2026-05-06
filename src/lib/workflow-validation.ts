@@ -136,6 +136,23 @@ export function validateWorkflow(
       }
     }
 
+    if (node.type === "ensemble") {
+      const agents = Array.isArray(node.config.agents) ? node.config.agents : [];
+      const configured = agents.filter((entry) => {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+        const record = entry as Record<string, unknown>;
+        return typeof record.agentId === "string" && record.agentId.trim().length > 0;
+      });
+      if (configured.length < 2) {
+        errors.push({
+          severity: "error",
+          nodeId: node.id,
+          message: `${node.label}: configure at least two voting agents.`,
+          code: "ENSEMBLE_NOT_CONFIGURED",
+        });
+      }
+    }
+
     // 3. Required-field check based on node type
     const required = REQUIRED_FIELDS[node.type];
     if (required) {
