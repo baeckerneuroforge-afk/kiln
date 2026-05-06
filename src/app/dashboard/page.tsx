@@ -15,19 +15,24 @@ function getGreeting(): string {
   return "Good evening";
 }
 
-// One cell of the compact stats stripe. Renders a dim em-dash for zero so
-// empty accounts do not look like a wall of "0"s — the data isn't useful
-// yet, the cell shouldn't shout about it.
+// One cell of the compact stats stripe. `hint` is an optional sub-line
+// rendered under the value — used by the agency tiles to surface "Connect
+// Stripe to track revenue", "Create your first" CTAs, etc. Renders a dim
+// em-dash when value is null (intentional empty / not-yet-meaningful)
+// instead of a 3xl "0".
 function StatCell({
   label,
-  value,
-  prefix = "",
+  display,
   loading,
+  hint,
 }: {
   label: string;
-  value: number;
-  prefix?: string;
+  // Pre-formatted value, or null to render an em-dash. Pre-formatting at
+  // the call site lets each tile choose its own number style (locale int,
+  // EUR currency, percent, etc.) without StatCell needing to branch.
+  display: string | null;
   loading: boolean;
+  hint?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-1 px-5 py-3">
@@ -36,27 +41,54 @@ function StatCell({
       </p>
       {loading ? (
         <div className="h-6 w-14 animate-pulse rounded bg-muted" />
-      ) : value === 0 ? (
+      ) : display === null ? (
         <p className="text-2xl font-semibold tracking-tight text-muted-foreground/60">
           —
         </p>
       ) : (
         <p className="text-2xl font-semibold tracking-tight text-foreground">
-          {prefix}
-          {value.toLocaleString("de-DE")}
+          {display}
         </p>
+      )}
+      {hint && !loading && (
+        <div className="text-[11px] leading-tight text-muted-foreground">
+          {hint}
+        </div>
       )}
     </div>
   );
 }
 
+// Format cents → "€1,234" style, dropping cents above €100 to keep the
+// tile dense. Below €100 keeps two decimals so €0.50 is still recognizable.
+function formatEuros(cents: number): string {
+  const euros = cents / 100;
+  return euros.toLocaleString("de-DE", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: euros < 100 ? 2 : 0,
+    maximumFractionDigits: euros < 100 ? 2 : 0,
+  });
+}
+
+type StatsState = {
+  agents: number;
+  conversations: number;
+  mrr: number;
+  activeSubOrgs: number;
+  newSubOrgs30d: number;
+  stripeConnectStatus: "not_onboarded" | "pending" | "active";
+};
+
 export default function DashboardPage() {
   const { user } = useUser();
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<StatsState>({
     agents: 0,
     conversations: 0,
-    leads: 0,
-    estimatedValue: 0,
+    mrr: 0,
+    activeSubOrgs: 0,
+    newSubOrgs30d: 0,
+    stripeConnectStatus: "not_onboarded",
   });
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState<string | null>(null);
@@ -65,28 +97,17 @@ export default function DashboardPage() {
     setStatsLoading(true);
     setStatsError(null);
     try {
-      const [agentsRes, analyticsRes] = await Promise.allSettled([
-        fetch("/api/agents"),
-        fetch("/api/analytics/overview"),
-      ]);
-
-      let agents = 0;
-      if (agentsRes.status === "fulfilled" && agentsRes.value.ok) {
-        const data = await agentsRes.value.json();
-        agents = Array.isArray(data) ? data.length : 0;
-      }
-
-      let conversations = 0;
-      let leads = 0;
-      let estimatedValue = 0;
-      if (analyticsRes.status === "fulfilled" && analyticsRes.value.ok) {
-        const data = await analyticsRes.value.json();
-        conversations = data.conversations ?? 0;
-        leads = data.leads ?? 0;
-        estimatedValue = data.estimatedValue ?? 0;
-      }
-
-      setStats({ agents, conversations, leads, estimatedValue });
+      const res = await fetch("/api/analytics/overview");
+      if (!res.ok) throw new Error("Stats fetch failed");
+      const data = await res.json();
+      setStats({
+        agents: data.agents ?? 0,
+        conversations: data.conversations ?? 0,
+        mrr: data.mrr ?? 0,
+        activeSubOrgs: data.activeSubOrgs ?? 0,
+        newSubOrgs30d: data.newSubOrgs30d ?? 0,
+        stripeConnectStatus: data.stripeConnectStatus ?? "not_onboarded",
+      });
     } catch {
       setStatsError("Stats konnten nicht geladen werden.");
     } finally {
@@ -110,8 +131,8 @@ export default function DashboardPage() {
     !statsError &&
     stats.agents === 0 &&
     stats.conversations === 0 &&
-    stats.leads === 0 &&
-    stats.estimatedValue === 0;
+    stats.mrr === 0 &&
+    stats.activeSubOrgs === 0;
 
   return (
     <div className="relative mx-auto max-w-5xl">
@@ -139,13 +160,41 @@ export default function DashboardPage() {
               "grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border bg-card/60 sm:grid-cols-4 sm:divide-y-0"
             )}
           >
-            <StatCell label="Agents" value={stats.agents} loading={statsLoading} />
-            <StatCell label="Conversations" value={stats.conversations} loading={statsLoading} />
-            <StatCell label="Leads" value={stats.leads} loading={statsLoading} />
             <StatCell
-              label="Est. Value"
-              value={stats.estimatedValue}
-              prefix="€"
+              label="MRR"
+              display={stats.mrr === 0 ? null : formatEuros(stats.mrr)}
+              loading={statsLoading}
+            />
+            <StatCell
+              label="Active Sub-Orgs"
+              display={
+                stats.activeSubOrgs === 0
+                  ? null
+                  : stats.activeSubOrgs.toLocaleString("de-DE")
+              }
+              loading={statsLoading}
+              hint={
+                stats.newSubOrgs30d > 0
+                  ? `+${stats.newSubOrgs30d} new (30d)`
+                  : undefined
+              }
+            />
+            <StatCell
+              label="Active Agents"
+              display={
+                stats.agents === 0
+                  ? null
+                  : stats.agents.toLocaleString("de-DE")
+              }
+              loading={statsLoading}
+            />
+            <StatCell
+              label="Conversations (30d)"
+              display={
+                stats.conversations === 0
+                  ? null
+                  : stats.conversations.toLocaleString("de-DE")
+              }
               loading={statsLoading}
             />
           </div>
