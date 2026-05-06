@@ -91,6 +91,7 @@ import {
 // NodeConfigPanel is now handled inside VisualTeamEditor
 import { DataMapper, type FieldMapping } from "@/components/workflows/data-mapper";
 import { type WorkflowNodeType } from "@/lib/workflow-node-types";
+import { validateWorkflow, type ValidationIssue } from "@/lib/workflow-validation";
 import DebugRunner from "@/components/workflows/debug-runner";
 import { LogViewer } from "@/components/workflows/log-viewer";
 import { ExecutionDiff } from "@/components/workflows/execution-diff";
@@ -2328,11 +2329,44 @@ function TeamDetailInner() {
     updateTeamConfig({ workflow: { ...wf, edges } });
   }, [team?.config, updateTeamConfig]);
 
+  // Pre-run validation. Memoized off the live workflow snapshot so the
+  // banner updates as the operator builds. Errors block Run Workflow;
+  // warnings are advisory and don't block.
+  const validation = useMemo(
+    () => validateWorkflow(workflowNodes, workflowEdges),
+    [workflowNodes, workflowEdges]
+  );
+  const [validationDismissed, setValidationDismissed] = useState(false);
+  // Reset the dismissed flag when issues change so a newly introduced
+  // error always shows. Hash issue codes + node IDs to detect changes.
+  const validationHash = useMemo(
+    () =>
+      [...validation.errors, ...validation.warnings]
+        .map((i) => `${i.code}:${i.nodeId ?? ""}`)
+        .sort()
+        .join("|"),
+    [validation]
+  );
+  const lastValidationHashRef = useRef(validationHash);
+  useEffect(() => {
+    if (lastValidationHashRef.current !== validationHash) {
+      lastValidationHashRef.current = validationHash;
+      setValidationDismissed(false);
+    }
+  }, [validationHash]);
+
   // handleWorkflowNodeClick, Save, Delete, LabelChange are now handled inside VisualTeamEditor
 
-  // Run workflow from canvas — calls execute API and polls for results
+  // Run workflow from canvas — calls execute API and polls for results.
+  // Blocked when validation has any blocking errors so the operator
+  // doesn't burn an execution on a workflow that's clearly broken.
   const handleRunWorkflow = useCallback(async () => {
     if (wfExecStatus === "running") return;
+    if (validation.errors.length > 0) {
+      // Surface the banner if it was dismissed
+      setValidationDismissed(false);
+      return;
+    }
 
     setWfExecStatus("running");
     setWfExecDuration(undefined);
@@ -2484,7 +2518,7 @@ function TeamDetailInner() {
       setWfExecLogs([...logs]);
       console.error("Workflow execution failed:", err);
     }
-  }, [teamId, team?.goal, wfExecStatus, workflowNodes]);
+  }, [teamId, team?.goal, wfExecStatus, workflowNodes, validation.errors.length]);
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -3023,7 +3057,24 @@ function TeamDetailInner() {
               </div>
             ) : hierarchyView === "visual" ? (
               /* ---- Visual Editor ---- */
-              <div className="flex-1 min-h-0">
+              <div className="flex flex-1 min-h-0 flex-col">
+                {/* Pre-run validation banner. Renders only when there
+                    are issues and the operator hasn't dismissed it.
+                    Errors block Run Workflow; warnings don't. Click
+                    on any issue to focus the offending node. */}
+                {!validationDismissed && (validation.errors.length > 0 || validation.warnings.length > 0) && (
+                  <ValidationBanner
+                    errors={validation.errors}
+                    warnings={validation.warnings}
+                    onDismiss={() => setValidationDismissed(true)}
+                    onIssueClick={(issue) => {
+                      if (issue.nodeId) {
+                        setSelectedMemberId(issue.nodeId);
+                      }
+                    }}
+                  />
+                )}
+                <div className="flex-1 min-h-0">
                 <VisualTeamEditor
                   teamId={teamId}
                   members={team.members}
@@ -3045,6 +3096,7 @@ function TeamDetailInner() {
                   nodeResults={wfNodeResults}
                   executionLogs={wfExecLogs}
                 />
+                </div>
               </div>
             ) : (
               /* ---- Tree View (original ReactFlow) ---- */
@@ -3659,5 +3711,101 @@ export default function TeamDetailPage() {
     <ReactFlowProvider>
       <TeamDetailInner />
     </ReactFlowProvider>
+  );
+}
+
+/* ========== Pre-run validation banner ========== */
+/**
+ * Surfaces validation issues above the workflow canvas. Errors block
+ * Run Workflow; warnings are advisory. Each issue row is clickable —
+ * if the issue has a nodeId, clicking jumps to that node by selecting
+ * it (which scrolls the config panel into view).
+ *
+ * The banner is dismissible per session, but reappears whenever the
+ * issue set changes so a newly introduced error never gets silently
+ * suppressed.
+ */
+function ValidationBanner({
+  errors,
+  warnings,
+  onDismiss,
+  onIssueClick,
+}: {
+  errors: ValidationIssue[];
+  warnings: ValidationIssue[];
+  onDismiss: () => void;
+  onIssueClick: (issue: ValidationIssue) => void;
+}) {
+  const hasErrors = errors.length > 0;
+  const total = errors.length + warnings.length;
+  return (
+    <div
+      className={cn(
+        "mb-2 rounded-lg border px-3 py-2",
+        hasErrors
+          ? "border-red-500/30 bg-red-500/5"
+          : "border-amber-500/30 bg-amber-500/5"
+      )}
+      role={hasErrors ? "alert" : "status"}
+    >
+      <div className="flex items-start gap-2">
+        {hasErrors ? (
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+        ) : (
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className={cn("text-xs font-medium", hasErrors ? "text-red-300" : "text-amber-300")}>
+              {hasErrors
+                ? `${errors.length} ${errors.length === 1 ? "issue blocks" : "issues block"} this workflow${warnings.length > 0 ? ` · ${warnings.length} warning${warnings.length === 1 ? "" : "s"}` : ""}`
+                : `${warnings.length} ${warnings.length === 1 ? "warning" : "warnings"}`}
+            </p>
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Dismiss"
+            >
+              Dismiss
+            </button>
+          </div>
+          <ul className="mt-1.5 space-y-0.5">
+            {[...errors, ...warnings].slice(0, 6).map((issue, idx) => (
+              <li key={`${issue.code}-${issue.nodeId ?? "n"}-${idx}`}>
+                <button
+                  type="button"
+                  onClick={() => onIssueClick(issue)}
+                  disabled={!issue.nodeId}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 text-[11px] text-left transition-colors",
+                    issue.severity === "error" ? "text-red-300/90" : "text-amber-300/90",
+                    issue.nodeId
+                      ? "hover:text-foreground cursor-pointer underline-offset-2 hover:underline"
+                      : "cursor-default"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "h-1 w-1 rounded-full",
+                      issue.severity === "error" ? "bg-red-400" : "bg-amber-400"
+                    )}
+                  />
+                  {issue.message}
+                  {issue.nodeId && (
+                    <span className="text-[10px] text-muted-foreground">→ jump</span>
+                  )}
+                </button>
+              </li>
+            ))}
+            {total > 6 && (
+              <li className="text-[10px] text-muted-foreground">
+                +{total - 6} more
+              </li>
+            )}
+          </ul>
+        </div>
+      </div>
+    </div>
   );
 }
