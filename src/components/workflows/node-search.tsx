@@ -36,8 +36,10 @@ import {
   Terminal,
   Timer,
   UserPlus,
+  Users,
   Variable,
   Zap,
+  StickyNote,
 } from "lucide-react";
 import {
   WORKFLOW_CATEGORIES,
@@ -80,8 +82,10 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Terminal,
   Timer,
   UserPlus,
+  Users,
   Variable,
   Zap,
+  StickyNote,
 };
 
 interface NodeSearchProps {

@@ -28,6 +28,8 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   AlertTriangle,
   BookOpen,
@@ -87,6 +89,7 @@ import {
   StickyNote,
   Power,
   ClipboardPaste,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getModelDef } from "@/lib/ai";
@@ -214,7 +217,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Zap, Shield, Shuffle, FileText,
   Table, TableProperties, CalendarPlus, CalendarSearch, Database, Plug,
   Sparkles, Tags, FileSearch, Monitor, Radio, Search,
-  Target, Eye, Terminal,
+  Target, Eye, Terminal, StickyNote, Users,
 };
 
 const NODE_WIDTH = 240;
@@ -445,6 +448,44 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
   }
 
   const isDisabled = !!data.config?.disabled;
+  if (nodeType === "comment") {
+    const color = String(data.config?.color || "yellow");
+    const colorClass =
+      color === "blue"
+        ? "bg-blue-200 text-blue-950 border-blue-300"
+        : color === "green"
+          ? "bg-green-200 text-green-950 border-green-300"
+          : color === "orange"
+            ? "bg-orange-200 text-orange-950 border-orange-300"
+            : "bg-yellow-200 text-yellow-950 border-yellow-300";
+    const width = Math.max(180, Math.min(520, Number(data.config?.width) || 260));
+    const height = Math.max(120, Math.min(420, Number(data.config?.height) || 160));
+    return (
+      <div
+        className={cn(
+          "relative rounded-lg border p-3 shadow-lg transition-all duration-150",
+          colorClass,
+          selected && "ring-2 ring-orange-500/60"
+        )}
+        style={{ width, minHeight: height }}
+      >
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider opacity-70">
+            <StickyNote className="h-3 w-3" />
+            Comment
+          </div>
+          {typeof data.config?.authorUserId === "string" && (
+            <span className="truncate text-[9px] opacity-60">{data.config.authorUserId}</span>
+          )}
+        </div>
+        <div className="prose prose-sm max-w-none text-current prose-p:my-1 prose-ul:my-1 prose-li:my-0">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {String(data.config?.content || "")}
+          </ReactMarkdown>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -555,7 +596,27 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
       )}
 
       {/* Output handles — right side */}
-      {isLogicNode ? (
+      {nodeType === "parallel_split" ? (
+        <>
+          {Array.from({ length: Math.max(2, Math.min(5, Number(data.config?.branches) || 3)) }).map((_, index, list) => {
+            const top = `${((index + 1) / (list.length + 1)) * 100}%`;
+            return (
+              <div key={index}>
+                <Handle
+                  type="source"
+                  position={Position.Right}
+                  id={`branch_${index}`}
+                  className="!border-[2px] !border-border !rounded-full !bg-blue-500 !-right-[5px]"
+                  style={{ top }}
+                />
+                <div className="absolute right-3 text-[7px] font-bold text-blue-400/80" style={{ top: `calc(${top} - 5px)` }}>
+                  {index + 1}
+                </div>
+              </div>
+            );
+          })}
+        </>
+      ) : isLogicNode ? (
         <>
           <Handle
             type="source"
@@ -2626,6 +2687,43 @@ function VisualTeamEditorInner({
     ]
   );
 
+  const addCommentAtScreenPosition = useCallback(
+    (screen: { x: number; y: number }) => {
+      const position = reactFlowInstance.screenToFlowPosition(screen);
+      const wfNode = createWorkflowNode("comment", position, {
+        label: "Comment",
+        config: { content: "Add a note...", color: "yellow", width: 260, height: 160 },
+      });
+      const def = WORKFLOW_NODE_DEFINITIONS.find((d) => d.type === "comment");
+      if (!def) return;
+
+      const newFlowNode: Node = {
+        id: wfNode.id,
+        type: "workflowNode",
+        position,
+        data: {
+          label: wfNode.label,
+          nodeType: wfNode.type,
+          category: def.category,
+          description: def.description,
+          iconName: def.icon,
+          config: wfNode.config,
+        },
+      };
+
+      setNodes((nds) => [...nds, newFlowNode]);
+      if (onWorkflowNodesChange) {
+        onWorkflowNodesChange([...(wfNodes || []), wfNode]);
+      }
+      fetch(`/api/teams/${teamId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "Add a note...", color: "yellow", position }),
+      }).catch(() => {});
+    },
+    [reactFlowInstance, setNodes, onWorkflowNodesChange, wfNodes, teamId]
+  );
+
   // Execution status label
   const execLabel =
     executionStatus === "running"
@@ -3097,7 +3195,7 @@ function VisualTeamEditorInner({
                 },
                 { id: "__divider__", label: "", onClick: () => {} },
                 { id: "disable", label: isDisabled ? "Enable Node" : "Disable Node", icon: "disable", onClick: () => toggleNodeDisabled(nId) },
-                { id: "comment", label: "Add Annotation", icon: "comment", disabled: true, onClick: () => {} },
+                { id: "comment", label: "Add Annotation", icon: "comment", onClick: () => addCommentAtScreenPosition({ x: contextMenu.x, y: contextMenu.y }) },
                 { id: "__divider__", label: "", onClick: () => {} },
                 { id: "delete", label: "Delete", shortcut: "⌫", icon: "delete", destructive: true, onClick: () => handleNodeDelete(nId) },
               );
@@ -3117,7 +3215,7 @@ function VisualTeamEditorInner({
                   disabled: !clipboardNodes,
                   onClick: () => pasteFromClipboard(),
                 },
-                { id: "comment", label: "Add Comment", icon: "comment", disabled: true, onClick: () => {} },
+                { id: "comment", label: "Add Comment", icon: "comment", onClick: () => addCommentAtScreenPosition({ x: contextMenu.x, y: contextMenu.y }) },
               );
             }
             return items;
