@@ -16,7 +16,12 @@ import { prisma } from "@/lib/prisma";
 import { emitEvent } from "@/lib/events";
 import type { WorkflowNode, WorkflowEdge, WorkflowNodeType, WorkflowVariable } from "@/lib/workflow-node-types";
 import type { ExpressionContext } from "@/lib/workflow-expressions";
-import { resolveExpression, resolveExpressionValue } from "@/lib/workflow-expressions";
+import {
+  evaluateCondition,
+  resolveExpression,
+  resolveExpressionDeep,
+  resolveExpressionValue,
+} from "@/lib/workflow-expressions";
 
 import { executeTriggerNode } from "@/lib/workflow-nodes/trigger-nodes";
 import { executeLogicNode } from "@/lib/workflow-nodes/logic-nodes";
@@ -67,6 +72,28 @@ import {
   executeParallelSplit,
   executeParallelMerge,
 } from "@/lib/workflow-nodes/parallel-node";
+import { loadWorkflowVariablesForExecution } from "@/lib/workflow-variables-runtime";
+import {
+  assertNoSubWorkflowCycles,
+  extractSubWorkflowIdsFromNodes,
+} from "@/lib/workflow-subworkflows";
+import {
+  checkNodeRateLimit,
+  evaluateNodeSchedule,
+  normalizeErrorHandlingConfig,
+  sleep,
+} from "@/lib/workflow-node-policies";
+import {
+  resolveEnsemble,
+  type EnsembleCandidate,
+  type EnsembleResolution,
+  type EnsembleStrategy,
+} from "@/lib/workflow-ensemble";
+import {
+  buildScopedMemoryWhere,
+  formatMemoryPrompt,
+  normalizeWorkflowMemoryScope,
+} from "@/lib/workflow-memory-scope";
 
 /* ── Types ── */
 
@@ -158,6 +185,7 @@ const NODE_CATEGORIES: Record<string, string> = {
   trigger_chat: "trigger",
   trigger_manual: "trigger",
   agent: "agent",
+  ensemble: "ensemble",
   llm_prompt: "agent",
   if_condition: "logic",
   switch: "logic",
@@ -200,6 +228,7 @@ const NODE_CATEGORIES: Record<string, string> = {
   agent_swarm: "swarm",
   parallel_split: "parallel",
   parallel_merge: "parallel",
+  comment: "comment",
   diff_detection: "ai_tool",
   multi_site: "ai_tool",
 };
@@ -337,6 +366,7 @@ export async function executeWorkflow(
 
   const { nodes, edges } = workflowDef;
   const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+  await assertNoSubWorkflowCycles(teamId, extractSubWorkflowIdsFromNodes(nodes));
 
   // Finde den aktiven Trigger
   let triggerNode: WorkflowNode | undefined;
@@ -380,16 +410,9 @@ export async function executeWorkflow(
     resumeData = await loadCheckpoint(options.resumeExecutionId);
   }
 
-  // Initialisiere Variablen aus der Workflow-Definition
-  const variablesInit: Record<string, unknown> = {};
-  if (workflowDef.variables && workflowDef.variables.length > 0) {
-    for (const v of workflowDef.variables) {
-      let parsed: unknown = v.defaultValue;
-      if (v.type === "number") parsed = Number(v.defaultValue) || 0;
-      else if (v.type === "boolean") parsed = v.defaultValue === "true";
-      variablesInit[v.name] = parsed;
-    }
-  }
+  // Initialisiere Variablen aus DB-Variablen plus legacy config.workflow.variables.
+  // DB values win so secrets and runtime-managed variables are authoritative.
+  const variablesInit = await loadWorkflowVariablesForExecution(teamId, workflowDef.variables);
 
   // Ersten Agent des Teams laden (für Credential-Zugriff in Computer Use)
   const firstAgentId = team.members?.[0]?.agent?.id || "";
@@ -398,10 +421,20 @@ export async function executeWorkflow(
     ? (resumeData.context as ExpressionContext)
     : {
         variables: variablesInit,
+        variable: variablesInit,
+        _workflowExecutionId: executionId,
         _userId: options.userId,
         _teamId: teamId,
         _agentId: firstAgentId,
       };
+  context = {
+    ...context,
+    variables: (context.variables as Record<string, unknown>) || variablesInit,
+    variable: (context.variable as Record<string, unknown>) || (context.variables as Record<string, unknown>) || variablesInit,
+    _workflowExecutionId: executionId,
+    _teamId: teamId,
+    _userId: options.userId,
+  };
   const executedNodes = new Set<string>(resumeData?.executedNodeIds || []);
   const nodeLogs: NodeExecutionLog[] = [];
   let completedNodes = resumeData?.completedNodes || 0;
@@ -466,6 +499,7 @@ export async function executeWorkflow(
     const queue = [...startNodeIds];
     let nodeExecutionCount = 0;
     const MAX_NODE_EXECUTIONS = 200;
+    const retryAttempts = new Map<string, number>();
 
     while (queue.length > 0 && !paused) {
       const currentNodeId = queue.shift()!;
@@ -478,8 +512,9 @@ export async function executeWorkflow(
       // Schon ausgeführt? Skip.
       if (executedNodes.has(currentNodeId)) continue;
 
-      const node = nodeMap.get(currentNodeId);
-      if (!node) continue;
+      const rawNode = nodeMap.get(currentNodeId);
+      if (!rawNode) continue;
+      let node = rawNode;
 
       // Prüfe ob alle Vorgänger fertig sind (für Merge-Nodes)
       const incomingEdges = getIncomingEdges(currentNodeId, edges);
@@ -500,6 +535,78 @@ export async function executeWorkflow(
       const startTime = new Date();
       const category = getNodeCategory(node.type);
       let nodeResult: NodeExecutionLog;
+
+      const scheduleDecision = evaluateNodeSchedule(node.config, startTime);
+      if (!scheduleDecision.shouldRun) {
+        nodeResult = {
+          nodeId: node.id,
+          nodeType: node.type,
+          status: "skipped",
+          contextDelta: {
+            [`_skipped_${node.id}`]: scheduleDecision.reason || "schedule",
+          },
+          output: scheduleDecision.reason || "Skipped by node schedule",
+          startedAt: startTime,
+          completedAt: new Date(),
+          meta: { scheduleSkipped: true, reason: scheduleDecision.reason },
+        };
+        queue.push(...getNormalSuccessors(node.id, edges));
+        await logNodeExecution(executionId, teamId, node, nodeResult);
+        executedNodes.add(currentNodeId);
+        completedNodes++;
+        nodeLogs.push(nodeResult);
+        await prisma.teamExecution.update({
+          where: { id: executionId },
+          data: {
+            completedTasks: completedNodes,
+            failedTasks: failedNodes,
+            executionContext: toJsonValue(context),
+          },
+        });
+        continue;
+      }
+
+      const rateDecision = checkNodeRateLimit(`${teamId}:${node.id}`, node.config);
+      if (!rateDecision.allowed && rateDecision.behavior === "reject") {
+        nodeResult = {
+          nodeId: node.id,
+          nodeType: node.type,
+          status: "failed",
+          contextDelta: {},
+          error: `Rate limit exceeded. Retry after ${rateDecision.retryAfterMs}ms.`,
+          startedAt: startTime,
+          completedAt: new Date(),
+          meta: { rateLimited: true, retryAfterMs: rateDecision.retryAfterMs },
+        };
+        await recordDeadLetter({
+          teamId,
+          executionId,
+          node,
+          context,
+          error: nodeResult.error,
+        });
+        failedNodes++;
+        await logNodeExecution(executionId, teamId, node, nodeResult);
+        executedNodes.add(currentNodeId);
+        nodeLogs.push(nodeResult);
+        await prisma.teamExecution.update({
+          where: { id: executionId },
+          data: {
+            completedTasks: completedNodes,
+            failedTasks: failedNodes,
+            executionContext: toJsonValue(context),
+          },
+        });
+        continue;
+      }
+      if (!rateDecision.allowed && rateDecision.behavior === "queue") {
+        await sleep(Math.min(rateDecision.retryAfterMs, 60_000));
+      }
+
+      node = {
+        ...node,
+        config: resolveExpressionDeep(node.config, context) as Record<string, unknown>,
+      };
 
       try {
         switch (category) {
@@ -952,6 +1059,23 @@ export async function executeWorkflow(
             break;
           }
 
+          case "ensemble": {
+            nodeResult = await executeEnsembleNode(node, team, executionId, context, startTime);
+
+            if (nodeResult.status === "completed") {
+              context = { ...context, ...nodeResult.contextDelta };
+              queue.push(...getNormalSuccessors(node.id, edges));
+            } else {
+              const ensembleErrorTargets = getErrorSuccessors(node.id, edges);
+              if (ensembleErrorTargets.length > 0) {
+                context = { ...context, _lastError: { nodeId: node.id, nodeType: node.type, error: nodeResult.error } };
+                queue.push(...ensembleErrorTargets);
+              }
+              failedNodes++;
+            }
+            break;
+          }
+
           case "parallel": {
             if (node.type === "parallel_split") {
               const splitResult = executeParallelSplit(node.config, context);
@@ -1082,8 +1206,66 @@ export async function executeWorkflow(
         }
       }
 
+      let retryScheduled = false;
+      if (nodeResult.status === "failed") {
+        const errorHandling = normalizeErrorHandlingConfig(node.config);
+        const currentAttempt = retryAttempts.get(node.id) || 0;
+
+        await recordDeadLetter({
+          teamId,
+          executionId,
+          node,
+          context,
+          error: nodeResult.error || "Node execution failed",
+        });
+
+        if (errorHandling.onError === "retry" && currentAttempt < errorHandling.retryCount) {
+          retryAttempts.set(node.id, currentAttempt + 1);
+          await prisma.teamExecution.update({
+            where: { id: executionId },
+            data: { errorHandlingApplied: true },
+          });
+          await sleep(errorHandling.retryDelayMs);
+          queue.unshift(currentNodeId);
+          retryScheduled = true;
+        } else if (errorHandling.onError === "continue") {
+          await prisma.teamExecution.update({
+            where: { id: executionId },
+            data: { errorHandlingApplied: true },
+          });
+          context = {
+            ...context,
+            _lastError: {
+              nodeId: node.id,
+              nodeType: node.type,
+              error: nodeResult.error,
+              handled: "continue",
+            },
+          };
+          queue.push(...getNormalSuccessors(node.id, edges));
+          nodeResult = {
+            ...nodeResult,
+            status: "skipped",
+            meta: { ...(nodeResult.meta || {}), errorHandlingApplied: "continue" },
+          };
+        } else if (errorHandling.onError === "fallback") {
+          await prisma.teamExecution.update({
+            where: { id: executionId },
+            data: { errorHandlingApplied: true },
+          });
+          const policyFallbackTargets = getErrorSuccessors(node.id, edges);
+          if (policyFallbackTargets.length > 0) {
+            queue.push(...policyFallbackTargets);
+          }
+        }
+      }
+
       // Log schreiben
       await logNodeExecution(executionId, teamId, node, nodeResult);
+      if (retryScheduled) {
+        nodeLogs.push(nodeResult);
+        continue;
+      }
       executedNodes.add(currentNodeId);
 
       if (nodeResult.status === "completed" || nodeResult.status === "skipped") {
@@ -1260,6 +1442,66 @@ export async function executeWorkflow(
 
 /* ── Agent Node Execution ── */
 
+function evaluateInlineCondition(condition: string, context: ExpressionContext): boolean {
+  const trimmed = condition.trim();
+  const templateComparison = trimmed.match(/^\{\{\s*(.+?)\s*\}\}\s*(===|==|!==|!=)\s*["']?(.+?)["']?$/);
+  if (templateComparison) {
+    const left = resolveExpressionValue(templateComparison[1], context);
+    const operator = templateComparison[2];
+    const right = templateComparison[3];
+    const equal = String(left) === right;
+    return operator === "===" || operator === "==" ? equal : !equal;
+  }
+
+  const conditionRecord = trimmed.match(/^(.+?)\s*(===|==|!==|!=)\s*["']?(.+?)["']?$/);
+  if (conditionRecord) {
+    const left = resolveExpressionValue(conditionRecord[1], context);
+    const operator = conditionRecord[2];
+    const right = conditionRecord[3];
+    const equal = String(left) === right;
+    return operator === "===" || operator === "==" ? equal : !equal;
+  }
+
+  return evaluateCondition({ field: trimmed, operator: "truthy" }, context);
+}
+
+function resolveConditionalAgentConfig<T extends {
+  agentId?: string;
+  memberId?: string;
+  conditionalAgent?: unknown;
+}>(config: T, context: ExpressionContext): T {
+  const conditional =
+    config.conditionalAgent &&
+    typeof config.conditionalAgent === "object" &&
+    !Array.isArray(config.conditionalAgent)
+      ? (config.conditionalAgent as Record<string, unknown>)
+      : null;
+
+  if (!conditional || conditional.enabled !== true) return config;
+
+  const conditions = Array.isArray(conditional.conditions)
+    ? conditional.conditions as Array<Record<string, unknown>>
+    : [];
+
+  for (const condition of conditions) {
+    const expression = String(condition.condition || condition.expression || "");
+    if (!expression) continue;
+    if (!evaluateInlineCondition(expression, context)) continue;
+
+    return {
+      ...config,
+      agentId: typeof condition.agentId === "string" ? condition.agentId : config.agentId,
+      memberId: typeof condition.memberId === "string" ? condition.memberId : config.memberId,
+    };
+  }
+
+  return {
+    ...config,
+    agentId: typeof conditional.defaultAgentId === "string" ? conditional.defaultAgentId : config.agentId,
+    memberId: typeof conditional.defaultMemberId === "string" ? conditional.defaultMemberId : config.memberId,
+  };
+}
+
 /**
  * Führt einen Agent-Node aus, indem der bestehende team-runtime genutzt wird.
  */
@@ -1282,7 +1524,19 @@ async function executeAgentNode(
     };
   }
 
-  const agentConfig = node.config as { agentId?: string; memberId?: string; taskTitle?: string; taskDescription?: string; goal?: string; inputTemplate?: string };
+  const agentConfig = resolveConditionalAgentConfig(
+    node.config as {
+      agentId?: string;
+      memberId?: string;
+      taskTitle?: string;
+      taskDescription?: string;
+      goal?: string;
+      inputTemplate?: string;
+      conditionalAgent?: unknown;
+      memoryScope?: string;
+    },
+    context
+  );
 
   // Finde den passenden TeamMember
   const member = team.members.find(
@@ -1353,7 +1607,11 @@ async function executeAgentNode(
       userId: team.userId,
       goal: agentGoal,
       tasks: [syntheticTask],
-      executionContext: context as TeamSharedContext,
+      executionContext: {
+        ...(context as TeamSharedContext),
+        _workflowExecutionId: executionId,
+        _workflowMemoryScope: normalizeWorkflowMemoryScope(agentConfig.memoryScope),
+      },
     });
 
     // Lade das Ergebnis
@@ -1413,6 +1671,232 @@ async function executeAgentNode(
       completedAt: new Date(),
     };
   }
+}
+
+/* ── Ensemble Node Execution ── */
+
+async function executeEnsembleNode(
+  node: WorkflowNode,
+  team: Awaited<ReturnType<typeof loadTeamExecutionRuntimeContext>>,
+  executionId: string,
+  context: ExpressionContext,
+  startTime: Date
+): Promise<NodeExecutionLog> {
+  if (!team) {
+    return {
+      nodeId: node.id,
+      nodeType: node.type,
+      status: "failed",
+      contextDelta: {},
+      error: "Team nicht verfügbar",
+      startedAt: startTime,
+      completedAt: new Date(),
+    };
+  }
+
+  const config = node.config as {
+    agents?: Array<{ agentId?: string; memberId?: string; weight?: number }>;
+    strategy?: EnsembleStrategy;
+    judgeAgentId?: string;
+    taskTemplate?: string;
+    resultKey?: string;
+  };
+  const agents = (config.agents || []).filter((agent) => agent.agentId || agent.memberId);
+  if (agents.length < 2) {
+    return {
+      nodeId: node.id,
+      nodeType: node.type,
+      status: "failed",
+      contextDelta: {},
+      error: "Ensemble requires at least two configured agents.",
+      startedAt: startTime,
+      completedAt: new Date(),
+    };
+  }
+
+  const taskTemplate = config.taskTemplate
+    ? resolveExpression(config.taskTemplate, context)
+    : JSON.stringify(context).slice(0, 2000);
+
+  const results = await Promise.all(
+    agents.map(async (agentConfig, index) => {
+      const syntheticNode: WorkflowNode = {
+        id: `${node.id}_candidate_${index}`,
+        type: "agent",
+        label: `${node.label || "Ensemble"} Candidate ${index + 1}`,
+        position: node.position,
+        agentId: agentConfig.agentId,
+        config: {
+          agentId: agentConfig.agentId,
+          memberId: agentConfig.memberId,
+          taskTitle: `${node.label || "Ensemble"} candidate ${index + 1}`,
+          taskDescription: taskTemplate,
+          goal: taskTemplate,
+        },
+      };
+
+      const result = await executeAgentNode(
+        syntheticNode,
+        team,
+        executionId,
+        context,
+        startTime
+      );
+
+      return {
+        agentId: agentConfig.agentId || agentConfig.memberId || `candidate_${index}`,
+        weight: Number(agentConfig.weight) || 1,
+        output: result.output || result.error || "",
+        score: result.status === "completed" ? 1 : 0,
+        status: result.status,
+        error: result.error,
+      };
+    })
+  );
+
+  const candidates: EnsembleCandidate[] = results
+    .filter((result) => result.status === "completed" && result.output.trim())
+    .map((result) => ({
+      agentId: result.agentId,
+      output: result.output,
+      weight: result.weight,
+      score: result.score,
+    }));
+
+  if (candidates.length === 0) {
+    return {
+      nodeId: node.id,
+      nodeType: node.type,
+      status: "failed",
+      contextDelta: {},
+      error: "No ensemble candidate completed successfully.",
+      startedAt: startTime,
+      completedAt: new Date(),
+      meta: { results },
+    };
+  }
+
+  const strategy = config.strategy || "majority_vote";
+  const judgeResolution =
+    strategy === "best_of" && config.judgeAgentId
+      ? await resolveBestOfWithJudge({
+          parentNode: node,
+          team,
+          executionId,
+          context,
+          startTime,
+          judgeAgentId: config.judgeAgentId,
+          candidates,
+        })
+      : null;
+  const resolution = judgeResolution || resolveEnsemble(candidates, strategy);
+  const resultKey = config.resultKey || "ensembleResult";
+
+  return {
+    nodeId: node.id,
+    nodeType: node.type,
+    status: "completed",
+    contextDelta: {
+      [resultKey]: resolution.output,
+      [`${resultKey}Meta`]: resolution,
+    },
+    output: resolution.output,
+    startedAt: startTime,
+    completedAt: new Date(),
+    meta: {
+      strategy,
+      winningAgentId: resolution.winningAgentId,
+      candidateCount: candidates.length,
+      scores: resolution.scores,
+    },
+  };
+}
+
+function parseJudgeSelection(output: string, candidates: EnsembleCandidate[]) {
+  const trimmed = output.trim();
+  try {
+    const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+    const candidateId = String(parsed.agentId || parsed.winningAgentId || parsed.winner || "");
+    if (candidateId) {
+      const byId = candidates.find((candidate) => candidate.agentId === candidateId);
+      if (byId) return byId;
+    }
+    const index = Number(parsed.index ?? parsed.candidateIndex);
+    if (Number.isInteger(index) && candidates[index - 1]) return candidates[index - 1];
+  } catch {
+    // Plain-text judge responses are accepted below.
+  }
+
+  const normalized = trimmed.toLowerCase();
+  for (const candidate of candidates) {
+    if (normalized.includes(candidate.agentId.toLowerCase())) return candidate;
+  }
+
+  const indexMatch = normalized.match(/\b(?:candidate\s*)?([1-9]\d*)\b/);
+  if (indexMatch) {
+    const index = Number(indexMatch[1]);
+    if (candidates[index - 1]) return candidates[index - 1];
+  }
+
+  return null;
+}
+
+async function resolveBestOfWithJudge(params: {
+  parentNode: WorkflowNode;
+  team: Awaited<ReturnType<typeof loadTeamExecutionRuntimeContext>>;
+  executionId: string;
+  context: ExpressionContext;
+  startTime: Date;
+  judgeAgentId: string;
+  candidates: EnsembleCandidate[];
+}): Promise<EnsembleResolution | null> {
+  const prompt = [
+    "Choose the best ensemble candidate for the workflow task.",
+    "Respond with JSON like {\"agentId\":\"...\"} or with the candidate number.",
+    "",
+    ...params.candidates.map((candidate, index) => (
+      `Candidate ${index + 1} (${candidate.agentId}, weight ${candidate.weight ?? 1}):\n${candidate.output}`
+    )),
+  ].join("\n\n");
+
+  const judgeNode: WorkflowNode = {
+    id: `${params.parentNode.id}_judge`,
+    type: "agent",
+    label: `${params.parentNode.label || "Ensemble"} Judge`,
+    position: params.parentNode.position,
+    agentId: params.judgeAgentId,
+    config: {
+      agentId: params.judgeAgentId,
+      taskTitle: `${params.parentNode.label || "Ensemble"} judge`,
+      taskDescription: prompt,
+      goal: prompt,
+    },
+  };
+
+  const judgeResult = await executeAgentNode(
+    judgeNode,
+    params.team,
+    params.executionId,
+    params.context,
+    params.startTime
+  );
+  if (judgeResult.status !== "completed" || !judgeResult.output) return null;
+
+  const winner = parseJudgeSelection(judgeResult.output, params.candidates);
+  if (!winner) return null;
+
+  return {
+    output: winner.output,
+    winningAgentId: winner.agentId,
+    scores: {
+      judge: 1,
+      ...Object.fromEntries(params.candidates.map((candidate) => [
+        candidate.agentId,
+        candidate.agentId === winner.agentId ? 1 : 0,
+      ])),
+    },
+    strategy: "best_of",
+  };
 }
 
 /* ── Sub-Workflow Node Execution ── */
@@ -1605,6 +2089,32 @@ async function createWorkflowApprovalRequest(
 }
 
 /* ── Log Helper ── */
+
+async function recordDeadLetter(params: {
+  teamId: string;
+  executionId: string;
+  node: WorkflowNode;
+  context: ExpressionContext;
+  error?: string;
+}) {
+  await prisma.workflowDeadLetter.create({
+    data: {
+      agentTeamId: params.teamId,
+      teamExecutionId: params.executionId,
+      nodeId: params.node.id,
+      nodeType: params.node.type,
+      payload: toJsonValue({
+        context: params.context,
+        config: params.node.config,
+      }),
+      error: params.error || "Node execution failed",
+      attempts: 1,
+      status: "OPEN",
+    },
+  }).catch(() => {
+    // Dead-letter persistence must not make the original workflow failure worse.
+  });
+}
 
 async function logNodeExecution(
   executionId: string,

@@ -27,6 +27,8 @@ import { VisualTeamEditor } from "@/components/teams/visual-team-editor";
 import { TeamKnowledgeTab } from "@/components/teams/team-knowledge-tab";
 import { TeamWebhooksTab } from "@/components/teams/team-webhooks-tab";
 import { TeamPermissionsTab } from "@/components/teams/team-permissions-tab";
+import { TeamVariablesTab } from "@/components/teams/team-variables-tab";
+import { TeamFailedItemsSection } from "@/components/teams/team-failed-items-section";
 import { ErrorHandlerConfigPanel, type ErrorHandlerConfig } from "@/components/workflows/error-handler-config";
 import { VersionHistoryPanel } from "@/components/workflows/version-history";
 import { WorkflowActivityFeed, WorkflowChangelog } from "@/components/workflows/workflow-comments";
@@ -77,6 +79,7 @@ import {
   Share2,
   History,
   GitCompare,
+  Variable,
 } from "lucide-react";
 import {
   PROVIDERS,
@@ -181,6 +184,9 @@ interface Team {
   schedulePreview?: TeamSchedulePreviewValue | null;
   parentTeamId?: string | null;
   parentTeamName?: string | null;
+  isSubWorkflow?: boolean;
+  parentWorkflowIds?: string[];
+  usedAsSubWorkflowIn?: Array<{ id: string; name: string }>;
   isOwner?: boolean;
   sharedRole?: string | null;
   status: "ACTIVE" | "PAUSED";
@@ -489,11 +495,12 @@ function buildHierarchyGraph(
 }
 
 /* ========== Tabs ========== */
-type TabKey = "hierarchy" | "tasks" | "activity" | "analytics" | "cost" | "knowledge" | "executions" | "versions" | "schedule" | "webhooks" | "permissions" | "settings";
+type TabKey = "hierarchy" | "tasks" | "variables" | "activity" | "analytics" | "cost" | "knowledge" | "executions" | "versions" | "schedule" | "webhooks" | "permissions" | "settings";
 
 const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "hierarchy", label: "Hierarchy", icon: <Users className="h-4 w-4" /> },
   { key: "tasks", label: "Tasks", icon: <Target className="h-4 w-4" /> },
+  { key: "variables", label: "Variables", icon: <Variable className="h-4 w-4" /> },
   { key: "knowledge", label: "Knowledge", icon: <BookOpen className="h-4 w-4" /> },
   { key: "activity", label: "Activity", icon: <Activity className="h-4 w-4" /> },
   { key: "analytics", label: "Analytics", icon: <BarChart3 className="h-4 w-4" /> },
@@ -2892,6 +2899,20 @@ function TeamDetailInner() {
         </div>
       )}
 
+      {team.isSubWorkflow && (team.usedAsSubWorkflowIn?.length || 0) > 0 && (
+        <div className="mx-6 mt-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-sm text-cyan-200">
+          <span className="font-medium">Used as sub-workflow in: </span>
+          {team.usedAsSubWorkflowIn!.map((parent, index) => (
+            <span key={parent.id}>
+              <Link href={`/dashboard/teams/${parent.id}`} className="underline decoration-cyan-400/50 underline-offset-2 hover:text-cyan-100">
+                {parent.name}
+              </Link>
+              {index < team.usedAsSubWorkflowIn!.length - 1 ? ", " : ""}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* ===== Tab navigation ===== */}
       <div className="flex items-center gap-1 px-6 pt-3 border-b border-border">
         {tabs.map((tab) => (
@@ -3250,6 +3271,10 @@ function TeamDetailInner() {
           </div>
         )}
 
+        {activeTab === "variables" && (
+          <TeamVariablesTab teamId={teamId} />
+        )}
+
         {/* ---- Activity Tab ---- */}
         {activeTab === "activity" && (
           <div className="p-6 h-full overflow-auto">
@@ -3326,21 +3351,24 @@ function TeamDetailInner() {
         )}
 
         {activeTab === "executions" && (
-          <TeamExecutionsTab
-            teamId={teamId}
-            focusExecutionId={focusedExecutionId}
-            onRefreshTeam={fetchTeam}
-            onExecutionContextChange={setSharedContextPreview}
-            onOpenLogs={(execId) => {
-              setLogViewerExecId(execId);
-              setShowLogViewer(true);
-            }}
-            onOpenProfiler={(execId) => {
-              setProfilerExecId(execId);
-              setShowProfiler(true);
-            }}
-            onOpenDiff={() => setShowExecDiff(true)}
-          />
+          <div className="h-full overflow-auto">
+            <TeamFailedItemsSection teamId={teamId} />
+            <TeamExecutionsTab
+              teamId={teamId}
+              focusExecutionId={focusedExecutionId}
+              onRefreshTeam={fetchTeam}
+              onExecutionContextChange={setSharedContextPreview}
+              onOpenLogs={(execId) => {
+                setLogViewerExecId(execId);
+                setShowLogViewer(true);
+              }}
+              onOpenProfiler={(execId) => {
+                setProfilerExecId(execId);
+                setShowProfiler(true);
+              }}
+              onOpenDiff={() => setShowExecDiff(true)}
+            />
+          </div>
         )}
 
         {activeTab === "versions" && (
@@ -3457,7 +3485,30 @@ function TeamDetailInner() {
         )}
 
         {activeTab === "settings" && (
-          <div className="p-6 h-full overflow-auto max-w-2xl">
+          <div className="p-6 h-full overflow-auto max-w-2xl space-y-6">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-medium text-foreground">Sub-workflow</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">Expose this workflow in Sub-Workflow node dropdowns.</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    const next = !team.isSubWorkflow;
+                    setTeam((prev) => prev ? { ...prev, isSubWorkflow: next } : prev);
+                    await fetch(`/api/teams/${teamId}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ isSubWorkflow: next }),
+                    });
+                    await fetchTeam();
+                  }}
+                  className={cn("relative h-6 w-11 rounded-full transition-colors", team.isSubWorkflow ? "bg-orange-500" : "bg-muted")}
+                >
+                  <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform", team.isSubWorkflow ? "left-[22px]" : "left-0.5")} />
+                </button>
+              </div>
+            </div>
             <ErrorHandlerConfigPanel
               config={errorHandlerConfig}
               onChange={async (newConfig) => {

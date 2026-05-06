@@ -10,6 +10,7 @@
 export type WorkflowNodeType =
   // AI Agents
   | "agent"
+  | "ensemble"
   | "llm_prompt"
   // Triggers
   | "trigger_webhook"
@@ -65,7 +66,9 @@ export type WorkflowNodeType =
   // MCP
   | "mcp_tool"
   // Data Pipeline
-  | "data_query";
+  | "data_query"
+  // Canvas-only documentation
+  | "comment";
 
 export type WorkflowNodeCategory = "agents" | "triggers" | "logic" | "actions" | "control" | "integrations" | "ai_tools" | "advanced";
 
@@ -194,6 +197,25 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
       temperature: 0.7,
       maxTokens: 4096,
       tools: [],
+    },
+  },
+  {
+    type: "ensemble",
+    label: "Ensemble",
+    description: "Run 3+ agents on the same task and choose a consensus result",
+    category: "agents",
+    icon: "Users",
+    color: "#F97316",
+    defaultConfig: {
+      agents: [
+        { agentId: "", weight: 1 },
+        { agentId: "", weight: 1 },
+        { agentId: "", weight: 1 },
+      ],
+      strategy: "majority_vote",
+      judgeAgentId: "",
+      taskTemplate: "{{ input }}",
+      resultKey: "ensembleResult",
     },
   },
   {
@@ -631,26 +653,40 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "parallel_split",
-    label: "Parallel Split",
-    description: "Fan-out: Startet mehrere Branches gleichzeitig",
+    label: "Parallel",
+    description: "Fan-out: run multiple branches concurrently",
     category: "logic",
     icon: "GitFork",
     color: "#3B82F6",
     defaultConfig: {
-      branches: 2,
+      branches: 3,
     },
   },
   {
     type: "parallel_merge",
-    label: "Parallel Merge",
-    description: "Fan-in: Wartet auf parallele Branches und merged Ergebnisse",
+    label: "Merge",
+    description: "Fan-in: waits for parallel branches and merges results",
     category: "logic",
     icon: "Merge",
     color: "#3B82F6",
     defaultConfig: {
-      mergeStrategy: "wait_all",
+      mergeStrategy: "concat",
       nRequired: 0,
       resultKey: "parallelResult",
+    },
+  },
+  {
+    type: "comment",
+    label: "Comment",
+    description: "Sticky note annotation for documenting workflow logic",
+    category: "advanced",
+    icon: "StickyNote",
+    color: "#F59E0B",
+    defaultConfig: {
+      content: "Add a note...",
+      color: "yellow",
+      width: 260,
+      height: 160,
     },
   },
 ];

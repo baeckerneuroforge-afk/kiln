@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   X,
   Trash2,
@@ -53,6 +54,8 @@ import {
   ArrowRight,
   History,
   Wrench,
+  Users,
+  StickyNote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -142,7 +145,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Mail, Hash, Timer, Variable, ShieldCheck, FileText, Merge, GitBranch,
   GitFork, Filter, Shuffle, Zap, Plug, Database, Table, TableProperties,
   CalendarPlus, CalendarSearch, Radio, Target, Eye, Pause, UserPlus,
-  Tags, FileSearch, Sparkles, Shield,
+  Tags, FileSearch, Sparkles, Shield, Users, StickyNote,
 };
 
 /* ========== Available Tools for AI Agent ========== */
@@ -297,6 +300,7 @@ function TextInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        list={type === "text" || type === "url" ? "workflow-variable-suggestions" : undefined}
         className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-orange-500/50 placeholder:text-muted-foreground"
       />
     </div>
@@ -510,16 +514,85 @@ const modelOptions = ALL_MODELS.map((m) => ({
   label: m.label,
 }));
 
+interface AgentOption {
+  memberId: string;
+  agentId: string;
+  label: string;
+}
+
+function useTeamAgentOptions(teamId?: string) {
+  const [agents, setAgents] = useState<AgentOption[]>([]);
+
+  useEffect(() => {
+    if (!teamId) return;
+    let active = true;
+    fetch(`/api/teams/${teamId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((team) => {
+        if (!active || !team?.members) return;
+        const options = (team.members as Array<{ id: string; agentId?: string | null; agent?: { id: string; name: string } | null }>)
+          .filter((member) => member.agent?.id)
+          .map((member) => ({
+            memberId: member.id,
+            agentId: member.agent!.id,
+            label: member.agent!.name,
+          }));
+        setAgents(options);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [teamId]);
+
+  return agents;
+}
+
+function AgentSelect({
+  label,
+  value,
+  onChange,
+  agents,
+  includeEmpty = true,
+}: {
+  label: string;
+  value: string;
+  onChange: (agentId: string) => void;
+  agents: AgentOption[];
+  includeEmpty?: boolean;
+}) {
+  return (
+    <SelectField
+      label={label}
+      value={value}
+      onChange={onChange}
+      options={[
+        ...(includeEmpty ? [{ value: "", label: "Select agent" }] : []),
+        ...agents.map((agent) => ({ value: agent.agentId, label: agent.label })),
+      ]}
+    />
+  );
+}
+
 /* ========== Config Forms by Node Type ========== */
 
 function AIAgentConfig({
   config,
   onChange,
+  teamId,
 }: {
   config: Record<string, unknown>;
   onChange: (config: Record<string, unknown>) => void;
+  teamId?: string;
 }) {
   const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+  const agents = useTeamAgentOptions(teamId);
+  const memoryScope = String(config.memoryScope || "AGENT").toUpperCase();
+  const conditionalAgent =
+    config.conditionalAgent && typeof config.conditionalAgent === "object" && !Array.isArray(config.conditionalAgent)
+      ? (config.conditionalAgent as { enabled?: boolean; conditions?: Array<{ condition: string; agentId: string }>; defaultAgentId?: string })
+      : { enabled: false, conditions: [], defaultAgentId: "" };
+  const conditionalConditions = conditionalAgent.conditions || [];
 
   return (
     <div className="space-y-4">
@@ -560,6 +633,84 @@ function AIAgentConfig({
         onChange={(v) => update("maxTokens", parseInt(v) || 4096)}
         type="number"
       />
+      <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+        <p className="text-xs font-medium text-foreground">Memory Scope</p>
+        <SelectField
+          label="Scope"
+          value={memoryScope}
+          onChange={(v) => update("memoryScope", v)}
+          options={[
+            { value: "AGENT", label: "Agent-Only" },
+            { value: "WORKFLOW", label: "Workflow-Shared" },
+            { value: "GLOBAL", label: "Global" },
+          ]}
+        />
+        {memoryScope === "WORKFLOW" && (
+          <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-300">
+            This agent shares memory with all agents in this workflow.
+          </div>
+        )}
+      </div>
+      <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+        <ToggleField
+          label="Choose agent based on condition"
+          value={conditionalAgent.enabled === true}
+          onChange={(enabled) => update("conditionalAgent", { ...conditionalAgent, enabled })}
+        />
+        {conditionalAgent.enabled && (
+          <>
+            <AgentSelect
+              label="Default Agent"
+              value={conditionalAgent.defaultAgentId || ""}
+              onChange={(agentId) => update("conditionalAgent", { ...conditionalAgent, defaultAgentId: agentId })}
+              agents={agents}
+            />
+            <div className="space-y-1.5">
+              <FieldLabel>Conditions</FieldLabel>
+              {conditionalConditions.map((condition, index) => (
+                <div key={index} className="flex items-center gap-1.5">
+                  <input
+                    value={condition.condition}
+                    onChange={(e) => {
+                      const next = [...conditionalConditions];
+                      next[index] = { ...next[index], condition: e.target.value };
+                      update("conditionalAgent", { ...conditionalAgent, conditions: next });
+                    }}
+                    placeholder='{{ input.lang }} === "de"'
+                    className="flex-1 rounded-lg border border-border bg-card px-2 py-1.5 text-xs text-foreground outline-none focus:border-orange-500/50"
+                  />
+                  <select
+                    value={condition.agentId}
+                    onChange={(e) => {
+                      const next = [...conditionalConditions];
+                      next[index] = { ...next[index], agentId: e.target.value };
+                      update("conditionalAgent", { ...conditionalAgent, conditions: next });
+                    }}
+                    className="w-[120px] rounded-lg border border-border bg-card px-2 py-1.5 text-xs text-foreground outline-none"
+                  >
+                    <option value="">Agent</option>
+                    {agents.map((agent) => <option key={agent.agentId} value={agent.agentId}>{agent.label}</option>)}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => update("conditionalAgent", { ...conditionalAgent, conditions: conditionalConditions.filter((_, i) => i !== index) })}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-400"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => update("conditionalAgent", { ...conditionalAgent, conditions: [...conditionalConditions, { condition: "", agentId: "" }] })}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-orange-500/30 hover:text-orange-400"
+              >
+                <Plus className="h-3 w-3" /> Add Condition
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -1285,7 +1436,7 @@ function ParallelSplitConfig({ config, onChange }: { config: Record<string, unkn
   const count = (config.branches as number) || 2;
   return (
     <div className="space-y-4">
-      <TextInput label="Number of Branches" value={count} onChange={(v) => { const n = parseInt(v) || 2; update("branches", n); }} type="number" />
+      <TextInput label="Number of Branches" value={count} onChange={(v) => { const n = Math.max(2, Math.min(5, parseInt(v) || 3)); update("branches", n); }} type="number" />
       <DynamicList label="Branch Labels" items={labels.length >= count ? labels.slice(0, count) : [...labels, ...Array(count - labels.length).fill("")]} onChange={(v) => update("branchLabels", v)} placeholder="Branch name" addLabel="Add Label" />
     </div>
   );
@@ -1296,9 +1447,77 @@ function ParallelMergeConfig({ config, onChange }: { config: Record<string, unkn
   const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
   return (
     <div className="space-y-4">
-      <SelectField label="Merge Strategy" value={(config.mergeStrategy as string) || "wait_all"} onChange={(v) => update("mergeStrategy", v)} options={[{ value: "wait_all", label: "Wait All" }, { value: "first_success", label: "First Success" }, { value: "majority", label: "Majority" }]} />
+      <SelectField label="Merge Strategy" value={(config.mergeStrategy as string) || "concat"} onChange={(v) => update("mergeStrategy", v)} options={[{ value: "concat", label: "Concat" }, { value: "first_wins", label: "First-Wins" }, { value: "all_required", label: "All-Required" }]} />
       <TextInput label="Timeout (seconds)" value={(config.timeout as number) || 300} onChange={(v) => update("timeout", parseInt(v) || 300)} type="number" />
       <TextInput label="Result Key" value={(config.resultKey as string) || "parallelResult"} onChange={(v) => update("resultKey", v)} placeholder="parallelResult" />
+    </div>
+  );
+}
+
+/* ========== AGENTS: Ensemble ========== */
+function EnsembleConfig({ config, onChange, teamId }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void; teamId?: string }) {
+  const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+  const agents = useTeamAgentOptions(teamId);
+  const ensembleAgents = (config.agents as Array<{ agentId: string; weight: number }>) || [
+    { agentId: "", weight: 1 },
+    { agentId: "", weight: 1 },
+    { agentId: "", weight: 1 },
+  ];
+  return (
+    <div className="space-y-4">
+      <TextArea label="Input Task" value={(config.taskTemplate as string) || "{{ input }}"} onChange={(v) => update("taskTemplate", v)} rows={3} />
+      <SelectField
+        label="Strategy"
+        value={(config.strategy as string) || "majority_vote"}
+        onChange={(v) => update("strategy", v)}
+        options={[
+          { value: "majority_vote", label: "Majority-Vote" },
+          { value: "best_of", label: "Best-Of (LLM-as-Judge)" },
+          { value: "average_score", label: "Average-Score" },
+        ]}
+      />
+      {(config.strategy as string) === "best_of" && (
+        <AgentSelect label="Judge Agent" value={(config.judgeAgentId as string) || ""} onChange={(v) => update("judgeAgentId", v)} agents={agents} />
+      )}
+      <div className="space-y-1.5">
+        <FieldLabel>Voting Agents</FieldLabel>
+        {ensembleAgents.map((entry, index) => (
+          <div key={index} className="flex items-center gap-1.5">
+            <select
+              value={entry.agentId}
+              onChange={(e) => {
+                const next = [...ensembleAgents];
+                next[index] = { ...next[index], agentId: e.target.value };
+                update("agents", next);
+              }}
+              className="flex-1 rounded-lg border border-border bg-card px-2 py-1.5 text-xs text-foreground outline-none"
+            >
+              <option value="">Select agent</option>
+              {agents.map((agent) => <option key={agent.agentId} value={agent.agentId}>{agent.label}</option>)}
+            </select>
+            <input
+              type="number"
+              value={entry.weight}
+              min={0.1}
+              step={0.1}
+              onChange={(e) => {
+                const next = [...ensembleAgents];
+                next[index] = { ...next[index], weight: Number(e.target.value) || 1 };
+                update("agents", next);
+              }}
+              className="w-16 rounded-lg border border-border bg-card px-2 py-1.5 text-xs text-foreground outline-none"
+            />
+            {ensembleAgents.length > 3 && (
+              <button type="button" onClick={() => update("agents", ensembleAgents.filter((_, i) => i !== index))} className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-400">
+                <Trash2 className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        ))}
+        <button type="button" onClick={() => update("agents", [...ensembleAgents, { agentId: "", weight: 1 }])} className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-orange-500/30 hover:text-orange-400">
+          <Plus className="h-3 w-3" /> Add Agent
+        </button>
+      </div>
     </div>
   );
 }
@@ -1358,15 +1577,72 @@ function WaitFormConfig({ config, onChange }: { config: Record<string, unknown>;
 }
 
 /* ========== CONTROL: Sub-Workflow ========== */
-function SubWorkflowConfig({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+function SubWorkflowConfig({ config, onChange, teamId }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void; teamId?: string }) {
   const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+  const [workflows, setWorkflows] = useState<Array<{ id: string; name: string }>>([]);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/teams?onlySubWorkflows=true")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((items: Array<{ id: string; name: string }>) => {
+        if (!active) return;
+        setWorkflows(items.filter((item) => item.id !== teamId));
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [teamId]);
+
   return (
     <div className="space-y-4">
-      <TextInput label="Workflow ID" value={(config.workflowId as string) || ""} onChange={(v) => update("workflowId", v)} placeholder="workflow_abc123" />
-      <HelpText>Enter the ID of the workflow to run as a sub-step.</HelpText>
+      <SelectField
+        label="Select sub-workflow"
+        value={(config.workflowId as string) || ""}
+        onChange={(v) => update("workflowId", v)}
+        options={[
+          { value: "", label: "Select sub-workflow" },
+          ...workflows.map((workflow) => ({ value: workflow.id, label: workflow.name })),
+        ]}
+      />
+      {(config.workflowId as string) && (
+        <Link
+          href={`/dashboard/teams/${config.workflowId}`}
+          className="inline-flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300"
+        >
+          <Layers className="h-3 w-3" />
+          Open sub-workflow
+          <ExternalLink className="h-3 w-3" />
+        </Link>
+      )}
       <TextArea label="Input Mapping (JSON)" value={typeof config.inputMapping === "object" ? JSON.stringify(config.inputMapping, null, 2) : "[]"} onChange={(v) => { try { update("inputMapping", JSON.parse(v)); } catch { /* */ } }} placeholder='[{"from": "input.data", "to": "data"}]' rows={4} />
       <ToggleField label="Wait for Completion" value={(config.mode as string) !== "async"} onChange={(v) => update("mode", v ? "sync" : "async")} />
       <TextInput label="Timeout (minutes)" value={(config.timeoutMinutes as number) || 5} onChange={(v) => update("timeoutMinutes", parseInt(v) || 5)} type="number" />
+    </div>
+  );
+}
+
+function CommentConfig({ config, onChange }: { config: Record<string, unknown>; onChange: (c: Record<string, unknown>) => void }) {
+  const update = (key: string, val: unknown) => onChange({ ...config, [key]: val });
+  return (
+    <div className="space-y-4">
+      <TextArea label="Content" value={(config.content as string) || ""} onChange={(v) => update("content", v)} rows={6} />
+      <SelectField
+        label="Color"
+        value={(config.color as string) || "yellow"}
+        onChange={(v) => update("color", v)}
+        options={[
+          { value: "yellow", label: "Yellow" },
+          { value: "orange", label: "Orange" },
+          { value: "blue", label: "Blue" },
+          { value: "green", label: "Green" },
+        ]}
+      />
+      <div className="grid grid-cols-2 gap-2">
+        <TextInput label="Width" value={(config.width as number) || 260} onChange={(v) => update("width", Math.max(180, Math.min(520, parseInt(v) || 260)))} type="number" />
+        <TextInput label="Height" value={(config.height as number) || 160} onChange={(v) => update("height", Math.max(120, Math.min(420, parseInt(v) || 160)))} type="number" />
+      </div>
     </div>
   );
 }
@@ -1663,11 +1939,14 @@ function GenericConfig({
 function getConfigComponent(
   nodeType: WorkflowNodeType,
   config: Record<string, unknown>,
-  onChange: (config: Record<string, unknown>) => void
+  onChange: (config: Record<string, unknown>) => void,
+  teamId?: string
 ) {
   switch (nodeType) {
     case "agent":
-      return <AIAgentConfig config={config} onChange={onChange} />;
+      return <AIAgentConfig config={config} onChange={onChange} teamId={teamId} />;
+    case "ensemble":
+      return <EnsembleConfig config={config} onChange={onChange} teamId={teamId} />;
     case "llm_prompt":
       return <LLMPromptConfig config={config} onChange={onChange} />;
     case "computer_use":
@@ -1718,7 +1997,7 @@ function getConfigComponent(
     case "wait_form":
       return <WaitFormConfig config={config} onChange={onChange} />;
     case "sub_workflow":
-      return <SubWorkflowConfig config={config} onChange={onChange} />;
+      return <SubWorkflowConfig config={config} onChange={onChange} teamId={teamId} />;
     case "merge":
       return <MergeConfig config={config} onChange={onChange} />;
     case "google_sheets_read":
@@ -1753,14 +2032,133 @@ function getConfigComponent(
       return <SpawnHelperConfig config={config} onChange={onChange} />;
     case "a2a_call":
       return <A2ACallConfig config={config} onChange={onChange} />;
+    case "comment":
+      return <CommentConfig config={config} onChange={onChange} />;
     default:
       return <GenericConfig config={config} onChange={onChange} />;
   }
 }
 
+function NodePoliciesConfig({
+  config,
+  onChange,
+  nodeType,
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+  nodeType: WorkflowNodeType;
+}) {
+  if ((nodeType as string).startsWith("trigger_") || nodeType === "comment") return null;
+  const errorHandling = (config.errorHandling as Record<string, unknown>) || {};
+  const rateLimit = (config.rateLimit as Record<string, unknown>) || {};
+  const schedule = (config.schedule as Record<string, unknown>) || {};
+  const updateSection = (section: "errorHandling" | "rateLimit" | "schedule", patch: Record<string, unknown>) => {
+    const current = (config[section] as Record<string, unknown>) || {};
+    onChange({ ...config, [section]: { ...current, ...patch } });
+  };
+
+  return (
+    <div className="space-y-4 border-t border-border pt-4">
+      <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+        <p className="text-xs font-medium text-foreground">Error Handling</p>
+        <SelectField
+          label="On Error"
+          value={(errorHandling.onError as string) || "stop"}
+          onChange={(v) => updateSection("errorHandling", { onError: v })}
+          options={[
+            { value: "continue", label: "Continue" },
+            { value: "retry", label: "Retry" },
+            { value: "fallback", label: "Fallback" },
+            { value: "stop", label: "Stop Workflow" },
+          ]}
+        />
+        {(errorHandling.onError as string) === "retry" && (
+          <div className="grid grid-cols-2 gap-2">
+            <TextInput label="Retry Count" value={(errorHandling.retryCount as number) || 2} onChange={(v) => updateSection("errorHandling", { retryCount: Math.max(1, Math.min(5, parseInt(v) || 1)) })} type="number" />
+            <TextInput label="Delay (seconds)" value={(errorHandling.retryDelaySeconds as number) || 5} onChange={(v) => updateSection("errorHandling", { retryDelaySeconds: Math.max(1, Math.min(60, parseInt(v) || 1)) })} type="number" />
+          </div>
+        )}
+        {(errorHandling.onError as string) === "fallback" && (
+          <p className="text-[10px] text-red-300">Connect the red error handle to the fallback node. The edge is rendered dashed red.</p>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+        <ToggleField label="Enable Rate Limiting" value={rateLimit.enabled === true} onChange={(enabled) => updateSection("rateLimit", { enabled })} />
+        {rateLimit.enabled === true && (
+          <>
+            <TextInput label="Max Requests" value={(rateLimit.maxRequests as number) || 60} onChange={(v) => updateSection("rateLimit", { maxRequests: parseInt(v) || 60 })} type="number" />
+            <SelectField
+              label="Per"
+              value={(rateLimit.window as string) || "1m"}
+              onChange={(v) => updateSection("rateLimit", { window: v })}
+              options={[
+                { value: "10s", label: "10 sec" },
+                { value: "1m", label: "1 min" },
+                { value: "1h", label: "1 hour" },
+                { value: "1d", label: "1 day" },
+              ]}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <TextInput label="Burst Size" value={(rateLimit.burstSize as number) || 10} onChange={(v) => updateSection("rateLimit", { burstSize: parseInt(v) || 10 })} type="number" />
+              <SelectField label="Hit Behavior" value={(rateLimit.behavior as string) || "queue"} onChange={(v) => updateSection("rateLimit", { behavior: v })} options={[{ value: "queue", label: "Queue" }, { value: "reject", label: "Reject" }]} />
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+        <ToggleField label="Enable Schedule" value={schedule.enabled === true} onChange={(enabled) => updateSection("schedule", { enabled })} />
+        {schedule.enabled === true && (
+          <>
+            <TextInput label="Cron Expression" value={(schedule.cron as string) || ""} onChange={(v) => updateSection("schedule", { cron: v })} placeholder="0 9 * * 1-5" />
+            <div className="grid grid-cols-2 gap-2">
+              <TextInput label="Start Time" value={(schedule.startTime as string) || "09:00"} onChange={(v) => updateSection("schedule", { startTime: v })} />
+              <TextInput label="End Time" value={(schedule.endTime as string) || "17:00"} onChange={(v) => updateSection("schedule", { endTime: v })} />
+            </div>
+            <SelectField
+              label="Timezone"
+              value={(schedule.timezone as string) || "Europe/Berlin"}
+              onChange={(v) => updateSection("schedule", { timezone: v })}
+              options={[
+                { value: "Europe/Berlin", label: "Europe/Berlin" },
+                { value: "UTC", label: "UTC" },
+                { value: "America/New_York", label: "America/New York" },
+                { value: "America/Los_Angeles", label: "America/Los Angeles" },
+              ]}
+            />
+            <div className="flex flex-wrap gap-1">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => {
+                const days = Array.isArray(schedule.activeDays) ? schedule.activeDays as number[] : [1, 2, 3, 4, 5];
+                const active = days.includes(index);
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => updateSection("schedule", {
+                      activeDays: active ? days.filter((d) => d !== index) : [...days, index],
+                    })}
+                    className={cn(
+                      "rounded-md border px-2 py-1 text-[10px]",
+                      active ? "border-orange-500/40 bg-orange-500/10 text-orange-400" : "border-border text-muted-foreground"
+                    )}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ========== Node Type Labels ========== */
 const nodeTypeLabels: Partial<Record<WorkflowNodeType, { icon: string; color: string }>> = {
   agent: { icon: "Bot", color: "#F97316" },
+  ensemble: { icon: "Users", color: "#F97316" },
   llm_prompt: { icon: "MessageSquare", color: "#F97316" },
   trigger_webhook: { icon: "Globe", color: "#F59E0B" },
   trigger_schedule: { icon: "Clock", color: "#F59E0B" },
@@ -1805,6 +2203,7 @@ const nodeTypeLabels: Partial<Record<WorkflowNodeType, { icon: string; color: st
   goal_trigger: { icon: "Target", color: "#22C55E" },
   spawn_helper: { icon: "Plus", color: "#A855F7" },
   a2a_call: { icon: "Radio", color: "#A855F7" },
+  comment: { icon: "StickyNote", color: "#F59E0B" },
 };
 
 /* ========== Main Panel Component ========== */
@@ -1838,6 +2237,23 @@ export function NodeConfigPanel({
   const [errorCopied, setErrorCopied] = useState(false);
   const [testHistory, setTestHistory] = useState<TestHistoryEntry[]>([]);
   const [historyIndex, setHistoryIndex] = useState(0); // 0 = latest
+  const [variableRefs, setVariableRefs] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!teamId) return;
+    let active = true;
+    fetch(`/api/teams/${teamId}/variables`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!active) return;
+        const refs = ((data?.variables || []) as Array<{ name: string }>).map((variable) => `{{variable.${variable.name}}}`);
+        setVariableRefs(refs);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [teamId]);
 
   // Close on Escape
   useEffect(() => {
@@ -2060,8 +2476,28 @@ export function NodeConfigPanel({
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 py-4 scrollbar-thin">
+        <datalist id="workflow-variable-suggestions">
+          {variableRefs.map((ref) => <option key={ref} value={ref} />)}
+        </datalist>
         {activeTab === "config" && (
           <div className="space-y-4">
+            {variableRefs.length > 0 && (
+              <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2">
+                <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-violet-300">Variables</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {variableRefs.map((ref) => (
+                    <button
+                      key={ref}
+                      type="button"
+                      onClick={() => navigator.clipboard.writeText(ref)}
+                      className="rounded border border-violet-500/20 bg-card px-1.5 py-0.5 font-mono text-[10px] text-violet-200 hover:border-violet-400/40"
+                    >
+                      {ref}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {/* Field validation errors banner */}
             {Object.keys(fieldErrors).length > 0 && (
               <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-1.5">
@@ -2079,7 +2515,8 @@ export function NodeConfigPanel({
                 ))}
               </div>
             )}
-            {getConfigComponent(nodeType, config, handleConfigChange)}
+            {getConfigComponent(nodeType, config, handleConfigChange, teamId)}
+            <NodePoliciesConfig config={config} onChange={handleConfigChange} nodeType={nodeType} />
           </div>
         )}
 
