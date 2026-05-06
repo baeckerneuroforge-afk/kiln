@@ -1,7 +1,8 @@
 /**
  * Smoke tests for /api/analytics/overview — the dashboard-home stats
- * endpoint. Pins the new agency metrics (mrr, activeSubOrgs,
- * newSubOrgs30d, stripeConnectStatus) plus the existing agent metrics.
+ * endpoint. Pins the agency metrics (mrr, activeSubOrgs, newSubOrgs30d,
+ * stripeConnectStatus, setupFees30d, pendingOnboardings) plus the
+ * existing agent metrics.
  *
  * Mocks Clerk auth + the org-context helper + Prisma. Stripe SDK is not
  * touched by this endpoint.
@@ -14,6 +15,7 @@ const mockPrisma = vi.hoisted(() => ({
   conversation: { count: vi.fn() },
   agentAnalytics: { aggregate: vi.fn() },
   subOrgSubscription: { findMany: vi.fn() },
+  subOrgInvoice: { aggregate: vi.fn() },
   orgRelationship: { count: vi.fn() },
   agencyStripeAccount: { findUnique: vi.fn() },
 }));
@@ -28,15 +30,24 @@ vi.mock("@/lib/auth/org-context", async () => {
 
 import { GET as overviewGET } from "@/app/api/analytics/overview/route";
 
-beforeEach(() => {
+// Sensible defaults for every Prisma fn so each test only has to
+// override the call(s) it cares about.
+function resetMocks(): void {
   mockRequireOrgId.mockReset();
-  mockPrisma.agent.findMany.mockReset();
-  mockPrisma.conversation.count.mockReset();
-  mockPrisma.agentAnalytics.aggregate.mockReset();
-  mockPrisma.subOrgSubscription.findMany.mockReset();
-  mockPrisma.orgRelationship.count.mockReset();
-  mockPrisma.agencyStripeAccount.findUnique.mockReset();
-});
+  mockPrisma.agent.findMany.mockReset().mockResolvedValue([]);
+  mockPrisma.conversation.count.mockReset().mockResolvedValue(0);
+  mockPrisma.agentAnalytics.aggregate
+    .mockReset()
+    .mockResolvedValue({ _sum: { estimatedValue: 0 } });
+  mockPrisma.subOrgSubscription.findMany.mockReset().mockResolvedValue([]);
+  mockPrisma.subOrgInvoice.aggregate
+    .mockReset()
+    .mockResolvedValue({ _sum: { amount: 0 } });
+  mockPrisma.orgRelationship.count.mockReset().mockResolvedValue(0);
+  mockPrisma.agencyStripeAccount.findUnique.mockReset().mockResolvedValue(null);
+}
+
+beforeEach(resetMocks);
 
 describe("GET /api/analytics/overview", () => {
   it("zeroes when caller has no agents and no agency rows", async () => {
@@ -44,11 +55,6 @@ describe("GET /api/analytics/overview", () => {
       userId: "u1",
       orgId: "org_1",
     });
-    mockPrisma.agent.findMany.mockResolvedValueOnce([]);
-    mockPrisma.subOrgSubscription.findMany.mockResolvedValueOnce([]);
-    mockPrisma.orgRelationship.count.mockResolvedValueOnce(0);
-    mockPrisma.orgRelationship.count.mockResolvedValueOnce(0);
-    mockPrisma.agencyStripeAccount.findUnique.mockResolvedValueOnce(null);
 
     const res = await overviewGET();
     expect(res.status).toBe(200);
@@ -62,6 +68,8 @@ describe("GET /api/analytics/overview", () => {
       activeSubOrgs: 0,
       newSubOrgs30d: 0,
       stripeConnectStatus: "not_onboarded",
+      setupFees30d: 0,
+      pendingOnboardings: 0,
     });
   });
 
@@ -70,26 +78,28 @@ describe("GET /api/analytics/overview", () => {
       userId: "u_agency",
       orgId: "org_agency",
     });
-    mockPrisma.agent.findMany.mockResolvedValueOnce([]);
-    mockPrisma.subOrgSubscription.findMany.mockResolvedValueOnce([
-      // €99/mo + €25/mo = €124/mo
-      { priceAmount: 9900, priceInterval: "month" },
-      { priceAmount: 2500, priceInterval: "month" },
-      // €1200/yr → €100/mo
-      { priceAmount: 120000, priceInterval: "year" },
-    ]);
-    mockPrisma.orgRelationship.count.mockResolvedValueOnce(3);
-    mockPrisma.orgRelationship.count.mockResolvedValueOnce(1);
+    mockPrisma.subOrgSubscription.findMany
+      // First call: parallel-batch MRR aggregate.
+      .mockResolvedValueOnce([
+        { priceAmount: 9900, priceInterval: "month" },
+        { priceAmount: 2500, priceInterval: "month" },
+        { priceAmount: 120000, priceInterval: "year" },
+      ])
+      // Second call: serial pendingOnboardings active-subscription set.
+      .mockResolvedValueOnce([{ subOrgId: "child_org_1" }]);
+    mockPrisma.orgRelationship.count
+      .mockResolvedValueOnce(3) // activeSubOrgs
+      .mockResolvedValueOnce(1) // newSubOrgs30d
+      .mockResolvedValueOnce(2); // pendingOnboardings
     mockPrisma.agencyStripeAccount.findUnique.mockResolvedValueOnce({
       onboardingComplete: true,
     });
 
-    const res = await overviewGET();
-    const body = await res.json();
-    // 9900 + 2500 + Math.round(120000/12) = 9900 + 2500 + 10000 = 22400 cents
+    const body = await (await overviewGET()).json();
     expect(body.mrr).toBe(22400);
     expect(body.activeSubOrgs).toBe(3);
     expect(body.newSubOrgs30d).toBe(1);
+    expect(body.pendingOnboardings).toBe(2);
     expect(body.stripeConnectStatus).toBe("active");
   });
 
@@ -98,10 +108,6 @@ describe("GET /api/analytics/overview", () => {
       userId: "u",
       orgId: "org_x",
     });
-    mockPrisma.agent.findMany.mockResolvedValueOnce([]);
-    mockPrisma.subOrgSubscription.findMany.mockResolvedValueOnce([]);
-    mockPrisma.orgRelationship.count.mockResolvedValueOnce(0);
-    mockPrisma.orgRelationship.count.mockResolvedValueOnce(0);
     mockPrisma.agencyStripeAccount.findUnique.mockResolvedValueOnce({
       onboardingComplete: false,
     });
@@ -120,16 +126,12 @@ describe("GET /api/analytics/overview", () => {
       { id: "ag_2" },
       { id: "ag_3" },
     ]);
-    // First .count() is conversations (35), second is leads (12).
-    mockPrisma.conversation.count.mockResolvedValueOnce(35);
-    mockPrisma.conversation.count.mockResolvedValueOnce(12);
+    mockPrisma.conversation.count
+      .mockResolvedValueOnce(35) // conversations
+      .mockResolvedValueOnce(12); // leads
     mockPrisma.agentAnalytics.aggregate.mockResolvedValueOnce({
       _sum: { estimatedValue: 4500 },
     });
-    mockPrisma.subOrgSubscription.findMany.mockResolvedValueOnce([]);
-    mockPrisma.orgRelationship.count.mockResolvedValueOnce(0);
-    mockPrisma.orgRelationship.count.mockResolvedValueOnce(0);
-    mockPrisma.agencyStripeAccount.findUnique.mockResolvedValueOnce(null);
 
     const body = await (await overviewGET()).json();
     expect(body).toMatchObject({
@@ -138,5 +140,18 @@ describe("GET /api/analytics/overview", () => {
       leads: 12,
       estimatedValue: 4500,
     });
+  });
+
+  it("setupFees30d aggregates paid SETUP_FEE invoices in the window", async () => {
+    mockRequireOrgId.mockResolvedValueOnce({
+      userId: "u",
+      orgId: "org_x",
+    });
+    mockPrisma.subOrgInvoice.aggregate.mockResolvedValueOnce({
+      _sum: { amount: 49000 }, // €490
+    });
+
+    const body = await (await overviewGET()).json();
+    expect(body.setupFees30d).toBe(49000);
   });
 });

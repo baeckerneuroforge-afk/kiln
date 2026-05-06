@@ -44,7 +44,7 @@ export async function GET() {
     });
     const agentIds = agents.map((a) => a.id);
 
-    // All four agent metrics in parallel + the three agency metrics keyed
+    // All four agent metrics in parallel + the agency metrics keyed
     // on the active orgId (no fallback — agency rows are always orgId-bound).
     const [
       conversations,
@@ -54,6 +54,7 @@ export async function GET() {
       activeSubOrgs,
       newSubOrgs30d,
       connectAccount,
+      setupFees30dAgg,
     ] = await Promise.all([
       agentIds.length === 0
         ? Promise.resolve(0)
@@ -102,7 +103,41 @@ export async function GET() {
         where: { orgId: scope.orgId },
         select: { onboardingComplete: true },
       }),
+      // Phase 4: setup-fee revenue, last 30 days. Only paid invoices,
+      // only setup-fee type. Agency-tier dashboards surface this
+      // alongside MRR.
+      prisma.subOrgInvoice.aggregate({
+        where: {
+          parentAgencyOrgId: scope.orgId,
+          invoiceType: "SETUP_FEE",
+          status: "paid",
+          paidAt: { gte: thirtyDaysAgo },
+        },
+        _sum: { amount: true },
+      }),
     ]);
+
+    // Pending onboardings: sub-orgs with FIXED pricing configured but
+    // no active subscription yet. Computed sequentially after the
+    // parallel batch since it needs a second query for the
+    // active-subscription set, and the count depends on its result.
+    const subOrgIdsWithSub = await prisma.subOrgSubscription.findMany({
+      where: {
+        parentAgencyOrgId: scope.orgId,
+        status: { in: ["ACTIVE", "TRIALING"] },
+      },
+      select: { subOrgId: true },
+    });
+    const pendingOnboardings = await prisma.orgRelationship.count({
+      where: {
+        parentOrgId: scope.orgId,
+        subOrgStatus: "ACTIVE",
+        pricingMode: "FIXED",
+        NOT: {
+          childOrgId: { in: subOrgIdsWithSub.map((s) => s.subOrgId) },
+        },
+      },
+    });
 
     let mrr = 0;
     for (const sub of subscriptionsAggregate) {
@@ -125,9 +160,12 @@ export async function GET() {
       leads,
       estimatedValue: analytics._sum.estimatedValue ?? 0,
       mrr,
+      activeSubscriptions: subscriptionsAggregate.length,
       activeSubOrgs,
       newSubOrgs30d,
       stripeConnectStatus,
+      setupFees30d: setupFees30dAgg._sum.amount ?? 0,
+      pendingOnboardings,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";

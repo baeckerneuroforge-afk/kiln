@@ -82,8 +82,10 @@ type StatsState = {
   agents: number;
   conversations: number;
   mrr: number;
+  activeSubscriptions: number;
   activeSubOrgs: number;
   newSubOrgs30d: number;
+  setupFees30d: number;
   stripeConnectStatus: "not_onboarded" | "pending" | "active";
 };
 
@@ -93,8 +95,10 @@ export default function DashboardPage() {
     agents: 0,
     conversations: 0,
     mrr: 0,
+    activeSubscriptions: 0,
     activeSubOrgs: 0,
     newSubOrgs30d: 0,
+    setupFees30d: 0,
     stripeConnectStatus: "not_onboarded",
   });
   const [plan, setPlan] = useState<string | null>(null);
@@ -118,8 +122,10 @@ export default function DashboardPage() {
           agents: data.agents ?? 0,
           conversations: data.conversations ?? 0,
           mrr: data.mrr ?? 0,
+          activeSubscriptions: data.activeSubscriptions ?? 0,
           activeSubOrgs: data.activeSubOrgs ?? 0,
           newSubOrgs30d: data.newSubOrgs30d ?? 0,
+          setupFees30d: data.setupFees30d ?? 0,
           stripeConnectStatus: data.stripeConnectStatus ?? "not_onboarded",
         });
       } else {
@@ -217,9 +223,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats stripe — 4 cells, divided, above the fold.
-          Agency-tier callers see it unconditionally (MRR=0 still
-          contains a CTA hint); PRO/FREE callers see it only when at
-          least one tile has data. */}
+          Agency-tier callers see the revenue-flavored row unconditionally
+          (MRR / Active Subs / Sub-Orgs / Setup Fees). PRO/FREE callers
+          see the agent-flavored row (Agents / Conversations) and only
+          when at least one tile has data. */}
       {statsError ? (
         <div className="mb-8">
           <ErrorState message={statsError} onRetry={fetchStats} compact />
@@ -237,34 +244,75 @@ export default function DashboardPage() {
               loading={statsLoading}
               hint={mrrHint}
             />
-            <StatCell
-              label="Active Sub-Orgs"
-              display={
-                stats.activeSubOrgs === 0
-                  ? null
-                  : stats.activeSubOrgs.toLocaleString("de-DE")
-              }
-              loading={statsLoading}
-              hint={subOrgsHint}
-            />
-            <StatCell
-              label="Active Agents"
-              display={
-                stats.agents === 0
-                  ? null
-                  : stats.agents.toLocaleString("de-DE")
-              }
-              loading={statsLoading}
-            />
-            <StatCell
-              label="Conversations (30d)"
-              display={
-                stats.conversations === 0
-                  ? null
-                  : stats.conversations.toLocaleString("de-DE")
-              }
-              loading={statsLoading}
-            />
+            {isAgencyTier ? (
+              <>
+                <StatCell
+                  label="Active Subs"
+                  display={
+                    stats.activeSubscriptions === 0
+                      ? null
+                      : stats.activeSubscriptions.toLocaleString("de-DE")
+                  }
+                  loading={statsLoading}
+                />
+                <StatCell
+                  label="Sub-Orgs"
+                  display={
+                    stats.activeSubOrgs === 0
+                      ? null
+                      : stats.activeSubOrgs.toLocaleString("de-DE")
+                  }
+                  loading={statsLoading}
+                  hint={subOrgsHint}
+                />
+                <StatCell
+                  label="Setup Fees (30d)"
+                  display={
+                    stats.setupFees30d === 0
+                      ? null
+                      : formatEuros(stats.setupFees30d)
+                  }
+                  loading={statsLoading}
+                  hint={
+                    stats.setupFees30d === 0 &&
+                    stats.stripeConnectStatus === "active"
+                      ? "(last 30 days)"
+                      : undefined
+                  }
+                />
+              </>
+            ) : (
+              <>
+                <StatCell
+                  label="Active Sub-Orgs"
+                  display={
+                    stats.activeSubOrgs === 0
+                      ? null
+                      : stats.activeSubOrgs.toLocaleString("de-DE")
+                  }
+                  loading={statsLoading}
+                  hint={subOrgsHint}
+                />
+                <StatCell
+                  label="Active Agents"
+                  display={
+                    stats.agents === 0
+                      ? null
+                      : stats.agents.toLocaleString("de-DE")
+                  }
+                  loading={statsLoading}
+                />
+                <StatCell
+                  label="Conversations (30d)"
+                  display={
+                    stats.conversations === 0
+                      ? null
+                      : stats.conversations.toLocaleString("de-DE")
+                  }
+                  loading={statsLoading}
+                />
+              </>
+            )}
           </div>
         </div>
       )}
