@@ -2,15 +2,33 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Loader2, Upload, Zap, Play, Sparkles, Code2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Save,
+  Loader2,
+  Upload,
+  Zap,
+  Play,
+  Sparkles,
+  Wrench,
+  Layers,
+  MessageSquare,
+} from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { BuilderChat } from "@/components/agents/builder-chat";
 import { AgentPreview } from "@/components/agents/agent-preview";
 import { AgentWizard } from "@/components/agents/agent-wizard";
+import { cn } from "@/lib/utils";
 import type { GeneratedAgentConfig } from "@/types/agent";
 
+// Three primary creation paths from the choice page. The internal CHAT
+// (conversational quick-create) and TASK (autonomous task agent)
+// builders both live under "ADVANCED" — the user picks between them
+// via a sub-toggle inside that mode (commit: consolidate Power Mode).
 type AgentMode = "CHAT" | "TASK" | "WIZARD";
+type AdvancedKind = "CHAT" | "TASK";
 type TaskStep = "describe" | "trigger" | "tools" | "output" | "review";
 
 export default function NewAgentPage() {
@@ -328,63 +346,77 @@ export default function NewAgentPage() {
           </div>
         </div>
         <div className="flex flex-1 items-center justify-center">
-          <div className="mx-auto max-w-3xl px-6">
+          <div className="mx-auto max-w-4xl px-6 py-10">
             <div className="mb-8 text-center">
-              <h2 className="font-serif text-2xl font-semibold text-gray-50">Create a new agent</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Choose your preferred creation method.</p>
+              <h2 className="font-serif text-2xl font-semibold text-foreground">
+                Create a new agent
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Choose how you want to build your agent.
+              </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
-              {/* Guided Wizard — Recommended */}
-              <button
-                onClick={() => setMode("WIZARD")}
-                className="relative flex flex-col items-start rounded-xl border-2 border-foreground/20 bg-card p-6 text-left transition-all hover:border-kiln-orange/60 hover:bg-muted/40"
+              {/* From Template — Recommended */}
+              <Link
+                href="/dashboard/agents/new/templates"
+                className={cn(
+                  "relative flex flex-col items-start rounded-xl border-2 border-kiln-orange/40 bg-kiln-orange/5 p-6 text-left transition-all",
+                  "hover:border-kiln-orange/70 hover:shadow-sm"
+                )}
               >
                 <span className="absolute -top-2.5 right-4 rounded-full bg-kiln-orange px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
                   Recommended
                 </span>
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted mb-4">
-                  <Sparkles className="h-6 w-6 text-gray-400" />
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-kiln-orange/10">
+                  <Layers className="h-6 w-6 text-kiln-orange" />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground">Guided Builder</h3>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  Step-by-step wizard. Choose a goal, add business info, customize style. Auto-generates an optimized agent.
+                <h3 className="text-lg font-semibold text-foreground">
+                  From Template
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  Pre-built for common use cases. Pick one and customize.
                 </p>
-                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-gray-400">
-                  Start Wizard <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+                <div className="mt-4 flex items-center gap-1 text-sm font-medium text-kiln-orange">
+                  Browse <ArrowRight className="h-3.5 w-3.5" />
+                </div>
+              </Link>
+
+              {/* From Scratch — guided wizard */}
+              <button
+                onClick={() => setMode("WIZARD")}
+                className="flex flex-col items-start rounded-xl border border-border bg-card p-6 text-left transition-all hover:border-foreground/20 hover:bg-muted/40"
+              >
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
+                  <Sparkles className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground">
+                  From Scratch
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  Blank slate. Configure step by step with the guided builder.
+                </p>
+                <div className="mt-4 flex items-center gap-1 text-sm font-medium text-muted-foreground">
+                  Start <ArrowRight className="h-3.5 w-3.5" />
                 </div>
               </button>
 
-              {/* Quick Create — Conversational */}
+              {/* Power Mode — chat / task / advanced config */}
               <button
                 onClick={() => setMode("CHAT")}
-                className="flex flex-col items-start rounded-xl border border-border bg-card p-6 text-left transition-all hover:border-blue-500/30 hover:bg-blue-500/5"
+                className="flex flex-col items-start rounded-xl border border-border bg-card p-6 text-left transition-all hover:border-foreground/20 hover:bg-muted/40"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted mb-4">
-                  <Code2 className="h-6 w-6 text-gray-400" />
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
+                  <Wrench className="h-6 w-6 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground">Quick Create</h3>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  Describe your agent in natural language. AI generates the config. For experienced users who know what they want.
+                <h3 className="text-lg font-semibold text-foreground">
+                  Power Mode
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  Conversational quick-create or autonomous task agents. JSON
+                  config, MCP, custom code.
                 </p>
-                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-gray-400">
-                  Open Builder <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
-                </div>
-              </button>
-
-              {/* Task Agent */}
-              <button
-                onClick={() => setMode("TASK")}
-                className="flex flex-col items-start rounded-xl border border-border bg-card p-6 text-left transition-all hover:border-violet-500/30 hover:bg-violet-500/5"
-              >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted mb-4">
-                  <Zap className="h-6 w-6 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-foreground">Task Agent</h3>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  Autonomous agent that executes tasks in the background. Set triggers, define instructions, configure outputs.
-                </p>
-                <div className="mt-4 flex items-center gap-2 text-sm font-medium text-gray-400">
-                  Create Task Agent <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
+                <div className="mt-4 flex items-center gap-1 text-sm font-medium text-muted-foreground">
+                  Open <ArrowRight className="h-3.5 w-3.5" />
                 </div>
               </button>
             </div>
@@ -395,8 +427,15 @@ export default function NewAgentPage() {
                 className="text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
                 <Upload className="mr-1.5 inline h-3.5 w-3.5" />
-                Import from config file
+                Or import from a config file
               </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,.yml,.yaml"
+                onChange={handleImportConfig}
+                className="hidden"
+              />
             </div>
           </div>
         </div>
