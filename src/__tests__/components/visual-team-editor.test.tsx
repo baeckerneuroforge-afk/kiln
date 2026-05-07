@@ -205,7 +205,7 @@ describe("VisualTeamEditor render stability", () => {
       expect(mockState.latestReactFlowProps?.edges).toHaveLength(1);
     });
 
-    expect(mockState.latestReactFlowProps.edges[0].data).toMatchObject({
+    expect(mockState.latestReactFlowProps?.edges[0].data).toMatchObject({
       mappingCount: 1,
       schemaMismatch: false,
       dataLabel: "1 field mapped",

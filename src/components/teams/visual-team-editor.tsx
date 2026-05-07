@@ -110,6 +110,8 @@ import {
   shouldConfirmBulkDelete,
   PASTE_OFFSET_PX,
 } from "@/lib/canvas-clipboard";
+import { getCachedSchemaFlow } from "@/lib/schema-flow-cache";
+import type { ValidationIssue } from "@/lib/workflow-validation";
 import { ExecutionTimelinePanel, type ExecutionTimelineData, type TimelineNodeEntry } from "@/components/workflows/execution-timeline";
 
 /* ========== Types ========== */
@@ -186,6 +188,12 @@ interface VisualTeamEditorProps {
   executionCredits?: number;
   nodeResults?: Record<string, { input?: unknown; output?: unknown; status?: "completed" | "failed" | "running"; durationMs?: number; credits?: number; error?: string; nodeLabel?: string; nodeType?: string; meta?: Record<string, unknown> }>;
   executionLogs?: Array<{ timestamp: string; level: "info" | "warn" | "error" | "success"; message: string; nodeId?: string }>;
+  /**
+   * Setup-validation issues keyed by node id. Drives the inline error
+   * dot rendered on each node in the top-right corner. Workflow-level
+   * issues (no nodeId) are handled by the banner in the parent page.
+   */
+  validationIssues?: ValidationIssue[];
 }
 
 /* ========== Constants ========== */
@@ -400,6 +408,8 @@ type WorkflowNodeData = {
   execDurationMs?: number;
   execCredits?: number;
   skippedReason?: string;
+  /** Setup-validation issues that point at this node. */
+  validationIssues?: ValidationIssue[];
   [key: string]: unknown;
 };
 
@@ -484,6 +494,13 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
     );
   }
 
+  const issues = (data.validationIssues || []) as ValidationIssue[];
+  const hasError = issues.some((i) => i.severity === "error");
+  const hasWarning = !hasError && issues.some((i) => i.severity === "warning");
+  const issueTooltip = issues.length > 0
+    ? issues.map((i) => `${i.severity === "error" ? "✕" : "⚠"} ${i.message}`).join("\n")
+    : undefined;
+
   return (
     <div
       className={cn(
@@ -494,6 +511,11 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
         execStatus === "completed" && "shadow-green-500/5",
         execStatus === "failed" && "shadow-red-500/10",
         isDisabled && "opacity-50 grayscale",
+        // Tinted border when there's a setup-validation issue and the
+        // node isn't currently in an execution state (which would
+        // override the visual signal).
+        !execStatus && hasError && "border-red-500/50",
+        !execStatus && hasWarning && "border-amber-500/40",
       )}
     >
       {isDisabled && (
@@ -501,6 +523,24 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<Node<WorkflowNodeDa
           <Power className="h-2 w-2" /> Disabled
         </div>
       )}
+
+      {/* Inline validation indicator — n8n-style dot in the top-right
+          corner. Hidden when the node has an execution status (the
+          execution badge uses the same spot). Hover surfaces the
+          issue list via native title-attr; click is handled by the
+          underlying node click → opens the config panel. */}
+      {!execStatus && (hasError || hasWarning) && (
+        <div
+          className={cn(
+            "absolute -top-1.5 -right-1.5 z-10 h-3 w-3 rounded-full border-2 border-card shadow-md",
+            hasError ? "bg-red-500" : "bg-amber-400",
+            hasError && "animate-pulse",
+          )}
+          title={issueTooltip}
+          data-testid={hasError ? "node-error-indicator" : "node-warning-indicator"}
+        />
+      )}
+
       {/* Execution status badge — top-right corner */}
       {execStatus && execStatus !== "pending" && (
         <div className={cn(
@@ -1175,98 +1215,18 @@ function NodePaletteSidebar({
   );
 }
 
-/* ========== Helper: edge schema-flow analysis ========== */
-/**
- * Heuristic schema-flow check for an edge between two workflow nodes.
- *
- * Returns whether the edge has explicit field mappings, and whether
- * we suspect the operator forgot to wire something up — i.e. the
- * target needs input data but no mappings exist and the source
- * doesn't trivially passthrough.
- *
- * The check is deliberately permissive (no false-positive over-
- * warning) because workflows can pass data via `{{ steps.X.output }}`
- * expressions inside config fields, which we can't reliably trace
- * without executing. So we only flag the "obvious mistake" pattern:
- * an action/agent target that wants input but the edge carries
- * neither mappings nor a recognizable trigger source.
- */
-function computeEdgeSchemaFlow(
-  sourceType: string | undefined,
-  targetType: string | undefined,
-  mappingCount: number
-): { schemaMismatch: boolean; dataLabel: string | undefined } {
-  if (!sourceType || !targetType) {
-    return { schemaMismatch: false, dataLabel: undefined };
-  }
-
-  if (mappingCount > 0) {
-    return {
-      schemaMismatch: false,
-      dataLabel: mappingCount === 1 ? "1 field mapped" : `${mappingCount} fields mapped`,
-    };
-  }
-
-  // Target node types that consume structured input. If one of these
-  // is the target and there are no explicit mappings, the edge is a
-  // candidate for "schema mismatch" warning.
-  const TARGETS_NEEDING_INPUT = new Set([
-    "agent",
-    "llm_prompt",
-    "http_request",
-    "send_email",
-    "send_slack",
-    "transform",
-    "filter",
-    "if_condition",
-    "switch",
-    "approval_gate",
-    "sub_workflow",
-    "ai_summarize",
-    "ai_classify",
-    "ai_extract",
-    "google_sheets_write",
-    "gmail_send",
-    "slack_send_integration",
-    "notion_create",
-    "airtable_create",
-    "data_query",
-    "a2a_call",
-  ]);
-
-  // Source node types that don't really produce structured "output"
-  // worth mapping (triggers fire with whatever payload they receive,
-  // delay just emits the time elapsed, etc). These are exempt — no
-  // warning when the edge originates from one of these.
-  const PASSTHROUGH_SOURCES = new Set([
-    "trigger_webhook",
-    "trigger_schedule",
-    "trigger_lead",
-    "trigger_chat",
-    "trigger_manual",
-    "delay",
-    "set_variable",
-    "merge",
-    "parallel_merge",
-    "wait_webhook",
-    "wait_form",
-  ]);
-
-  if (TARGETS_NEEDING_INPUT.has(targetType) && !PASSTHROUGH_SOURCES.has(sourceType)) {
-    return { schemaMismatch: true, dataLabel: "no mapping" };
-  }
-
-  return { schemaMismatch: false, dataLabel: undefined };
-}
-
 /* ========== Helper: members to flow elements ========== */
+// (Edge schema-flow analysis lives in @/lib/schema-flow-cache and is
+// memoized so re-renders don't recompute the same heuristic for every
+// edge on every keystroke.)
 function membersToFlowElements(
   members: TeamMember[],
   executionSteps?: ExecutionStep[],
   savedPositions?: Record<string, { x: number; y: number }>,
   teamKnowledgeCount?: number,
   workflowNodes?: VisualTeamEditorProps["workflowNodes"],
-  workflowEdges?: VisualTeamEditorProps["workflowEdges"]
+  workflowEdges?: VisualTeamEditorProps["workflowEdges"],
+  validationByNodeId?: Map<string, ValidationIssue[]>,
 ) {
   const execMap = new Map(executionSteps?.map((s) => [s.memberId, s.status]) || []);
   const teamMemberNodeIdsByAgentId = new Map(
@@ -1468,6 +1428,7 @@ function membersToFlowElements(
           iconName: def.icon,
           config: wn.config,
           hasErrorPath: !!hasErrorPath,
+          validationIssues: validationByNodeId?.get(wn.id) || [],
         },
       });
     });
@@ -1487,7 +1448,7 @@ function membersToFlowElements(
       const mappingCount = (we.mappings || []).length;
       const { schemaMismatch, dataLabel } = isErrorEdge
         ? { schemaMismatch: false, dataLabel: undefined }
-        : computeEdgeSchemaFlow(sourceNode?.type, targetNode?.type, mappingCount);
+        : getCachedSchemaFlow(sourceNode?.type, targetNode?.type, mappingCount);
 
       // Resolve switch case label from source node's config so each
       // branch gets a readable name (e.g. "premium", "default").
@@ -1592,6 +1553,7 @@ function VisualTeamEditorInner({
   executionCredits,
   nodeResults,
   executionLogs,
+  validationIssues,
 }: VisualTeamEditorProps) {
   const reactFlowInstance = useReactFlow();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1758,15 +1720,29 @@ function VisualTeamEditorInner({
     return () => { style.remove(); };
   }, []);
 
+  // Bucket validation issues by node id for O(1) lookup during render.
+  // Workflow-level issues (no nodeId) are excluded — they belong to
+  // the banner, not to a node's inline indicator.
+  const validationByNodeId = useMemo(() => {
+    const map = new Map<string, ValidationIssue[]>();
+    for (const issue of validationIssues || []) {
+      if (!issue.nodeId) continue;
+      const list = map.get(issue.nodeId) || [];
+      list.push(issue);
+      map.set(issue.nodeId, list);
+    }
+    return map;
+  }, [validationIssues]);
+
   // Build initial elements
   const initial = useMemo(() => {
     const { nodes: rawNodes, edges: rawEdges } = membersToFlowElements(
-      members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges
+      members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges, validationByNodeId
     );
     const hasSaved = savedPositions && Object.keys(savedPositions).length > 0;
     if (hasSaved) return { nodes: rawNodes, edges: rawEdges };
     return getLayoutedElements(rawNodes, rawEdges, "LR");
-  }, [members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges]);
+  }, [members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges, validationByNodeId]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
@@ -1818,7 +1794,15 @@ function VisualTeamEditorInner({
           if (n.type === "workflowNode") {
             const wfNode = (wfNodes || []).find((wn) => wn.id === n.id);
             if (wfNode) {
-              return { ...n, data: { ...n.data, label: wfNode.label, config: wfNode.config } };
+              return {
+                ...n,
+                data: {
+                  ...n.data,
+                  label: wfNode.label,
+                  config: wfNode.config,
+                  validationIssues: validationByNodeId.get(wfNode.id) || [],
+                },
+              };
             }
           }
           // Update execution status for agent nodes
@@ -1835,7 +1819,7 @@ function VisualTeamEditorInner({
     // Structure changed — full rebuild
     prevStructureRef.current = { nodeIds: wfNodeIds, edgeKeys: wfEdgeKeys, memberIds };
     const { nodes: rawNodes, edges: rawEdges } = membersToFlowElements(
-      members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges
+      members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges, validationByNodeId
     );
     const hasSaved = savedPositions && Object.keys(savedPositions).length > 0;
     if (hasSaved) {
@@ -1846,7 +1830,7 @@ function VisualTeamEditorInner({
       setNodes(layouted.nodes);
       setEdges(layouted.edges);
     }
-  }, [members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges, setNodes, setEdges]);
+  }, [members, executionSteps, savedPositions, teamKnowledgeCount, wfNodes, wfEdges, validationByNodeId, setNodes, setEdges]);
 
   // Update workflow nodes with execution results (including error info + downstream skipping)
   // IMPORTANT: uses edgesRef (not edges) to avoid setEdges → edges change → re-trigger loop
