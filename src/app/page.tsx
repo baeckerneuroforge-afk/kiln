@@ -2,14 +2,15 @@
  * KILN landing page — orchestrator.
  *
  * Each section lives in src/components/landing/ as its own file so
- * this stays a thin import + composition layer. The previous
- * 1,432-line single-file landing is preserved at /legacy for
- * comparison and rollback.
+ * this stays a thin import + composition layer. Pulls in the
+ * animated StarField background once at the top so every section
+ * sits on top of it.
  */
 import { Metadata } from "next";
 import { CookieBanner } from "@/components/cookie-banner";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { LandingFooter } from "@/components/landing/landing-footer";
+import { StarField } from "@/components/landing/star-field";
 import { HeroSection } from "@/components/landing/hero-section";
 import { ProblemSection } from "@/components/landing/problem-section";
 import { SolutionSection } from "@/components/landing/solution-section";
@@ -33,18 +34,21 @@ export const metadata: Metadata = {
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground antialiased">
-      <LandingNav />
-      <HeroSection />
-      <ProblemSection />
-      <SolutionSection />
-      <FeaturesSection />
-      <FounderSection />
-      <PricingSection />
-      <FaqSection />
-      <FinalCtaSection />
-      <LandingFooter />
-      <CookieBanner />
+    <main className="relative min-h-screen overflow-hidden bg-background text-foreground antialiased">
+      <StarField />
+      <div className="relative z-10">
+        <LandingNav />
+        <HeroSection />
+        <ProblemSection />
+        <SolutionSection />
+        <FeaturesSection />
+        <FounderSection />
+        <PricingSection />
+        <FaqSection />
+        <FinalCtaSection />
+        <LandingFooter />
+        <CookieBanner />
+      </div>
     </main>
   );
 }
