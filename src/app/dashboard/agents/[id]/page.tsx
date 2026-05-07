@@ -913,20 +913,29 @@ export default function AgentDetailPage() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="mb-6 flex items-center gap-0.5 overflow-x-auto rounded-xl bg-muted border border-border p-1 scrollbar-none">
+      {/* Tabs — base tabs use kiln-orange for active state, advanced
+          tabs share the same look so they read as one bar. The bar
+          itself scrolls horizontally on narrow viewports; on small
+          screens labels collapse to icons-only. */}
+      <div className="mb-6 flex items-center gap-0.5 overflow-x-auto rounded-xl bg-card/50 border border-border p-1 scrollbar-none">
         {baseTabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
+            data-active={activeTab === tab.id}
             className={cn(
-              "relative flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
+              "relative flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium rounded-lg transition-colors duration-200",
               activeTab === tab.id
-                ? "bg-muted text-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                ? "bg-kiln-orange/10 text-kiln-orange font-semibold shadow-sm shadow-kiln-orange/5"
+                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
             )}
           >
-            <tab.icon className={cn("h-4 w-4", activeTab === tab.id && "text-gray-400")} />
+            <tab.icon
+              className={cn(
+                "h-4 w-4 transition-colors",
+                activeTab === tab.id ? "text-kiln-orange" : "text-muted-foreground/80"
+              )}
+            />
             <span className="hidden sm:inline">{tab.label}</span>
           </button>
         ))}
@@ -938,14 +947,20 @@ export default function AgentDetailPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
+                data-active={activeTab === tab.id}
                 className={cn(
-                  "relative flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
+                  "relative flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium rounded-lg transition-colors duration-200",
                   activeTab === tab.id
-                    ? "bg-muted text-gray-400 shadow-sm"
-                    : "text-muted-foreground hover:bg-muted hover:text-purple-300"
+                    ? "bg-kiln-orange/10 text-kiln-orange font-semibold shadow-sm shadow-kiln-orange/5"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                 )}
               >
-                <tab.icon className={cn("h-4 w-4", activeTab === tab.id && "text-gray-400")} />
+                <tab.icon
+                  className={cn(
+                    "h-4 w-4 transition-colors",
+                    activeTab === tab.id ? "text-kiln-orange" : "text-muted-foreground/80"
+                  )}
+                />
                 <span className="hidden sm:inline">{tab.label}</span>
               </button>
             ))}
