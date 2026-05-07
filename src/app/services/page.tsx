@@ -4,8 +4,8 @@ import { Check } from "lucide-react";
 import { LegalFooter } from "@/components/legal-footer";
 
 export const metadata: Metadata = {
-  title: "Professional Setup — KILN",
-  description: "Let our team build your AI agents, knowledge base, and integrations — ready to go in 24 hours.",
+  title: "Done-for-you AI Agent Setup — KILN",
+  description: "Want us to build it for you? Our team configures your AI agents, knowledge base, and integrations — ready to go in 24 hours.",
 };
 
 const packages = [
@@ -125,13 +125,13 @@ export default function ServicesPage() {
       <main className="flex-1">
         {/* Hero */}
         <section className="mx-auto max-w-5xl px-6 py-20 text-center">
-          <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Professional Setup</p>
+          <p className="mb-3 text-xs font-medium uppercase tracking-widest text-[#F97316]">Done-for-you</p>
           <h1 className="font-serif text-4xl tracking-tight text-white sm:text-5xl">
-            Want us to build it for you?
+            Done-for-you AI Agent Setup
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-neutral-400">
-            Our team sets up your AI agents, knowledge base, and integrations — ready to go in 24 hours.
-            You focus on your business, we handle the tech.
+            Want us to build it for you? Our team configures your AI agents, knowledge base,
+            and integrations — ready to go in 24 hours.
           </p>
         </section>
 
