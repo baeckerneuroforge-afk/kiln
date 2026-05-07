@@ -385,8 +385,8 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   // Integrations
   {
     type: "google_sheets_read",
-    label: "Google Sheets lesen",
-    description: "Daten aus einem Google Sheet lesen",
+    label: "Google Sheets Read",
+    description: "Read rows from a Google Sheet",
     category: "integrations",
     icon: "Table",
     color: "#22C55E",
@@ -394,8 +394,8 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "google_sheets_write",
-    label: "Google Sheets schreiben",
-    description: "Zeile in ein Google Sheet schreiben",
+    label: "Google Sheets Write",
+    description: "Append a row to a Google Sheet",
     category: "integrations",
     icon: "TableProperties",
     color: "#22C55E",
@@ -403,8 +403,8 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "gmail_send",
-    label: "Gmail senden",
-    description: "E-Mail über Gmail versenden",
+    label: "Gmail Send",
+    description: "Send an email via Gmail",
     category: "integrations",
     icon: "Mail",
     color: "#22C55E",
@@ -412,8 +412,8 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "slack_send_integration",
-    label: "Slack Nachricht",
-    description: "Nachricht über verbundenen Slack-Workspace senden",
+    label: "Slack Message",
+    description: "Send a message to a connected Slack workspace",
     category: "integrations",
     icon: "Hash",
     color: "#22C55E",
@@ -421,8 +421,8 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "calendar_create",
-    label: "Termin erstellen",
-    description: "Google Calendar Termin erstellen",
+    label: "Calendar Create",
+    description: "Create a Google Calendar event",
     category: "integrations",
     icon: "CalendarPlus",
     color: "#22C55E",
@@ -430,8 +430,8 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "calendar_check",
-    label: "Verfügbarkeit prüfen",
-    description: "Freie Slots im Google Calendar finden",
+    label: "Calendar Availability",
+    description: "Find free slots in a Google Calendar",
     category: "integrations",
     icon: "CalendarSearch",
     color: "#22C55E",
@@ -439,8 +439,8 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "notion_create",
-    label: "Notion Eintrag",
-    description: "Neuen Eintrag in Notion-Datenbank erstellen",
+    label: "Notion Create",
+    description: "Add a new entry to a Notion database",
     category: "integrations",
     icon: "FileText",
     color: "#22C55E",
@@ -448,8 +448,8 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "airtable_create",
-    label: "Airtable Eintrag",
-    description: "Neuen Datensatz in Airtable erstellen",
+    label: "Airtable Create",
+    description: "Add a new record to an Airtable base",
     category: "integrations",
     icon: "Database",
     color: "#22C55E",
@@ -458,7 +458,7 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "mcp_tool",
     label: "MCP Tool",
-    description: "Tool eines verbundenen MCP-Servers ausführen",
+    description: "Run a tool from a connected MCP server",
     category: "integrations",
     icon: "Plug",
     color: "#3B82F6",
@@ -466,8 +466,8 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "data_query",
-    label: "Datenbank-Abfrage",
-    description: "SQL oder natuerlichsprachige Abfrage auf verbundener Datenbank ausfuehren",
+    label: "Database Query",
+    description: "Run SQL or a natural-language query against a connected database",
     category: "integrations",
     icon: "Database",
     color: "#06B6D4",
@@ -477,8 +477,8 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   // AI Tools
   {
     type: "ai_summarize",
-    label: "AI Zusammenfassung",
-    description: "Text mit AI zusammenfassen",
+    label: "AI Summarize",
+    description: "Summarize text using AI",
     category: "ai_tools",
     icon: "Sparkles",
     color: "#EC4899",
@@ -486,8 +486,8 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "ai_classify",
-    label: "AI Klassifizierung",
-    description: "Text in Kategorien einordnen",
+    label: "AI Classify",
+    description: "Classify text into one of several categories",
     category: "ai_tools",
     icon: "Tags",
     color: "#EC4899",
@@ -495,8 +495,8 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   },
   {
     type: "ai_extract",
-    label: "AI Extraktion",
-    description: "Strukturierte Daten aus Text extrahieren",
+    label: "AI Extract",
+    description: "Extract structured data from free-form text",
     category: "ai_tools",
     icon: "FileSearch",
     color: "#EC4899",
@@ -505,7 +505,7 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "computer_use",
     label: "Computer Use",
-    description: "AI browst eine Webseite und extrahiert Daten",
+    description: "AI browses a website and extracts data",
     category: "ai_tools",
     icon: "Monitor",
     color: "#EC4899",
@@ -523,7 +523,7 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "deep_research",
     label: "Deep Research",
-    description: "Multi-Source Web-Recherche mit Konsolidierung",
+    description: "Multi-source web research with automatic consolidation",
     category: "ai_tools",
     icon: "Search",
     color: "#EC4899",
@@ -538,7 +538,7 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "code_sandbox",
     label: "Code Sandbox",
-    description: "Code schreiben und ausführen (Python/JavaScript)",
+    description: "Write and run code (Python / JavaScript)",
     category: "ai_tools",
     icon: "Terminal",
     color: "#22C55E",
@@ -592,7 +592,7 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "a2a_call",
     label: "A2A Agent Call",
-    description: "Ruft einen externen Agent via A2A-Protokoll auf",
+    description: "Call an external agent via the A2A protocol",
     category: "actions",
     icon: "Radio",
     color: "#3B82F6",
@@ -609,7 +609,7 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "goal_trigger",
     label: "Goal Planner",
-    description: "Generiert und führt einen Plan aus einem natürlichsprachlichen Ziel aus",
+    description: "Generates and executes a plan from a natural-language goal",
     category: "advanced",
     icon: "Target",
     color: "#F97316",
@@ -622,7 +622,7 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "spawn_helper",
     label: "Spawn Helper",
-    description: "Erstellt einen temporären Helper-Agent für eine spezifische Sub-Aufgabe",
+    description: "Creates a temporary helper agent for a specific sub-task",
     category: "advanced",
     icon: "Sparkles",
     color: "#A855F7",
@@ -638,7 +638,7 @@ export const WORKFLOW_NODE_DEFINITIONS: WorkflowNodeDefinition[] = [
   {
     type: "agent_swarm",
     label: "Agent Swarm",
-    description: "Zerlegt ein Ziel in parallele Sub-Tasks und führt sie mit mehreren Agents aus",
+    description: "Splits a goal into parallel sub-tasks and runs them across multiple agents",
     category: "advanced",
     icon: "Layers",
     color: "#A855F7",
