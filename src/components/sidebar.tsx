@@ -173,19 +173,28 @@ function NavTooltip({
   children,
   label,
   description,
+  shortcut,
   show,
 }: {
   children: React.ReactNode;
   label: string;
   description?: string;
+  shortcut?: string;
   show: boolean;
 }) {
   if (!show) return <>{children}</>;
   return (
     <div className="group/tip relative">
       {children}
-      <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground opacity-0 shadow-lg transition-opacity group-hover/tip:opacity-100">
-        <div className="whitespace-nowrap">{label}</div>
+      <div className="pointer-events-none absolute left-full top-1/2 z-[60] ml-2 -translate-y-1/2 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground opacity-0 shadow-xl shadow-black/30 transition-opacity duration-150 group-hover/tip:opacity-100">
+        <div className="flex items-center gap-2 whitespace-nowrap">
+          <span>{label}</span>
+          {shortcut && (
+            <kbd className="rounded bg-muted px-1 py-0.5 font-mono text-[9px] text-muted-foreground">
+              {shortcut}
+            </kbd>
+          )}
+        </div>
         {description && (
           <div className="mt-0.5 max-w-[220px] whitespace-normal text-[10px] font-normal text-muted-foreground">
             {description}
@@ -246,6 +255,71 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
     setCollapsed(next);
     try { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next)); } catch { /* */ }
   }
+
+  // Inject sidebar-specific CSS once: custom scrollbar (4px,
+  // muted-foreground), and a stagger fade-in keyframe used by nav
+  // links via inline animationDelay. Lives here so the styles are
+  // co-located with the component that owns them.
+  useEffect(() => {
+    const id = "kiln-sidebar-styles";
+    if (document.getElementById(id)) return;
+    const style = document.createElement("style");
+    style.id = id;
+    style.textContent = `
+      @keyframes kiln-sidebar-item-in {
+        from { opacity: 0; transform: translateX(-4px); }
+        to   { opacity: 1; transform: translateX(0); }
+      }
+      .kiln-sidebar-fade-in {
+        animation: kiln-sidebar-item-in 220ms ease-out both;
+      }
+      /* Slim, theme-aware scrollbar inside the nav scroll-area */
+      .kiln-sidebar-scroll::-webkit-scrollbar { width: 4px; }
+      .kiln-sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+      .kiln-sidebar-scroll::-webkit-scrollbar-thumb {
+        background: hsl(var(--muted-foreground) / 0.25);
+        border-radius: 4px;
+      }
+      .kiln-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+        background: hsl(var(--muted-foreground) / 0.45);
+      }
+      .kiln-sidebar-scroll {
+        scrollbar-width: thin;
+        scrollbar-color: hsl(var(--muted-foreground) / 0.25) transparent;
+      }
+      /* Respect reduced motion */
+      @media (prefers-reduced-motion: reduce) {
+        .kiln-sidebar-fade-in { animation: none !important; }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => { style.remove(); };
+  }, []);
+
+  // Cmd/Ctrl+B toggles the sidebar — standard shortcut in Linear /
+  // Cursor / VS Code. Skipped while typing in an input so it doesn't
+  // hijack legitimate text edits.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const ctrl = e.metaKey || e.ctrlKey;
+      if (!ctrl || e.key.toLowerCase() !== "b") return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+      e.preventDefault();
+      toggleCollapsed();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapsed]);
 
   function toggleSection(id: string) {
     setOpenSections((prev) => {
@@ -362,9 +436,16 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
           isCollapsed && "lg:w-[60px]",
         )}
       >
-        {/* Header — agency branding overrides the KILN mark in sub-orgs */}
+        {/* Header — agency branding overrides the KILN mark in sub-orgs.
+            Logo gets a subtle hover scale + the right-side button cluster
+            (bell + collapse) groups tightly for a tidy top-bar feel. */}
         <div className="flex items-center justify-between px-4 pt-5 pb-2">
-          <Link href="/dashboard" className="flex items-center gap-2.5" onClick={onClose}>
+          <Link
+            href="/dashboard"
+            className="group flex items-center gap-2.5"
+            onClick={onClose}
+            title="Dashboard"
+          >
             {agencyBrand?.isInherited &&
             agencyBrand.showAgencyLogo &&
             agencyBrand.logoUrl ? (
@@ -374,16 +455,16 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               <img
                 src={agencyBrand.logoUrl}
                 alt={agencyBrand.agencyName ?? "Agency"}
-                className="h-8 w-auto max-w-[140px] object-contain"
+                className="h-8 w-auto max-w-[140px] object-contain transition-transform duration-200 group-hover:scale-[1.04]"
               />
             ) : (
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-kiln-orange to-kiln-ember shadow-lg shadow-kiln-orange/20">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-kiln-orange to-kiln-ember shadow-lg shadow-kiln-orange/20 transition-transform duration-200 group-hover:scale-[1.05]">
                 <span className="font-serif text-base font-bold text-white">K</span>
               </div>
             )}
             <span
               className={cn(
-                "font-serif text-lg text-foreground transition-opacity duration-200",
+                "font-serif text-lg text-foreground transition-all duration-200 group-hover:text-kiln-orange",
                 isCollapsed && "lg:hidden",
                 agencyBrand?.isInherited &&
                   agencyBrand.showAgencyLogo &&
@@ -398,19 +479,26 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                 : "KILN"}
             </span>
           </Link>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <div className={cn(isCollapsed && "lg:hidden")}>
               <WhatsNewBell />
             </div>
-            <button
-              onClick={toggleCollapsed}
-              className="hidden h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:flex"
-              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            <NavTooltip
+              label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              shortcut="⌘B"
+              show={true}
             >
-              {isCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
-            </button>
+              <button
+                onClick={toggleCollapsed}
+                aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                className="hidden h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:flex"
+              >
+                {isCollapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+              </button>
+            </NavTooltip>
             <button
               onClick={onClose}
+              aria-label="Close menu"
               className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:hidden"
             >
               <X className="h-4 w-4" />
@@ -429,7 +517,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
         <Separator className={cn("my-2", isCollapsed ? "lg:mx-2" : "mx-3")} />
 
         {/* Navigation */}
-        <nav className={cn("flex flex-1 flex-col overflow-y-auto scrollbar-thin", isCollapsed ? "lg:px-1.5" : "px-2")}>
+        <nav className={cn("kiln-sidebar-scroll flex flex-1 flex-col overflow-y-auto pb-2", isCollapsed ? "lg:px-1.5" : "px-2")}>
           {NAV_SECTIONS.map((section) => {
             const visibleItems = section.items.filter(isItemVisible);
             if (visibleItems.length === 0) return null;
@@ -437,32 +525,35 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
             const isSectionOpen = section.label === null || openSections[section.id] !== false;
 
             return (
-              <div key={section.id} className={section.label ? "mt-3" : ""}>
+              <div key={section.id} className={section.label ? "mt-4" : "mt-1"}>
                 {/* Section header */}
                 {section.label && !isCollapsed && (
                   <button
                     onClick={() => toggleSection(section.id)}
-                    className="flex w-full items-center gap-1 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:text-foreground/80"
+                    className="flex w-full items-center gap-1.5 px-3 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 transition-colors hover:text-foreground/80"
                   >
                     <ChevronRight
                       className={cn(
-                        "h-3 w-3 shrink-0 transition-transform duration-150",
+                        "h-3 w-3 shrink-0 transition-transform duration-200 ease-out",
                         isSectionOpen && "rotate-90"
                       )}
                     />
-                    {section.label}
+                    <span>{section.label}</span>
                   </button>
                 )}
 
-                {/* Section header (collapsed) — thin divider */}
+                {/* Section header (collapsed) — single dot divider so the
+                    grouping stays visible without taking horizontal room */}
                 {section.label && isCollapsed && (
-                  <Separator className="lg:mx-0 my-2" />
+                  <div className="my-2 flex justify-center">
+                    <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
+                  </div>
                 )}
 
                 {/* Items */}
                 {isSectionOpen && (
-                  <div className="flex flex-col gap-px">
-                    {visibleItems.map((item) => {
+                  <div className="flex flex-col gap-0.5">
+                    {visibleItems.map((item, idx) => {
                       const active = isActive(item.href);
                       return (
                         <NavTooltip
@@ -475,24 +566,41 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                             href={item.href}
                             onClick={onClose}
                             {...(item.tourId ? { "data-tour": item.tourId } : {})}
+                            style={{ animationDelay: `${idx * 25}ms` }}
                             className={cn(
-                              "group relative flex items-center rounded-md text-[13px] font-medium transition-all duration-150",
-                              isCollapsed ? "lg:justify-center lg:px-0 lg:py-2 px-2.5 py-2 gap-2.5" : "gap-2.5 px-2.5 py-[7px]",
+                              "group relative flex items-center rounded-md text-[13px] font-medium kiln-sidebar-fade-in",
+                              "transition-[background-color,color,box-shadow] duration-200 ease-out",
+                              isCollapsed
+                                ? "lg:justify-center lg:px-0 lg:py-2 px-3 py-2 gap-3"
+                                : "gap-3 px-3 py-2",
                               active
-                                ? "bg-sidebar-accent text-foreground"
-                                : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+                                ? "bg-kiln-orange/10 text-kiln-orange font-semibold"
+                                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                             )}
                           >
+                            {/* Strong 3px-wide kiln-orange left border —
+                                full height of the item, not the partial
+                                gradient bar from v1. */}
                             {active && (
-                              <div className="absolute left-0 top-1/2 h-4 w-[2.5px] -translate-y-1/2 rounded-full bg-gradient-to-b from-kiln-orange to-kiln-ember" />
+                              <span
+                                aria-hidden
+                                className="pointer-events-none absolute inset-y-0 left-0 w-[3px] rounded-r-full bg-kiln-orange"
+                              />
                             )}
                             <item.icon
                               className={cn(
-                                "h-[16px] w-[16px] shrink-0 transition-colors",
-                                active ? "text-kiln-orange" : "text-muted-foreground group-hover:text-foreground"
+                                "h-4 w-4 shrink-0 transition-colors duration-200",
+                                active
+                                  ? "text-kiln-orange"
+                                  : "text-muted-foreground/80 group-hover:text-foreground"
                               )}
                             />
-                            <span className={cn("transition-opacity duration-200", isCollapsed && "lg:hidden")}>
+                            <span
+                              className={cn(
+                                "truncate transition-opacity duration-200",
+                                isCollapsed && "lg:hidden"
+                              )}
+                            >
                               {item.name}
                             </span>
                           </Link>
@@ -528,14 +636,17 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
 
           <Separator className={cn("my-1.5", isCollapsed && "lg:mx-0")} />
 
-          {/* User Profile */}
+          {/* User Profile — avatar gets a kiln-orange ring for ADMIN
+              users so we can spot internal sessions at a glance */}
           <div className="relative" ref={menuRef}>
-            <NavTooltip label={displayName} show={isCollapsed}>
+            <NavTooltip label="Account" show={isCollapsed}>
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
+                aria-label="Open account menu"
+                aria-expanded={showUserMenu}
                 className={cn(
-                  "flex w-full items-center rounded-md transition-colors hover:bg-sidebar-accent/60",
-                  isCollapsed ? "lg:justify-center lg:px-0 lg:py-2 px-2.5 py-2 gap-2.5" : "gap-2.5 px-2.5 py-2"
+                  "flex w-full items-center rounded-md transition-colors hover:bg-muted/50",
+                  isCollapsed ? "lg:justify-center lg:px-0 lg:py-2 px-3 py-2 gap-3" : "gap-3 px-3 py-2"
                 )}
               >
                 <div className="relative shrink-0">
@@ -544,10 +655,18 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                     <img
                       src={user.imageUrl}
                       alt={displayName}
-                      className="h-7 w-7 rounded-full object-cover ring-1 ring-border"
+                      className={cn(
+                        "h-7 w-7 rounded-full object-cover ring-1",
+                        plan === "ADMIN" ? "ring-2 ring-kiln-orange" : "ring-border",
+                      )}
                     />
                   ) : (
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground ring-1 ring-border">
+                    <div
+                      className={cn(
+                        "flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground ring-1",
+                        plan === "ADMIN" ? "ring-2 ring-kiln-orange" : "ring-border",
+                      )}
+                    >
                       {displayName.charAt(0).toUpperCase()}
                     </div>
                   )}
