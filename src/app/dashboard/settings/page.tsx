@@ -1,9 +1,10 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { OrganizationProfile, useClerk, useOrganization, useUser } from "@clerk/nextjs";
 import {
+  ArrowRight,
   CreditCard,
   Crown,
   Loader2,
@@ -41,6 +42,13 @@ import {
   Store,
   Star,
   Download,
+  CircleHelp,
+  RefreshCw,
+  ShieldAlert,
+  Mail,
+  Twitter,
+  Linkedin,
+  Share2,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -57,9 +65,10 @@ import {
 import { cn } from "@/lib/utils";
 import { CreditUsageChart } from "@/components/credit-usage-chart";
 import { Skeleton } from "@/components/ui/skeleton";
+import { API_KEY_PROVIDER_META, type ApiKeyProvider } from "@/lib/api-key-testing";
 
 interface UserPlan {
-  plan: "FREE" | "STARTER" | "PRO" | "AGENCY" | "ENTERPRISE" | "ADMIN";
+  plan: "FREE" | "STARTER" | "PRO" | "BUSINESS" | "AGENCY" | "ENTERPRISE" | "ADMIN";
   agentCount: number;
   chatCount: number;
   limits: { agents: number; chatsPerMonth: number };
@@ -189,7 +198,7 @@ const plans = [
   },
 ];
 
-type SettingsTab = "profile" | "billing" | "api-keys" | "webhooks" | "referral" | "templates" | "danger";
+type SettingsTab = "profile" | "billing" | "api-keys" | "webhooks" | "referral" | "templates" | "organization" | "danger";
 
 const settingsTabs: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
   { id: "profile", label: "Profile", icon: User },
@@ -198,12 +207,30 @@ const settingsTabs: { id: SettingsTab; label: string; icon: React.ElementType }[
   { id: "webhooks", label: "Webhooks", icon: Webhook },
   { id: "referral", label: "Referral", icon: Gift },
   { id: "templates", label: "My Templates", icon: Store },
+  { id: "organization", label: "Organization", icon: Building2 },
   { id: "danger", label: "Danger Zone", icon: AlertTriangle },
 ];
+
+const VALID_SETTINGS_TABS = settingsTabs.map((tab) => tab.id);
+
+const PROVIDER_ORDER: ApiKeyProvider[] = ["anthropic", "openai", "perplexity", "google", "groq"];
+
+const WEBHOOK_EVENT_DESCRIPTIONS: Record<string, string> = {
+  "conversation.started": "Conversation Started: Fires when a user begins a chat with one of your agents.",
+  "conversation.ended": "Conversation Ended: Fires when a chat session ends or is closed.",
+  "lead.scored": "Lead Scored: Fires when an agent assigns a score to a lead.",
+  "action.executed": "Action Executed: Fires when an agent runs a configured action or integration.",
+  "agent.updated": "Agent Updated: Fires when an agent's configuration changes.",
+  test: "Test: A sample event sent from the Settings page.",
+};
 
 function SettingsContent() {
   const { toast } = useToast();
   const { user } = useUser();
+  const { openUserProfile } = useClerk();
+  const { organization, membership, isLoaded: organizationLoaded } = useOrganization();
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [userPlan, setUserPlan] = useState<UserPlan | null>(null);
@@ -213,6 +240,8 @@ function SettingsContent() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [referredUsers, setReferredUsers] = useState(0);
+  const [pendingReferrals, setPendingReferrals] = useState(0);
+  const [convertedReferrals, setConvertedReferrals] = useState(0);
   const [creditsEarned, setCreditsEarned] = useState(0);
   const [copied, setCopied] = useState(false);
 
@@ -229,6 +258,7 @@ function SettingsContent() {
   const [showGoogleKey, setShowGoogleKey] = useState(false);
   const [showGroqKey, setShowGroqKey] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [testingKey, setTestingKey] = useState<string | null>(null);
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
   const [keyError, setKeyError] = useState<string | null>(null);
   const [keySuccess, setKeySuccess] = useState<string | null>(null);
@@ -282,6 +312,8 @@ function SettingsContent() {
   const [testingWebhook, setTestingWebhook] = useState<string | null>(null);
   const [deletingWebhook, setDeletingWebhook] = useState<string | null>(null);
   const [secretCopied, setSecretCopied] = useState<string | null>(null);
+  const [revealedWebhookSecrets, setRevealedWebhookSecrets] = useState<string[]>([]);
+  const [webhookTestResults, setWebhookTestResults] = useState<Record<string, string>>({});
 
   // AI Credits
   interface CreditInfo {
@@ -321,21 +353,25 @@ function SettingsContent() {
   const [deletingTemplate, setDeletingTemplate] = useState<string | null>(null);
 
   useEffect(() => {
+    let nextTab: SettingsTab = "profile";
+    const tab = searchParams.get("tab");
+    if (tab && VALID_SETTINGS_TABS.includes(tab as SettingsTab)) {
+      nextTab = tab as SettingsTab;
+    }
+
     if (searchParams.get("success") === "true") {
       setShowSuccess(true);
-      setActiveTab("billing");
+      nextTab = "billing";
       setTimeout(() => setShowSuccess(false), 5000);
     }
     if (searchParams.get("credits") === "success") {
-      setActiveTab("billing");
+      nextTab = "billing";
       toast("Credits purchased successfully! They have been added to your balance.");
       // Refresh credit info
       fetch("/api/credits").then((r) => r.json()).then((d) => { if (d.balance !== undefined) setCreditInfo(d); }).catch(() => {});
     }
-    const tab = searchParams.get("tab");
-    if (tab && ["profile", "billing", "api-keys", "webhooks", "referral", "templates", "danger"].includes(tab)) {
-      setActiveTab(tab as SettingsTab);
-    }
+
+    setActiveTab(nextTab);
   }, [searchParams, toast]);
 
   useEffect(() => {
@@ -360,6 +396,8 @@ function SettingsContent() {
       .then((data) => {
         setReferralCode(data.referralCode || null);
         setReferredUsers(data.referredUsers || 0);
+        setPendingReferrals(data.pendingUsers || 0);
+        setConvertedReferrals(data.convertedUsers || 0);
         setCreditsEarned(data.creditsEarned || 0);
       })
       .catch(() => {});
@@ -394,12 +432,26 @@ function SettingsContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function handleTabChange(tab: SettingsTab) {
+    setActiveTab(tab);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("success");
+    params.delete("credits");
+    if (tab === "profile") params.delete("tab");
+    else params.set("tab", tab);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
   async function handleUpgrade(planId: string) {
     const envKey = billingAnnual
       ? `NEXT_PUBLIC_STRIPE_${planId}_YEARLY_PRICE_ID`
       : `NEXT_PUBLIC_STRIPE_${planId}_PRICE_ID`;
     const priceId = process.env[envKey];
-    if (!priceId) return;
+    if (!priceId) {
+      router.push("/dashboard/pricing");
+      return;
+    }
     setUpgrading(planId);
     try {
       const res = await fetch("/api/stripe/checkout", {
@@ -507,7 +559,7 @@ function SettingsContent() {
     finally { setPurchasingCredits(null); }
   }
 
-  async function saveApiKey(provider: string, apiKey: string) {
+  async function saveApiKey(provider: ApiKeyProvider, apiKey: string) {
     if (!apiKey.trim()) return;
     setSavingKey(provider);
     setKeyError(null);
@@ -525,13 +577,16 @@ function SettingsContent() {
       if (Array.isArray(keysData)) setApiKeys(keysData);
       if (provider === "anthropic") setAnthropicKey("");
       if (provider === "openai") setOpenaiKey("");
-      toast(`${provider === "anthropic" ? "Anthropic" : "OpenAI"} API key saved`);
-      setKeySuccess(`${provider === "anthropic" ? "Anthropic" : "OpenAI"} API key saved successfully.`);
+      if (provider === "perplexity") setPerplexityKey("");
+      if (provider === "google") setGoogleKey("");
+      if (provider === "groq") setGroqKey("");
+      toast(`${API_KEY_PROVIDER_META[provider].label} API key saved`);
+      setKeySuccess(`${API_KEY_PROVIDER_META[provider].label} API key saved successfully.`);
       setTimeout(() => setKeySuccess(null), 3000);
     } catch { setKeyError("Failed to save API key"); } finally { setSavingKey(null); }
   }
 
-  async function deleteApiKey(provider: string) {
+  async function deleteApiKey(provider: ApiKeyProvider) {
     setDeletingKey(provider);
     setKeyError(null);
     try {
@@ -541,7 +596,37 @@ function SettingsContent() {
         body: JSON.stringify({ provider }),
       });
       setApiKeys((prev) => prev.filter((k) => k.provider !== provider));
+      toast(`${API_KEY_PROVIDER_META[provider].label} API key cleared`, "info");
     } catch { setKeyError("Failed to delete key"); } finally { setDeletingKey(null); }
+  }
+
+  async function testApiKey(provider: ApiKeyProvider, apiKey?: string) {
+    setTestingKey(provider);
+    setKeyError(null);
+    setKeySuccess(null);
+    try {
+      const res = await fetch("/api/user/api-keys/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, key: apiKey?.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        const message = data.error || "Connection test failed";
+        setKeyError(`${API_KEY_PROVIDER_META[provider].label}: ${message}`);
+        toast(message, "error");
+        return;
+      }
+      toast(`${API_KEY_PROVIDER_META[provider].label} connected`, "success");
+      setKeySuccess(`${API_KEY_PROVIDER_META[provider].label} connection verified.`);
+      setTimeout(() => setKeySuccess(null), 3000);
+    } catch {
+      const message = "Connection test failed";
+      setKeyError(message);
+      toast(message, "error");
+    } finally {
+      setTestingKey(null);
+    }
   }
 
   const WEBHOOK_EVENT_OPTIONS = [
@@ -583,6 +668,26 @@ function SettingsContent() {
     } catch {}
   }
 
+  async function regenerateWebhookSecret(webhookId: string) {
+    try {
+      const res = await fetch("/api/user/webhooks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ webhookId, action: "regenerateSecret" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setWebhookError(data.error || "Failed to regenerate signing secret");
+        return;
+      }
+      setWebhooks((prev) => prev.map((w) => (w.id === webhookId ? data : w)));
+      setRevealedWebhookSecrets((prev) => prev.filter((id) => id !== webhookId));
+      toast("Signing secret regenerated");
+    } catch {
+      setWebhookError("Failed to regenerate signing secret");
+    }
+  }
+
   async function deleteWebhook(webhookId: string) {
     setDeletingWebhook(webhookId);
     try {
@@ -609,12 +714,19 @@ function SettingsContent() {
       const refreshData = await refreshRes.json();
       if (Array.isArray(refreshData)) setWebhooks(refreshData);
       if (!data.success) {
-        setWebhookError(`Test failed: ${data.error || `Status ${data.statusCode}`}`);
+        const message = `Test failed: ${data.error || `Status ${data.statusCode}`}`;
+        setWebhookTestResults((prev) => ({ ...prev, [webhookId]: message }));
+        setWebhookError(message);
         setTimeout(() => setWebhookError(null), 5000);
       } else {
+        const message = `Test delivered: ${data.statusCode || 200} OK`;
+        setWebhookTestResults((prev) => ({ ...prev, [webhookId]: message }));
         toast("Test webhook sent");
       }
-    } catch { setWebhookError("Failed to send test"); } finally { setTestingWebhook(null); }
+    } catch {
+      setWebhookTestResults((prev) => ({ ...prev, [webhookId]: "Test failed: request could not be sent." }));
+      setWebhookError("Failed to send test");
+    } finally { setTestingWebhook(null); }
   }
 
   function toggleWebhookEvent(event: string) {
@@ -644,6 +756,77 @@ function SettingsContent() {
   const isAdminUser = currentPlan === "ADMIN";
   const displayName = user?.firstName || user?.username || user?.emailAddresses?.[0]?.emailAddress?.split("@")[0] || "User";
   const displayEmail = user?.emailAddresses?.[0]?.emailAddress || "";
+  const currentPlanIndex = ["FREE", "STARTER", "PRO", "AGENCY", "ENTERPRISE"].indexOf(currentPlan);
+  const nextPlan = !isAdminUser && currentPlanIndex >= 0 && currentPlanIndex < 4
+    ? plans[currentPlanIndex + 1]
+    : null;
+  const referralLink = referralCode
+    ? typeof window !== "undefined"
+      ? `${window.location.origin}/sign-up?ref=${referralCode}`
+      : `/sign-up?ref=${referralCode}`
+    : "";
+  const referralShareText = referralCode
+    ? `Join me on KILN and get started with AI agents: ${referralLink}`
+    : "";
+  const organizationIsAdmin = membership?.role === "org:admin";
+  const organizationProfileAppearance = {
+    elements: {
+      rootBox: "w-full",
+      cardBox: "rounded-xl border border-border bg-card shadow-sm w-full max-w-none",
+      scrollBox: "bg-card",
+      navbar: "bg-card border-b border-border",
+      navbarButton: "text-foreground hover:bg-muted",
+      headerTitle: "text-foreground font-serif",
+      headerSubtitle: "text-muted-foreground",
+      formButtonPrimary: "bg-kiln-orange hover:bg-kiln-orange/90 text-white",
+      formFieldInput: "bg-background border border-border text-foreground focus:border-kiln-orange/40",
+      menuButton: "text-foreground hover:bg-muted",
+      badge: "bg-muted text-foreground",
+      avatarBox: "ring-1 ring-border",
+    },
+    variables: {
+      colorPrimary: "#F97316",
+      colorBackground: "hsl(var(--card))",
+      colorText: "hsl(var(--foreground))",
+      colorTextSecondary: "hsl(var(--muted-foreground))",
+      colorInputBackground: "hsl(var(--background))",
+      colorInputText: "hsl(var(--foreground))",
+      borderRadius: "0.5rem",
+    },
+  };
+
+  const apiKeyDrafts: Record<ApiKeyProvider, string> = {
+    anthropic: anthropicKey,
+    openai: openaiKey,
+    perplexity: perplexityKey,
+    google: googleKey,
+    groq: groqKey,
+  };
+  const apiKeyVisibility: Record<ApiKeyProvider, boolean> = {
+    anthropic: showAnthropicKey,
+    openai: showOpenaiKey,
+    perplexity: showPerplexityKey,
+    google: showGoogleKey,
+    groq: showGroqKey,
+  };
+  const setApiKeyDraft: Record<ApiKeyProvider, (value: string) => void> = {
+    anthropic: setAnthropicKey,
+    openai: setOpenaiKey,
+    perplexity: setPerplexityKey,
+    google: setGoogleKey,
+    groq: setGroqKey,
+  };
+  const setApiKeyVisibility: Record<ApiKeyProvider, (value: boolean) => void> = {
+    anthropic: setShowAnthropicKey,
+    openai: setShowOpenaiKey,
+    perplexity: setShowPerplexityKey,
+    google: setShowGoogleKey,
+    groq: setShowGroqKey,
+  };
+
+  function maskWebhookSecret(secret: string) {
+    return secret ? `whsec_***${secret.slice(-6)}` : "whsec_***";
+  }
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -664,24 +847,26 @@ function SettingsContent() {
       )}
 
       {/* Tab Bar */}
-      <div className="mb-6 flex items-center gap-0.5 overflow-x-auto rounded-xl bg-muted border border-border p-1 scrollbar-none">
+      <div className="mb-6 flex items-center gap-1 overflow-x-auto rounded-xl bg-muted border border-border p-1 scrollbar-none" role="tablist" aria-label="Settings tabs">
         {settingsTabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-controls={`settings-panel-${tab.id}`}
+            data-testid={`settings-tab-${tab.id}`}
+            onClick={() => handleTabChange(tab.id)}
             className={cn(
-              "flex items-center gap-2 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium rounded-lg transition-all duration-200",
+              "flex items-center gap-2 whitespace-nowrap rounded-lg border px-3.5 py-2.5 text-sm font-medium transition-all duration-200",
               activeTab === tab.id
-                ? "bg-muted text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted",
-              tab.id === "danger" && activeTab === tab.id && "text-muted-foreground",
-              tab.id === "danger" && activeTab !== tab.id && "text-muted-foreground hover:text-muted-foreground"
+                ? "border-kiln-orange bg-card text-foreground font-semibold shadow-sm"
+                : "border-transparent text-muted-foreground hover:border-border hover:bg-card/60 hover:text-foreground"
             )}
           >
             <tab.icon className={cn(
-              "h-4 w-4",
-              activeTab === tab.id && tab.id !== "danger" && "text-muted-foreground",
-              activeTab === tab.id && tab.id === "danger" && "text-muted-foreground",
+              "h-4 w-4 transition-colors",
+              activeTab === tab.id ? "text-kiln-orange" : "text-muted-foreground"
             )} />
             <span className="hidden sm:inline">{tab.label}</span>
           </button>
@@ -690,7 +875,7 @@ function SettingsContent() {
 
       {/* ═══════════════ PROFILE TAB ═══════════════ */}
       {activeTab === "profile" && (
-        <div className="space-y-6">
+        <div id="settings-panel-profile" role="tabpanel" className="space-y-6">
           <div className="rounded-xl border border-border bg-card p-6">
             <h2 className="mb-4 text-lg font-semibold text-foreground">Profile</h2>
             <div className="flex items-center gap-4 mb-6">
@@ -719,20 +904,21 @@ function SettingsContent() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Full Name</label>
-                <div className="rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-sm text-foreground">
+                <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Full Name (managed by Clerk)</label>
+                <div className="cursor-not-allowed rounded-lg border border-border bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
                   {user?.fullName || displayName}
                 </div>
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Email</label>
-                <div className="rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-sm text-foreground">
+                <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Email (managed by Clerk)</label>
+                <div className="cursor-not-allowed rounded-lg border border-border bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
                   {displayEmail}
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Profile information is managed through Clerk. Click your avatar in the sidebar to access account settings.
-              </p>
+              <Button size="sm" variant="outline" onClick={() => openUserProfile()}>
+                Open Clerk Account Settings
+                <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Button>
             </div>
           </div>
         </div>
@@ -740,7 +926,7 @@ function SettingsContent() {
 
       {/* ═══════════════ BILLING TAB ═══════════════ */}
       {activeTab === "billing" && (
-        <div className="space-y-6">
+        <div id="settings-panel-billing" role="tabpanel" className="space-y-6">
           {/* Current Plan */}
           <div className="rounded-xl border border-border bg-card p-6">
             <div className="flex items-center justify-between">
@@ -759,13 +945,25 @@ function SettingsContent() {
                   )}
                 </div>
               </div>
-              {!isAdminUser && currentPlan !== "FREE" && (
-                <Button variant="outline" size="sm" onClick={handleManage}>
-                  <CreditCard className="mr-2 h-3.5 w-3.5" />
-                  Manage Subscription
-                  <ExternalLink className="ml-2 h-3 w-3" />
-                </Button>
-              )}
+              <div className="flex flex-col items-end gap-2 sm:flex-row">
+                {isAdminUser ? (
+                  <span className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground">
+                    You have unlimited access
+                  </span>
+                ) : nextPlan ? (
+                  <Button size="sm" onClick={() => handleUpgrade(nextPlan.id)}>
+                    Upgrade to {nextPlan.name}
+                    <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                  </Button>
+                ) : null}
+                {!isAdminUser && currentPlan !== "FREE" && (
+                  <Button variant="outline" size="sm" onClick={handleManage}>
+                    <CreditCard className="mr-2 h-3.5 w-3.5" />
+                    Manage Subscription
+                    <ExternalLink className="ml-2 h-3 w-3" />
+                  </Button>
+                )}
+              </div>
             </div>
 
             {userPlan && (
@@ -938,7 +1136,11 @@ function SettingsContent() {
               {!creditInfo.isAdmin && creditInfo.balance > 0 && creditInfo.balance / creditInfo.totalCredits > 0.05 && creditInfo.balance / creditInfo.totalCredits <= 0.2 && (
                 <div className="mb-4 flex items-center gap-3 rounded-lg border border-amber-500/20 bg-muted p-3">
                   <AlertTriangle className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <p className="flex-1 text-xs text-muted-foreground">{creditInfo.balance} credits remaining this month.</p>
+                  <p className="flex-1 text-xs text-muted-foreground">Running low on credits: {creditInfo.balance} credits remaining this month.</p>
+                  <Button size="sm" className="h-7 text-xs" onClick={() => purchaseCredits("credits_500")}>
+                    Buy add-on credits
+                    <ArrowRight className="ml-1 h-3 w-3" />
+                  </Button>
                 </div>
               )}
 
@@ -1158,9 +1360,9 @@ function SettingsContent() {
 
       {/* ═══════════════ API KEYS TAB ═══════════════ */}
       {activeTab === "api-keys" && (
-        <div className="space-y-6">
+        <div id="settings-panel-api-keys" role="tabpanel" className="space-y-6">
           {/* BYOK Keys */}
-          {(["PRO", "AGENCY", "ENTERPRISE"].includes(currentPlan) || isAdminUser) ? (
+          {(["PRO", "BUSINESS", "AGENCY", "ENTERPRISE"].includes(currentPlan) || isAdminUser) ? (
             <div className="rounded-xl border border-border bg-card p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
@@ -1184,141 +1386,84 @@ function SettingsContent() {
               {keySuccess && <div className="mb-4 rounded-lg border border-green-500/30 bg-muted px-3 py-2 text-xs text-muted-foreground">{keySuccess}</div>}
 
               <div className="space-y-5">
-                {/* Anthropic Key */}
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-foreground">Anthropic API Key</label>
-                  {apiKeys.find((k) => k.provider === "anthropic") ? (
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm text-muted-foreground">{apiKeys.find((k) => k.provider === "anthropic")?.keyHint}</div>
-                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("anthropic")} disabled={deletingKey === "anthropic"} className="text-muted-foreground hover:bg-muted hover:text-muted-foreground">
-                        {deletingKey === "anthropic" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
-                        Remove
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex-1">
-                        <input type={showAnthropicKey ? "text" : "password"} value={anthropicKey} onChange={(e) => setAnthropicKey(e.target.value)} placeholder="sk-ant-..." className="w-full rounded-lg border border-border bg-card px-3 py-2 pr-10 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
-                        <button type="button" onClick={() => setShowAnthropicKey(!showAnthropicKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                          {showAnthropicKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
+                {PROVIDER_ORDER.map((provider) => {
+                  const meta = API_KEY_PROVIDER_META[provider];
+                  const savedKey = apiKeys.find((k) => k.provider === provider);
+                  const draft = apiKeyDrafts[provider];
+                  const isVisible = apiKeyVisibility[provider];
+
+                  return (
+                    <div key={provider} className="rounded-lg border border-border bg-card/40 p-4">
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <label className="text-sm font-medium text-foreground">{meta.label} API Key</label>
+                        <a
+                          href={meta.docsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={meta.help}
+                          aria-label={`${meta.label} API key help`}
+                          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                          <CircleHelp className="h-4 w-4" />
+                        </a>
                       </div>
-                      <Button size="sm" onClick={() => saveApiKey("anthropic", anthropicKey)} disabled={savingKey === "anthropic" || !anthropicKey.trim()}>
-                        {savingKey === "anthropic" && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                        Save
-                      </Button>
+
+                      {savedKey ? (
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                          <div className="flex min-h-10 flex-1 items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 px-4 py-2.5">
+                            <span className="font-mono text-sm text-muted-foreground">{savedKey.keyHint}</span>
+                            <span className="rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold text-green-600">
+                              Active
+                            </span>
+                          </div>
+                          <Button size="sm" variant="outline" onClick={() => testApiKey(provider)} disabled={testingKey === provider}>
+                            {testingKey === provider ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />}
+                            Test Connection
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => deleteApiKey(provider)}
+                            disabled={deletingKey === provider}
+                            className="border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-700"
+                          >
+                            {deletingKey === provider ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
+                            Clear
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                          <div className="relative flex-1">
+                            <input
+                              type={isVisible ? "text" : "password"}
+                              value={draft}
+                              onChange={(e) => setApiKeyDraft[provider](e.target.value)}
+                              placeholder={meta.placeholder}
+                              className="w-full rounded-lg border border-border bg-card px-3 py-2 pr-10 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setApiKeyVisibility[provider](!isVisible)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                              aria-label={isVisible ? `Hide ${meta.label} key` : `Reveal ${meta.label} key`}
+                            >
+                              {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                          <Button size="sm" variant="outline" onClick={() => testApiKey(provider, draft)} disabled={testingKey === provider || !draft.trim()}>
+                            {testingKey === provider ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />}
+                            Test Connection
+                          </Button>
+                          <Button size="sm" onClick={() => saveApiKey(provider, draft)} disabled={savingKey === provider || !draft.trim()}>
+                            {savingKey === provider && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                            Save
+                          </Button>
+                        </div>
+                      )}
+                      <p className="mt-1.5 text-xs text-muted-foreground">{meta.help}</p>
                     </div>
-                  )}
-                  {apiKeys.find((k) => k.provider === "anthropic") && <p className="mt-1.5 text-xs text-muted-foreground">Using your own Anthropic key — unlimited conversations for Claude models.</p>}
-                </div>
-                {/* OpenAI Key */}
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-foreground">OpenAI API Key</label>
-                  {apiKeys.find((k) => k.provider === "openai") ? (
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm text-muted-foreground">{apiKeys.find((k) => k.provider === "openai")?.keyHint}</div>
-                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("openai")} disabled={deletingKey === "openai"} className="text-muted-foreground hover:bg-muted hover:text-muted-foreground">
-                        {deletingKey === "openai" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
-                        Remove
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex-1">
-                        <input type={showOpenaiKey ? "text" : "password"} value={openaiKey} onChange={(e) => setOpenaiKey(e.target.value)} placeholder="sk-..." className="w-full rounded-lg border border-border bg-card px-3 py-2 pr-10 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
-                        <button type="button" onClick={() => setShowOpenaiKey(!showOpenaiKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                          {showOpenaiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                      <Button size="sm" onClick={() => saveApiKey("openai", openaiKey)} disabled={savingKey === "openai" || !openaiKey.trim()}>
-                        {savingKey === "openai" && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                        Save
-                      </Button>
-                    </div>
-                  )}
-                  {apiKeys.find((k) => k.provider === "openai") && <p className="mt-1.5 text-xs text-muted-foreground">Using your own OpenAI key — unlimited conversations for GPT models.</p>}
-                </div>
-                {/* Perplexity Key */}
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-foreground">Perplexity API Key</label>
-                  {apiKeys.find((k) => k.provider === "perplexity") ? (
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm text-muted-foreground">{apiKeys.find((k) => k.provider === "perplexity")?.keyHint}</div>
-                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("perplexity")} disabled={deletingKey === "perplexity"} className="text-muted-foreground hover:bg-muted hover:text-muted-foreground">
-                        {deletingKey === "perplexity" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
-                        Remove
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex-1">
-                        <input type={showPerplexityKey ? "text" : "password"} value={perplexityKey} onChange={(e) => setPerplexityKey(e.target.value)} placeholder="pplx-..." className="w-full rounded-lg border border-border bg-card px-3 py-2 pr-10 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
-                        <button type="button" onClick={() => setShowPerplexityKey(!showPerplexityKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                          {showPerplexityKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                      <Button size="sm" onClick={() => saveApiKey("perplexity", perplexityKey)} disabled={savingKey === "perplexity" || !perplexityKey.trim()}>
-                        {savingKey === "perplexity" && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                        Save
-                      </Button>
-                    </div>
-                  )}
-                  {apiKeys.find((k) => k.provider === "perplexity") && <p className="mt-1.5 text-xs text-muted-foreground">Using your own Perplexity key — unlimited conversations for Sonar models.</p>}
-                </div>
-                {/* Google AI Key */}
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-foreground">Google AI API Key</label>
-                  {apiKeys.find((k) => k.provider === "google") ? (
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm text-muted-foreground">{apiKeys.find((k) => k.provider === "google")?.keyHint}</div>
-                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("google")} disabled={deletingKey === "google"} className="text-muted-foreground hover:bg-muted hover:text-muted-foreground">
-                        {deletingKey === "google" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
-                        Remove
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex-1">
-                        <input type={showGoogleKey ? "text" : "password"} value={googleKey} onChange={(e) => setGoogleKey(e.target.value)} placeholder="AIza..." className="w-full rounded-lg border border-border bg-card px-3 py-2 pr-10 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
-                        <button type="button" onClick={() => setShowGoogleKey(!showGoogleKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                          {showGoogleKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                      <Button size="sm" onClick={() => saveApiKey("google", googleKey)} disabled={savingKey === "google" || !googleKey.trim()}>
-                        {savingKey === "google" && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                        Save
-                      </Button>
-                    </div>
-                  )}
-                  {apiKeys.find((k) => k.provider === "google") && <p className="mt-1.5 text-xs text-muted-foreground">Using your own Google AI key — unlimited conversations for Gemini models.</p>}
-                </div>
-                {/* Groq Key */}
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-foreground">Groq API Key</label>
-                  {apiKeys.find((k) => k.provider === "groq") ? (
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-sm text-muted-foreground">{apiKeys.find((k) => k.provider === "groq")?.keyHint}</div>
-                      <Button size="sm" variant="outline" onClick={() => deleteApiKey("groq")} disabled={deletingKey === "groq"} className="text-muted-foreground hover:bg-muted hover:text-muted-foreground">
-                        {deletingKey === "groq" ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-1.5 h-3.5 w-3.5" />}
-                        Remove
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex-1">
-                        <input type={showGroqKey ? "text" : "password"} value={groqKey} onChange={(e) => setGroqKey(e.target.value)} placeholder="gsk_..." className="w-full rounded-lg border border-border bg-card px-3 py-2 pr-10 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
-                        <button type="button" onClick={() => setShowGroqKey(!showGroqKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                          {showGroqKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                      <Button size="sm" onClick={() => saveApiKey("groq", groqKey)} disabled={savingKey === "groq" || !groqKey.trim()}>
-                        {savingKey === "groq" && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                        Save
-                      </Button>
-                    </div>
-                  )}
-                  {apiKeys.find((k) => k.provider === "groq") && <p className="mt-1.5 text-xs text-muted-foreground">Using your own Groq key — unlimited conversations for Llama & Mixtral models.</p>}
-                </div>
+                  );
+                })}
               </div>
               <div className="mt-4 rounded-lg border border-dashed border-border bg-card/30 p-3">
                 <p className="text-xs text-muted-foreground">Your keys are encrypted with AES-256-GCM and stored securely. They are only used when your agents process conversations. KILN never stores them in plaintext.</p>
@@ -1329,7 +1474,7 @@ function SettingsContent() {
               <Key className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
               <p className="text-sm font-medium text-foreground">API keys available on Pro and Agency plans</p>
               <p className="mt-1 text-xs text-muted-foreground">Upgrade to bring your own LLM API keys for unlimited conversations.</p>
-              <Button size="sm" className="mt-4" onClick={() => setActiveTab("billing")}>View Plans</Button>
+              <Button size="sm" className="mt-4" onClick={() => handleTabChange("billing")}>View Plans</Button>
             </div>
           )}
 
@@ -1468,8 +1613,8 @@ function SettingsContent() {
 
       {/* ═══════════════ WEBHOOKS TAB ═══════════════ */}
       {activeTab === "webhooks" && (
-        <div className="space-y-6">
-          {(["PRO", "AGENCY", "ENTERPRISE"].includes(currentPlan) || isAdminUser) ? (
+        <div id="settings-panel-webhooks" role="tabpanel" className="space-y-6">
+          {(["PRO", "BUSINESS", "AGENCY", "ENTERPRISE"].includes(currentPlan) || isAdminUser) ? (
             <div className="rounded-xl border border-border bg-card p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
@@ -1493,7 +1638,13 @@ function SettingsContent() {
                   <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Events</label>
                   <div className="flex flex-wrap gap-2">
                     {WEBHOOK_EVENT_OPTIONS.map((opt) => (
-                      <button key={opt.value} type="button" onClick={() => toggleWebhookEvent(opt.value)} className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${webhookEvents.includes(opt.value) ? "border-blue-500/50 bg-muted text-muted-foreground" : "border-border bg-muted/20 text-muted-foreground hover:border-border hover:text-foreground"}`}>
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => toggleWebhookEvent(opt.value)}
+                        title={WEBHOOK_EVENT_DESCRIPTIONS[opt.value]}
+                        className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${webhookEvents.includes(opt.value) ? "border-kiln-orange/60 bg-kiln-orange/10 text-foreground" : "border-border bg-muted/20 text-muted-foreground hover:border-border hover:text-foreground"}`}
+                      >
                         {opt.label}
                       </button>
                     ))}
@@ -1519,14 +1670,15 @@ function SettingsContent() {
                             <p className="truncate text-sm font-medium text-foreground font-mono">{wh.url}</p>
                             <div className="flex flex-wrap gap-1 mt-1">
                               {(wh.events as string[]).map((ev) => (
-                                <span key={ev} className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{ev}</span>
+                                <span key={ev} title={WEBHOOK_EVENT_DESCRIPTIONS[ev] || ev} className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{ev}</span>
                               ))}
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0 ml-3">
-                          <Button size="sm" variant="ghost" onClick={() => testWebhook(wh.id)} disabled={testingWebhook === wh.id} title="Send test event">
-                            {testingWebhook === wh.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                          <Button size="sm" variant="outline" onClick={() => testWebhook(wh.id)} disabled={testingWebhook === wh.id} title="Send test event">
+                            {testingWebhook === wh.id ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />}
+                            Send test event
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => setExpandedWebhook(expandedWebhook === wh.id ? null : wh.id)} title="Show details">
                             {expandedWebhook === wh.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -1541,12 +1693,31 @@ function SettingsContent() {
                           <div>
                             <label className="mb-1 block text-xs font-medium text-muted-foreground">Signing Secret</label>
                             <div className="flex items-center gap-2">
-                              <code className="flex-1 rounded-lg border border-border bg-card px-3 py-1.5 font-mono text-xs text-foreground break-all">{wh.secret}</code>
+                              <code className="flex-1 rounded-lg border border-border bg-card px-3 py-1.5 font-mono text-xs text-foreground break-all">
+                                {revealedWebhookSecrets.includes(wh.id) ? wh.secret : maskWebhookSecret(wh.secret)}
+                              </code>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setRevealedWebhookSecrets((prev) => prev.includes(wh.id) ? prev.filter((id) => id !== wh.id) : [...prev, wh.id])}
+                                title={revealedWebhookSecrets.includes(wh.id) ? "Hide signing secret" : "Reveal signing secret"}
+                              >
+                                {revealedWebhookSecrets.includes(wh.id) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                              </Button>
                               <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(wh.secret); setSecretCopied(wh.id); setTimeout(() => setSecretCopied(null), 2000); }}>
                                 {secretCopied === wh.id ? <Check className="h-3 w-3 text-muted-foreground" /> : <Copy className="h-3 w-3" />}
                               </Button>
+                              <Button size="sm" variant="outline" onClick={() => regenerateWebhookSecret(wh.id)}>
+                                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                                Regenerate
+                              </Button>
                             </div>
                           </div>
+                          {webhookTestResults[wh.id] && (
+                            <div className="rounded-lg border border-border bg-card/50 px-3 py-2 text-xs text-muted-foreground">
+                              {webhookTestResults[wh.id]}
+                            </div>
+                          )}
                           <div>
                             <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Recent Deliveries</label>
                             {wh.deliveries.length > 0 ? (
@@ -1586,7 +1757,7 @@ function SettingsContent() {
               <Webhook className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
               <p className="text-sm font-medium text-foreground">Webhooks available on Pro and Agency plans</p>
               <p className="mt-1 text-xs text-muted-foreground">Upgrade to receive HTTP notifications when events occur.</p>
-              <Button size="sm" className="mt-4" onClick={() => setActiveTab("billing")}>View Plans</Button>
+              <Button size="sm" className="mt-4" onClick={() => handleTabChange("billing")}>View Plans</Button>
             </div>
           )}
         </div>
@@ -1594,7 +1765,7 @@ function SettingsContent() {
 
       {/* ═══════════════ REFERRAL TAB ═══════════════ */}
       {activeTab === "referral" && (
-        <div className="space-y-6">
+        <div id="settings-panel-referral" role="tabpanel" className="space-y-6">
           {referralCode ? (
             <div className="rounded-xl border border-border bg-card p-6">
               <div className="flex items-center gap-3 mb-4">
@@ -1622,11 +1793,32 @@ function SettingsContent() {
                   <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Share Link</label>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 truncate rounded-lg border border-border bg-muted/30 px-4 py-2.5 font-mono text-xs text-muted-foreground">
-                      {typeof window !== "undefined" ? `${window.location.origin}/sign-up?ref=${referralCode}` : `/sign-up?ref=${referralCode}`}
+                      {referralLink}
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => { const link = `${window.location.origin}/sign-up?ref=${referralCode}`; navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
+                    <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(referralLink); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
                       {copied ? <Check className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
                       {copied ? "Copied" : "Copy"}
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Share via</label>
+                  <div className="flex flex-wrap gap-2">
+                    <a href={`mailto:?subject=${encodeURIComponent("Try KILN")}&body=${encodeURIComponent(referralShareText)}`} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted">
+                      <Mail className="h-3.5 w-3.5" />
+                      Email
+                    </a>
+                    <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(referralShareText)}`} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted">
+                      <Twitter className="h-3.5 w-3.5" />
+                      X
+                    </a>
+                    <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralLink)}`} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted">
+                      <Linkedin className="h-3.5 w-3.5" />
+                      LinkedIn
+                    </a>
+                    <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(referralShareText); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
+                      <Share2 className="mr-1.5 h-3.5 w-3.5" />
+                      Copy as Text
                     </Button>
                   </div>
                 </div>
@@ -1639,6 +1831,7 @@ function SettingsContent() {
                     <span className="text-xs text-muted-foreground">Users Referred</span>
                   </div>
                   <p className="mt-1 text-2xl font-bold text-foreground">{referredUsers}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{pendingReferrals} pending, {convertedReferrals} converted</p>
                 </div>
                 <div className="rounded-lg border border-border bg-muted/20 p-4">
                   <div className="flex items-center gap-2">
@@ -1664,7 +1857,7 @@ function SettingsContent() {
 
       {/* ═══════════════ MY TEMPLATES TAB ═══════════════ */}
       {activeTab === "templates" && (
-        <div className="space-y-6">
+        <div id="settings-panel-templates" role="tabpanel" className="space-y-6">
           <div>
             <h2 className="text-lg font-semibold text-foreground">My Templates</h2>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -1683,6 +1876,12 @@ function SettingsContent() {
               <p className="mt-1 text-xs text-muted-foreground">
                 Publish an agent from the agent detail page to share it on the marketplace.
               </p>
+              <Link href="/dashboard/agents">
+                <Button size="sm" className="mt-4">
+                  Browse Agents
+                  <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              </Link>
             </div>
           ) : (
             <div className="space-y-3">
@@ -1753,9 +1952,85 @@ function SettingsContent() {
         </div>
       )}
 
+      {/* ═══════════════ ORGANIZATION TAB ═══════════════ */}
+      {activeTab === "organization" && (
+        <div id="settings-panel-organization" role="tabpanel" className="space-y-6">
+          {!organizationLoaded ? (
+            <div className="rounded-xl border border-border bg-card p-6">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="mt-4 h-64 w-full rounded-lg" />
+            </div>
+          ) : !organization ? (
+            <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
+              <Building2 className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+              <p className="text-sm font-medium text-foreground">No organization selected</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Pick an organization from the switcher in the sidebar, or create a new one.
+              </p>
+              <Link href="/onboarding/create-organization">
+                <Button size="sm" className="mt-4">
+                  Create Organization
+                  <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="rounded-xl border border-border bg-card p-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                    <Building2 className="h-5 w-5 text-kiln-orange" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">{organization.name}</h2>
+                    <p className="text-xs text-muted-foreground">Manage members, roles, invitations, and the organization profile.</p>
+                  </div>
+                </div>
+              </div>
+
+              {!organizationIsAdmin && (
+                <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+                  <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                  <div className="text-xs text-muted-foreground">
+                    <p className="font-medium text-foreground">Read-only view</p>
+                    <p className="mt-0.5">
+                      Only organization admins can edit profile details, manage members, or invite new people.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <OrganizationProfile routing="hash" appearance={organizationProfileAppearance} />
+
+              <div className="rounded-lg border border-border bg-card/50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Organization ID</p>
+                <p className="mt-1 font-mono text-xs text-foreground">{organization.id}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Use this ID when configuring API integrations or referencing the organization in support requests.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* ═══════════════ DANGER ZONE TAB ═══════════════ */}
       {activeTab === "danger" && (
-        <div className="space-y-6">
+        <div id="settings-panel-danger" role="tabpanel" className="space-y-6">
+          <div className="rounded-xl border border-border bg-card p-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Export Account Data</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Request a portable account export for compliance or backup.
+                </p>
+              </div>
+              <Button variant="outline" onClick={() => toast("Account data export is coming soon.", "info")}>
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                Export Data
+              </Button>
+            </div>
+          </div>
           <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-6">
             <div className="flex items-center justify-between">
               <div>
