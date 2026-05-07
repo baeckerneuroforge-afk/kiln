@@ -58,6 +58,9 @@ const isPublicRoute = createRouteMatcher([
   "/a2a/directory",          // Public A2A Agent Directory
   "/api/a2a/(.*)",           // A2A Protocol (eigene Key-Auth)
   "/landing-v2",             // Landing V2 Preview
+  "/legacy",                 // Legacy landing-page backup
+  "/agencies",               // For-agencies marketing page
+  "/features/(.*)",          // Public feature deep-dive pages
   "/developers",             // Developer Docs
   "/docs",               // Public API Documentation
   "/changelog",          // Public Changelog

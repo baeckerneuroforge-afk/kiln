@@ -12,9 +12,10 @@ import { ArrowRight, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { label: "Features", href: "#features" },
-  { label: "Pricing", href: "#pricing" },
+  { label: "Features", href: "/#features" },
+  { label: "Pricing", href: "/#pricing" },
   { label: "For Agencies", href: "/agencies" },
+  { label: "Services", href: "/services" },
   { label: "Docs", href: "/docs" },
 ];
 
