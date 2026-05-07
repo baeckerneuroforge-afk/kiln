@@ -1,4 +1,5 @@
 /**
+ * GET    /api/agency/sub-orgs/[id] — fetch single sub-org metadata.
  * DELETE /api/agency/sub-orgs/[id] — archive a sub-org.
  *
  * "Archive" rather than hard-delete: the relationship row stays, marked
@@ -10,41 +11,42 @@
  * sub-org. Cross-agency access is rejected as 404 to avoid leaking
  * sub-org existence.
  */
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { requireSubOrgAccess } from "@/lib/agency/sub-org-auth";
 
 export const dynamic = "force-dynamic";
 
-function unauthorized() {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET(
+  _request: Request,
+  { params }: { params: { id: string } },
+) {
+  const access = await requireSubOrgAccess(params.id);
+  if (!access.ok) return access.response;
+  const r = access.relationship;
+  return Response.json({
+    id: r.id,
+    childOrgId: r.childOrgId,
+    name: r.subOrgName,
+    status: r.subOrgStatus,
+    createdAt: r.createdAt.toISOString(),
+    pricingMode: r.pricingMode,
+    monthlyPriceCents: r.monthlyPriceCents,
+    setupFeeCents: r.setupFeeCents,
+    pricingCurrency: r.pricingCurrency,
+  });
 }
 
 export async function DELETE(
   _request: Request,
   { params }: { params: { id: string } }
 ) {
-  const { userId, orgId: agencyOrgId } = await auth();
-  if (!userId) return unauthorized();
-  if (!agencyOrgId) {
-    return Response.json(
-      { error: "No active organization. Switch to your agency org first." },
-      { status: 400 }
-    );
-  }
-
-  const relationship = await prisma.orgRelationship.findFirst({
-    where: { id: params.id, parentOrgId: agencyOrgId },
-  });
-  if (!relationship) {
-    // Either the row doesn't exist or it belongs to a different agency.
-    // Either way: 404 to avoid existence leak.
-    return Response.json({ error: "Sub-org not found" }, { status: 404 });
-  }
+  const access = await requireSubOrgAccess(params.id);
+  if (!access.ok) return access.response;
 
   await prisma.orgRelationship.update({
-    where: { id: relationship.id },
+    where: { id: access.relationship.id },
     data: { subOrgStatus: "ARCHIVED" },
   });
 
-  return Response.json({ archived: true, id: relationship.id });
+  return Response.json({ archived: true, id: access.relationship.id });
 }
