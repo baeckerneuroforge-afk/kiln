@@ -6,8 +6,10 @@
  * for built-in keyboard accessibility and gracefully-degrading
  * behavior when JS is disabled.
  */
+import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { AnimatedSection } from "./animated-section";
 
 const FAQS: { q: string; a: React.ReactNode }[] = [
@@ -141,37 +143,106 @@ export function FaqSection() {
 
         <div className="mt-12 space-y-2" data-testid="faq-accordion">
           {FAQS.map((item, i) => (
-            <details
-              key={i}
-              data-testid={`faq-item-${i}`}
-              className="group rounded-xl border border-border bg-card transition-all duration-200 hover:border-foreground/20 open:border-l-2 open:border-l-kiln-orange open:border-kiln-orange/40 open:bg-kiln-orange/[0.03] open:shadow-md"
-            >
-              <summary className="flex cursor-pointer items-center justify-between gap-3 px-6 py-5 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
-                <span>{item.q}</span>
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted/50 transition-all duration-300 group-open:bg-kiln-orange/15 group-open:rotate-180">
-                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground group-open:text-kiln-orange" />
-                </span>
-              </summary>
-              <div className="px-6 pb-5 text-sm leading-relaxed text-muted-foreground animate-kiln-faq-reveal">
-                {item.a}
-              </div>
-            </details>
+            <FaqItem key={i} idx={i} q={item.q} a={item.a} />
           ))}
         </div>
       </div>
 
       <style jsx>{`
-        @keyframes kiln-faq-reveal {
-          from { opacity: 0; transform: translateY(-4px); }
-          to { opacity: 1; transform: translateY(0); }
+        /* True grid-rows height animation. Closed = 0fr, open = 1fr —
+           the inner div with overflow:hidden clips while the row
+           interpolates. This works for any content height without
+           JS measuring scrollHeight. */
+        :global(.kiln-faq-grid) {
+          display: grid;
+          grid-template-rows: 0fr;
+          transition: grid-template-rows 280ms ease-out, opacity 220ms ease-out;
+          opacity: 0;
         }
-        :global(.animate-kiln-faq-reveal) {
-          animation: kiln-faq-reveal 240ms ease-out;
+        :global(.kiln-faq-grid[data-open="true"]) {
+          grid-template-rows: 1fr;
+          opacity: 1;
+        }
+        :global(.kiln-faq-grid > .kiln-faq-grid-inner) {
+          overflow: hidden;
         }
         @media (prefers-reduced-motion: reduce) {
-          :global(.animate-kiln-faq-reveal) { animation: none; }
+          :global(.kiln-faq-grid) {
+            transition: none;
+          }
         }
       `}</style>
     </AnimatedSection>
+  );
+}
+
+/**
+ * Single FAQ item — React-controlled (not <details>) so the
+ * grid-rows height animation has a stable open/closed state to
+ * interpolate against.
+ *
+ * Click on the summary toggles open/close. Pressing Enter / Space
+ * also toggles, matching native button semantics.
+ */
+function FaqItem({
+  idx,
+  q,
+  a,
+}: {
+  idx: number;
+  q: string;
+  a: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const id = `faq-panel-${idx}`;
+
+  return (
+    <div
+      data-testid={`faq-item-${idx}`}
+      data-open={open}
+      className={cn(
+        "group rounded-xl border bg-card transition-[border-color,background-color,box-shadow] duration-200",
+        open
+          ? "border-l-2 border-l-kiln-orange border-kiln-orange/40 bg-kiln-orange/[0.03] shadow-md"
+          : "border-border hover:border-foreground/20",
+      )}
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full cursor-pointer items-center justify-between gap-3 px-6 py-5 text-left text-sm font-medium text-foreground"
+      >
+        <span>{q}</span>
+        <span
+          className={cn(
+            "flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-all duration-300",
+            open
+              ? "bg-kiln-orange/15 rotate-180"
+              : "bg-muted/50",
+          )}
+        >
+          <ChevronDown
+            className={cn(
+              "h-3.5 w-3.5",
+              open ? "text-kiln-orange" : "text-muted-foreground",
+            )}
+          />
+        </span>
+      </button>
+      <div
+        id={id}
+        role="region"
+        data-open={open}
+        className="kiln-faq-grid"
+      >
+        <div className="kiln-faq-grid-inner">
+          <div className="px-6 pb-5 text-sm leading-relaxed text-muted-foreground">
+            {a}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
