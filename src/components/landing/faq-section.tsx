@@ -8,6 +8,7 @@
  */
 import { ChevronDown } from "lucide-react";
 import Link from "next/link";
+import { AnimatedSection } from "./animated-section";
 
 const FAQS: { q: string; a: React.ReactNode }[] = [
   {
@@ -114,7 +115,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
 
 export function FaqSection() {
   return (
-    <section
+    <AnimatedSection
       id="faq"
       aria-label="Frequently asked questions"
       className="py-20 sm:py-28"
@@ -124,29 +125,53 @@ export function FaqSection() {
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
             FAQ
           </p>
-          <h2 className="mt-3 font-serif text-3xl tracking-tight text-foreground sm:text-4xl">
+          <h2 className="mt-3 font-serif text-3xl tracking-tight text-foreground sm:text-4xl lg:text-5xl">
             Questions agencies ask
           </h2>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Don&apos;t see your question?{" "}
+            <a
+              href="mailto:andre@hephaistos-systems.de?subject=KILN%20Question"
+              className="font-medium text-kiln-orange transition-colors hover:underline"
+            >
+              Ask the founder →
+            </a>
+          </p>
         </div>
 
-        <div className="mt-10 space-y-2" data-testid="faq-accordion">
+        <div className="mt-12 space-y-2" data-testid="faq-accordion">
           {FAQS.map((item, i) => (
             <details
               key={i}
               data-testid={`faq-item-${i}`}
-              className="group rounded-xl border border-border bg-card transition-colors hover:border-foreground/20 open:border-kiln-orange/40 open:bg-kiln-orange/[0.02]"
+              className="group rounded-xl border border-border bg-card transition-all duration-200 hover:border-foreground/20 open:border-l-2 open:border-l-kiln-orange open:border-kiln-orange/40 open:bg-kiln-orange/[0.03] open:shadow-md"
             >
-              <summary className="flex cursor-pointer items-center justify-between gap-3 px-5 py-4 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
+              <summary className="flex cursor-pointer items-center justify-between gap-3 px-6 py-5 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
                 <span>{item.q}</span>
-                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180 group-open:text-kiln-orange" />
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted/50 transition-all duration-300 group-open:bg-kiln-orange/15 group-open:rotate-180">
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground group-open:text-kiln-orange" />
+                </span>
               </summary>
-              <div className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">
+              <div className="px-6 pb-5 text-sm leading-relaxed text-muted-foreground animate-kiln-faq-reveal">
                 {item.a}
               </div>
             </details>
           ))}
         </div>
       </div>
-    </section>
+
+      <style jsx>{`
+        @keyframes kiln-faq-reveal {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        :global(.animate-kiln-faq-reveal) {
+          animation: kiln-faq-reveal 240ms ease-out;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          :global(.animate-kiln-faq-reveal) { animation: none; }
+        }
+      `}</style>
+    </AnimatedSection>
   );
 }
