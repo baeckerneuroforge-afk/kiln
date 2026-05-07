@@ -8,6 +8,7 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AnimatedSection } from "./animated-section";
 
 interface Tier {
   name: string;
@@ -90,17 +91,17 @@ const TIERS: Tier[] = [
 
 export function PricingSection() {
   return (
-    <section
+    <AnimatedSection
       id="pricing"
       aria-label="Pricing"
-      className="border-y border-border/40 bg-card/30 py-20 sm:py-28"
+      className="relative isolate border-y border-border/40 bg-card/30 py-20 sm:py-28"
     >
       <div className="mx-auto max-w-6xl px-6">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-kiln-orange">
             Pricing
           </p>
-          <h2 className="mt-3 font-serif text-3xl tracking-tight text-foreground sm:text-4xl">
+          <h2 className="mt-3 font-serif text-3xl tracking-tight text-foreground sm:text-4xl lg:text-5xl">
             Simple pricing. No surprises.
           </h2>
           <p className="mt-4 text-base text-muted-foreground">
@@ -110,23 +111,30 @@ export function PricingSection() {
         </div>
 
         <div
-          className="mx-auto mt-12 grid max-w-6xl gap-4 lg:grid-cols-4"
+          className="mx-auto mt-14 grid max-w-6xl gap-4 lg:grid-cols-4"
           data-testid="pricing-grid"
         >
-          {TIERS.map((tier) => (
+          {TIERS.map((tier, idx) => (
             <div
               key={tier.name}
               data-tier={tier.name.toLowerCase()}
               data-highlight={tier.highlight ? "true" : "false"}
+              style={{
+                animationDelay: `${idx * 80}ms`,
+              }}
               className={cn(
-                "relative flex flex-col rounded-2xl border bg-card p-6 transition-colors",
+                "kiln-pricing-card relative flex flex-col rounded-2xl border bg-card p-6",
+                "transition-all duration-300 ease-out",
                 tier.highlight
-                  ? "border-kiln-orange/60 shadow-xl shadow-kiln-orange/5"
-                  : "border-border hover:border-foreground/20",
+                  ? "lg:-translate-y-2 border-2 border-kiln-orange/60 bg-kiln-orange/[0.04] shadow-xl shadow-kiln-orange/10 hover:border-kiln-orange/80 hover:shadow-2xl hover:shadow-kiln-orange/20"
+                  : "border-border hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-lg",
               )}
             >
               {tier.highlight && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center rounded-full bg-kiln-orange px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-white shadow-md">
+                <span
+                  className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center rounded-full bg-kiln-orange px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-white shadow-md kiln-pricing-badge-pulse"
+                  data-testid="pricing-badge-popular"
+                >
                   Most Popular for Agencies
                 </span>
               )}
@@ -162,9 +170,9 @@ export function PricingSection() {
               <Link
                 href={tier.href}
                 className={cn(
-                  "mt-6 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors",
+                  "mt-6 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200",
                   tier.highlight
-                    ? "bg-kiln-orange text-white shadow shadow-kiln-orange/20 hover:bg-kiln-orange/90"
+                    ? "bg-kiln-orange text-white shadow shadow-kiln-orange/20 hover:bg-kiln-orange/90 hover:shadow-lg hover:shadow-kiln-orange/40"
                     : "border border-border bg-card text-foreground hover:bg-muted",
                 )}
               >
@@ -178,12 +186,35 @@ export function PricingSection() {
           Need a custom setup or done-for-you service?{" "}
           <Link
             href="/services"
-            className="font-medium text-kiln-orange hover:underline"
+            className="font-medium text-kiln-orange transition-colors hover:underline"
           >
             Talk to us →
           </Link>
         </p>
       </div>
-    </section>
+
+      <style jsx>{`
+        @keyframes kiln-pricing-fade-in {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes kiln-pricing-badge-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(249,115,22,0.5); }
+          50% { box-shadow: 0 0 0 6px rgba(249,115,22,0); }
+        }
+        :global(.kiln-pricing-card) {
+          animation: kiln-pricing-fade-in 600ms ease-out both;
+        }
+        :global(.kiln-pricing-badge-pulse) {
+          animation: kiln-pricing-badge-pulse 2.4s ease-in-out infinite;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          :global(.kiln-pricing-card),
+          :global(.kiln-pricing-badge-pulse) {
+            animation: none !important;
+          }
+        }
+      `}</style>
+    </AnimatedSection>
   );
 }
