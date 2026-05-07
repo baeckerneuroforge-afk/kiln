@@ -20,9 +20,11 @@ describe("Landing sections render without crashing", () => {
   it("hero renders pre-headline, headline, and both CTAs", () => {
     render(<HeroSection />);
     expect(
-      screen.getByText(/the agency-first ai platform/i),
+      screen.getByText(/phase b: agency-first ai infrastructure/i),
     ).toBeInTheDocument();
-    expect(screen.getByText(/build ai agents once/i)).toBeInTheDocument();
+    // Headline reveals word-by-word, so we test for individual words
+    expect(screen.getByText(/^Build$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Deploy$/)).toBeInTheDocument();
     expect(screen.getByTestId("hero-cta-primary")).toHaveAttribute(
       "href",
       "/sign-up",
@@ -54,15 +56,12 @@ describe("Landing sections render without crashing", () => {
     expect(screen.getByText(/build agents in kiln/i)).toBeInTheDocument();
   });
 
-  it("features section renders six features and marks the agency USP", () => {
+  it("features section renders the four Tier 1 killer cards", () => {
     render(<FeaturesSection />);
     expect(screen.getByText("Multi-Agent Workflows")).toBeInTheDocument();
     expect(screen.getByText("White-Label Sub-Orgs")).toBeInTheDocument();
     expect(screen.getByText("Multi-Channel Deployment")).toBeInTheDocument();
-    expect(screen.getByText("Self-Learning Knowledge Base")).toBeInTheDocument();
-    expect(screen.getByText("Bring Your Own Keys (BYOK)")).toBeInTheDocument();
-    expect(screen.getByText("MCP + A2A Protocol")).toBeInTheDocument();
-    expect(screen.getByText(/agency usp/i)).toBeInTheDocument();
+    expect(screen.getByText("BYOK + MCP + A2A")).toBeInTheDocument();
   });
 
   it("founder section uses text-only voice (no images)", () => {
