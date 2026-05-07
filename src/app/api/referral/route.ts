@@ -2,9 +2,9 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 
-// Generiert einen eindeutigen Referral-Code: KILN-XXXX
+// Generate a unique referral code: KILN-XXXX.
 function generateReferralCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Ohne I/O/0/1 für Lesbarkeit
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
   const bytes = crypto.randomBytes(4);
   for (let i = 0; i < 4; i++) {
@@ -13,7 +13,7 @@ function generateReferralCode(): string {
   return `KILN-${code}`;
 }
 
-// GET: Lade Referral-Daten des Users
+// GET: Load the user's referral data.
 export async function GET() {
   try {
     const { userId } = await auth();
@@ -21,16 +21,13 @@ export async function GET() {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // User laden oder erstellen
     let user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Referral-Code generieren falls noch keiner existiert
     if (!user.referralCode) {
       let code = generateReferralCode();
-      // Kollisions-Check
       let attempts = 0;
       while (attempts < 5) {
         const existing = await prisma.user.findUnique({ where: { referralCode: code } });
@@ -44,10 +41,13 @@ export async function GET() {
       });
     }
 
-    // Referral-Statistiken
     const referredUsers = await prisma.user.count({
       where: { referredBy: userId },
     });
+    const convertedUsers = await prisma.user.count({
+      where: { referredBy: userId, plan: { not: "FREE" } },
+    });
+    const pendingUsers = Math.max(referredUsers - convertedUsers, 0);
 
     const credits = await prisma.referralCredit.findMany({
       where: { userId },
@@ -59,6 +59,8 @@ export async function GET() {
     return Response.json({
       referralCode: user.referralCode,
       referredUsers,
+      pendingUsers,
+      convertedUsers,
       creditsEarned,
       credits,
     });
@@ -68,7 +70,7 @@ export async function GET() {
   }
 }
 
-// POST: Referral-Code anwenden (nach Sign-up aufgerufen)
+// POST: Apply a referral code after sign-up.
 export async function POST(request: Request) {
   try {
     const { userId } = await auth();
@@ -83,29 +85,24 @@ export async function POST(request: Request) {
 
     const code = referralCode.trim().toUpperCase();
 
-    // User laden
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Bereits referred?
     if (user.referredBy) {
       return Response.json({ error: "Already referred" }, { status: 400 });
     }
 
-    // Referrer finden
     const referrer = await prisma.user.findUnique({ where: { referralCode: code } });
     if (!referrer) {
       return Response.json({ error: "Invalid referral code" }, { status: 404 });
     }
 
-    // Sich selbst referren verhindern
     if (referrer.id === userId) {
       return Response.json({ error: "Cannot refer yourself" }, { status: 400 });
     }
 
-    // Referral speichern
     await prisma.$transaction([
       prisma.user.update({
         where: { id: userId },
