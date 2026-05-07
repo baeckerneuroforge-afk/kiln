@@ -73,7 +73,7 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
       const data = (await res.json()) as KnowledgeEntry[];
       setEntries(data);
     } catch {
-      // Stille Fehlerbehandlung — nächster Poll versucht erneut
+      // Silent fallback — the next poll will retry
     }
   }, [agentId]);
 
@@ -219,7 +219,7 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "FAQ",
-          title: `FAQ (${validPairs.length} Einträge)`,
+          title: `FAQ (${validPairs.length} ${validPairs.length === 1 ? "entry" : "entries"})`,
           pairs: validPairs,
         }),
       });
@@ -252,10 +252,16 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3">
         <p className="text-sm text-muted-foreground">
           Upload documents so your agent can answer from them.
         </p>
+        <a
+          href="/dashboard/knowledge?tab=bases"
+          className="shrink-0 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+        >
+          ← View all knowledge bases
+        </a>
       </div>
 
       {error && (
@@ -477,7 +483,7 @@ export function KnowledgeTab({ agentId, initialEntries }: KnowledgeTabProps) {
         </div>
       )}
 
-      {/* Bestehende Einträge */}
+      {/* Existing entries */}
       {entries.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-sm font-medium text-foreground">

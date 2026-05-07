@@ -116,7 +116,7 @@ const NAV_SECTIONS: NavSection[] = [
         minAgents: 2,
         tooltipDescription: "Agent-to-agent handoffs (different from workflows)",
       },
-      { name: "Knowledge", href: "/dashboard/knowledge", icon: Waypoints, minAgents: 1 },
+      { name: "Knowledge", href: "/dashboard/knowledge", icon: Waypoints, minAgents: 1, tooltipDescription: "Knowledge bases and graph" },
       { name: "Integrations", href: "/dashboard/integrations", icon: Plug, minAgents: 1, tourId: "integrations" },
     ],
   },
