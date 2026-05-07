@@ -4,7 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { sendTestWebhook } from "@/lib/webhooks";
 import crypto from "crypto";
 
-// GET — Webhooks + letzte Deliveries laden
+function generateWebhookSecret() {
+  return `whsec_${crypto.randomBytes(24).toString("hex")}`;
+}
+
+// GET: Load webhooks with recent deliveries.
 export async function GET() {
   const { userId } = await auth();
   if (!userId) {
@@ -25,14 +29,13 @@ export async function GET() {
   return Response.json(webhooks);
 }
 
-// POST — Neuen Webhook erstellen oder Test senden
+// POST: Create a webhook or send a test event.
 export async function POST(request: NextRequest) {
   const { userId } = await auth();
   if (!userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Plan prüfen
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { plan: true },
@@ -46,7 +49,6 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
 
-  // Test senden
   if (body.action === "test") {
     const { webhookId } = body;
     if (!webhookId) {
@@ -64,7 +66,6 @@ export async function POST(request: NextRequest) {
     return Response.json(result);
   }
 
-  // Webhook erstellen
   const { url, events } = body;
 
   if (!url || !events?.length) {
@@ -74,28 +75,23 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // URL validieren
   try {
     new URL(url);
   } catch {
     return Response.json({ error: "Invalid URL." }, { status: 400 });
   }
 
-  // Max 5 Webhooks
   const count = await prisma.webhookEndpoint.count({ where: { userId } });
   if (count >= 5) {
     return Response.json({ error: "Maximum 5 webhooks per account." }, { status: 400 });
   }
-
-  // Signing Secret generieren
-  const secret = `whsec_${crypto.randomBytes(24).toString("hex")}`;
 
   const webhook = await prisma.webhookEndpoint.create({
     data: {
       userId,
       url,
       events,
-      secret,
+      secret: generateWebhookSecret(),
     },
     include: {
       deliveries: true,
@@ -105,7 +101,7 @@ export async function POST(request: NextRequest) {
   return Response.json(webhook, { status: 201 });
 }
 
-// PATCH — Webhook aktualisieren (toggle active, update events/url)
+// PATCH: Update a webhook or regenerate its signing secret.
 export async function PATCH(request: NextRequest) {
   const { userId } = await auth();
   if (!userId) {
@@ -113,7 +109,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { webhookId, active, url, events } = body;
+  const { webhookId, active, url, events, action } = body;
 
   if (!webhookId) {
     return Response.json({ error: "webhookId is required." }, { status: 400 });
@@ -127,6 +123,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const updateData: Record<string, unknown> = {};
+  if (action === "regenerateSecret") updateData.secret = generateWebhookSecret();
   if (typeof active === "boolean") updateData.active = active;
   if (url) updateData.url = url;
   if (events) updateData.events = events;
@@ -145,7 +142,7 @@ export async function PATCH(request: NextRequest) {
   return Response.json(updated);
 }
 
-// DELETE — Webhook löschen
+// DELETE: Delete a webhook.
 export async function DELETE(request: NextRequest) {
   const { userId } = await auth();
   if (!userId) {
