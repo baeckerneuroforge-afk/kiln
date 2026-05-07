@@ -14,9 +14,11 @@ import {
   HandMetal,
   Send,
   UserCheck,
+  ScrollText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { TabEmptyState } from "./tab-empty-state";
 
 interface LogMessage {
   role: "USER" | "ASSISTANT" | "SYSTEM" | "HUMAN";
@@ -347,9 +349,13 @@ export function LogsTab({ agentId, onAddTestCase }: LogsTabProps) {
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : logs.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border py-12 text-center">
-          <p className="text-sm text-muted-foreground">No conversations match your filters.</p>
-        </div>
+        <TabEmptyState
+          icon={ScrollText}
+          tone="muted"
+          title="No conversation logs yet"
+          description="Conversations and action runs will appear here once your agent starts handling traffic."
+          hint="Try adjusting filters above if you expected results."
+        />
       ) : (
         <div className="rounded-xl border border-border bg-card">
           {/* Table Header */}
@@ -484,7 +490,7 @@ export function LogsTab({ agentId, onAddTestCase }: LogsTabProps) {
                       </div>
                     )}
                     {log.messages.map((msg, i) => {
-                      // Nächste Assistant-Nachricht für "Add as test case"
+                      // Next assistant message used for "Add as test case"
                       const nextAssistant = msg.role === "USER"
                         ? log.messages.slice(i + 1).find((m) => m.role === "ASSISTANT")
                         : null;

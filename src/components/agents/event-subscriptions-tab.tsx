@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Plus, Trash2, Copy, Check, ChevronDown, ChevronRight } from "lucide-react";
+import { Loader2, Plus, Trash2, Copy, Check, ChevronDown, ChevronRight, Webhook } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { TabEmptyState } from "./tab-empty-state";
 
 const ALL_EVENT_TYPES = [
   { value: "conversation.started", label: "Conversation Started" },
@@ -200,9 +201,16 @@ export function EventSubscriptionsTab({ agentId }: EventSubscriptionsTabProps) {
 
       {/* Subscription List */}
       {subscriptions.length === 0 && !showForm && (
-        <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
-          No event subscriptions configured. Add one to receive webhook notifications.
-        </div>
+        <TabEmptyState
+          icon={Webhook}
+          tone="violet"
+          title="No event subscriptions"
+          description="Subscribe to webhooks or platform events. Each delivery is signed with a per-subscription secret you can verify on the receiving end."
+          action={{
+            label: "Add subscription",
+            onClick: () => setShowForm(true),
+          }}
+        />
       )}
 
       {subscriptions.map((sub) => (

@@ -10,6 +10,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TabEmptyState } from "./tab-empty-state";
 
 interface Memory {
   id: string;
@@ -46,7 +47,7 @@ export function MemoryTab({ agentId }: MemoryTabProps) {
         setTotal(data.total);
       }
     } catch {
-      // Stille Fehlerbehandlung
+      // Silent fallback — memory tab is informational; don't block on errors
     } finally {
       setLoading(false);
     }
@@ -65,7 +66,7 @@ export function MemoryTab({ agentId }: MemoryTabProps) {
         body: JSON.stringify({ memoryId }),
       });
       if (res.ok) {
-        // Aus State entfernen
+        // Drop from local state (don't refetch — single delete is cheap to apply)
         setGrouped((prev) =>
           prev
             .map((g) => ({
@@ -77,7 +78,7 @@ export function MemoryTab({ agentId }: MemoryTabProps) {
         setTotal((prev) => prev - 1);
       }
     } catch {
-      // Stille Fehlerbehandlung
+      // Silent fallback
     } finally {
       setDeleting(null);
     }
@@ -113,13 +114,12 @@ export function MemoryTab({ agentId }: MemoryTabProps) {
             Memories are automatically extracted after each conversation with 3+ messages.
           </p>
         </div>
-        <div className="rounded-xl border border-dashed border-border py-12 text-center">
-          <Brain className="mx-auto mb-3 h-8 w-8 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">No memories stored yet.</p>
-          <p className="mt-1 text-xs text-muted-foreground/70">
-            Memories will appear here after conversations with 3+ messages.
-          </p>
-        </div>
+        <TabEmptyState
+          icon={Brain}
+          tone="violet"
+          title="No memory entries yet"
+          description="Your agent will remember user preferences here after conversations with 3 or more messages."
+        />
       </div>
     );
   }

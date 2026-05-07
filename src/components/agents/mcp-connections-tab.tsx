@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { TabEmptyState } from "./tab-empty-state";
 
 interface MCPTool {
   name: string;
@@ -224,13 +225,12 @@ export function MCPConnectionsTab({ agentId, className }: MCPConnectionsTabProps
 
       {/* Connections List */}
       {connections.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border p-8 text-center">
-          <Plug className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" />
-          <p className="text-sm text-muted-foreground">No MCP servers connected</p>
-          <p className="text-xs text-muted-foreground/70 mt-1">
-            Connect an MCP server to give your agent access to external tools
-          </p>
-        </div>
+        <TabEmptyState
+          icon={Plug}
+          tone="blue"
+          title="No MCP connections"
+          description="Connect external tools via the Model Context Protocol — servers expose typed tool definitions your agent can call mid-conversation."
+        />
       ) : (
         <div className="space-y-2">
           {connections.map((conn) => (
