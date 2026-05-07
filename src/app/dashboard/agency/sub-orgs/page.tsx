@@ -15,9 +15,11 @@
  *   - POST   /api/agency/sub-orgs/[id]/invite   invite member by email
  */
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Archive,
   Building2,
+  ChevronRight,
   Loader2,
   LogIn,
   Mail,
@@ -211,41 +213,54 @@ export default function AgencySubOrgsPage() {
             <div
               key={s.id}
               className={cn(
-                "rounded-xl border border-border bg-card p-4",
+                "group rounded-xl border border-border bg-card p-4 transition-colors hover:border-foreground/20",
                 s.status !== "ACTIVE" && "opacity-60"
               )}
             >
               <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-foreground">
-                    {s.name}
-                  </p>
-                  <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                        s.status === "ACTIVE"
-                          ? "bg-green-500/15 text-green-400"
-                          : s.status === "SUSPENDED"
-                            ? "bg-amber-500/15 text-amber-400"
-                            : "bg-muted text-muted-foreground"
-                      )}
-                    >
-                      {s.status}
-                    </span>
-                    <span>{s.agentCount} agents</span>
-                    <span className="font-mono text-[10px]">
-                      {s.childOrgId}
-                    </span>
+                {/* Title block — clickable navigation to detail page.
+                    Quick-action buttons live in their own div outside
+                    the link so clicking them doesn't navigate. */}
+                <Link
+                  href={`/dashboard/agency/sub-orgs/${s.id}`}
+                  className="flex min-w-0 flex-1 items-start gap-2 -m-1 rounded-lg p-1 transition-colors hover:bg-muted/30"
+                  data-testid="sub-org-card-link"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-1 text-sm font-semibold text-foreground group-hover:text-kiln-orange transition-colors">
+                      {s.name}
+                      <ChevronRight className="h-3.5 w-3.5 -ml-0.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-muted-foreground" />
+                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                          s.status === "ACTIVE"
+                            ? "bg-green-500/15 text-green-400"
+                            : s.status === "SUSPENDED"
+                              ? "bg-amber-500/15 text-amber-400"
+                              : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {s.status}
+                      </span>
+                      <span>{s.agentCount} agents</span>
+                      <span className="font-mono text-[10px]">
+                        {s.childOrgId}
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div className="flex gap-1.5">
+                </Link>
+                <div className="flex shrink-0 gap-1.5">
                   {s.status === "ACTIVE" && (
                     <>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleLoginAsClient(s.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleLoginAsClient(s.id);
+                        }}
                         title="Switch into this workspace as a client"
                       >
                         <LogIn className="mr-1 h-3 w-3" />
@@ -254,7 +269,10 @@ export default function AgencySubOrgsPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setInviteOpenFor(s.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setInviteOpenFor(s.id);
+                        }}
                       >
                         <Mail className="mr-1 h-3 w-3" />
                         Invite
@@ -262,7 +280,10 @@ export default function AgencySubOrgsPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleArchive(s.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleArchive(s.id);
+                        }}
                       >
                         <Archive className="mr-1 h-3 w-3" />
                         Archive
