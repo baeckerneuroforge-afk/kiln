@@ -35,7 +35,81 @@ export interface ValidationIssue {
   message: string;
   /** Stable code so callers can dedupe / inspect programmatically. */
   code: string;
+  /**
+   * Optional contextual hint with a help link or short instructions.
+   * Renders inline in the banner: "[How to find →]" expands a tooltip.
+   * Keep `helpText` short (one or two sentences); link to docs for
+   * longer guidance via `helpUrl`.
+   */
+  help?: {
+    label: string;
+    helpText?: string;
+    helpUrl?: string;
+  };
 }
+
+/**
+ * Per-field help so missing-required-field errors come with
+ * immediately-actionable guidance. Keyed by the field name itself —
+ * the same field across different nodes (e.g. spreadsheetId in read
+ * vs write) shares the same hint.
+ */
+const FIELD_HELP: Record<string, { label: string; helpText: string; helpUrl?: string }> = {
+  spreadsheetId: {
+    label: "How to find Spreadsheet ID",
+    helpText:
+      "Open your Google Sheet → copy the URL. The ID is the long string between /d/ and /edit (e.g. 1AbC...XyZ).",
+    helpUrl: "https://developers.google.com/sheets/api/guides/concepts#spreadsheet_id",
+  },
+  databaseId: {
+    label: "How to find Database ID",
+    helpText:
+      "In Notion, open the database as a full page, then copy the URL — the ID is the 32-char string at the end (before any ?v=).",
+    helpUrl: "https://developers.notion.com/reference/database",
+  },
+  baseId: {
+    label: "How to find Base ID",
+    helpText:
+      "In Airtable, go to airtable.com/api → pick your base. The Base ID starts with 'app' and is shown at the top.",
+    helpUrl: "https://airtable.com/developers/web/api/introduction",
+  },
+  channel: {
+    label: "How to pick a channel",
+    helpText:
+      "Use #channel-name (with the hash) or the channel ID. The agent must be a member — invite it with /invite @YourAgent first.",
+  },
+  url: {
+    label: "URL format",
+    helpText:
+      "Use the full https://… URL of the endpoint. For dynamic values, wrap expressions in {{ }} (e.g. https://api.x.com/users/{{ trigger.id }}).",
+  },
+  to: {
+    label: "Recipient format",
+    helpText:
+      "Single email like name@example.com or a comma-separated list. Variables work: {{ lead.email }}.",
+  },
+  approverEmail: {
+    label: "Approver setup",
+    helpText:
+      "Email address that gets the approval link. They don't need a Kiln account — clicks work via the signed token.",
+  },
+  duration: {
+    label: "Duration",
+    helpText: "Numeric value paired with the unit selector (seconds / minutes / hours).",
+  },
+  workflowId: {
+    label: "Sub-workflow",
+    helpText: "Pick a published workflow from this org. Drafts can't be invoked — publish first.",
+  },
+  categories: {
+    label: "Classifier categories",
+    helpText: "Comma-separated list of labels the classifier picks from (e.g. 'spam, support, sales').",
+  },
+  agents: {
+    label: "Voting agents",
+    helpText: "Add at least two agents. Each casts a vote; the ensemble returns the majority answer.",
+  },
+};
 
 export interface ValidationResult {
   errors: ValidationIssue[];
@@ -158,11 +232,16 @@ export function validateWorkflow(
     if (required) {
       const missing = required.filter((field) => fieldEmpty(node.config[field]));
       if (missing.length > 0) {
+        // Attach help for the FIRST missing field — anything more
+        // would clutter the banner row. Operator fixes one, the next
+        // help surfaces on the next validation pass.
+        const help = FIELD_HELP[missing[0]];
         errors.push({
           severity: "error",
           nodeId: node.id,
           message: `${node.label}: missing required field${missing.length > 1 ? "s" : ""} ${missing.join(", ")}.`,
           code: "MISSING_REQUIRED_FIELD",
+          ...(help ? { help } : {}),
         });
       }
     }
