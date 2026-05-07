@@ -40,6 +40,32 @@ export function getPlanTier(plan: string, tier: number = 0): CreditTier {
   return tiers[Math.min(tier, tiers.length - 1)] ?? tiers[0];
 }
 
+function daysInMonth(year: number, monthIndex: number) {
+  return new Date(year, monthIndex + 1, 0).getDate();
+}
+
+export function getNextMonthlyResetDate(anchorDate: Date, now = new Date()): Date {
+  const anchorDay = Math.max(1, anchorDate.getDate());
+  const makeCandidate = (year: number, monthIndex: number) =>
+    new Date(
+      year,
+      monthIndex,
+      Math.min(anchorDay, daysInMonth(year, monthIndex)),
+      0,
+      0,
+      0,
+      0,
+    );
+
+  let candidate = makeCandidate(now.getFullYear(), now.getMonth());
+
+  while (candidate <= now) {
+    candidate = makeCandidate(candidate.getFullYear(), candidate.getMonth() + 1);
+  }
+
+  return candidate;
+}
+
 // ─── Credit Costs by Model ──────────────────────────────────
 export const MODEL_CREDIT_COSTS: Record<string, number> = {
   // 1 credit — fast/cheap
@@ -97,7 +123,7 @@ export async function ensureCreditsReset(userId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return null;
 
-  // Admin: nie Credits zurücksetzen, immer bei 999999 lassen
+  // Admins bypass credit accounting.
   if (isAdmin(userId)) {
     if (user.aiCreditsBalance < 999999) {
       return prisma.user.update({
@@ -112,9 +138,8 @@ export async function ensureCreditsReset(userId: string) {
 
   if (!user.aiCreditsResetDate || now >= user.aiCreditsResetDate) {
     const newBalance = user.aiCreditsMonthly || getPlanCredits(user.plan, user.creditTier);
-
-    // Reset am 1. des nächsten Monats (vermeidet Overflow: Jan 31 + 1 Monat → Mar 3)
-    const nextReset = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
+    const resetAnchor = user.aiCreditsResetDate || user.createdAt || now;
+    const nextReset = getNextMonthlyResetDate(resetAnchor, now);
 
     return prisma.user.update({
       where: { id: userId },
