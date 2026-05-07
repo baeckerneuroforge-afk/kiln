@@ -33,7 +33,6 @@ import {
   LogIn,
   Mail,
   Palette,
-  Settings,
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
