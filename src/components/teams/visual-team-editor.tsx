@@ -7,7 +7,6 @@ import {
   Background,
   BackgroundVariant,
   MiniMap,
-  Controls,
   Handle,
   Position,
   NodeProps,
@@ -84,11 +83,9 @@ import {
   Maximize2,
   ZoomIn,
   ZoomOut,
-  EyeOff,
   Trash2,
   StickyNote,
   Power,
-  ClipboardPaste,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";

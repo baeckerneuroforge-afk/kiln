@@ -90,8 +90,6 @@ import {
   type EnsembleStrategy,
 } from "@/lib/workflow-ensemble";
 import {
-  buildScopedMemoryWhere,
-  formatMemoryPrompt,
   normalizeWorkflowMemoryScope,
 } from "@/lib/workflow-memory-scope";
 
