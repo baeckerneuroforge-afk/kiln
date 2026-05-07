@@ -87,10 +87,10 @@ describe("Pricing section — animated badge + highlight", () => {
 describe("FAQ accordion", () => {
   it("starts closed and opens on click", () => {
     render(<FaqSection />);
-    const first = screen.getByTestId("faq-item-0") as HTMLDetailsElement;
-    expect(first.open).toBe(false);
-    fireEvent.click(first.querySelector("summary")!);
-    expect(first.open).toBe(true);
+    const first = screen.getByTestId("faq-item-0");
+    expect(first.getAttribute("data-open")).toBe("false");
+    fireEvent.click(first.querySelector("button")!);
+    expect(first.getAttribute("data-open")).toBe("true");
   });
 
   it("links the founder mailto in the helper line", () => {

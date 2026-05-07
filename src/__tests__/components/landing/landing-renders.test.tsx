@@ -77,7 +77,7 @@ describe("Landing sections render without crashing", () => {
   it("faq section renders all 9 questions", () => {
     render(<FaqSection />);
     expect(screen.getByText(/is my client data secure/i)).toBeInTheDocument();
-    expect(screen.getAllByRole("group")).toHaveLength(9); // <details> = group
+    expect(screen.getAllByTestId(/^faq-item-\d+$/)).toHaveLength(9);
   });
 
   it("final CTA mirrors hero copy and offers Start Free + founder mailto", () => {
