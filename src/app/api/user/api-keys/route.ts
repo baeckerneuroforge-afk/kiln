@@ -3,12 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { encrypt, decrypt } from "@/lib/encryption";
 import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
 import { orgScopeFilter } from "@/lib/auth/org-scope";
+import { formatMaskedApiKey } from "@/lib/api-key-testing";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-// GET: Gespeicherte API Keys laden (maskiert)
+// GET: Load saved API keys, masked.
 export async function GET() {
   try {
     let scope;
@@ -23,19 +24,19 @@ export async function GET() {
       where: orgScopeFilter(scope),
     });
 
-    // Keys maskiert zurückgeben — nur letzte 4 Zeichen sichtbar
+    // Return provider-aware masks with only the last 4 characters visible.
     const masked = keys.map((k) => {
-      let lastFour = "";
+      let keyHint = "********";
       try {
         const decrypted = decrypt(k.encryptedKey);
-        lastFour = decrypted.slice(-4);
+        keyHint = formatMaskedApiKey(k.provider, decrypted);
       } catch {
-        lastFour = "****";
+        keyHint = formatMaskedApiKey(k.provider, "****");
       }
       return {
         id: k.id,
         provider: k.provider,
-        keyHint: `••••••••${lastFour}`,
+        keyHint,
         updatedAt: k.updatedAt,
       };
     });
@@ -47,7 +48,7 @@ export async function GET() {
   }
 }
 
-// POST: API Key speichern oder aktualisieren
+// POST: Save or update an API key.
 export async function POST(request: NextRequest) {
   try {
     let scope;
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
     const { userId, orgId } = scope;
 
-    // Nur Pro/Agency/Admin dürfen Keys speichern
+    // BYOK is available on paid plans.
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || (user.plan === "FREE")) {
       return Response.json({ error: "BYOK is available for Pro, Agency, and Admin plans" }, { status: 403 });
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: `Invalid provider. Use one of: ${validProviders.join(", ")}` }, { status: 400 });
     }
 
-    // Basis-Validierung der Key-Formate
+    // Basic key format validation.
     const prefixMap: Record<string, { prefix: string; label: string }> = {
       anthropic: { prefix: "sk-ant-", label: "Anthropic" },
       openai: { prefix: "sk-", label: "OpenAI" },
@@ -104,7 +105,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE: API Key löschen
+// DELETE: Delete an API key.
 export async function DELETE(request: NextRequest) {
   try {
     let scope;
