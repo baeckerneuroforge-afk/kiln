@@ -48,12 +48,14 @@ describe("Landing sections render without crashing", () => {
     ).toBeInTheDocument();
   });
 
-  it("solution section renders all three steps", () => {
+  it("solution section renders all three numbered steps", () => {
     render(<SolutionSection />);
-    expect(screen.getByText(/step 01/i)).toBeInTheDocument();
-    expect(screen.getByText(/step 02/i)).toBeInTheDocument();
-    expect(screen.getByText(/step 03/i)).toBeInTheDocument();
-    expect(screen.getByText(/build agents in kiln/i)).toBeInTheDocument();
+    expect(screen.getByText("01")).toBeInTheDocument();
+    expect(screen.getByText("02")).toBeInTheDocument();
+    expect(screen.getByText("03")).toBeInTheDocument();
+    expect(
+      screen.getByText(/build agents in your master workspace/i),
+    ).toBeInTheDocument();
   });
 
   it("features section renders the four Tier 1 killer cards", () => {
@@ -80,9 +82,7 @@ describe("Landing sections render without crashing", () => {
 
   it("final CTA mirrors hero copy and offers Start Free + founder mailto", () => {
     render(<FinalCtaSection />);
-    expect(
-      screen.getByText(/ready to build your ai agency/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/build your ai agency/i)).toBeInTheDocument();
     const startLink = screen.getByRole("link", { name: /start free/i });
     expect(startLink).toHaveAttribute("href", "/sign-up");
   });
