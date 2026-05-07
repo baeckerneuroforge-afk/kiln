@@ -95,6 +95,7 @@ import {
 import { DataMapper, type FieldMapping } from "@/components/workflows/data-mapper";
 import { type WorkflowNodeType } from "@/lib/workflow-node-types";
 import { validateWorkflow, type ValidationIssue } from "@/lib/workflow-validation";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import DebugRunner from "@/components/workflows/debug-runner";
 import { LogViewer } from "@/components/workflows/log-viewer";
 import { ExecutionDiff } from "@/components/workflows/execution-diff";
@@ -2336,12 +2337,17 @@ function TeamDetailInner() {
     updateTeamConfig({ workflow: { ...wf, edges } });
   }, [team?.config, updateTeamConfig]);
 
-  // Pre-run validation. Memoized off the live workflow snapshot so the
-  // banner updates as the operator builds. Errors block Run Workflow;
-  // warnings are advisory and don't block.
+  // Pre-run validation. Debounced 300ms so fast-typing in node config
+  // fields doesn't recompute on every keystroke — keeps the banner
+  // stable while the operator is mid-edit. The "isValidating" flag
+  // surfaces a subtle "..." indicator without flashing the prior
+  // result. Errors block Run Workflow; warnings are advisory.
+  const { debouncedValue: debouncedNodes, isDebouncing: nodesDebouncing } = useDebouncedValue(workflowNodes, 300);
+  const { debouncedValue: debouncedEdges, isDebouncing: edgesDebouncing } = useDebouncedValue(workflowEdges, 300);
+  const isValidating = nodesDebouncing || edgesDebouncing;
   const validation = useMemo(
-    () => validateWorkflow(workflowNodes, workflowEdges),
-    [workflowNodes, workflowEdges]
+    () => validateWorkflow(debouncedNodes, debouncedEdges),
+    [debouncedNodes, debouncedEdges]
   );
   const [validationDismissed, setValidationDismissed] = useState(false);
   // Reset the dismissed flag when issues change so a newly introduced
@@ -2369,8 +2375,11 @@ function TeamDetailInner() {
   // doesn't burn an execution on a workflow that's clearly broken.
   const handleRunWorkflow = useCallback(async () => {
     if (wfExecStatus === "running") return;
-    if (validation.errors.length > 0) {
-      // Surface the banner if it was dismissed
+    // Validate against the LIVE state, not the debounced one — user
+    // clicking Run shouldn't be able to slip in during the debounce
+    // window. Cheap to recompute once on Run.
+    const liveValidation = validateWorkflow(workflowNodes, workflowEdges);
+    if (liveValidation.errors.length > 0) {
       setValidationDismissed(false);
       return;
     }
@@ -2525,7 +2534,7 @@ function TeamDetailInner() {
       setWfExecLogs([...logs]);
       console.error("Workflow execution failed:", err);
     }
-  }, [teamId, team?.goal, wfExecStatus, workflowNodes, validation.errors.length]);
+  }, [teamId, team?.goal, wfExecStatus, workflowNodes, workflowEdges]);
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -3079,14 +3088,18 @@ function TeamDetailInner() {
             ) : hierarchyView === "visual" ? (
               /* ---- Visual Editor ---- */
               <div className="flex flex-1 min-h-0 flex-col">
-                {/* Pre-run validation banner. Renders only when there
-                    are issues and the operator hasn't dismissed it.
-                    Errors block Run Workflow; warnings don't. Click
-                    on any issue to focus the offending node. */}
+                {/* Pre-run validation banner. Progressive disclosure:
+                    - 0 issues: nothing
+                    - errors: prominent red banner (blocks Run, lists
+                      errors with contextual help)
+                    - warnings only: tiny dismissable amber pill
+                    Run-errors live in the ExecutionTimelinePanel — the
+                    banner is exclusively about Setup issues. */}
                 {!validationDismissed && (validation.errors.length > 0 || validation.warnings.length > 0) && (
                   <ValidationBanner
                     errors={validation.errors}
                     warnings={validation.warnings}
+                    isValidating={isValidating}
                     onDismiss={() => setValidationDismissed(true)}
                     onIssueClick={(issue) => {
                       if (issue.nodeId) {
@@ -3116,6 +3129,7 @@ function TeamDetailInner() {
                   executionCredits={wfExecCredits}
                   nodeResults={wfNodeResults}
                   executionLogs={wfExecLogs}
+                  validationIssues={[...validation.errors, ...validation.warnings]}
                 />
                 </div>
               </div>
@@ -3767,50 +3781,100 @@ export default function TeamDetailPage() {
 
 /* ========== Pre-run validation banner ========== */
 /**
- * Surfaces validation issues above the workflow canvas. Errors block
- * Run Workflow; warnings are advisory. Each issue row is clickable —
- * if the issue has a nodeId, clicking jumps to that node by selecting
- * it (which scrolls the config panel into view).
+ * Progressive-disclosure banner above the canvas.
  *
- * The banner is dismissible per session, but reappears whenever the
- * issue set changes so a newly introduced error never gets silently
- * suppressed.
+ * - 0 errors + 0 warnings → not rendered.
+ * - 1+ errors → prominent red "Setup Issues" banner. Lists errors with
+ *   inline contextual help. A "+ N warnings" pill at the bottom toggles
+ *   the warning list when present.
+ * - Only warnings → small amber inline pill ("3 warnings — show details")
+ *   that expands on click. Easy to dismiss.
+ *
+ * Banner re-appears automatically when the issue set hash changes
+ * (handled in the parent), so a newly-introduced error never gets
+ * silently suppressed by an old dismiss.
+ *
+ * Run-errors are intentionally NOT shown here — they live in the
+ * ExecutionTimelinePanel after a failed run, with retry-per-node and
+ * input/output details.
  */
 function ValidationBanner({
   errors,
   warnings,
+  isValidating,
   onDismiss,
   onIssueClick,
 }: {
   errors: ValidationIssue[];
   warnings: ValidationIssue[];
+  isValidating?: boolean;
   onDismiss: () => void;
   onIssueClick: (issue: ValidationIssue) => void;
 }) {
+  const [showWarnings, setShowWarnings] = useState(false);
+  const [openedHelp, setOpenedHelp] = useState<string | null>(null);
   const hasErrors = errors.length > 0;
-  const total = errors.length + warnings.length;
+
+  // Warnings-only mode: tiny pill, not full banner.
+  if (!hasErrors) {
+    return (
+      <div className="mb-2 flex items-center justify-between rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-1.5">
+        <button
+          type="button"
+          onClick={() => setShowWarnings((v) => !v)}
+          className="flex items-center gap-1.5 text-[11px] text-amber-300/90 hover:text-amber-200 transition-colors"
+          aria-expanded={showWarnings}
+        >
+          <AlertCircle className="h-3.5 w-3.5" />
+          <span>
+            {warnings.length} {warnings.length === 1 ? "warning" : "warnings"}
+            {!showWarnings && (
+              <span className="ml-1 text-amber-400/60">— show details</span>
+            )}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Dismiss warnings"
+        >
+          Dismiss
+        </button>
+
+        {showWarnings && (
+          <ul className="mt-1 w-full space-y-0.5 border-t border-amber-500/15 pt-1.5">
+            {warnings.slice(0, 8).map((issue, idx) => (
+              <ValidationIssueRow
+                key={`${issue.code}-${issue.nodeId ?? "n"}-${idx}`}
+                issue={issue}
+                helpOpen={openedHelp === keyOf(issue, idx)}
+                onToggleHelp={() => setOpenedHelp((cur) => (cur === keyOf(issue, idx) ? null : keyOf(issue, idx)))}
+                onJump={() => onIssueClick(issue)}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  }
+
+  // Errors mode: prominent banner.
   return (
     <div
-      className={cn(
-        "mb-2 rounded-lg border px-3 py-2",
-        hasErrors
-          ? "border-red-500/30 bg-red-500/5"
-          : "border-amber-500/30 bg-amber-500/5"
-      )}
-      role={hasErrors ? "alert" : "status"}
+      className="mb-2 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2"
+      role="alert"
     >
       <div className="flex items-start gap-2">
-        {hasErrors ? (
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
-        ) : (
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
-        )}
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <p className={cn("text-xs font-medium", hasErrors ? "text-red-300" : "text-amber-300")}>
-              {hasErrors
-                ? `${errors.length} ${errors.length === 1 ? "issue blocks" : "issues block"} this workflow${warnings.length > 0 ? ` · ${warnings.length} warning${warnings.length === 1 ? "" : "s"}` : ""}`
-                : `${warnings.length} ${warnings.length === 1 ? "warning" : "warnings"}`}
+            <p className="text-xs font-medium text-red-300">
+              Setup Issues —{" "}
+              {errors.length === 1 ? "1 error blocks" : `${errors.length} errors block`} this workflow
+              {isValidating && (
+                <span className="ml-1.5 text-[10px] text-muted-foreground">checking…</span>
+              )}
             </p>
             <button
               type="button"
@@ -3822,41 +3886,121 @@ function ValidationBanner({
             </button>
           </div>
           <ul className="mt-1.5 space-y-0.5">
-            {[...errors, ...warnings].slice(0, 6).map((issue, idx) => (
-              <li key={`${issue.code}-${issue.nodeId ?? "n"}-${idx}`}>
-                <button
-                  type="button"
-                  onClick={() => onIssueClick(issue)}
-                  disabled={!issue.nodeId}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 text-[11px] text-left transition-colors",
-                    issue.severity === "error" ? "text-red-300/90" : "text-amber-300/90",
-                    issue.nodeId
-                      ? "hover:text-foreground cursor-pointer underline-offset-2 hover:underline"
-                      : "cursor-default"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "h-1 w-1 rounded-full",
-                      issue.severity === "error" ? "bg-red-400" : "bg-amber-400"
-                    )}
-                  />
-                  {issue.message}
-                  {issue.nodeId && (
-                    <span className="text-[10px] text-muted-foreground">→ jump</span>
-                  )}
-                </button>
-              </li>
+            {errors.slice(0, 6).map((issue, idx) => (
+              <ValidationIssueRow
+                key={`${issue.code}-${issue.nodeId ?? "n"}-${idx}`}
+                issue={issue}
+                helpOpen={openedHelp === keyOf(issue, idx)}
+                onToggleHelp={() => setOpenedHelp((cur) => (cur === keyOf(issue, idx) ? null : keyOf(issue, idx)))}
+                onJump={() => onIssueClick(issue)}
+              />
             ))}
-            {total > 6 && (
+            {errors.length > 6 && (
               <li className="text-[10px] text-muted-foreground">
-                +{total - 6} more
+                +{errors.length - 6} more error{errors.length - 6 === 1 ? "" : "s"}
               </li>
             )}
           </ul>
+          {warnings.length > 0 && (
+            <div className="mt-2 border-t border-red-500/15 pt-1.5">
+              <button
+                type="button"
+                onClick={() => setShowWarnings((v) => !v)}
+                className="text-[10px] text-amber-400/80 hover:text-amber-300 transition-colors"
+                aria-expanded={showWarnings}
+              >
+                {showWarnings ? "Hide" : "Show"} {warnings.length} warning
+                {warnings.length === 1 ? "" : "s"}
+              </button>
+              {showWarnings && (
+                <ul className="mt-1 space-y-0.5">
+                  {warnings.slice(0, 6).map((issue, idx) => (
+                    <ValidationIssueRow
+                      key={`w-${issue.code}-${issue.nodeId ?? "n"}-${idx}`}
+                      issue={issue}
+                      helpOpen={openedHelp === keyOf(issue, idx, "w")}
+                      onToggleHelp={() => setOpenedHelp((cur) => (cur === keyOf(issue, idx, "w") ? null : keyOf(issue, idx, "w")))}
+                      onJump={() => onIssueClick(issue)}
+                    />
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+function keyOf(issue: ValidationIssue, idx: number, prefix = ""): string {
+  return `${prefix}${issue.code}:${issue.nodeId ?? ""}:${idx}`;
+}
+
+function ValidationIssueRow({
+  issue,
+  helpOpen,
+  onToggleHelp,
+  onJump,
+}: {
+  issue: ValidationIssue;
+  helpOpen: boolean;
+  onToggleHelp: () => void;
+  onJump: () => void;
+}) {
+  const isError = issue.severity === "error";
+  return (
+    <li>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          onClick={onJump}
+          disabled={!issue.nodeId}
+          className={cn(
+            "inline-flex items-center gap-1.5 text-[11px] text-left transition-colors",
+            isError ? "text-red-300/90" : "text-amber-300/90",
+            issue.nodeId
+              ? "hover:text-foreground cursor-pointer underline-offset-2 hover:underline"
+              : "cursor-default"
+          )}
+        >
+          <span
+            className={cn(
+              "h-1 w-1 rounded-full",
+              isError ? "bg-red-400" : "bg-amber-400"
+            )}
+          />
+          {issue.message}
+          {issue.nodeId && (
+            <span className="text-[10px] text-muted-foreground">→ jump</span>
+          )}
+        </button>
+        {issue.help && (
+          <button
+            type="button"
+            onClick={onToggleHelp}
+            className="rounded border border-border bg-card/50 px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+            aria-expanded={helpOpen}
+          >
+            {issue.help.label} →
+          </button>
+        )}
+      </div>
+      {helpOpen && issue.help && (
+        <div className="ml-3 mt-1 rounded-md border border-border bg-card/50 p-2 text-[10px] text-muted-foreground">
+          {issue.help.helpText && <p className="leading-relaxed">{issue.help.helpText}</p>}
+          {issue.help.helpUrl && (
+            <a
+              href={issue.help.helpUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="mt-1 inline-flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              Open docs →
+            </a>
+          )}
+        </div>
+      )}
+    </li>
   );
 }
