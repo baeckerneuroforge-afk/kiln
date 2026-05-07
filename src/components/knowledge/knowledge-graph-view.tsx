@@ -357,12 +357,12 @@ export default function KnowledgeGraphView({
           <Crown className="h-7 w-7 text-kiln-orange" />
         </div>
         <h3 className="font-serif text-xl text-foreground mb-2">
-          Knowledge Graph freischalten
+          Unlock the Knowledge Graph
         </h3>
         <p className="text-sm text-muted-foreground max-w-md mb-6">
-          Der Knowledge Graph sammelt automatisch Wissen aus deinen
-          Agent-Gesprächen. Upgrade auf Pro oder höher, um diese Funktion zu
-          nutzen.
+          The Knowledge Graph captures entities and relationships from every
+          agent conversation automatically. Upgrade to Pro or higher to
+          enable it for this workspace.
         </p>
         <Link href="/dashboard/settings">
           <Button className="gap-2">
@@ -384,7 +384,7 @@ export default function KnowledgeGraphView({
           <input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Entitäten durchsuchen..."
+            placeholder="Search entities…"
             className="w-full rounded-xl border border-border bg-card py-2.5 pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
@@ -431,18 +431,19 @@ export default function KnowledgeGraphView({
           </div>
         )}
 
-        {/* Leerer Zustand */}
+        {/* Empty state */}
         {!loading && !error && filteredEntities.length === 0 && (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/50 border border-border mb-4">
               <Globe className="h-7 w-7 text-muted-foreground" />
             </div>
             <h3 className="text-sm font-semibold text-foreground mb-1">
-              Dein Knowledge Graph ist noch leer
+              Your knowledge graph is empty
             </h3>
-            <p className="text-xs text-muted-foreground max-w-sm">
-              Er füllt sich automatisch wenn deine Agents arbeiten. Sobald Gespräche
-              stattfinden, werden Entitäten und Beziehungen hier sichtbar.
+            <p className="text-xs text-muted-foreground max-w-md">
+              It fills automatically as your agents work. Once conversations
+              happen, entities and relationships will appear here — companies
+              they research, people they talk to, products they recommend.
             </p>
           </div>
         )}
@@ -503,7 +504,7 @@ function ForceGraph({
   const animRef = useRef<number>(0);
   const iterRef = useRef(0);
 
-  // Container-Größe messen
+  // Measure container size for the force-graph viewport
   useEffect(() => {
     if (!containerRef.current) return;
     const obs = new ResizeObserver((entries) => {
@@ -835,7 +836,7 @@ function EntityDetailPanel({
       {relations.length > 0 && (
         <div className="px-5 py-4">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground mb-3">
-            Beziehungen ({relations.length})
+            Relationships ({relations.length})
           </p>
           <div className="space-y-2">
             {relations.map((rel) => {
