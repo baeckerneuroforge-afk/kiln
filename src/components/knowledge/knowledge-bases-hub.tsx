@@ -22,7 +22,6 @@ import {
   Type as TypeIcon,
   Users,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface BaseRow {
   agentId: string;
