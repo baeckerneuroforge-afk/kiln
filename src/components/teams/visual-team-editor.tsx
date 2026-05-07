@@ -979,6 +979,16 @@ const nodeTypes = {
   fallbackGhost: FallbackGhostNode,
 };
 const edgeTypes = { animated: AnimatedConnectionEdge };
+const PAN_ON_DRAG_BUTTONS = [1, 2];
+const MULTI_SELECTION_KEY_CODES = ["Meta", "Control"];
+const CANVAS_FIT_VIEW_OPTIONS = { padding: 0.3 };
+const CONNECTION_LINE_STYLE = { stroke: "#F97316", strokeWidth: 2, strokeDasharray: "5 3" };
+const DEFAULT_EDGE_OPTIONS = { type: "animated", animated: true };
+
+function areStringArraysEqual(a: string[], b: string[]) {
+  if (a.length !== b.length) return false;
+  return a.every((value, index) => value === b[index]);
+}
 
 /* ========== Sidebar: Node Palette (n8n-style) ========== */
 function NodePaletteSidebar({
@@ -1990,6 +2000,15 @@ function VisualTeamEditorInner({
     reactFlowInstance.fitView({ padding: 0.2, duration: 300 });
   }, [reactFlowInstance]);
 
+  const handleSelectionChange = useCallback(({ nodes: selNodes }: { nodes: Node[] }) => {
+    const nextIds = selNodes
+      .filter((n) => n.type === "workflowNode")
+      .map((n) => n.id)
+      .sort();
+
+    setSelectedNodeIds((prev) => (areStringArraysEqual(prev, nextIds) ? prev : nextIds));
+  }, []);
+
   const handleZoomIn = useCallback(() => {
     reactFlowInstance.zoomIn({ duration: 200 });
   }, [reactFlowInstance]);
@@ -2785,11 +2804,9 @@ function VisualTeamEditorInner({
         onEdgesChange={onEdgesChange}
         selectionMode={SelectionMode.Partial}
         selectionOnDrag={true}
-        panOnDrag={[1, 2]}
-        multiSelectionKeyCode={["Meta", "Control"]}
-        onSelectionChange={({ nodes: selNodes }) => {
-          setSelectedNodeIds(selNodes.filter((n) => n.type === "workflowNode").map((n) => n.id));
-        }}
+        panOnDrag={PAN_ON_DRAG_BUTTONS}
+        multiSelectionKeyCode={MULTI_SELECTION_KEY_CODES}
+        onSelectionChange={handleSelectionChange}
         onNodeContextMenu={(e, node) => {
           e.preventDefault();
           if (node.type !== "workflowNode") return;
@@ -2813,7 +2830,7 @@ function VisualTeamEditorInner({
         edgeTypes={edgeTypes}
         nodesDraggable
         fitView
-        fitViewOptions={{ padding: 0.3 }}
+        fitViewOptions={CANVAS_FIT_VIEW_OPTIONS}
         minZoom={0.15}
         maxZoom={2}
         nodeDragThreshold={2}
@@ -2821,8 +2838,8 @@ function VisualTeamEditorInner({
         colorMode="light"
         className="bg-card"
         isValidConnection={isValidConnection}
-        connectionLineStyle={{ stroke: "#F97316", strokeWidth: 2, strokeDasharray: "5 3" }}
-        defaultEdgeOptions={{ type: "animated", animated: true }}
+        connectionLineStyle={CONNECTION_LINE_STYLE}
+        defaultEdgeOptions={DEFAULT_EDGE_OPTIONS}
         onNodeClick={(_event, node) => {
           if (node.id.startsWith("__fallback__")) return;
           if (node.type === "workflowNode") {
