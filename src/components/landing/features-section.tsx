@@ -42,6 +42,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TiltCard } from "./tilt-card";
+import { FloatingElement } from "./floating-element";
 
 interface Tier1Feature {
   icon: LucideIcon;
@@ -231,27 +233,32 @@ export function FeaturesSection() {
 
 function Tier1Card({ feature }: { feature: Tier1Feature }) {
   return (
-    <Link
-      href={feature.href}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-kiln-orange/40 hover:shadow-xl hover:shadow-kiln-orange/5"
-    >
-      <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-kiln-orange/10">
-        <feature.icon className="h-5 w-5 text-kiln-orange" />
-      </div>
-      <h3 className="text-lg font-semibold text-foreground">{feature.title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-        {feature.body}
-      </p>
+    <TiltCard maxTilt={5} perspective={1000} scale={1.015} className="h-full">
+      <Link
+        href={feature.href}
+        data-testid="tier1-card"
+        className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card p-6 transition-[box-shadow,border-color] duration-300 hover:border-kiln-orange/40 hover:shadow-xl hover:shadow-kiln-orange/10"
+      >
+        <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-kiln-orange/10">
+          <feature.icon className="h-5 w-5 text-kiln-orange" />
+        </div>
+        <h3 className="text-lg font-semibold text-foreground">{feature.title}</h3>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          {feature.body}
+        </p>
 
-      <div className="mt-5 rounded-xl border border-border bg-background/40 p-4">
-        {feature.preview}
-      </div>
+        <FloatingElement intensity={4} className="mt-5">
+          <div className="rounded-xl border border-border bg-background/40 p-4">
+            {feature.preview}
+          </div>
+        </FloatingElement>
 
-      <div className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-kiln-orange">
-        Learn more
-        <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-      </div>
-    </Link>
+        <div className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-kiln-orange">
+          Learn more
+          <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+        </div>
+      </Link>
+    </TiltCard>
   );
 }
 
