@@ -27,6 +27,21 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { FloatingElement } from "./floating-element";
+import { TerminalMockup, type TerminalLine } from "./terminal-mockup";
+
+/**
+ * Short terminal sequence shown as the hero's 4th visual element —
+ * suggests developer-tier control without crowding the multi-tenant
+ * browser story.
+ */
+const HERO_TERMINAL_LINES: TerminalLine[] = [
+  { prompt: true, text: "kiln deploy --client acme-corp", delay: 200 },
+  { prompt: false, text: "  ✓ Sub-org created: ai.acme-corp.com", delay: 1500 },
+  { prompt: false, text: "  ✓ White-label applied", delay: 2400 },
+  { prompt: false, text: "  ✓ Stripe customer linked", delay: 3300 },
+  { prompt: false, text: "  ✓ Agent ready · €497/mo · production", delay: 4200 },
+];
 
 export function HeroSection() {
   const [mounted, setMounted] = useState(false);
@@ -174,24 +189,43 @@ function Dot() {
  */
 function BrowserStack() {
   return (
-    <div className="relative h-[480px]">
-      {/* Back-most frame */}
-      <BrowserFrame
-        brand={{ name: "Gamma Inc", color: "#22C55E" }}
-        className="absolute right-0 top-12 w-[88%] opacity-50 scale-[0.88] -rotate-2"
-      />
-      {/* Middle frame */}
-      <BrowserFrame
-        brand={{ name: "Beta Studios", color: "#3B82F6" }}
-        className="absolute right-4 top-6 w-[92%] opacity-70 scale-[0.94] rotate-1"
-      />
-      {/* Front frame — primary, breathing animation */}
-      <div className="absolute inset-0 animate-kiln-hero-float">
+    <div className="relative h-[520px]" data-testid="hero-browser-stack">
+      {/* Back-most frame — deep parallax for layered depth */}
+      <FloatingElement intensity={20} className="absolute right-0 top-12 w-[88%]">
         <BrowserFrame
-          brand={{ name: "Acme Corp", color: "#F97316" }}
-          primary
+          brand={{ name: "Gamma Inc", color: "#22C55E" }}
+          className="opacity-50 scale-[0.88] -rotate-2"
         />
-      </div>
+      </FloatingElement>
+      {/* Middle frame — medium parallax */}
+      <FloatingElement intensity={14} className="absolute right-4 top-6 w-[92%]">
+        <BrowserFrame
+          brand={{ name: "Beta Studios", color: "#3B82F6" }}
+          className="opacity-70 scale-[0.94] rotate-1"
+        />
+      </FloatingElement>
+      {/* Front frame — primary, breathing animation + subtle parallax */}
+      <FloatingElement intensity={8} className="absolute inset-0">
+        <div className="animate-kiln-hero-float">
+          <BrowserFrame
+            brand={{ name: "Acme Corp", color: "#F97316" }}
+            primary
+          />
+        </div>
+      </FloatingElement>
+
+      {/* Terminal as 4th visual — bottom-right corner, behind everything,
+          slightly tilted, deeper parallax. Shows the developer-power
+          angle without overwhelming the multi-tenant browser story. */}
+      <FloatingElement
+        intensity={24}
+        className="absolute -bottom-4 -right-6 hidden w-[55%] -z-10 rotate-3 opacity-90 xl:block"
+      >
+        <TerminalMockup
+          lines={HERO_TERMINAL_LINES}
+          className="scale-[0.82]"
+        />
+      </FloatingElement>
 
       <style jsx>{`
         @keyframes kiln-hero-float {

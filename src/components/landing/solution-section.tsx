@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AnimatedSection } from "./animated-section";
+import { FloatingElement } from "./floating-element";
 
 export function SolutionSection() {
   return (
@@ -141,9 +142,11 @@ function StepCard({
       <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
         {body}
       </p>
-      <div className="mt-5 rounded-xl border border-border bg-background/50 p-4">
-        {children}
-      </div>
+      <FloatingElement intensity={5} className="mt-5">
+        <div className="rounded-xl border border-border bg-background/50 p-4">
+          {children}
+        </div>
+      </FloatingElement>
     </div>
   );
 }
