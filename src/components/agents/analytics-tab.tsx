@@ -605,7 +605,7 @@ export function AnalyticsTab({ agentId }: AnalyticsTabProps) {
                             </p>
                           </div>
 
-                          {/* Thumbs Up/Down — nur für Assistant-Nachrichten */}
+                          {/* Thumbs Up/Down — assistant messages only */}
                           {msg.role === "ASSISTANT" && (
                             <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                               {feedbackGiven.get(msg.id) === "up" ? (

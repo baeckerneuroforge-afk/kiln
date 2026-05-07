@@ -133,7 +133,7 @@ export function VisitorMemoryTab({ agentId }: VisitorMemoryTabProps) {
     setConversationsFor(visitorId);
     setLoadingConvs(true);
     try {
-      // Conversations für diesen Visitor via sessionId-basierte Suche
+      // Look up this visitor's conversations via sessionId-based search
       const res = await fetch(`/api/agents/${agentId}/conversations?visitorId=${encodeURIComponent(visitorId)}`);
       if (res.ok) {
         const data = await res.json();

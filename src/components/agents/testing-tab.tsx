@@ -92,7 +92,7 @@ export function TestingTab({ agentId, prefill, onPrefillConsumed }: Props) {
   // Prefill from Logs tab — auto-open modal with pre-filled data
   useEffect(() => {
     if (prefill) {
-      // Erste 3-5 signifikante Wörter aus der Response als Keywords extrahieren
+      // Pull the first 3-5 significant words from the response as keywords
       const words = prefill.response
         .replace(/[^\w\s]/g, "")
         .split(/\s+/)
@@ -220,7 +220,7 @@ export function TestingTab({ agentId, prefill, onPrefillConsumed }: Props) {
   const failedCount = testCases.filter((tc) => tc.lastResult === "FAIL").length;
   const untestedCount = testCases.filter((tc) => !tc.lastResult).length;
 
-  // Chart-Daten (älteste zuerst)
+  // Chart data (oldest first)
   const chartData = [...testRuns]
     .reverse()
     .slice(-20)

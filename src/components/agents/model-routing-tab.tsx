@@ -18,12 +18,12 @@ type TaskTypeKey =
   | "conversation";
 
 const TASK_TYPES: { key: TaskTypeKey; label: string; description: string }[] = [
-  { key: "code_generation", label: "Reasoning / Code", description: "Komplexe Analysen, Code" },
-  { key: "research", label: "Research", description: "Web-Recherche, Fakten" },
-  { key: "classification", label: "Schnelle Antwort", description: "Klassifikation, Routing" },
-  { key: "creative_writing", label: "Kreatives Schreiben", description: "Marketing, Content" },
-  { key: "data_extraction", label: "Daten-Extraktion", description: "JSON, strukturierte Daten" },
-  { key: "conversation", label: "Konversation", description: "Chat, Support" },
+  { key: "code_generation", label: "Reasoning / Code", description: "Complex analysis, code generation" },
+  { key: "research", label: "Research", description: "Web research, fact-finding" },
+  { key: "classification", label: "Quick answers", description: "Classification, routing" },
+  { key: "creative_writing", label: "Creative writing", description: "Marketing copy, content" },
+  { key: "data_extraction", label: "Data extraction", description: "JSON, structured data" },
+  { key: "conversation", label: "Conversation", description: "Chat, support" },
 ];
 
 interface ModelOption {
