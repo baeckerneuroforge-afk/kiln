@@ -6,7 +6,7 @@ import { Loader2, Play, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DepartmentDetailShell } from "@/components/departments/department-detail-shell";
 import { RunLogStream } from "@/components/departments/run-log-stream";
-import type { DepartmentView } from "@/components/departments/types";
+import type { DepartmentView, RunLogView } from "@/components/departments/types";
 
 export default function DepartmentOverviewPage() {
   const params = useParams<{ id: string }>();
@@ -87,7 +87,7 @@ export default function DepartmentOverviewPage() {
 
       <section className="mt-8">
         <h2 className="mb-4 text-lg font-semibold text-foreground">Recent run logs</h2>
-        <RunLogStream logs={(department as { runLogs?: unknown[] }).runLogs || []} />
+        <RunLogStream logs={(department as DepartmentView & { runLogs?: RunLogView[] }).runLogs || []} />
       </section>
     </DepartmentDetailShell>
   );
