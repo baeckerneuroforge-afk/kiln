@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/toast";
 import { cn } from "@/lib/utils";
+import { SubOrgEmailBrandingSection } from "@/components/email-branding/sub-org-email-branding-section";
 
 type Branding = {
   logoUrl: string | null;
@@ -326,6 +327,7 @@ export function BrandingTab({
               Primary action
             </div>
             <p className="mt-3 text-muted-foreground">
+              {/* Preview body — kept minimal so the email override section below stands out. */}
               Buttons, links, and accents pick up the primary color across the
               client&apos;s sign-in, dashboard, and chat embed.
             </p>
@@ -336,6 +338,13 @@ export function BrandingTab({
             )}
           </div>
         </div>
+      </div>
+
+      <div className="mt-6">
+        <SubOrgEmailBrandingSection
+          relationshipId={subOrgId}
+          readOnly={readOnly}
+        />
       </div>
     </div>
   );
