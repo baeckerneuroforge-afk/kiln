@@ -2725,6 +2725,24 @@ model OrgRelationship {
   @@index([parentOrgId, subOrgStatus])
 }
 
+model AgencyOpsSnapshot {
+  id                  String   @id @default(cuid())
+  agencyOrgId          String
+
+  totalCustomers       Int
+  activeDepartments    Int
+  pendingApprovals     Int
+  failedRuns24h        Int
+  tokensUsedToday      Int
+  revenueToday         Float
+
+  customerHealth       Json
+  computedAt           DateTime @default(now())
+
+  @@unique([agencyOrgId, computedAt])
+  @@index([agencyOrgId, computedAt])
+}
+
 enum SubOrgStatus {
   ACTIVE
   SUSPENDED
