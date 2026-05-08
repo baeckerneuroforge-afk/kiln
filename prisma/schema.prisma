@@ -2732,6 +2732,11 @@ model OrgRelationship {
   customSubdomain      String?
   emailSignature       String?
 
+  // Phase 5 — Per-Sub-Org email branding override (Json bag). When set,
+  // wins over the parent agency's OrgBranding for emails sent in this
+  // sub-org's context. Shape: EmailBrandOverride in src/lib/email/types.
+  emailBrandOverride   Json?
+
   @@index([parentOrgId])
   @@index([childOrgId])
   @@index([parentOrgId, subOrgStatus])
@@ -2849,6 +2854,15 @@ model OrgBranding {
   customDomain     String?  @unique
   domainVerified   Boolean  @default(false)
   domainVerifiedAt DateTime?
+
+  // Phase 5 — White-label email branding. logoUrl, primaryColor and
+  // agencyName above are reused as the visual identity; these add the
+  // From-address, footer and support link that emails need.
+  emailFromAddress String?  // e.g. "support@hephaistos.de" — must be verified in Resend
+  emailFromName    String?  // e.g. "Hephaistos Support"
+  emailReplyTo     String?
+  emailFooterHtml  String?  @db.Text
+  emailSupportLink String?
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
