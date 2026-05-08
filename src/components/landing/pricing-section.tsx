@@ -94,17 +94,17 @@ export function PricingSection() {
     <AnimatedSection
       id="pricing"
       aria-label="Pricing"
-      className="relative isolate border-y border-border/40 bg-card/30 py-20 sm:py-28"
+      className="relative isolate bg-white py-20 sm:py-28"
     >
       <div className="mx-auto max-w-6xl px-6">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-kiln-orange">
             Pricing
           </p>
-          <h2 className="mt-3 font-serif text-3xl tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+          <h2 className="mt-3 font-serif text-3xl tracking-tight text-stone-900 sm:text-4xl lg:text-5xl">
             Simple pricing. No surprises.
           </h2>
-          <p className="mt-4 text-base text-muted-foreground">
+          <p className="mt-4 text-base text-stone-600">
             Start free. Upgrade when you have your first client. Scale as you
             add more.
           </p>
@@ -123,11 +123,11 @@ export function PricingSection() {
                 animationDelay: `${idx * 80}ms`,
               }}
               className={cn(
-                "kiln-pricing-card relative flex flex-col rounded-2xl border bg-card p-6",
+                "kiln-pricing-card relative flex flex-col rounded-2xl border p-6",
                 "transition-all duration-300 ease-out",
                 tier.highlight
-                  ? "lg:-translate-y-2 border-2 border-kiln-orange/60 bg-kiln-orange/[0.04] shadow-xl shadow-kiln-orange/10 hover:border-kiln-orange/80 hover:shadow-2xl hover:shadow-kiln-orange/20"
-                  : "border-border hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-lg",
+                  ? "lg:-translate-y-2 border-2 border-kiln-orange bg-white shadow-xl shadow-kiln-orange/10 hover:shadow-2xl hover:shadow-kiln-orange/20"
+                  : "border-stone-200 bg-stone-50 hover:-translate-y-0.5 hover:border-stone-300 hover:bg-white hover:shadow-lg",
               )}
             >
               {tier.highlight && (
@@ -139,28 +139,28 @@ export function PricingSection() {
                 </span>
               )}
               <div>
-                <h3 className="text-base font-semibold text-foreground">
+                <h3 className="text-base font-semibold text-stone-900">
                   {tier.name}
                 </h3>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-xs text-stone-500">
                   {tier.audience}
                 </p>
                 <p className="mt-4 flex items-baseline gap-1">
-                  <span className="font-serif text-4xl font-bold text-foreground">
+                  <span className="font-serif text-5xl font-bold text-stone-900">
                     {tier.price}
                   </span>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="text-sm text-stone-500">
                     {tier.cadence}
                   </span>
                 </p>
               </div>
-              <ul className="mt-6 flex-1 space-y-2.5 text-sm text-muted-foreground">
+              <ul className="mt-6 flex-1 space-y-2.5 text-sm text-stone-700">
                 {tier.features.map((f) => (
                   <li key={f} className="flex items-start gap-2">
                     <Check
                       className={cn(
                         "mt-0.5 h-4 w-4 shrink-0",
-                        tier.highlight ? "text-kiln-orange" : "text-kiln-green",
+                        tier.highlight ? "text-kiln-orange" : "text-emerald-600",
                       )}
                     />
                     <span>{f}</span>
@@ -172,8 +172,8 @@ export function PricingSection() {
                 className={cn(
                   "mt-6 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200",
                   tier.highlight
-                    ? "bg-kiln-orange text-white shadow shadow-kiln-orange/20 hover:bg-kiln-orange/90 hover:shadow-lg hover:shadow-kiln-orange/40"
-                    : "border border-border bg-card text-foreground hover:bg-muted",
+                    ? "bg-kiln-orange text-white shadow-lg shadow-kiln-orange/30 hover:-translate-y-0.5 hover:bg-kiln-orange/95 hover:shadow-xl hover:shadow-kiln-orange/40"
+                    : "bg-stone-900 text-white hover:-translate-y-0.5 hover:bg-stone-800 hover:shadow-md",
                 )}
               >
                 {tier.cta}
@@ -182,7 +182,7 @@ export function PricingSection() {
           ))}
         </div>
 
-        <p className="mt-10 text-center text-xs text-muted-foreground">
+        <p className="mt-10 text-center text-xs text-stone-500">
           Need a custom setup or done-for-you service?{" "}
           <Link
             href="/services"

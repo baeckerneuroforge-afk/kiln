@@ -22,23 +22,23 @@ export function FounderSection() {
     <AnimatedSection
       id="founder"
       aria-label="Why KILN exists"
-      className="relative isolate py-20 sm:py-28"
+      className="relative isolate bg-white py-20 sm:py-28"
     >
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10"
         style={{
           background:
-            "radial-gradient(ellipse 50% 35% at 50% 50%, rgba(249,115,22,0.05) 0%, transparent 70%)",
+            "radial-gradient(ellipse 50% 35% at 50% 50%, rgba(254,215,170,0.35) 0%, transparent 70%)",
         }}
       />
 
       <div className="mx-auto max-w-3xl px-6">
         <div className="text-center">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-stone-500">
             Why KILN Exists
           </p>
-          <h2 className="mt-3 font-serif text-3xl tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+          <h2 className="mt-3 font-serif text-3xl tracking-tight text-stone-900 sm:text-4xl lg:text-5xl">
             Hi, I&apos;m André. I&apos;m building KILN.
           </h2>
         </div>
@@ -53,7 +53,7 @@ export function FounderSection() {
           ].map((s) => (
             <div
               key={s.label}
-              className="rounded-lg border border-border bg-card/50 px-3 py-2 text-center text-[11px] text-muted-foreground"
+              className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-center text-[11px] font-medium text-stone-700"
             >
               {s.label}
             </div>
@@ -61,8 +61,8 @@ export function FounderSection() {
         </div>
 
         {/* Body with dropcap on the first paragraph */}
-        <div className="mt-10 space-y-5 text-base leading-relaxed text-muted-foreground">
-          <p className="first-letter:float-left first-letter:mr-3 first-letter:text-5xl first-letter:font-serif first-letter:font-bold first-letter:leading-[1] first-letter:text-kiln-orange">
+        <div className="mt-10 space-y-5 text-base leading-relaxed text-stone-700">
+          <p className="first-letter:float-left first-letter:mr-3 first-letter:text-6xl first-letter:font-serif first-letter:font-bold first-letter:leading-[1] first-letter:text-kiln-orange">
             I&apos;m a 25-year-old founder from Germany. Solo. No co-founder,
             no funding round, no team of engineers. Just me, building
             infrastructure for agencies that want to ship AI.
@@ -88,10 +88,10 @@ export function FounderSection() {
 
         {/* Cursive sign-off */}
         <div className="mt-10 text-center">
-          <div className="font-serif text-2xl italic text-foreground">— André</div>
-          <div className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <div className="font-serif text-2xl italic text-stone-900">— André</div>
+          <div className="mt-1 inline-flex items-center gap-1.5 text-[11px] text-stone-500">
             André Bäcker, Founder · Hephaistos Systems
-            <span aria-hidden className="text-muted-foreground/40">·</span>
+            <span aria-hidden className="text-stone-300">·</span>
             <MapPin className="h-3 w-3" />
             Osnabrück, Germany
           </div>
@@ -101,7 +101,7 @@ export function FounderSection() {
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
           <a
             href={`mailto:${FOUNDER_EMAIL}?subject=KILN%20Hello`}
-            className="group inline-flex items-center gap-2 rounded-xl border border-kiln-orange/40 bg-kiln-orange/10 px-4 py-2.5 text-sm font-medium text-kiln-orange transition-all hover:-translate-y-0.5 hover:border-kiln-orange/60 hover:bg-kiln-orange/15 hover:shadow-lg hover:shadow-kiln-orange/10"
+            className="group inline-flex items-center gap-2 rounded-xl border border-kiln-orange/40 bg-kiln-orange/10 px-4 py-2.5 text-sm font-medium text-kiln-orange transition-all hover:-translate-y-0.5 hover:border-kiln-orange/60 hover:bg-kiln-orange/15 hover:shadow-lg hover:shadow-kiln-orange/15"
           >
             <Mail className="h-3.5 w-3.5" />
             Email me directly
@@ -110,7 +110,7 @@ export function FounderSection() {
             href={X_URL}
             target="_blank"
             rel="noreferrer noopener"
-            className="group inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:-translate-y-0.5 hover:border-foreground/30 hover:text-foreground"
+            className="group inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 transition-all hover:-translate-y-0.5 hover:border-kiln-orange/40 hover:text-stone-900 hover:shadow-md"
           >
             Follow on X
             <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -119,7 +119,7 @@ export function FounderSection() {
             href={LI_URL}
             target="_blank"
             rel="noreferrer noopener"
-            className="group inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:-translate-y-0.5 hover:border-foreground/30 hover:text-foreground"
+            className="group inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 transition-all hover:-translate-y-0.5 hover:border-kiln-orange/40 hover:text-stone-900 hover:shadow-md"
           >
             Connect on LinkedIn
             <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />

@@ -10,10 +10,12 @@
  * Tier 3 (6 small cards, 3×2 grid): trust anchors — production
  *   readiness signals, one-line each.
  *
- * Cards lift on hover with a subtle kiln-orange border tint. Tier 1
- * cards have a richer hover (scale + shadow). The grid uses density
- * deliberately — eighteen items reads as "fully loaded" rather than
- * "minimal SaaS landing".
+ * Cards lift on hover with a kiln-orange border tint and a soft
+ * orange-tinted shadow (light theme reads shadows much more strongly
+ * than dark, so the magnitudes here are smaller than the dark-mode
+ * predecessor). Tier 1 cards also tilt via TiltCard. The grid uses
+ * density deliberately — eighteen items reads as "fully loaded"
+ * rather than "minimal SaaS landing".
  */
 import Link from "next/link";
 import {
@@ -176,14 +178,14 @@ export function FeaturesSection() {
     <section
       id="features"
       aria-label="Features"
-      className="relative isolate border-y border-border/40 bg-card/30 py-20 sm:py-28"
+      className="relative isolate border-y border-stone-200 bg-stone-50 py-20 sm:py-28"
     >
       <div className="mx-auto max-w-7xl px-6">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-stone-500">
             Everything You Need
           </p>
-          <h2 className="mt-3 font-serif text-3xl tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+          <h2 className="mt-3 font-serif text-3xl tracking-tight text-stone-900 sm:text-4xl lg:text-5xl">
             Built for agencies that ship AI to production
           </h2>
         </div>
@@ -197,7 +199,7 @@ export function FeaturesSection() {
 
         {/* ── Tier 2: power features ──────────────────────────── */}
         <div className="mt-20">
-          <h3 className="mb-6 text-center text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          <h3 className="mb-6 text-center text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">
             Built for serious agencies
           </h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -209,19 +211,19 @@ export function FeaturesSection() {
 
         {/* ── Tier 3: trust anchors ───────────────────────────── */}
         <div className="mt-16">
-          <h3 className="mb-5 text-center text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          <h3 className="mb-5 text-center text-sm font-semibold uppercase tracking-[0.18em] text-stone-500">
             Production-ready infrastructure
           </h3>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {TIER_3.map((f) => (
               <div
                 key={f.title}
-                className="flex items-center gap-3 rounded-xl border border-border bg-card/60 px-4 py-3 transition-colors hover:border-foreground/20"
+                className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 transition-colors hover:border-stone-300"
               >
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted">
-                  <f.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-stone-100">
+                  <f.icon className="h-3.5 w-3.5 text-stone-600" />
                 </span>
-                <span className="text-sm text-foreground">{f.title}</span>
+                <span className="text-sm text-stone-900">{f.title}</span>
               </div>
             ))}
           </div>
@@ -237,23 +239,23 @@ function Tier1Card({ feature }: { feature: Tier1Feature }) {
       <Link
         href={feature.href}
         data-testid="tier1-card"
-        className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card p-6 transition-[box-shadow,border-color] duration-300 hover:border-kiln-orange/40 hover:shadow-xl hover:shadow-kiln-orange/10"
+        className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white p-6 shadow-sm transition-[box-shadow,border-color,transform] duration-300 hover:border-kiln-orange/40 hover:shadow-xl hover:shadow-kiln-orange/15"
       >
         <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-kiln-orange/10">
           <feature.icon className="h-5 w-5 text-kiln-orange" />
         </div>
-        <h3 className="text-lg font-semibold text-foreground">{feature.title}</h3>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        <h3 className="text-lg font-semibold text-stone-900">{feature.title}</h3>
+        <p className="mt-2 text-sm leading-relaxed text-stone-600">
           {feature.body}
         </p>
 
         <FloatingElement intensity={4} className="mt-5">
-          <div className="rounded-xl border border-border bg-background/40 p-4">
+          <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
             {feature.preview}
           </div>
         </FloatingElement>
 
-        <div className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-kiln-orange">
+        <div className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-kiln-orange transition-colors group-hover:text-kiln-orange/80">
           Learn more
           <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
         </div>
@@ -263,10 +265,10 @@ function Tier1Card({ feature }: { feature: Tier1Feature }) {
 }
 
 const TIER2_ACCENTS: Record<Tier2Feature["accent"], { bg: string; fg: string }> = {
-  violet: { bg: "bg-violet-500/10", fg: "text-violet-400" },
-  blue: { bg: "bg-blue-500/10", fg: "text-blue-400" },
-  green: { bg: "bg-green-500/10", fg: "text-green-400" },
-  amber: { bg: "bg-amber-500/10", fg: "text-amber-400" },
+  violet: { bg: "bg-violet-100", fg: "text-violet-700" },
+  blue: { bg: "bg-blue-100", fg: "text-blue-700" },
+  green: { bg: "bg-emerald-100", fg: "text-emerald-700" },
+  amber: { bg: "bg-amber-100", fg: "text-amber-700" },
 };
 
 function Tier2Card({ feature }: { feature: Tier2Feature }) {
@@ -281,8 +283,8 @@ function Tier2Card({ feature }: { feature: Tier2Feature }) {
       >
         <feature.icon className={cn("h-4 w-4", tone.fg)} />
       </div>
-      <h4 className="text-sm font-semibold text-foreground">{feature.title}</h4>
-      <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+      <h4 className="text-sm font-semibold text-stone-900">{feature.title}</h4>
+      <p className="mt-1.5 text-xs leading-relaxed text-stone-600">
         {feature.body}
       </p>
     </>
@@ -291,14 +293,14 @@ function Tier2Card({ feature }: { feature: Tier2Feature }) {
     return (
       <Link
         href={feature.href}
-        className="group flex flex-col rounded-xl border border-border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-md"
+        className="group flex flex-col rounded-xl border border-stone-200 bg-white p-4 transition-all hover:-translate-y-0.5 hover:border-kiln-orange/30 hover:shadow-md hover:shadow-kiln-orange/10"
       >
         {inner}
       </Link>
     );
   }
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card p-4 transition-colors hover:border-foreground/20">
+    <div className="flex flex-col rounded-xl border border-stone-200 bg-white p-4 transition-colors hover:border-stone-300">
       {inner}
     </div>
   );
@@ -319,14 +321,14 @@ function WorkflowPreview() {
       ].map((n) => (
         <div
           key={n.label}
-          className="flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1.5"
-          style={{ borderColor: `${n.color}40` }}
+          className="flex items-center gap-1.5 rounded-md border bg-white px-2 py-1.5 shadow-sm"
+          style={{ borderColor: `${n.color}55` }}
         >
           <span
             className="h-1.5 w-1.5 rounded-full"
             style={{ backgroundColor: n.color }}
           />
-          <span className="text-foreground">{n.label}</span>
+          <span className="text-stone-900">{n.label}</span>
         </div>
       ))}
     </div>
@@ -343,7 +345,7 @@ function SubOrgsPreview() {
       ].map((b) => (
         <div
           key={b.name}
-          className="flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-[10px]"
+          className="flex items-center gap-2 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-[10px] shadow-sm"
         >
           <span
             className="flex h-4 w-4 items-center justify-center rounded text-[8px] font-bold text-white"
@@ -351,8 +353,8 @@ function SubOrgsPreview() {
           >
             {b.name[0]}
           </span>
-          <span className="font-medium text-foreground">{b.name}</span>
-          <span className="ml-auto font-mono text-muted-foreground">{b.domain}</span>
+          <span className="font-medium text-stone-900">{b.name}</span>
+          <span className="ml-auto font-mono text-stone-500">{b.domain}</span>
         </div>
       ))}
     </div>
@@ -370,11 +372,11 @@ function ChannelsPreview() {
       ].map((c) => (
         <div
           key={c.label}
-          className="flex flex-col items-center gap-1 rounded-md border border-border bg-card py-2"
+          className="flex flex-col items-center gap-1 rounded-md border border-stone-200 bg-white py-2 shadow-sm"
         >
           <c.icon className="h-3.5 w-3.5 text-kiln-orange" />
-          <span className="text-foreground">{c.label}</span>
-          <span className="text-[8px] text-green-400">● Live</span>
+          <span className="text-stone-900">{c.label}</span>
+          <span className="text-[8px] text-emerald-600">● Live</span>
         </div>
       ))}
     </div>
@@ -391,14 +393,14 @@ function BYOKPreview() {
       ].map((k) => (
         <div
           key={k.provider}
-          className="flex items-center justify-between rounded-md border border-border bg-card px-2.5 py-1.5"
+          className="flex items-center justify-between rounded-md border border-stone-200 bg-white px-2.5 py-1.5 shadow-sm"
         >
           <div className="flex items-center gap-1.5">
-            <Key className="h-3 w-3 text-muted-foreground" />
-            <span className="font-medium text-foreground">{k.provider}</span>
+            <Key className="h-3 w-3 text-stone-500" />
+            <span className="font-medium text-stone-900">{k.provider}</span>
           </div>
-          <span className="font-mono text-muted-foreground">{k.key}</span>
-          <GitBranch className="h-3 w-3 text-green-400" />
+          <span className="font-mono text-stone-500">{k.key}</span>
+          <GitBranch className="h-3 w-3 text-emerald-600" />
         </div>
       ))}
     </div>
