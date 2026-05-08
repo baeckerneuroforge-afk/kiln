@@ -122,6 +122,7 @@ export async function notifyApprovalNeeded(
         subject,
         preview: draftPreview,
         approvalUrl,
+        orgId: department.orgId,
       });
 
       await logDepartmentChannelEvent({

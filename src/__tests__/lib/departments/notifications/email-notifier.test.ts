@@ -1,16 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const sendMock = vi.hoisted(() => vi.fn());
+const mockPrisma = vi.hoisted(() => ({
+  orgRelationship: { findUnique: vi.fn().mockResolvedValue(null) },
+  orgBranding: { findUnique: vi.fn().mockResolvedValue(null) },
+}));
 
 vi.mock("resend", () => ({
   Resend: class Resend {
     emails = { send: sendMock };
   },
 }));
+vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
 
 import {
   sendApprovalEmail,
-  buildApprovalEmailText,
   parseEmailRecipients,
 } from "@/lib/departments/notifications/email-notifier";
 
@@ -53,11 +57,13 @@ describe("email-notifier", () => {
     expect(sendMock).toHaveBeenCalledOnce();
   });
 
-  it("includes preview content in plain text body", () => {
-    const text = buildApprovalEmailText(baseArgs());
-    expect(text).toContain("Customer Support");
-    expect(text).toContain("Hi! Here is the link.");
-    expect(text).toContain("https://kilnbase.com");
+  it("includes preview content + branded subject in payload sent to Resend", async () => {
+    sendMock.mockResolvedValue({ data: { id: "email_xyz" } });
+    await sendApprovalEmail(baseArgs());
+    const payload = sendMock.mock.calls[0][0];
+    expect(payload.subject).toContain("Customer Support");
+    expect(payload.text).toContain("Hi! Here is the link.");
+    expect(payload.html).toContain("Customer Support");
   });
 
   it("parses comma-separated recipients", () => {
