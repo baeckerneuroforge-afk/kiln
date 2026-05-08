@@ -110,6 +110,13 @@ const NAV_SECTIONS: NavSection[] = [
         tooltipDescription: "Multi-step workflows + visual editor",
       },
       {
+        name: "Departments",
+        href: "/dashboard/departments",
+        icon: Building2,
+        minAgents: 0,
+        tooltipDescription: "Autonomous manager-led teams",
+      },
+      {
         name: "Orchestration",
         href: "/dashboard/orchestration",
         icon: Network,

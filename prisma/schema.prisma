@@ -65,6 +65,7 @@ model User {
   referralCredits     ReferralCredit[]
   marketplaceTemplates MarketplaceTemplate[]
   agentTeams          AgentTeam[]
+  departments         Department[]
   teamExecutions      TeamExecution[]
   creditUsage         AiCreditUsage[]
   quickUseTasks       QuickUseTask[]
@@ -254,6 +255,8 @@ model Agent {
   mcpConnections       MCPConnection[]
   roiConfig            ROIConfig?
   workflowApprovals    WorkflowApproval[]
+  departmentWorker     DepartmentWorker[] @relation("DepartmentWorker")
+  departmentManagedBy  Department[]       @relation("DepartmentManager")
 
   @@index([userId])
   @@index([orgId])
@@ -276,6 +279,7 @@ enum TriggerType {
   SCHEDULE
   WEBHOOK
   EVENT
+  FOLLOWUP
 }
 
 enum OutputType {
@@ -1048,6 +1052,37 @@ enum WorkflowDeadLetterStatus {
   DISCARDED
 }
 
+enum DepartmentType {
+  CUSTOMER_SUPPORT
+  SALES_OUTREACH
+  LEAD_QUALIFICATION
+  CONTENT_PRODUCTION
+  RESEARCH
+  CUSTOM
+}
+
+enum DepartmentStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum ApprovalMode {
+  APPROVAL_FIRST
+  AUTO
+  OFF
+}
+
+enum BacklogStatus {
+  PENDING
+  CLAIMED
+  RUNNING
+  NEEDS_APPROVAL
+  DONE
+  FAILED
+}
+
 model AgentTeam {
   id            String          @id @default(cuid())
   userId        String
@@ -1081,6 +1116,107 @@ model AgentTeam {
   @@index([userId])
   @@index([orgId])
   @@index([isSubWorkflow])
+}
+
+model Department {
+  id                  String           @id @default(cuid())
+  userId              String
+  orgId               String?          // Clerk Org ID, nullable during multi-tenancy migration
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                String
+  description         String?          @db.Text
+  type                DepartmentType   @default(CUSTOMER_SUPPORT)
+  status              DepartmentStatus @default(DRAFT)
+
+  managerAgentId      String?
+  managerSystemPrompt String?          @db.Text
+  managerModel        String           @default("claude-sonnet-4-6")
+  managerAgent        Agent?           @relation("DepartmentManager", fields: [managerAgentId], references: [id], onDelete: SetNull)
+
+  approvalMode        ApprovalMode     @default(APPROVAL_FIRST)
+
+  scheduleEnabled     Boolean          @default(false)
+  scheduleCron        String?
+  webhookEnabled      Boolean          @default(true)
+  webhookSecret       String           @default(cuid())
+
+  operatingMemory     Json             @default("{}")
+  totalTasks          Int              @default(0)
+  totalApprovals      Int              @default(0)
+
+  workerAgents        DepartmentWorker[]
+  backlog             DepartmentBacklogItem[]
+  runLogs             DepartmentRunLog[]
+
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([orgId, status])
+  @@index([orgId, type])
+}
+
+model DepartmentWorker {
+  id           String     @id @default(cuid())
+  departmentId String
+  agentId      String
+  role         String
+  description  String?    @db.Text
+  priority     Int        @default(0)
+
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  agent        Agent      @relation("DepartmentWorker", fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([departmentId, agentId])
+  @@index([departmentId])
+  @@index([agentId])
+}
+
+model DepartmentBacklogItem {
+  id              String        @id @default(cuid())
+  departmentId    String
+  department      Department    @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  triggerType     TriggerType
+  triggerPayload  Json
+
+  status          BacklogStatus @default(PENDING)
+  claimedAt       DateTime?
+  completedAt     DateTime?
+
+  result          Json?
+  error           String?       @db.Text
+
+  approvalDraft   Json?
+  approvedAt      DateTime?
+  approvedBy      String?
+  rejectedAt      DateTime?
+  rejectedBy      String?
+  rejectionReason String?       @db.Text
+
+  createdAt       DateTime      @default(now())
+
+  @@index([departmentId, status])
+  @@index([departmentId, createdAt])
+}
+
+model DepartmentRunLog {
+  id              String     @id @default(cuid())
+  departmentId    String
+  department      Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  backlogItemId   String?
+
+  managerDecision Json
+  workerInvoked   String?
+  invocationType  String
+
+  durationMs      Int
+  tokensUsed      Int        @default(0)
+
+  createdAt       DateTime   @default(now())
+
+  @@index([departmentId, createdAt])
+  @@index([backlogItemId])
 }
 
 model TeamPermission {

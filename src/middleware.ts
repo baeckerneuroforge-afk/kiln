@@ -47,6 +47,7 @@ const isPublicRoute = createRouteMatcher([
   "/api/test/(.*)",          // Test-Endpoints (temporär)
   "/api/automations/run",   // Cron-Endpoint (eigene Secret-Auth)
   "/api/cron/(.*)",         // Cron-Endpoints (eigene Secret-Auth)
+  "/api/departments/:id/trigger", // Department inbound webhook (secret auth)
   "/api/agents/:id/knowledge/:kbId/embed", // KB embedding (CRON_SECRET Auth)
   "/api/admin/site-intelligence", // Site Intelligence (dual auth: Clerk oder CRON_SECRET)
   "/api/teams/:id/executions/:execId/approve",
