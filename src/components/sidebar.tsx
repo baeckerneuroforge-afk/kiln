@@ -60,6 +60,7 @@ interface NavItem {
   // Sub-org-class features (BUSINESS / AGENCY / ENTERPRISE / ADMIN).
   // Sub-orgs page itself, multi-tenant management. Includes BUSINESS.
   requiresAgencyTier?: boolean;
+  requiresAgencyOps?: boolean;
   // One-line context shown in the hover tooltip — used to disambiguate
   // visually-similar entries (e.g. Workflows vs Orchestration).
   tooltipDescription?: string;
@@ -82,6 +83,7 @@ const NAV_SECTIONS: NavSection[] = [
     defaultOpen: true,
     items: [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, minAgents: 0 },
+      { name: "Operations", href: "/dashboard/operations", icon: Activity, minAgents: 0, requiresAgencyOps: true },
       { name: "Agents", href: "/dashboard/agents", icon: Bot, minAgents: 0, tourId: "agents" },
       { name: "Conversations", href: "/dashboard/conversations", icon: MessageSquare, minAgents: 0 },
     ],
@@ -221,6 +223,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
   const { signOut } = useClerk();
   const [plan, setPlan] = useState<string>("FREE");
   const [agentCount, setAgentCount] = useState<number>(0);
+  const [canViewOperations, setCanViewOperations] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -347,6 +350,9 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
       .then((res) => res.json())
       .then((data) => {
         setPlan(data.plan || "FREE");
+        if (["AGENCY", "ENTERPRISE", "ADMIN"].includes(data.plan || "FREE")) {
+          setCanViewOperations(true);
+        }
         if (typeof data.agentCount === "number") {
           setAgentCount(data.agentCount);
         }
@@ -363,6 +369,15 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
             showAgencyLogo: data.branding.showAgencyLogo ?? true,
             isInherited: Boolean(data.isInherited),
           });
+        }
+      })
+      .catch(() => {});
+
+    fetch("/api/agency/sub-orgs")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (Array.isArray(data?.subOrgs) && data.subOrgs.length >= 2) {
+          setCanViewOperations(true);
         }
       })
       .catch(() => {});
@@ -389,6 +404,9 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
 
   // Check if an item should be visible based on plan/agent gates
   function isItemVisible(item: NavItem): boolean {
+    if (item.requiresAgencyOps && !canViewOperations && !pathname.startsWith("/dashboard/operations")) {
+      return false;
+    }
     if (item.requiresBusiness) {
       // Stripe-Connect-class plans only — BUSINESS does NOT qualify.
       const isBusiness = ["AGENCY", "ENTERPRISE", "ADMIN"].includes(plan);
