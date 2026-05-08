@@ -23,8 +23,8 @@ const isPublicRoute = createRouteMatcher([
   "/services",
   "/help",
   "/enterprise",
-  "/sign-in/(.*)",
-  "/sign-up/(.*)",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
   "/api/webhook/(.*)",
   "/api/webhooks/agent/(.*)", // Inbound agent webhooks (eigene Auth)
   "/api/agents/:id/chat",  // Public Chat API
