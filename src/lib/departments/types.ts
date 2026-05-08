@@ -18,6 +18,7 @@ export interface DepartmentContext {
   orgId: string;
   userId: string;
   backlogItemId?: string;
+  approverUserId?: string;
 }
 
 export type SwarmConfig = JsonRecord;

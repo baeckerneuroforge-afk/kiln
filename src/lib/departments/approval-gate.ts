@@ -2,6 +2,7 @@ import type { DepartmentBacklogItem } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { asJsonRecord, toPrismaJson, truncateError } from "./json";
 import { invokeDraftedAction } from "./invocation";
+import { logDepartmentChannelEvent } from "./channels/logging";
 
 export async function getPendingApprovals(
   orgId: string
@@ -31,6 +32,7 @@ export async function approveItem(itemId: string, userId: string): Promise<void>
     orgId: item.department.orgId || "",
     userId: item.department.userId,
     backlogItemId: item.id,
+    approverUserId: userId,
   });
 
   await prisma.$transaction([
@@ -53,6 +55,15 @@ export async function approveItem(itemId: string, userId: string): Promise<void>
       data: { totalApprovals: { increment: 1 } },
     }),
   ]);
+
+  await logDepartmentChannelEvent({
+    departmentId: item.departmentId,
+    backlogItemId: item.id,
+    event: "approval_approved",
+    approverUserId: userId,
+    status: result.ok ? "APPROVED" : "FAILED",
+    payload: { draft, result },
+  });
 }
 
 export async function rejectItem(
@@ -62,7 +73,7 @@ export async function rejectItem(
 ): Promise<void> {
   const item = await prisma.departmentBacklogItem.findUnique({
     where: { id: itemId },
-    select: { status: true },
+    select: { status: true, departmentId: true },
   });
 
   if (!item || item.status !== "NEEDS_APPROVAL") {
@@ -79,5 +90,14 @@ export async function rejectItem(
       completedAt: new Date(),
       result: toPrismaJson({ rejected: true, reason }),
     },
+  });
+
+  await logDepartmentChannelEvent({
+    departmentId: item.departmentId,
+    backlogItemId: itemId,
+    event: "approval_rejected",
+    approverUserId: userId,
+    status: "REJECTED",
+    payload: { reason },
   });
 }

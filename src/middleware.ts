@@ -39,6 +39,8 @@ const isPublicRoute = createRouteMatcher([
   "/api/onboarding/:id/checkout", // Public onboarding checkout (cuid as token)
   "/api/webhooks/telegram/(.*)", // Telegram Bot Webhooks
   "/api/webhooks/email/(.*)",    // Email Inbound Webhooks
+  "/api/webhooks/department-email(.*)", // Department Email Inbound Webhooks
+  "/api/webhooks/department-whatsapp(.*)", // Department WhatsApp Webhooks
   "/api/webhooks/github/(.*)",   // GitHub Webhook Events
   "/api/webhooks/slack/(.*)",    // Slack Event Subscriptions
   "/api/v1/(.*)",           // Public API (eigene Key-Auth)

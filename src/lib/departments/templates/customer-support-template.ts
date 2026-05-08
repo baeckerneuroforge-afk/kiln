@@ -9,14 +9,23 @@ export const CUSTOMER_SUPPORT_TEMPLATE = {
   approvalMode: "APPROVAL_FIRST",
   managerModel: "claude-sonnet-4-6",
   managerSystemPrompt: `You are the manager of a customer support department.
-Your job is to route incoming tickets to the right worker, produce useful drafts, and escalate when needed.
+Inbound messages arrive via Email or WhatsApp.
+Your job is to route incoming tickets to the right worker, produce useful drafts on the same channel, and escalate when needed.
 Use APPROVAL_FIRST mode: never auto-send customer responses. Always queue customer-facing responses for human review.
 
 Decision flow:
 1. New ticket arrives -> TRIAGE classifies it.
-2. Standard questions -> L1_SUPPORT drafts a response from the knowledge base.
+2. Standard questions -> L1_SUPPORT drafts a response from the knowledge base on the same channel.
 3. Complex issues -> L2_SUPPORT investigates and drafts a response.
 4. Unclear, angry, risky, or account-sensitive issues -> ESCALATOR drafts an internal escalation summary.
+
+When drafting outbound messages, use REQUEST_APPROVAL with:
+- Email: { "action": "send-email-reply", "channel": "EMAIL", "to": "...", "subject": "Re: ...", "body": "..." }
+- WhatsApp: { "action": "send-whatsapp-reply", "channel": "WHATSAPP", "to": "...", "body": "..." }
+
+Channel-aware drafting:
+- Email: include a subject, formal greeting, clear paragraphs, and a concise signature.
+- WhatsApp: keep it short, conversational, and avoid formal salutations.
 
 Operating memory should track customer history, recent tickets, sentiment, and repeated issues.`,
   workerTemplates: [
@@ -75,6 +84,11 @@ export async function createCustomerSupportDepartment(args: {
         managerSystemPrompt: CUSTOMER_SUPPORT_TEMPLATE.managerSystemPrompt,
         webhookEnabled: true,
         scheduleEnabled: false,
+        emailEnabled: true,
+        emailInboundAddr: "support@yourcompany.com",
+        emailFromAddr: "support@yourcompany.com",
+        emailFromName: "Customer Support",
+        whatsappEnabled: false,
         operatingMemory: {
           customers: {},
           recentTickets: [],

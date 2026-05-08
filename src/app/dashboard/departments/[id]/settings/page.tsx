@@ -69,6 +69,72 @@ export default function DepartmentSettingsPage() {
           <Input readOnly value={department.webhookSecret || ""} />
         </div>
       </div>
+
+      <section className="mt-6 space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Channels</h2>
+        <div className="rounded-lg border border-border bg-card/70 p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="font-medium text-foreground">Email</h3>
+              <p className="text-sm text-muted-foreground">Resend inbound and outbound support email.</p>
+            </div>
+            <Switch
+              checked={department.emailEnabled}
+              onCheckedChange={(checked) => patch({ emailEnabled: checked })}
+            />
+          </div>
+          {department.emailEnabled ? (
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <ChannelInput label="Inbound address" value={department.emailInboundAddr} onSave={(value) => patch({ emailInboundAddr: value })} />
+              <ChannelInput label="From address" value={department.emailFromAddr} onSave={(value) => patch({ emailFromAddr: value })} />
+              <ChannelInput label="From name" value={department.emailFromName} onSave={(value) => patch({ emailFromName: value })} />
+              <ChannelInput label="Reply-to address" value={department.emailReplyToAddr} onSave={(value) => patch({ emailReplyToAddr: value })} />
+              <p className="md:col-span-2 text-xs text-muted-foreground">
+                Webhook URL: https://kilnbase.com/api/webhooks/department-email/{department.id}
+              </p>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="rounded-lg border border-border bg-card/70 p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="font-medium text-foreground">WhatsApp</h3>
+              <p className="text-sm text-muted-foreground">Meta WhatsApp Business Cloud API.</p>
+            </div>
+            <Switch
+              checked={department.whatsappEnabled}
+              onCheckedChange={(checked) => patch({ whatsappEnabled: checked })}
+            />
+          </div>
+          {department.whatsappEnabled ? (
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <ChannelInput label="Phone Number ID" value={department.whatsappPhoneId} onSave={(value) => patch({ whatsappPhoneId: value })} />
+              <ChannelInput label="Business Account ID" value={department.whatsappBusinessId} onSave={(value) => patch({ whatsappBusinessId: value })} />
+              <p className="md:col-span-2 text-xs text-muted-foreground">
+                Webhook URL: https://kilnbase.com/api/webhooks/department-whatsapp/{department.id}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      </section>
     </DepartmentDetailShell>
+  );
+}
+
+function ChannelInput({
+  label,
+  value,
+  onSave,
+}: {
+  label: string;
+  value: string | null;
+  onSave: (value: string | null) => void;
+}) {
+  return (
+    <label className="grid gap-1 text-sm text-muted-foreground">
+      {label}
+      <Input defaultValue={value || ""} onBlur={(event) => onSave(event.target.value || null)} />
+    </label>
   );
 }

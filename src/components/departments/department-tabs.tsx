@@ -10,6 +10,7 @@ const tabs = [
   { href: "/memory", label: "Memory" },
   { href: "/backlog", label: "Backlog" },
   { href: "/approvals", label: "Approvals" },
+  { href: "/channels", label: "Channels" },
   { href: "/settings", label: "Settings" },
 ];
 

@@ -23,6 +23,14 @@ export interface DepartmentView {
   scheduleCron: string | null;
   webhookEnabled: boolean;
   webhookSecret?: string;
+  emailEnabled: boolean;
+  emailInboundAddr: string | null;
+  emailFromAddr: string | null;
+  emailFromName: string | null;
+  emailReplyToAddr: string | null;
+  whatsappEnabled: boolean;
+  whatsappPhoneId: string | null;
+  whatsappBusinessId: string | null;
   totalTasks: number;
   totalApprovals: number;
   operatingMemory?: unknown;
@@ -49,5 +57,31 @@ export interface RunLogView {
   invocationType: string;
   durationMs: number;
   tokensUsed: number;
+  createdAt: string;
+}
+
+export interface DepartmentChannelMessageView {
+  id: string;
+  departmentId: string;
+  backlogItemId: string | null;
+  channel: "EMAIL" | "WHATSAPP";
+  direction: "INBOUND" | "OUTBOUND";
+  emailMessageId: string | null;
+  emailFrom: string | null;
+  emailTo: string | null;
+  emailSubject: string | null;
+  emailHeaders: unknown;
+  emailBody: string | null;
+  whatsappMessageId: string | null;
+  whatsappFrom: string | null;
+  whatsappTo: string | null;
+  whatsappBody: string | null;
+  whatsappType: string | null;
+  whatsappMediaId: string | null;
+  status: string;
+  blockedReason: string | null;
+  errorMessage: string | null;
+  sentAt: string | null;
+  externalId: string | null;
   createdAt: string;
 }

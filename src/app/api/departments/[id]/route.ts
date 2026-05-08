@@ -63,6 +63,30 @@ export async function PATCH(
         ...(typeof body.webhookEnabled === "boolean"
           ? { webhookEnabled: body.webhookEnabled }
           : {}),
+        ...(typeof body.emailEnabled === "boolean"
+          ? { emailEnabled: body.emailEnabled }
+          : {}),
+        ...(typeof body.emailInboundAddr === "string" || body.emailInboundAddr === null
+          ? { emailInboundAddr: body.emailInboundAddr }
+          : {}),
+        ...(typeof body.emailFromAddr === "string" || body.emailFromAddr === null
+          ? { emailFromAddr: body.emailFromAddr }
+          : {}),
+        ...(typeof body.emailFromName === "string" || body.emailFromName === null
+          ? { emailFromName: body.emailFromName }
+          : {}),
+        ...(typeof body.emailReplyToAddr === "string" || body.emailReplyToAddr === null
+          ? { emailReplyToAddr: body.emailReplyToAddr }
+          : {}),
+        ...(typeof body.whatsappEnabled === "boolean"
+          ? { whatsappEnabled: body.whatsappEnabled }
+          : {}),
+        ...(typeof body.whatsappPhoneId === "string" || body.whatsappPhoneId === null
+          ? { whatsappPhoneId: body.whatsappPhoneId }
+          : {}),
+        ...(typeof body.whatsappBusinessId === "string" || body.whatsappBusinessId === null
+          ? { whatsappBusinessId: body.whatsappBusinessId }
+          : {}),
       },
     });
 

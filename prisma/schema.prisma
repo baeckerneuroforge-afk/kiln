@@ -1083,6 +1083,20 @@ enum BacklogStatus {
   FAILED
 }
 
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum ChannelMessageStatus {
+  RECEIVED
+  DRAFTED
+  APPROVED
+  SENT
+  BLOCKED
+  FAILED
+}
+
 model AgentTeam {
   id            String          @id @default(cuid())
   userId        String
@@ -1140,6 +1154,16 @@ model Department {
   webhookEnabled      Boolean          @default(true)
   webhookSecret       String           @default(cuid())
 
+  emailEnabled        Boolean          @default(false)
+  emailInboundAddr    String?
+  emailFromAddr       String?
+  emailFromName       String?
+  emailReplyToAddr    String?
+
+  whatsappEnabled     Boolean          @default(false)
+  whatsappPhoneId     String?
+  whatsappBusinessId  String?
+
   operatingMemory     Json             @default("{}")
   totalTasks          Int              @default(0)
   totalApprovals      Int              @default(0)
@@ -1147,6 +1171,7 @@ model Department {
   workerAgents        DepartmentWorker[]
   backlog             DepartmentBacklogItem[]
   runLogs             DepartmentRunLog[]
+  channelMessages     DepartmentChannelMessage[]
 
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
@@ -1196,6 +1221,8 @@ model DepartmentBacklogItem {
 
   createdAt       DateTime      @default(now())
 
+  channelMessages DepartmentChannelMessage[]
+
   @@index([departmentId, status])
   @@index([departmentId, createdAt])
 }
@@ -1216,6 +1243,45 @@ model DepartmentRunLog {
   createdAt       DateTime   @default(now())
 
   @@index([departmentId, createdAt])
+  @@index([backlogItemId])
+}
+
+model DepartmentChannelMessage {
+  id                String               @id @default(cuid())
+  departmentId      String
+  backlogItemId     String?
+
+  channel           ChannelType
+  direction         MessageDirection
+
+  emailMessageId    String?
+  emailFrom         String?
+  emailTo           String?
+  emailSubject      String?
+  emailHeaders      Json?
+  emailBody         String?              @db.Text
+
+  whatsappMessageId String?
+  whatsappFrom      String?
+  whatsappTo        String?
+  whatsappBody      String?              @db.Text
+  whatsappType      String?
+  whatsappMediaId   String?
+
+  status            ChannelMessageStatus @default(RECEIVED)
+  blockedReason     String?              @db.Text
+  errorMessage      String?              @db.Text
+
+  sentAt            DateTime?
+  externalId        String?
+
+  createdAt         DateTime             @default(now())
+
+  department        Department           @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  backlogItem       DepartmentBacklogItem? @relation(fields: [backlogItemId], references: [id], onDelete: SetNull)
+
+  @@index([departmentId, channel, createdAt])
+  @@index([departmentId, direction, status])
   @@index([backlogItemId])
 }
 

@@ -47,7 +47,42 @@ export function ApprovalQueue({
   return (
     <div className="space-y-4">
       {items.map((item) => (
-        <div key={item.id} className="rounded-lg border border-orange-500/25 bg-card/80 p-4">
+        <ApprovalItem
+          key={item.id}
+          item={item}
+          busy={busyId === item.id}
+          reason={reasons[item.id] || ""}
+          setReason={(reason) =>
+            setReasons((current) => ({ ...current, [item.id]: reason }))
+          }
+          approve={() => approve(item.id)}
+          reject={() => reject(item.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ApprovalItem({
+  item,
+  busy,
+  reason,
+  setReason,
+  approve,
+  reject,
+}: {
+  item: BacklogItemView;
+  busy: boolean;
+  reason: string;
+  setReason: (reason: string) => void;
+  approve: () => void;
+  reject: () => void;
+}) {
+  const draft = readDraft(item.approvalDraft);
+  const trigger = readDraft(item.triggerPayload);
+
+  return (
+    <div className="rounded-lg border border-orange-500/25 bg-card/80 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-foreground">Draft awaiting approval</p>
@@ -55,34 +90,47 @@ export function ApprovalQueue({
                 {item.triggerType} · {new Date(item.createdAt).toLocaleString()}
               </p>
             </div>
-            <span className="rounded border border-orange-500/30 bg-orange-500/10 px-2 py-1 text-xs text-orange-200">
-              NEEDS_APPROVAL
-            </span>
+            <div className="flex gap-2">
+              {draft.channel ? (
+                <span className="rounded border border-border px-2 py-1 text-xs text-muted-foreground">
+                  {draft.channel}
+                </span>
+              ) : null}
+              <span className="rounded border border-orange-500/30 bg-orange-500/10 px-2 py-1 text-xs text-orange-200">
+                NEEDS_APPROVAL
+              </span>
+            </div>
           </div>
+          {draft.to ? <p className="mt-3 text-sm text-muted-foreground">To: {draft.to}</p> : null}
+          {draft.subject ? <p className="mt-1 text-sm text-muted-foreground">Subject: {draft.subject}</p> : null}
           <pre className="mt-4 max-h-72 overflow-auto rounded border border-border/70 bg-black/25 p-3 text-xs text-slate-200">
-            {JSON.stringify(item.approvalDraft, null, 2)}
+            {draft.body || draft.response || JSON.stringify(item.approvalDraft, null, 2)}
           </pre>
+          {trigger.body ? (
+            <details className="mt-3 rounded border border-border/70 bg-black/10 p-3 text-xs text-muted-foreground">
+              <summary className="cursor-pointer text-foreground">Original incoming message</summary>
+              <pre className="mt-2 whitespace-pre-wrap">{trigger.body}</pre>
+            </details>
+          ) : null}
           <Textarea
             className="mt-4 min-h-20 bg-background/70"
             placeholder="Reason required when rejecting"
-            value={reasons[item.id] || ""}
-            onChange={(event) =>
-              setReasons((current) => ({ ...current, [item.id]: event.target.value }))
-            }
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
           />
           <div className="mt-4 flex flex-wrap gap-2">
             <Button
-              onClick={() => approve(item.id)}
-              disabled={busyId === item.id}
+              onClick={approve}
+              disabled={busy}
               className="bg-emerald-600 text-white hover:bg-emerald-700"
             >
-              {busyId === item.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
               Approve
             </Button>
             <Button
               variant="outline"
-              onClick={() => reject(item.id)}
-              disabled={busyId === item.id}
+              onClick={reject}
+              disabled={busy}
               className="border-red-500/30 text-red-200 hover:bg-red-500/10"
             >
               <X className="mr-2 h-4 w-4" />
@@ -90,7 +138,15 @@ export function ApprovalQueue({
             </Button>
           </div>
         </div>
-      ))}
-    </div>
+  );
+}
+
+function readDraft(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+      key,
+      typeof entry === "string" ? entry : "",
+    ])
   );
 }

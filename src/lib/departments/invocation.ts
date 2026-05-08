@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
 import { executeWorkflow } from "@/lib/services/workflow-runtime";
 import { executeAgentSwarm } from "@/lib/workflow-nodes/agent-swarm-node";
+import { sendDepartmentEmail } from "./channels/email-sender";
+import { sendDepartmentWhatsapp } from "./channels/whatsapp-sender";
 import { getAnthropicClientForUser } from "./anthropic-client";
 import { asJsonRecord, toPrismaJson, truncateError } from "./json";
 import type { DepartmentContext, InvocationResult } from "./types";
@@ -181,6 +183,46 @@ export async function invokeDraftedAction(
   draft: Record<string, unknown>,
   context: DepartmentContext
 ): Promise<InvocationResult> {
+  const action = String(draft.action || draft.type || "");
+  const channel = String(draft.channel || "").toUpperCase();
+  const approverUserId = context.approverUserId || context.userId;
+  const backlogItemId = context.backlogItemId;
+
+  if ((action === "send-email-reply" || channel === "EMAIL") && backlogItemId) {
+    const result = await sendDepartmentEmail({
+      departmentId: context.departmentId,
+      backlogItemId,
+      to: String(draft.to || draft.emailTo || ""),
+      subject: String(draft.subject || draft.emailSubject || "Re: Support request"),
+      body: String(draft.body || draft.emailBody || draft.response || ""),
+      inReplyToMessageId:
+        typeof draft.inReplyToMessageId === "string" ? draft.inReplyToMessageId : undefined,
+      approverUserId,
+    });
+    return {
+      ok: true,
+      invocationType: "DRAFT",
+      output: result,
+      durationMs: 0,
+    };
+  }
+
+  if ((action === "send-whatsapp-reply" || channel === "WHATSAPP") && backlogItemId) {
+    const result = await sendDepartmentWhatsapp({
+      departmentId: context.departmentId,
+      backlogItemId,
+      to: String(draft.to || draft.whatsappTo || ""),
+      body: String(draft.body || draft.whatsappBody || draft.response || ""),
+      approverUserId,
+    });
+    return {
+      ok: true,
+      invocationType: "DRAFT",
+      output: result,
+      durationMs: 0,
+    };
+  }
+
   const workerInvocation = asJsonRecord(draft.workerInvocation);
   if (workerInvocation.workerId) {
     return invokeWorker(
