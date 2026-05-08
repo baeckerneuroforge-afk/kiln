@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, Loader2, Plus, RefreshCw } from "lucide-react";
 import { ActivityFeed } from "@/components/operations/activity-feed";
 import { ApprovalsCrossQueue } from "@/components/operations/approvals-cross-queue";
 import { CostByCustomerChart } from "@/components/operations/cost-by-customer-chart";
@@ -9,7 +10,7 @@ import { CustomerHealthGrid } from "@/components/operations/customer-health-grid
 import { OpsEmptyState } from "@/components/operations/ops-empty-state";
 import { StatsRow } from "@/components/operations/stats-row";
 import { TimeRangeSelector } from "@/components/operations/time-range-selector";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import type {
   ActivityFeedItem,
   CostByCustomer,
@@ -130,6 +131,10 @@ export default function OperationsPage() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <TimeRangeSelector value={range} onChange={setRange} />
+          <Link href="/dashboard/onboarding" className={buttonVariants()}>
+            <Plus className="h-4 w-4" />
+            Add Customer
+          </Link>
           <Button variant="outline" onClick={() => loadOperations(false)} disabled={refreshing}>
             {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Refresh

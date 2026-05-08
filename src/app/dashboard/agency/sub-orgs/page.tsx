@@ -29,6 +29,7 @@ import {
 import { useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { useToast } from "@/components/toast";
 import { cn } from "@/lib/utils";
 
@@ -182,10 +183,16 @@ export default function AgencySubOrgsPage() {
             jump in as a client at any time.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          New sub-org
-        </Button>
+        <div className="flex gap-2">
+          <Link href="/dashboard/onboarding" className={buttonVariants()}>
+            <Plus className="h-4 w-4" />
+            Add Customer
+          </Link>
+          <Button variant="outline" onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            New sub-org
+          </Button>
+        </div>
       </header>
 
       {error && (

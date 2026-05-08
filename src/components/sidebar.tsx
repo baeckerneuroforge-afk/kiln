@@ -33,6 +33,7 @@ import {
   Workflow,
   CreditCard,
   TrendingUp,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -84,6 +85,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, minAgents: 0 },
       { name: "Operations", href: "/dashboard/operations", icon: Activity, minAgents: 0, requiresAgencyOps: true },
+      { name: "Add Customer", href: "/dashboard/onboarding", icon: Plus, minAgents: 0, requiresAgencyOps: true },
       { name: "Agents", href: "/dashboard/agents", icon: Bot, minAgents: 0, tourId: "agents" },
       { name: "Conversations", href: "/dashboard/conversations", icon: MessageSquare, minAgents: 0 },
     ],
