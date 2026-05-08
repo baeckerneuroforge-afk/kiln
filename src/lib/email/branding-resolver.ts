@@ -150,12 +150,8 @@ function mergeOverrides(
   top: EmailBrandOverride | null
 ): EmailBrandOverride {
   if (!top) return base;
-  return { ...base, ...stripUndefined(top) };
-}
-
-function stripUndefined<T extends Record<string, unknown>>(value: T): Partial<T> {
-  const out: Partial<T> = {};
-  for (const [key, v] of Object.entries(value)) {
+  const out: EmailBrandOverride = { ...base };
+  for (const [key, v] of Object.entries(top)) {
     if (v !== undefined && v !== null && v !== "") {
       (out as Record<string, unknown>)[key] = v;
     }
