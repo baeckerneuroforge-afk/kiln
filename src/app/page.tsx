@@ -2,15 +2,17 @@
  * KILN landing page — orchestrator.
  *
  * Each section lives in src/components/landing/ as its own file so
- * this stays a thin import + composition layer. Pulls in the
- * animated StarField background once at the top so every section
- * sits on top of it.
+ * this stays a thin import + composition layer. The whole landing
+ * surface runs in a `landing-light` theme scope — warm off-white bg,
+ * stone-100 section variation, near-black headlines. Dashboard +
+ * auth-pages stay dark, so the user transitions from "marketing
+ * brochure" to "tool" the moment they sign in.
  */
 import { Metadata } from "next";
 import { CookieBanner } from "@/components/cookie-banner";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { LandingFooter } from "@/components/landing/landing-footer";
-import { StarField } from "@/components/landing/star-field";
+import { DotGrid } from "@/components/landing/dot-grid";
 import { HeroSection } from "@/components/landing/hero-section";
 import { ProblemSection } from "@/components/landing/problem-section";
 import { SolutionSection } from "@/components/landing/solution-section";
@@ -34,8 +36,8 @@ export const metadata: Metadata = {
 
 export default function LandingPage() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-background text-foreground antialiased">
-      <StarField />
+    <main className="landing-light relative min-h-screen overflow-hidden bg-background text-foreground antialiased">
+      <DotGrid />
       <div className="relative z-10">
         <LandingNav />
         <HeroSection />

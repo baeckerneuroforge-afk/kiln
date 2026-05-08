@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * Problem — three pain points specific to AI agencies. The cards use
- * muted backgrounds so the next section (Solution) reads as the
- * payoff visually.
+ * Problem — three pain points specific to AI agencies. The cards sit on
+ * a stone-50 strip so the next section (Solution, on white) reads as
+ * the payoff. Hover taps the destructive red so the pain points feel
+ * actionable rather than purely decorative.
  */
 import { RotateCcw, TrendingDown, UserX } from "lucide-react";
 import { AnimatedSection } from "./animated-section";
@@ -34,22 +35,22 @@ export function ProblemSection() {
     <AnimatedSection
       id="problem"
       aria-label="The problem"
-      className="relative isolate border-y border-border/40 bg-card/30 py-20 sm:py-28"
+      className="relative isolate border-y border-stone-200 bg-stone-50 py-20 sm:py-28"
     >
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10"
         style={{
           background:
-            "radial-gradient(ellipse 70% 40% at 50% 0%, rgba(220,38,38,0.04) 0%, transparent 70%)",
+            "radial-gradient(ellipse 70% 40% at 50% 0%, rgba(220,38,38,0.05) 0%, transparent 70%)",
         }}
       />
       <div className="mx-auto max-w-6xl px-6">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-red-400/80">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-red-600">
             The Agency Problem
           </p>
-          <h2 className="mt-3 font-serif text-3xl tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+          <h2 className="mt-3 font-serif text-3xl tracking-tight text-stone-900 sm:text-4xl lg:text-5xl">
             AI consultancies hit the same wall
           </h2>
         </div>
@@ -58,15 +59,15 @@ export function ProblemSection() {
             <div
               key={p.title}
               style={{ animationDelay: `${idx * 100}ms` }}
-              className="kiln-problem-card group rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-red-500/40 hover:bg-card/80 hover:shadow-xl hover:shadow-red-500/5"
+              className="kiln-problem-card group rounded-2xl border border-stone-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-red-300 hover:shadow-lg hover:shadow-red-500/10"
             >
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-red-500/10 transition-colors group-hover:bg-red-500/15">
-                <p.icon className="h-5 w-5 text-red-400" />
+              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 transition-colors group-hover:bg-red-100">
+                <p.icon className="h-5 w-5 text-red-600" />
               </div>
-              <h3 className="text-base font-semibold text-foreground sm:text-lg">
+              <h3 className="text-base font-semibold text-stone-900 sm:text-lg">
                 {p.title}
               </h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              <p className="mt-2 text-sm leading-relaxed text-stone-600">
                 {p.body}
               </p>
             </div>

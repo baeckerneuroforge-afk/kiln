@@ -64,13 +64,13 @@ export function HeroSection() {
       aria-label="Hero"
       className="relative isolate overflow-hidden pt-32 pb-24 sm:pt-40 sm:pb-32 lg:min-h-[100vh] lg:pt-40 lg:pb-24"
     >
-      {/* Aurora glow */}
+      {/* Warm aurora — soft orange tint at upper-right, no red bleed */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10"
         style={{
           background:
-            "radial-gradient(ellipse 70% 50% at 50% 0%, rgba(249,115,22,0.15) 0%, rgba(220,38,38,0.05) 35%, transparent 70%)",
+            "radial-gradient(ellipse 70% 50% at 70% 0%, rgba(254,215,170,0.55) 0%, rgba(249,115,22,0.08) 35%, transparent 70%)",
         }}
       />
 
@@ -79,14 +79,14 @@ export function HeroSection() {
         <div className="lg:col-span-7">
           <p
             className={cn(
-              "mb-5 inline-flex items-center gap-2 rounded-full border border-kiln-orange/30 bg-kiln-orange/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-kiln-orange transition-all duration-700",
+              "mb-5 inline-flex items-center gap-2 rounded-full border border-kiln-orange/40 bg-kiln-orange/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-kiln-orange transition-all duration-700",
               mounted ? "opacity-100" : "opacity-0 -translate-y-2",
             )}
           >
             <Sparkles className="h-3 w-3" />
             Phase B: Agency-First AI Infrastructure
           </p>
-          <h1 className="font-serif text-4xl leading-[1.05] tracking-tight text-foreground sm:text-5xl lg:text-6xl xl:text-7xl">
+          <h1 className="font-serif text-4xl leading-[1.05] tracking-tight text-stone-900 sm:text-5xl lg:text-6xl xl:text-7xl">
             {headlineWords.map((tok, i) =>
               tok.w === "\n" ? (
                 <br key={i} />
@@ -101,14 +101,14 @@ export function HeroSection() {
                   style={{ transitionDelay: `${100 + i * 60}ms` }}
                 >
                   {tok.w}
-                  {i < headlineWords.length - 1 && tok.w !== "\n" ? " " : ""}
+                  {i < headlineWords.length - 1 && tok.w !== "\n" ? " " : ""}
                 </span>
               ),
             )}
           </h1>
           <p
             className={cn(
-              "mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg transition-all duration-700 delay-700",
+              "mt-6 max-w-xl text-base leading-relaxed text-stone-600 sm:text-lg transition-all duration-700 delay-700",
               mounted ? "opacity-100" : "opacity-0 translate-y-2",
             )}
           >
@@ -126,20 +126,15 @@ export function HeroSection() {
             <Link
               href="/sign-up"
               data-testid="hero-cta-primary"
-              className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-kiln-orange px-6 py-3.5 text-sm font-semibold text-white shadow-xl shadow-kiln-orange/30 transition-all hover:bg-kiln-orange/90 hover:shadow-kiln-orange/50"
+              className="group relative inline-flex items-center justify-center gap-2 rounded-xl bg-kiln-orange px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-kiln-orange/30 transition-all hover:-translate-y-0.5 hover:bg-kiln-orange/95 hover:shadow-xl hover:shadow-kiln-orange/40"
             >
-              <span
-                aria-hidden
-                className="absolute inset-0 rounded-xl bg-kiln-orange/40 blur-xl transition-opacity group-hover:opacity-100"
-                style={{ opacity: 0.4 }}
-              />
               <span className="relative">Start Free</span>
               <ArrowRight className="relative h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <a
               href="mailto:andre@hephaistos-systems.de?subject=KILN%20Demo%20Request"
               data-testid="hero-cta-secondary"
-              className="group inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="group inline-flex items-center gap-1.5 text-sm font-medium text-stone-600 transition-colors hover:text-kiln-orange"
             >
               Or talk to the founder
               <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -148,7 +143,7 @@ export function HeroSection() {
 
           <div
             className={cn(
-              "mt-12 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-muted-foreground transition-opacity duration-1000 delay-[1100ms]",
+              "mt-12 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-stone-500 transition-opacity duration-1000 delay-[1100ms]",
               mounted ? "opacity-100" : "opacity-0",
             )}
           >
@@ -178,7 +173,7 @@ export function HeroSection() {
 }
 
 function Dot() {
-  return <span aria-hidden className="text-muted-foreground/40">·</span>;
+  return <span aria-hidden className="text-stone-300">·</span>;
 }
 
 /**
@@ -194,14 +189,14 @@ function BrowserStack() {
       <FloatingElement intensity={20} className="absolute right-0 top-12 w-[88%]">
         <BrowserFrame
           brand={{ name: "Gamma Inc", color: "#22C55E" }}
-          className="opacity-50 scale-[0.88] -rotate-2"
+          className="opacity-60 scale-[0.88] -rotate-2"
         />
       </FloatingElement>
       {/* Middle frame — medium parallax */}
       <FloatingElement intensity={14} className="absolute right-4 top-6 w-[92%]">
         <BrowserFrame
           brand={{ name: "Beta Studios", color: "#3B82F6" }}
-          className="opacity-70 scale-[0.94] rotate-1"
+          className="opacity-80 scale-[0.94] rotate-1"
         />
       </FloatingElement>
       {/* Front frame — primary, breathing animation + subtle parallax */}
@@ -260,22 +255,22 @@ function BrowserFrame({
   return (
     <div
       className={cn(
-        "rounded-xl border bg-card shadow-2xl shadow-black/40 overflow-hidden",
+        "rounded-xl border bg-white shadow-2xl shadow-stone-900/10 overflow-hidden",
         primary
-          ? "border-kiln-orange/30 shadow-kiln-orange/10"
-          : "border-border",
+          ? "border-kiln-orange/30 ring-1 ring-kiln-orange/10"
+          : "border-stone-200",
         className,
       )}
     >
-      {/* Chrome */}
-      <div className="flex items-center gap-2 border-b border-border bg-background/50 px-3 py-2">
+      {/* Chrome — Mac-style */}
+      <div className="flex items-center gap-2 border-b border-stone-200 bg-stone-50 px-3 py-2">
         <div className="flex gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
-          <span className="h-2.5 w-2.5 rounded-full bg-amber-500/70" />
-          <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" />
+          <span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" />
         </div>
-        <div className="ml-2 flex flex-1 items-center gap-1.5 rounded-md bg-muted/40 px-2 py-1 text-[10px] font-mono text-muted-foreground">
-          <Shield className="h-2.5 w-2.5 text-green-400" />
+        <div className="ml-2 flex flex-1 items-center gap-1.5 rounded-md bg-white px-2 py-1 text-[10px] font-mono text-stone-500 ring-1 ring-stone-200">
+          <Shield className="h-2.5 w-2.5 text-emerald-600" />
           ai.{brand.name.toLowerCase().replace(/\s+/g, "-")}.com
         </div>
       </div>
@@ -283,7 +278,7 @@ function BrowserFrame({
       {/* App body */}
       <div className="grid grid-cols-[120px_1fr] min-h-[320px]">
         {/* Sidebar */}
-        <div className="border-r border-border bg-card/40 p-3">
+        <div className="border-r border-stone-200 bg-stone-50 p-3">
           <div className="mb-3 flex items-center gap-1.5">
             <span
               aria-hidden
@@ -292,7 +287,7 @@ function BrowserFrame({
             >
               {brand.name[0]}
             </span>
-            <span className="truncate text-[10px] font-semibold text-foreground">
+            <span className="truncate text-[10px] font-semibold text-stone-900">
               {brand.name}
             </span>
           </div>
@@ -304,10 +299,10 @@ function BrowserFrame({
                   "rounded px-1.5 py-1 text-[9px]",
                   i === 0
                     ? "font-semibold"
-                    : "text-muted-foreground",
+                    : "text-stone-500",
                 )}
                 style={i === 0 ? {
-                  background: `${brand.color}15`,
+                  background: `${brand.color}1F`,
                   color: brand.color,
                 } : undefined}
               >
@@ -318,8 +313,8 @@ function BrowserFrame({
         </div>
 
         {/* Main canvas — mini workflow */}
-        <div className="relative p-4">
-          <div className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="relative bg-white p-4">
+          <div className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-stone-500">
             Lead Qualification
           </div>
           <div className="flex flex-col gap-2">
@@ -352,9 +347,9 @@ function BrowserFrame({
           </div>
 
           {/* Footer cost meter */}
-          <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between rounded-md border border-border bg-background/40 px-2.5 py-1.5 text-[9px]">
-            <span className="text-muted-foreground">Live cost</span>
-            <span className="font-mono text-foreground">$0.42 / hour</span>
+          <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between rounded-md border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-[9px]">
+            <span className="text-stone-500">Live cost</span>
+            <span className="font-mono text-stone-900">$0.42 / hour</span>
           </div>
         </div>
       </div>
@@ -377,31 +372,31 @@ function MiniNode({
     <div
       className={cn(
         "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[10px]",
-        muted ? "border-border bg-card/60" : "border-border bg-card",
+        muted ? "border-stone-200 bg-stone-50" : "border-stone-200 bg-white",
       )}
       style={
         muted
           ? undefined
           : {
-              borderColor: `${color}40`,
-              background: `${color}08`,
+              borderColor: `${color}55`,
+              background: `${color}0F`,
             }
       }
     >
       <span
         aria-hidden
         className="flex h-4 w-4 items-center justify-center rounded"
-        style={{ backgroundColor: `${color}20`, color: color }}
+        style={{ backgroundColor: `${color}25`, color: color }}
       >
         {icon}
       </span>
-      <span className="text-foreground">{label}</span>
+      <span className="text-stone-900">{label}</span>
     </div>
   );
 }
 
 function Connector() {
   return (
-    <div className="ml-3.5 h-2 w-px bg-gradient-to-b from-border to-transparent" />
+    <div className="ml-3.5 h-2 w-px bg-gradient-to-b from-stone-300 to-transparent" />
   );
 }

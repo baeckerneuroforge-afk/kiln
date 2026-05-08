@@ -31,14 +31,14 @@ export function SolutionSection() {
     <AnimatedSection
       id="solution"
       aria-label="How it works"
-      className="relative isolate py-20 sm:py-28"
+      className="relative isolate bg-white py-20 sm:py-28"
     >
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10"
         style={{
           background:
-            "radial-gradient(ellipse 60% 40% at 50% 100%, rgba(249,115,22,0.04) 0%, transparent 70%)",
+            "radial-gradient(ellipse 60% 40% at 50% 100%, rgba(254,215,170,0.4) 0%, transparent 70%)",
         }}
       />
       <div className="mx-auto max-w-7xl px-6">
@@ -46,7 +46,7 @@ export function SolutionSection() {
           <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-kiln-orange">
             How It Works
           </p>
-          <h2 className="mt-3 font-serif text-3xl tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+          <h2 className="mt-3 font-serif text-3xl tracking-tight text-stone-900 sm:text-4xl lg:text-5xl">
             Build once. Deploy for every client. Charge recurring.
           </h2>
         </div>
@@ -82,12 +82,12 @@ export function SolutionSection() {
         </div>
 
         {/* Result strip */}
-        <div className="mx-auto mt-12 max-w-4xl rounded-2xl border border-kiln-orange/30 bg-kiln-orange/[0.04] p-6 text-center sm:p-8">
+        <div className="mx-auto mt-12 max-w-4xl rounded-2xl border-y border-kiln-orange/30 bg-kiln-orange/[0.06] p-6 text-center sm:p-8">
           <div className="inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-kiln-orange">
             <TrendingUp className="h-3 w-3" />
             Result
           </div>
-          <p className="mt-3 font-serif text-xl text-foreground sm:text-2xl">
+          <p className="mt-3 font-serif text-xl text-stone-900 sm:text-2xl">
             One platform powers <CountUp end={50} suffix="+" /> AI deployments.{" "}
             <span className="text-kiln-orange">{50}+ recurring revenue streams.</span>{" "}
             Zero per-client maintenance.
@@ -123,27 +123,27 @@ function StepCard({
     <div
       style={{ transitionDelay: `${delay}ms` }}
       className={cn(
-        "group relative flex flex-col rounded-2xl border border-border bg-card/50 p-6 backdrop-blur-sm transition-all duration-700",
-        "hover:-translate-y-1 hover:border-kiln-orange/40 hover:shadow-xl hover:shadow-kiln-orange/5",
+        "group relative flex flex-col rounded-2xl border border-stone-200 bg-white p-6 shadow-sm transition-all duration-700",
+        "hover:-translate-y-1 hover:border-kiln-orange/40 hover:shadow-xl hover:shadow-kiln-orange/10",
         visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6",
       )}
     >
       <div className="mb-4 flex items-center gap-3">
-        <span className="font-serif text-3xl font-bold text-kiln-orange/30 group-hover:text-kiln-orange/60 transition-colors">
+        <span className="font-serif text-3xl font-bold text-stone-200 transition-colors group-hover:text-stone-300">
           {number}
         </span>
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-kiln-orange/10">
           <Icon className="h-4 w-4 text-kiln-orange" />
         </span>
       </div>
-      <h3 className="text-base font-semibold text-foreground sm:text-lg">
+      <h3 className="text-base font-semibold text-stone-900 sm:text-lg">
         {title}
       </h3>
-      <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-2 flex-1 text-sm leading-relaxed text-stone-600">
         {body}
       </p>
       <FloatingElement intensity={5} className="mt-5">
-        <div className="rounded-xl border border-border bg-background/50 p-4">
+        <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
           {children}
         </div>
       </FloatingElement>
@@ -156,24 +156,24 @@ function StepCard({
 function BuildPreview() {
   return (
     <div className="space-y-2 text-[10px]">
-      <div className="flex items-center gap-1.5 rounded-md border border-amber-500/30 bg-card px-2 py-1.5">
-        <Zap className="h-3 w-3 text-amber-400" />
-        <span className="text-foreground">Trigger: New Lead</span>
+      <div className="flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-2 py-1.5 shadow-sm">
+        <Zap className="h-3 w-3 text-amber-600" />
+        <span className="text-stone-900">Trigger: New Lead</span>
       </div>
       <Connector />
-      <div className="flex items-center gap-1.5 rounded-md border border-kiln-orange/30 bg-card px-2 py-1.5">
+      <div className="flex items-center gap-1.5 rounded-md border border-kiln-orange/40 bg-white px-2 py-1.5 shadow-sm">
         <Bot className="h-3 w-3 text-kiln-orange" />
-        <span className="text-foreground">Score Lead</span>
+        <span className="text-stone-900">Score Lead</span>
       </div>
       <Connector />
       <div className="grid grid-cols-2 gap-1.5">
-        <div className="flex items-center gap-1 rounded-md border border-blue-500/30 bg-card px-1.5 py-1">
-          <CheckCircle2 className="h-2.5 w-2.5 text-blue-400" />
-          <span className="text-foreground">Hot → CRM</span>
+        <div className="flex items-center gap-1 rounded-md border border-blue-300 bg-white px-1.5 py-1 shadow-sm">
+          <CheckCircle2 className="h-2.5 w-2.5 text-blue-600" />
+          <span className="text-stone-900">Hot → CRM</span>
         </div>
-        <div className="flex items-center gap-1 rounded-md border border-violet-500/30 bg-card px-1.5 py-1">
-          <ArrowRight className="h-2.5 w-2.5 text-violet-400" />
-          <span className="text-foreground">Cold → Email</span>
+        <div className="flex items-center gap-1 rounded-md border border-violet-300 bg-white px-1.5 py-1 shadow-sm">
+          <ArrowRight className="h-2.5 w-2.5 text-violet-600" />
+          <span className="text-stone-900">Cold → Email</span>
         </div>
       </div>
     </div>
@@ -190,7 +190,7 @@ function DeployPreview() {
       ].map((b, i) => (
         <div
           key={b.name}
-          className="flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-1.5 text-[10px] transition-transform"
+          className="flex items-center gap-2 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-[10px] shadow-sm transition-transform"
           style={{ transform: `translateX(${i * 4}px)` }}
         >
           <span
@@ -199,8 +199,8 @@ function DeployPreview() {
           >
             {b.name[0]}
           </span>
-          <span className="font-medium text-foreground">{b.name}</span>
-          <span className="ml-auto font-mono text-muted-foreground">
+          <span className="font-medium text-stone-900">{b.name}</span>
+          <span className="ml-auto font-mono text-stone-500">
             {b.domain}
           </span>
         </div>
@@ -212,27 +212,27 @@ function DeployPreview() {
 function ChargePreview() {
   return (
     <div className="space-y-2 text-[10px]">
-      <div className="rounded-md border border-kiln-green/30 bg-card p-2.5">
-        <div className="text-[9px] uppercase tracking-wider text-muted-foreground">
+      <div className="rounded-md border border-emerald-300 bg-white p-2.5 shadow-sm">
+        <div className="text-[9px] uppercase tracking-wider text-stone-500">
           Monthly recurring
         </div>
-        <div className="mt-1 font-mono text-base font-bold text-kiln-green">
+        <div className="mt-1 font-mono text-base font-bold text-emerald-600">
           €<CountUp end={497} />/mo
         </div>
       </div>
       <div className="grid grid-cols-2 gap-1.5">
-        <div className="rounded-md border border-border bg-card p-1.5">
-          <div className="text-[8px] uppercase text-muted-foreground">Margin</div>
-          <div className="font-mono text-foreground">95%</div>
+        <div className="rounded-md border border-stone-200 bg-white p-1.5">
+          <div className="text-[8px] uppercase text-stone-500">Margin</div>
+          <div className="font-mono text-stone-900">95%</div>
         </div>
-        <div className="rounded-md border border-border bg-card p-1.5">
-          <div className="text-[8px] uppercase text-muted-foreground">Sub-orgs</div>
-          <div className="font-mono text-foreground">12 active</div>
+        <div className="rounded-md border border-stone-200 bg-white p-1.5">
+          <div className="text-[8px] uppercase text-stone-500">Sub-orgs</div>
+          <div className="font-mono text-stone-900">12 active</div>
         </div>
       </div>
-      <div className="flex items-center justify-between rounded-md bg-kiln-green/[0.06] px-2 py-1">
-        <span className="text-muted-foreground">Net this month</span>
-        <span className="font-mono font-semibold text-kiln-green">
+      <div className="flex items-center justify-between rounded-md bg-emerald-50 px-2 py-1">
+        <span className="text-stone-600">Net this month</span>
+        <span className="font-mono font-semibold text-emerald-600">
           €<CountUp end={5964} />
         </span>
       </div>
@@ -242,7 +242,7 @@ function ChargePreview() {
 
 function Connector() {
   return (
-    <div className="ml-3.5 h-2 w-px bg-gradient-to-b from-border to-transparent" />
+    <div className="ml-3.5 h-2 w-px bg-gradient-to-b from-stone-300 to-transparent" />
   );
 }
 
