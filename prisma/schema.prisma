@@ -2720,9 +2720,22 @@ model OrgRelationship {
   stripeMonthlyPriceId String?
   stripeSetupPriceId   String?
 
+  // Customer onboarding wizard metadata. This table is the repo's
+  // canonical Sub-Org record, so onboarding fields live here rather than
+  // on a separate SubOrg model.
+  industry             String?
+  onboardedVia         OnboardingMethod @default(MANUAL)
+  onboardingDuration   Int?
+  onboardedAt          DateTime?
+  brandColor           String?
+  logoUrl              String?
+  customSubdomain      String?
+  emailSignature       String?
+
   @@index([parentOrgId])
   @@index([childOrgId])
   @@index([parentOrgId, subOrgStatus])
+  @@index([parentOrgId, industry])
 }
 
 model AgencyOpsSnapshot {
@@ -2741,6 +2754,63 @@ model AgencyOpsSnapshot {
 
   @@unique([agencyOrgId, computedAt])
   @@index([agencyOrgId, computedAt])
+}
+
+enum OnboardingMethod {
+  MANUAL
+  WIZARD
+  API
+}
+
+model IndustryTemplate {
+  id                  String   @id @default(cuid())
+  industry            String   @unique
+  displayName         String
+  displayNameDe       String?
+  description         String   @db.Text
+  descriptionDe       String?  @db.Text
+
+  departmentTemplates Json
+  knowledgeBaseSeeds  Json?
+  recommendedChannels Json
+
+  isActive            Boolean  @default(true)
+  sortOrder           Int      @default(0)
+  iconName            String?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+model OnboardingWizard {
+  id               String   @id @default(cuid())
+  agencyOrgId       String
+  userId           String
+  status           String   @default("DRAFT")
+  currentStep      Int      @default(1)
+
+  basics           Json     @default("{}")
+  selectedTemplates Json    @default("[]")
+  knowledgeConfig  Json     @default("{}")
+  channelConfig    Json     @default("{}")
+  brandingConfig   Json     @default("{}")
+
+  activationResult Json?
+  progress         Json?
+  error            String?  @db.Text
+  subOrgId         String?
+
+  startedAt        DateTime @default(now())
+  activatedAt      DateTime?
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([agencyOrgId, status])
+  @@index([userId, updatedAt])
+  @@index([expiresAt])
 }
 
 enum SubOrgStatus {
@@ -2769,6 +2839,7 @@ model OrgBranding {
   primaryColor   String?  // hex, e.g. #F97316
   showAgencyLogo Boolean  @default(true)
   agencyName     String?
+  emailSignature String?  @db.Text
 
   // Custom Domain — Phase 2.3c. The agency points a hostname (e.g.
   // kunde-portal.agentur.de) at our Vercel deployment via CNAME, and
