@@ -104,6 +104,44 @@
     );
   }
 
+  /*
+   * landing-light — warm off-white theme used by the public landing
+   * page, /agencies, /services, and the /features/* sub-pages. Dashboard
+   * + auth pages stay dark for visual continuity once a user signs in.
+   *
+   * Distinct from .theme-light (dashboard) — this one uses a warm cream
+   * background (#FAFAF9) and a stone-tinted card stack so the marketing
+   * surface reads as deliberate "premium light" rather than default white.
+   */
+  .landing-light {
+    --background: 30 20% 98%;        /* #FAFAF9 warm off-white / cream */
+    --foreground: 0 0% 4%;            /* #0A0A0A near-black */
+    --card: 0 0% 100%;                /* pure white cards */
+    --card-foreground: 0 0% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 4%;
+    --primary: 21 90% 53%;            /* #F97316 kiln-orange */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 8% 95%;           /* #F5F5F4 stone-100 */
+    --secondary-foreground: 0 0% 4%;
+    --muted: 30 8% 95%;               /* #F5F5F4 stone-100 */
+    --muted-foreground: 0 0% 32%;     /* #525252 neutral-600 */
+    --accent: 33 100% 89%;            /* #FED7AA kiln-orange-light */
+    --accent-foreground: 21 90% 30%;  /* darker orange */
+    --destructive: 0 72% 51%;         /* #DC2626 red-600 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 90%;               /* #E5E5E5 neutral-200 */
+    --input: 0 0% 96%;
+    --ring: 21 90% 53%;               /* kiln-orange focus ring */
+  }
+
+  /* Force the body bg to match landing-light when the wrapper is the
+   * direct child of <body>. Otherwise the browser paints whatever the
+   * <html> :root background is in the corners during scroll bounce. */
+  body:has(> .landing-light) {
+    background: hsl(30 20% 98%);
+  }
+
   * {
     @apply border-border outline-ring/50;
   }
