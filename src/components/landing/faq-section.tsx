@@ -120,17 +120,17 @@ export function FaqSection() {
     <AnimatedSection
       id="faq"
       aria-label="Frequently asked questions"
-      className="py-20 sm:py-28"
+      className="bg-stone-50 py-20 sm:py-28"
     >
       <div className="mx-auto max-w-3xl px-6">
         <div className="text-center">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-stone-500">
             FAQ
           </p>
-          <h2 className="mt-3 font-serif text-3xl tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+          <h2 className="mt-3 font-serif text-3xl tracking-tight text-stone-900 sm:text-4xl lg:text-5xl">
             Questions agencies ask
           </h2>
-          <p className="mt-4 text-sm text-muted-foreground">
+          <p className="mt-4 text-sm text-stone-600">
             Don&apos;t see your question?{" "}
             <a
               href="mailto:andre@hephaistos-systems.de?subject=KILN%20Question"
@@ -201,10 +201,10 @@ function FaqItem({
       data-testid={`faq-item-${idx}`}
       data-open={open}
       className={cn(
-        "group rounded-xl border bg-card transition-[border-color,background-color,box-shadow] duration-200",
+        "group rounded-xl border bg-white transition-[border-color,background-color,box-shadow] duration-200",
         open
-          ? "border-l-2 border-l-kiln-orange border-kiln-orange/40 bg-kiln-orange/[0.03] shadow-md"
-          : "border-border hover:border-foreground/20",
+          ? "border-l-4 border-l-kiln-orange border-kiln-orange/40 shadow-md shadow-kiln-orange/10"
+          : "border-stone-200 hover:border-stone-300 hover:shadow-sm",
       )}
     >
       <button
@@ -212,7 +212,7 @@ function FaqItem({
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full cursor-pointer items-center justify-between gap-3 px-6 py-5 text-left text-sm font-medium text-foreground"
+        className="flex w-full cursor-pointer items-center justify-between gap-3 px-6 py-5 text-left text-sm font-semibold text-stone-900"
       >
         <span>{q}</span>
         <span
@@ -220,13 +220,13 @@ function FaqItem({
             "flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-all duration-300",
             open
               ? "bg-kiln-orange/15 rotate-180"
-              : "bg-muted/50",
+              : "bg-stone-100",
           )}
         >
           <ChevronDown
             className={cn(
               "h-3.5 w-3.5",
-              open ? "text-kiln-orange" : "text-muted-foreground",
+              open ? "text-kiln-orange" : "text-stone-600",
             )}
           />
         </span>
@@ -238,7 +238,7 @@ function FaqItem({
         className="kiln-faq-grid"
       >
         <div className="kiln-faq-grid-inner">
-          <div className="px-6 pb-5 text-sm leading-relaxed text-muted-foreground">
+          <div className="px-6 pb-5 text-sm leading-relaxed text-stone-700">
             {a}
           </div>
         </div>

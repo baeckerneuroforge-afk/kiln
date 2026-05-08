@@ -1,10 +1,15 @@
 "use client";
 
 /**
- * Top navigation for the landing page. Sticky, fades a backdrop blur
- * on scroll. Drops Computer Use / Marketplace / Developers from the
- * top-level nav (still reachable via the footer + direct links) so
- * the bar reads as a tight five-item pitch.
+ * Top navigation for the landing page. Sticky, fades a frosted-glass
+ * backdrop blur on scroll. Drops Computer Use / Marketplace /
+ * Developers from the top-level nav (still reachable via the footer +
+ * direct links) so the bar reads as a tight five-item pitch.
+ *
+ * Light-theme: the frosted glass uses white/80 + heavy backdrop-blur,
+ * matching the warm cream landing background. Above-fold (not yet
+ * scrolled) the nav is fully transparent so the hero aurora flows
+ * underneath.
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -35,7 +40,7 @@ export function LandingNav() {
       className={cn(
         "fixed top-0 z-50 w-full transition-colors duration-200",
         scrolled
-          ? "border-b border-border/60 bg-background/70 backdrop-blur-xl"
+          ? "border-b border-stone-200/60 bg-white/80 backdrop-blur-xl"
           : "bg-transparent",
       )}
       aria-label="Primary"
@@ -47,23 +52,23 @@ export function LandingNav() {
           aria-label="KILN home"
         >
           <div
-            className="flex h-8 w-8 items-center justify-center rounded-lg font-serif text-sm font-bold text-white transition-transform group-hover:scale-105"
+            className="flex h-8 w-8 items-center justify-center rounded-lg font-serif text-sm font-bold text-white shadow-md shadow-kiln-orange/20 transition-transform group-hover:scale-105"
             style={{ background: "linear-gradient(135deg, #F97316, #DC2626)" }}
             aria-hidden
           >
             K
           </div>
-          <span className="font-serif text-xl tracking-tight text-foreground">
+          <span className="font-serif text-xl tracking-tight text-stone-900">
             KILN
           </span>
         </Link>
 
-        <div className="hidden items-center gap-8 text-[13px] text-muted-foreground md:flex">
+        <div className="hidden items-center gap-8 text-[13px] text-stone-600 md:flex">
           {NAV_ITEMS.map((item) => (
             <Link
               key={item.label}
               href={item.href}
-              className="transition-colors hover:text-foreground"
+              className="transition-colors hover:text-stone-900"
             >
               {item.label}
             </Link>
@@ -73,14 +78,14 @@ export function LandingNav() {
         <div className="flex items-center gap-3">
           <Link
             href="/sign-in"
-            className="hidden text-[13px] text-muted-foreground transition-colors hover:text-foreground sm:inline"
+            className="hidden text-[13px] font-medium text-stone-700 transition-colors hover:text-kiln-orange sm:inline"
           >
             Login
           </Link>
           <Link
             href="/sign-up"
             data-testid="nav-cta-primary"
-            className="hidden items-center gap-1.5 rounded-lg bg-kiln-orange px-4 py-2 text-[13px] font-semibold text-white shadow shadow-kiln-orange/20 transition-all hover:bg-kiln-orange/90 hover:shadow-kiln-orange/30 sm:inline-flex"
+            className="hidden items-center gap-1.5 rounded-lg bg-kiln-orange px-4 py-2 text-[13px] font-semibold text-white shadow-md shadow-kiln-orange/30 transition-all hover:bg-kiln-orange/95 hover:shadow-lg hover:shadow-kiln-orange/40 sm:inline-flex"
           >
             Start Free
             <ArrowRight className="h-3.5 w-3.5" />
@@ -90,7 +95,7 @@ export function LandingNav() {
             onClick={() => setMobileOpen((v) => !v)}
             aria-label="Toggle menu"
             aria-expanded={mobileOpen}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 md:hidden"
           >
             {mobileOpen ? (
               <X className="h-4 w-4" />
@@ -102,30 +107,30 @@ export function LandingNav() {
       </div>
 
       {mobileOpen && (
-        <div className="border-t border-border bg-background/95 backdrop-blur-xl md:hidden">
+        <div className="border-t border-stone-200 bg-white/95 backdrop-blur-xl md:hidden">
           <div className="mx-auto max-w-6xl space-y-1 px-6 py-3">
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
-                className="block rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="block rounded-lg px-3 py-2 text-sm text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900"
               >
                 {item.label}
               </Link>
             ))}
-            <div className="mt-2 flex flex-col gap-2 border-t border-border pt-3">
+            <div className="mt-2 flex flex-col gap-2 border-t border-stone-200 pt-3">
               <Link
                 href="/sign-in"
                 onClick={() => setMobileOpen(false)}
-                className="rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="rounded-lg px-3 py-2 text-sm text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900"
               >
                 Login
               </Link>
               <Link
                 href="/sign-up"
                 onClick={() => setMobileOpen(false)}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-kiln-orange px-3 py-2 text-sm font-semibold text-white"
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-kiln-orange px-3 py-2 text-sm font-semibold text-white shadow-md shadow-kiln-orange/30"
               >
                 Start Free
                 <ArrowRight className="h-3.5 w-3.5" />
