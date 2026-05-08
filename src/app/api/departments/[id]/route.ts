@@ -7,6 +7,12 @@ function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
 }
 
+const NOTIFY_CHANNEL_VALUES = ["SLACK_ONLY", "EMAIL_ONLY", "SLACK_THEN_EMAIL", "NONE"] as const;
+type NotifyChannelValue = (typeof NOTIFY_CHANNEL_VALUES)[number];
+function isValidNotifyChannel(value: unknown): value is NotifyChannelValue {
+  return typeof value === "string" && (NOTIFY_CHANNEL_VALUES as readonly string[]).includes(value);
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
@@ -86,6 +92,21 @@ export async function PATCH(
           : {}),
         ...(typeof body.whatsappBusinessId === "string" || body.whatsappBusinessId === null
           ? { whatsappBusinessId: body.whatsappBusinessId }
+          : {}),
+        ...(typeof body.notifyOnApprovalNeeded === "boolean"
+          ? { notifyOnApprovalNeeded: body.notifyOnApprovalNeeded }
+          : {}),
+        ...(isValidNotifyChannel(body.notifyChannel)
+          ? { notifyChannel: body.notifyChannel }
+          : {}),
+        ...(typeof body.notifySlackChannel === "string" || body.notifySlackChannel === null
+          ? { notifySlackChannel: body.notifySlackChannel }
+          : {}),
+        ...(typeof body.notifyEmailRecipients === "string" || body.notifyEmailRecipients === null
+          ? { notifyEmailRecipients: body.notifyEmailRecipients }
+          : {}),
+        ...(typeof body.notifyDigestEnabled === "boolean"
+          ? { notifyDigestEnabled: body.notifyDigestEnabled }
           : {}),
       },
     });

@@ -6,7 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { DepartmentDetailShell } from "@/components/departments/department-detail-shell";
-import type { DepartmentView } from "@/components/departments/types";
+import type { DepartmentView, NotifyChannelValue } from "@/components/departments/types";
+
+const NOTIFY_CHANNEL_OPTIONS: NotifyChannelValue[] = [
+  "SLACK_THEN_EMAIL",
+  "SLACK_ONLY",
+  "EMAIL_ONLY",
+  "NONE",
+];
 
 export default function DepartmentSettingsPage() {
   const params = useParams<{ id: string }>();
@@ -116,6 +123,73 @@ export default function DepartmentSettingsPage() {
               </p>
             </div>
           ) : null}
+        </div>
+      </section>
+
+      <section className="mt-6 space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Notifications</h2>
+        <div className="rounded-lg border border-border bg-card/70 p-5 space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="font-medium text-foreground">Notify when approval needed</h3>
+              <p className="text-sm text-muted-foreground">
+                Send Slack and/or email when a draft awaits review.
+              </p>
+            </div>
+            <Switch
+              checked={department.notifyOnApprovalNeeded ?? true}
+              onCheckedChange={(checked) =>
+                patch({ notifyOnApprovalNeeded: checked })
+              }
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <label className="text-sm text-muted-foreground">Channel preference</label>
+            <div className="flex flex-wrap gap-2">
+              {NOTIFY_CHANNEL_OPTIONS.map((option) => (
+                <Button
+                  key={option}
+                  variant={
+                    (department.notifyChannel ?? "SLACK_THEN_EMAIL") === option
+                      ? "default"
+                      : "outline"
+                  }
+                  onClick={() => patch({ notifyChannel: option })}
+                >
+                  {option.replace(/_/g, " ")}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <ChannelInput
+              label="Slack channel (e.g. #customer-support)"
+              value={department.notifySlackChannel ?? null}
+              onSave={(value) => patch({ notifySlackChannel: value })}
+            />
+            <ChannelInput
+              label="Email recipients (comma-separated)"
+              value={department.notifyEmailRecipients ?? null}
+              onSave={(value) => patch({ notifyEmailRecipients: value })}
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-4 pt-2">
+            <div>
+              <h3 className="font-medium text-foreground">Daily digest mode</h3>
+              <p className="text-sm text-muted-foreground">
+                Batch notifications into one daily email instead of one per draft.
+              </p>
+            </div>
+            <Switch
+              checked={department.notifyDigestEnabled ?? false}
+              onCheckedChange={(checked) =>
+                patch({ notifyDigestEnabled: checked })
+              }
+            />
+          </div>
         </div>
       </section>
     </DepartmentDetailShell>

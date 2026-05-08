@@ -1097,6 +1097,13 @@ enum ChannelMessageStatus {
   FAILED
 }
 
+enum NotifyChannel {
+  SLACK_ONLY
+  EMAIL_ONLY
+  SLACK_THEN_EMAIL
+  NONE
+}
+
 model AgentTeam {
   id            String          @id @default(cuid())
   userId        String
@@ -1163,6 +1170,13 @@ model Department {
   whatsappEnabled     Boolean          @default(false)
   whatsappPhoneId     String?
   whatsappBusinessId  String?
+
+  notifyOnApprovalNeeded Boolean       @default(true)
+  notifyChannel       NotifyChannel    @default(SLACK_THEN_EMAIL)
+  notifySlackChannel  String?
+  notifyEmailRecipients String?
+  notifyDigestEnabled Boolean          @default(false)
+  notifyDigestSentAt  DateTime?
 
   operatingMemory     Json             @default("{}")
   totalTasks          Int              @default(0)

@@ -12,6 +12,12 @@ export interface DepartmentWorkerView {
   };
 }
 
+export type NotifyChannelValue =
+  | "SLACK_ONLY"
+  | "EMAIL_ONLY"
+  | "SLACK_THEN_EMAIL"
+  | "NONE";
+
 export interface DepartmentView {
   id: string;
   name: string;
@@ -31,6 +37,12 @@ export interface DepartmentView {
   whatsappEnabled: boolean;
   whatsappPhoneId: string | null;
   whatsappBusinessId: string | null;
+  notifyOnApprovalNeeded?: boolean;
+  notifyChannel?: NotifyChannelValue;
+  notifySlackChannel?: string | null;
+  notifyEmailRecipients?: string | null;
+  notifyDigestEnabled?: boolean;
+  notifyDigestSentAt?: string | null;
   totalTasks: number;
   totalApprovals: number;
   operatingMemory?: unknown;

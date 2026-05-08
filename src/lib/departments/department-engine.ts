@@ -12,6 +12,10 @@ import { decideNextAction } from "./manager-loop";
 import { patchMemory, readMemory } from "./operating-memory";
 import { invokeSwarm, invokeWorkflow, invokeWorker } from "./invocation";
 import { asJsonRecord, toPrismaJson, truncateError } from "./json";
+import {
+  notifyApprovalNeeded,
+  type NotifyChannelKind,
+} from "./notifications/notification-router";
 import type { DepartmentContext, InvocationResult, ManagerDecision, TriggerEvent } from "./types";
 
 const MAX_DECISIONS_PER_ITEM = 8;
@@ -216,6 +220,7 @@ async function finalizeDecision(
         return true;
       }
       await markNeedsApproval(itemId, decision.draftedAction);
+      await dispatchApprovalNotification(itemId, decision.draftedAction);
       return true;
     case "MARK_DONE":
       await markDone(itemId, decision.result);
@@ -253,4 +258,33 @@ function workerInvoked(decision: ManagerDecision): string | null {
   if (decision.type === "INVOKE_WORKER") return decision.workerId;
   if (decision.type === "INVOKE_WORKFLOW") return decision.workflowId;
   return null;
+}
+
+async function dispatchApprovalNotification(
+  itemId: string,
+  draftedAction: Record<string, unknown>
+): Promise<void> {
+  try {
+    const item = await prisma.departmentBacklogItem.findUnique({
+      where: { id: itemId },
+      select: { departmentId: true, triggerPayload: true },
+    });
+    if (!item) return;
+
+    const trigger = (item.triggerPayload || {}) as Record<string, unknown>;
+    const channelHint =
+      typeof trigger.channel === "string" ? trigger.channel.toUpperCase() : "INTERNAL";
+    const channel: NotifyChannelKind =
+      channelHint === "EMAIL" || channelHint === "WHATSAPP" ? channelHint : "INTERNAL";
+
+    await notifyApprovalNeeded({
+      departmentId: item.departmentId,
+      backlogItemId: itemId,
+      draftedAction,
+      channel,
+    });
+  } catch (err) {
+    // Notification failures must not abort the manager loop.
+    console.error("[department] approval notification failed", err);
+  }
 }
