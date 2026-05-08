@@ -25,6 +25,9 @@ export async function GET(
         workerAgents: { include: { agent: true }, orderBy: { priority: "desc" } },
         backlog: { orderBy: { createdAt: "desc" }, take: 10 },
         runLogs: { orderBy: { createdAt: "desc" }, take: 10 },
+        knowledgeBase: {
+          select: { id: true, sourceName: true, chunkCount: true },
+        },
       },
     });
 
@@ -107,6 +110,12 @@ export async function PATCH(
           : {}),
         ...(typeof body.notifyDigestEnabled === "boolean"
           ? { notifyDigestEnabled: body.notifyDigestEnabled }
+          : {}),
+        ...(typeof body.useKnowledgeBase === "boolean"
+          ? { useKnowledgeBase: body.useKnowledgeBase }
+          : {}),
+        ...(typeof body.knowledgeBaseId === "string" || body.knowledgeBaseId === null
+          ? { knowledgeBaseId: body.knowledgeBaseId }
           : {}),
       },
     });

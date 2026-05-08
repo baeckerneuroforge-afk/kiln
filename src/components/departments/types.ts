@@ -43,6 +43,13 @@ export interface DepartmentView {
   notifyEmailRecipients?: string | null;
   notifyDigestEnabled?: boolean;
   notifyDigestSentAt?: string | null;
+  useKnowledgeBase?: boolean;
+  knowledgeBaseId?: string | null;
+  knowledgeBase?: {
+    id: string;
+    sourceName: string;
+    chunkCount: number;
+  } | null;
   totalTasks: number;
   totalApprovals: number;
   operatingMemory?: unknown;

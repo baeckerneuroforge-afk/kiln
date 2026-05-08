@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -15,17 +16,36 @@ const NOTIFY_CHANNEL_OPTIONS: NotifyChannelValue[] = [
   "NONE",
 ];
 
+interface KnowledgeBaseOption {
+  id: string;
+  sourceName: string;
+  chunkCount: number;
+}
+
 export default function DepartmentSettingsPage() {
   const params = useParams<{ id: string }>();
   const [department, setDepartment] = useState<DepartmentView | null>(null);
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseOption[]>([]);
 
   async function load() {
     const response = await fetch(`/api/departments/${params.id}`);
     setDepartment(await response.json());
   }
 
+  async function loadKnowledgeBases() {
+    try {
+      const response = await fetch(`/api/departments/knowledge-bases`);
+      if (response.ok) {
+        setKnowledgeBases(await response.json());
+      }
+    } catch {
+      setKnowledgeBases([]);
+    }
+  }
+
   useEffect(() => {
     load();
+    loadKnowledgeBases();
   }, [params.id]);
 
   async function patch(data: Partial<DepartmentView>) {
@@ -189,6 +209,58 @@ export default function DepartmentSettingsPage() {
                 patch({ notifyDigestEnabled: checked })
               }
             />
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-6 space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Knowledge Base</h2>
+        <div className="rounded-lg border border-border bg-card/70 p-5 space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="font-medium text-foreground">Use Knowledge Base</h3>
+              <p className="text-sm text-muted-foreground">
+                L1 and L2 support workers will retrieve relevant entries before drafting replies.
+              </p>
+            </div>
+            <Switch
+              checked={department.useKnowledgeBase ?? true}
+              onCheckedChange={(checked) =>
+                patch({ useKnowledgeBase: checked })
+              }
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <label className="text-sm text-muted-foreground">Knowledge Base Source</label>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={!department.knowledgeBaseId ? "default" : "outline"}
+                onClick={() => patch({ knowledgeBaseId: null })}
+              >
+                Sub-Org default (worker agents)
+              </Button>
+              {knowledgeBases.map((kb) => (
+                <Button
+                  key={kb.id}
+                  variant={department.knowledgeBaseId === kb.id ? "default" : "outline"}
+                  onClick={() => patch({ knowledgeBaseId: kb.id })}
+                >
+                  {kb.sourceName} <span className="opacity-60 ml-1">({kb.chunkCount})</span>
+                </Button>
+              ))}
+            </div>
+            <Link
+              href="/dashboard/knowledge"
+              className="text-xs text-accent hover:underline pt-1"
+            >
+              Manage Knowledge Base →
+            </Link>
+            {department.knowledgeBase ? (
+              <p className="text-xs text-muted-foreground pt-2">
+                Active: <strong>{department.knowledgeBase.sourceName}</strong> — {department.knowledgeBase.chunkCount} chunks
+              </p>
+            ) : null}
           </div>
         </div>
       </section>

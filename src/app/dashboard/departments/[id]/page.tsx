@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Loader2, Play, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { BookOpen, Loader2, Play, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DepartmentDetailShell } from "@/components/departments/department-detail-shell";
 import { RunLogStream } from "@/components/departments/run-log-stream";
@@ -84,6 +85,30 @@ export default function DepartmentOverviewPage() {
           Test Run
         </Button>
       </div>
+
+      <section className="mt-6 rounded-lg border border-border bg-card/70 p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <BookOpen className="h-5 w-5 text-blue-300" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Knowledge Base</p>
+              <p className="text-xs text-muted-foreground">
+                {department.useKnowledgeBase === false
+                  ? "Disabled"
+                  : department.knowledgeBase
+                    ? `${department.knowledgeBase.sourceName} — ${department.knowledgeBase.chunkCount} chunks`
+                    : "Sub-Org default (uses worker agents' KB)"}
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/dashboard/knowledge"
+            className="text-xs text-accent hover:underline"
+          >
+            Manage Knowledge Base →
+          </Link>
+        </div>
+      </section>
 
       <section className="mt-8">
         <h2 className="mb-4 text-lg font-semibold text-foreground">Recent run logs</h2>

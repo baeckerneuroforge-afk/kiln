@@ -7,6 +7,11 @@ import { sendDepartmentEmail } from "./channels/email-sender";
 import { sendDepartmentWhatsapp } from "./channels/whatsapp-sender";
 import { getAnthropicClientForUser } from "./anthropic-client";
 import { asJsonRecord, toPrismaJson, truncateError } from "./json";
+import {
+  buildWorkerContext,
+  isKnowledgeBaseRole,
+} from "./rag/worker-context-builder";
+import type { KnowledgeMatch } from "./rag/department-rag";
 import type { DepartmentContext, InvocationResult } from "./types";
 
 export async function invokeWorker(
@@ -38,13 +43,41 @@ export async function invokeWorker(
     const agent = worker.agent;
     const model = agent.llmModel || "claude-sonnet-4-6";
     const client = await getAnthropicClientForUser(agent.userId, model);
-    const knowledge = await loadKnowledgeContext(agent.id, input, context.orgId);
+
+    const baseRolePrompt = buildBaseWorkerSystemPrompt(agent.systemPrompt, worker.role);
+    const ticketContent = stringifyTicket(input);
+
+    let systemPrompt = baseRolePrompt;
+    let knowledgeSources: KnowledgeMatch[] = [];
+
+    if (isKnowledgeBaseRole(worker.role)) {
+      const ctx = await buildWorkerContext({
+        departmentId: context.departmentId,
+        workerRole: worker.role,
+        fallbackAgentId: agent.id,
+        ticketContent,
+        orgId: context.orgId || null,
+        userId: context.userId || null,
+        baseSystemPrompt: baseRolePrompt,
+      });
+      systemPrompt = ctx.systemPrompt;
+      knowledgeSources = ctx.knowledgeSources;
+    } else {
+      const legacyKnowledge = await loadKnowledgeContext(
+        agent.id,
+        input,
+        context.orgId
+      );
+      if (legacyKnowledge) {
+        systemPrompt = `${baseRolePrompt}\n\nRelevant knowledge:\n${legacyKnowledge}`;
+      }
+    }
 
     const response = await client.messages.create({
       model,
       max_tokens: 1800,
       temperature: agent.temperature ?? 0.4,
-      system: buildWorkerSystemPrompt(agent.systemPrompt, worker.role, knowledge),
+      system: systemPrompt,
       messages: [{ role: "user", content: JSON.stringify(input, null, 2) }],
     });
 
@@ -71,6 +104,11 @@ export async function invokeWorker(
           departmentId: context.departmentId,
           backlogItemId: context.backlogItemId,
           workerId,
+          knowledgeSourcesUsed: knowledgeSources.map((source) => ({
+            knowledgeBaseId: source.knowledgeBaseId,
+            sourceName: source.sourceName,
+            similarity: source.similarity,
+          })),
         }),
         status: "SUCCESS",
         duration: durationMs,
@@ -81,7 +119,17 @@ export async function invokeWorker(
     return {
       ok: true,
       invocationType: "AGENT",
-      output: { text: output, agentId: agent.id, workerId, role: worker.role },
+      output: {
+        text: output,
+        agentId: agent.id,
+        workerId,
+        role: worker.role,
+        knowledgeSourcesUsed: knowledgeSources.map((source) => ({
+          knowledgeBaseId: source.knowledgeBaseId,
+          sourceName: source.sourceName,
+          similarity: source.similarity,
+        })),
+      },
       runId: run.id,
       durationMs,
     };
@@ -261,11 +309,23 @@ export async function invokeDraftedAction(
   };
 }
 
-function buildWorkerSystemPrompt(rolePrompt: string, role: string, knowledge: string): string {
+function buildBaseWorkerSystemPrompt(rolePrompt: string, role: string): string {
   return `${rolePrompt}
 
-You are acting as the ${role} worker inside a Department. Return a concise, useful result for the manager.
-${knowledge ? `\nRelevant knowledge:\n${knowledge}` : ""}`;
+You are acting as the ${role} worker inside a Department. Return a concise, useful result for the manager.`;
+}
+
+function stringifyTicket(input: Record<string, unknown>): string {
+  if (typeof input.body === "string" && input.body.trim().length > 0) {
+    return input.body.slice(0, 2000);
+  }
+  if (typeof input.text === "string" && input.text.trim().length > 0) {
+    return input.text.slice(0, 2000);
+  }
+  if (typeof input.message === "string" && input.message.trim().length > 0) {
+    return input.message.slice(0, 2000);
+  }
+  return JSON.stringify(input).slice(0, 2000);
 }
 
 async function loadKnowledgeContext(

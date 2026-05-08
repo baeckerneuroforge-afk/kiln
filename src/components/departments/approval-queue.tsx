@@ -80,6 +80,7 @@ function ApprovalItem({
 }) {
   const draft = readDraft(item.approvalDraft);
   const trigger = readDraft(item.triggerPayload);
+  const knowledgeSources = readKnowledgeSources(item.approvalDraft);
 
   return (
     <div className="rounded-lg border border-orange-500/25 bg-card/80 p-4">
@@ -106,6 +107,25 @@ function ApprovalItem({
           <pre className="mt-4 max-h-72 overflow-auto rounded border border-border/70 bg-black/25 p-3 text-xs text-slate-200">
             {draft.body || draft.response || JSON.stringify(item.approvalDraft, null, 2)}
           </pre>
+          {knowledgeSources.length > 0 ? (
+            <details className="mt-3 rounded border border-blue-500/30 bg-blue-500/5 p-3 text-xs text-muted-foreground">
+              <summary className="cursor-pointer text-blue-200">
+                Knowledge sources used ({knowledgeSources.length})
+              </summary>
+              <ul className="mt-2 space-y-1">
+                {knowledgeSources.map((source, index) => (
+                  <li key={`${source.knowledgeBaseId}-${index}`} className="text-foreground">
+                    <span className="font-medium">{source.sourceName}</span>
+                    {typeof source.similarity === "number" ? (
+                      <span className="ml-2 opacity-60">
+                        match {(source.similarity * 100).toFixed(0)}%
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
           {trigger.body ? (
             <details className="mt-3 rounded border border-border/70 bg-black/10 p-3 text-xs text-muted-foreground">
               <summary className="cursor-pointer text-foreground">Original incoming message</summary>
@@ -149,4 +169,32 @@ function readDraft(value: unknown): Record<string, string> {
       typeof entry === "string" ? entry : "",
     ])
   );
+}
+
+interface KnowledgeSourceRef {
+  knowledgeBaseId: string;
+  sourceName: string;
+  similarity?: number;
+}
+
+function readKnowledgeSources(value: unknown): KnowledgeSourceRef[] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+  const sources = (value as Record<string, unknown>).knowledgeSourcesUsed;
+  if (!Array.isArray(sources)) return [];
+  const result: KnowledgeSourceRef[] = [];
+  for (const entry of sources) {
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as Record<string, unknown>;
+    const knowledgeBaseId =
+      typeof record.knowledgeBaseId === "string" ? record.knowledgeBaseId : "";
+    if (!knowledgeBaseId) continue;
+    const sourceName =
+      typeof record.sourceName === "string" ? record.sourceName : "Knowledge entry";
+    const ref: KnowledgeSourceRef = { knowledgeBaseId, sourceName };
+    if (typeof record.similarity === "number") {
+      ref.similarity = record.similarity;
+    }
+    result.push(ref);
+  }
+  return result;
 }

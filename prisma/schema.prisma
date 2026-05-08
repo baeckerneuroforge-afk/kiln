@@ -362,6 +362,8 @@ model KnowledgeBase {
 
   createdAt DateTime @default(now())
 
+  departments     Department[]
+
   @@index([agentId])
   @@index([teamId])
   @@index([orgId])
@@ -1177,6 +1179,10 @@ model Department {
   notifyEmailRecipients String?
   notifyDigestEnabled Boolean          @default(false)
   notifyDigestSentAt  DateTime?
+
+  useKnowledgeBase    Boolean          @default(true)
+  knowledgeBaseId     String?
+  knowledgeBase       KnowledgeBase?   @relation(fields: [knowledgeBaseId], references: [id], onDelete: SetNull)
 
   operatingMemory     Json             @default("{}")
   totalTasks          Int              @default(0)

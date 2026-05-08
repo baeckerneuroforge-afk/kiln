@@ -214,14 +214,19 @@ async function finalizeDecision(
   }
 
   switch (decision.type) {
-    case "REQUEST_APPROVAL":
+    case "REQUEST_APPROVAL": {
+      const enrichedDraft = enrichDraftWithKnowledgeSources(
+        decision.draftedAction,
+        currentResult
+      );
       if (invocation) {
         await markDone(itemId, asJsonRecord(invocation.output));
         return true;
       }
-      await markNeedsApproval(itemId, decision.draftedAction);
-      await dispatchApprovalNotification(itemId, decision.draftedAction);
+      await markNeedsApproval(itemId, enrichedDraft);
+      await dispatchApprovalNotification(itemId, enrichedDraft);
       return true;
+    }
     case "MARK_DONE":
       await markDone(itemId, decision.result);
       return true;
@@ -258,6 +263,19 @@ function workerInvoked(decision: ManagerDecision): string | null {
   if (decision.type === "INVOKE_WORKER") return decision.workerId;
   if (decision.type === "INVOKE_WORKFLOW") return decision.workflowId;
   return null;
+}
+
+function enrichDraftWithKnowledgeSources(
+  draft: Record<string, unknown>,
+  currentResult: Record<string, unknown>
+): Record<string, unknown> {
+  const lastInvocation = asJsonRecord(currentResult.lastInvocation);
+  const output = asJsonRecord(lastInvocation.output);
+  const sources = output.knowledgeSourcesUsed;
+  if (Array.isArray(sources) && sources.length > 0) {
+    return { ...draft, knowledgeSourcesUsed: sources };
+  }
+  return draft;
 }
 
 async function dispatchApprovalNotification(
