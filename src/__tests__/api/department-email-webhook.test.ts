@@ -20,6 +20,8 @@ describe("department email webhook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.DEPARTMENT_INBOUND_ALLOWLIST;
+    delete process.env.RESEND_WEBHOOK_SECRET;
+    delete process.env.DEPARTMENT_EMAIL_INBOUND_SECRET;
     mockPrisma.department.findUnique.mockResolvedValue({
       id: "dept_1",
       emailEnabled: true,

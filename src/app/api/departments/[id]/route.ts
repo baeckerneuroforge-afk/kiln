@@ -52,6 +52,25 @@ export async function PATCH(
     });
     if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
 
+    if (typeof body.knowledgeBaseId === "string" && body.knowledgeBaseId.length > 0) {
+      const kb = await prisma.knowledgeBase.findFirst({
+        where: {
+          id: body.knowledgeBaseId,
+          OR: [
+            { orgId: scope.orgId },
+            { orgId: null, agent: { userId: scope.userId, orgId: null } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (!kb) {
+        return Response.json(
+          { error: "Knowledge base not found" },
+          { status: 404 }
+        );
+      }
+    }
+
     const department = await prisma.department.update({
       where: { id: params.id },
       data: {

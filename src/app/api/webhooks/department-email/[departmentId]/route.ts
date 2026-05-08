@@ -4,7 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { enqueueTask } from "@/lib/departments/backlog";
 import { runManagerLoop } from "@/lib/departments/department-engine";
 import { toPrismaJson } from "@/lib/departments/json";
-import { isInboundAllowed, stripHtml } from "@/lib/departments/channels/safety";
+import {
+  isInboundAllowed,
+  stripHtml,
+  verifyInboundEmailAuth,
+} from "@/lib/departments/channels/safety";
 import { logDepartmentChannelEvent } from "@/lib/departments/channels/logging";
 
 interface ResendInboundPayload {
@@ -23,7 +27,28 @@ export async function POST(
   { params }: { params: { departmentId: string } }
 ) {
   try {
-    const payload = (await request.json().catch(() => ({}))) as ResendInboundPayload;
+    const rawBody = await request.text();
+    const auth = verifyInboundEmailAuth({
+      rawBody,
+      svixId: request.headers.get("svix-id"),
+      svixTimestamp: request.headers.get("svix-timestamp"),
+      svixSignature: request.headers.get("svix-signature"),
+      customSecret: request.headers.get("x-kiln-webhook-secret"),
+    });
+    if (!auth.ok) {
+      console.warn("[department-email] inbound rejected", {
+        departmentId: params.departmentId,
+        reason: auth.reason,
+      });
+      return Response.json({ error: auth.reason }, { status: 401 });
+    }
+
+    let payload: ResendInboundPayload;
+    try {
+      payload = JSON.parse(rawBody) as ResendInboundPayload;
+    } catch {
+      return Response.json({ error: "Invalid JSON" }, { status: 400 });
+    }
     const from = String(payload.from || "").trim();
     const to = String(payload.to || "").trim();
     const subject = String(payload.subject || "(No Subject)");

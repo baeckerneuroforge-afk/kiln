@@ -7,6 +7,7 @@ import {
   markNeedsApproval,
   markRunning,
 } from "./backlog";
+import type { OrgScope } from "@/lib/auth/org-scope";
 import { approveItem, rejectItem } from "./approval-gate";
 import { decideNextAction } from "./manager-loop";
 import { patchMemory, readMemory } from "./operating-memory";
@@ -59,9 +60,10 @@ export async function runManagerLoop(departmentId: string): Promise<void> {
 
 export async function approveBacklogItem(
   itemId: string,
-  userId: string
+  userId: string,
+  scope?: OrgScope
 ): Promise<void> {
-  await approveItem(itemId, userId);
+  await approveItem(itemId, userId, scope);
   const item = await prisma.departmentBacklogItem.findUnique({
     where: { id: itemId },
     select: { departmentId: true },
@@ -72,9 +74,10 @@ export async function approveBacklogItem(
 export async function rejectBacklogItem(
   itemId: string,
   userId: string,
-  reason: string
+  reason: string,
+  scope?: OrgScope
 ): Promise<void> {
-  await rejectItem(itemId, userId, reason);
+  await rejectItem(itemId, userId, reason, scope);
   const item = await prisma.departmentBacklogItem.findUnique({
     where: { id: itemId },
     select: { departmentId: true },

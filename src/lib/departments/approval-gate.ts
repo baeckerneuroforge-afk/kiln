@@ -1,5 +1,6 @@
 import type { DepartmentBacklogItem } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import type { OrgScope } from "@/lib/auth/org-scope";
 import { asJsonRecord, toPrismaJson, truncateError } from "./json";
 import { invokeDraftedAction } from "./invocation";
 import { logDepartmentChannelEvent } from "./channels/logging";
@@ -16,7 +17,24 @@ export async function getPendingApprovals(
   });
 }
 
-export async function approveItem(itemId: string, userId: string): Promise<void> {
+function assertItemInScope(
+  item: { department: { orgId: string | null; userId: string } } | null,
+  scope?: OrgScope
+): void {
+  if (!scope || !item) return;
+  const dept = item.department;
+  const matchesOrg = dept.orgId === scope.orgId;
+  const matchesLegacy = dept.orgId === null && dept.userId === scope.userId;
+  if (!matchesOrg && !matchesLegacy) {
+    throw new Error("Approval item not found or not awaiting approval");
+  }
+}
+
+export async function approveItem(
+  itemId: string,
+  userId: string,
+  scope?: OrgScope
+): Promise<void> {
   const item = await prisma.departmentBacklogItem.findUnique({
     where: { id: itemId },
     include: { department: true },
@@ -25,6 +43,7 @@ export async function approveItem(itemId: string, userId: string): Promise<void>
   if (!item || item.status !== "NEEDS_APPROVAL") {
     throw new Error("Approval item not found or not awaiting approval");
   }
+  assertItemInScope(item, scope);
 
   const draft = asJsonRecord(item.approvalDraft);
   const result = await invokeDraftedAction(draft, {
@@ -69,16 +88,22 @@ export async function approveItem(itemId: string, userId: string): Promise<void>
 export async function rejectItem(
   itemId: string,
   userId: string,
-  reason: string
+  reason: string,
+  scope?: OrgScope
 ): Promise<void> {
   const item = await prisma.departmentBacklogItem.findUnique({
     where: { id: itemId },
-    select: { status: true, departmentId: true },
+    select: {
+      status: true,
+      departmentId: true,
+      department: { select: { orgId: true, userId: true } },
+    },
   });
 
   if (!item || item.status !== "NEEDS_APPROVAL") {
     throw new Error("Approval item not found or not awaiting approval");
   }
+  assertItemInScope(item, scope);
 
   await prisma.departmentBacklogItem.update({
     where: { id: itemId },

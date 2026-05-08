@@ -20,7 +20,7 @@ export async function POST(
     });
     if (!item) return Response.json({ error: "Not found" }, { status: 404 });
 
-    await approveBacklogItem(params.itemId, scope.userId);
+    await approveBacklogItem(params.itemId, scope.userId, scope);
     return Response.json({ ok: true });
   } catch (error) {
     if (error instanceof OrgContextError) {
