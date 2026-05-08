@@ -87,7 +87,7 @@ export default function DepartmentOverviewPage() {
 
       <section className="mt-8">
         <h2 className="mb-4 text-lg font-semibold text-foreground">Recent run logs</h2>
-        <RunLogStream logs={(department as any).runLogs || []} />
+        <RunLogStream logs={(department as { runLogs?: unknown[] }).runLogs || []} />
       </section>
     </DepartmentDetailShell>
   );
