@@ -35,6 +35,8 @@ import {
   TrendingUp,
   Plus,
   Mail,
+  Layers3,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -42,8 +44,10 @@ import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 import { WhatsNewBell } from "@/components/whats-new";
 import { OrgChangeRefresh } from "@/components/org-switcher";
 import { AgencyOrgSwitcher } from "@/components/agency-org-switcher";
+import { useOrgModeDetails } from "@/hooks/use-org-mode";
 import { useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
+import type { OrgMode } from "@/lib/org-mode";
 
 const SIDEBAR_COLLAPSED_KEY = "kiln-sidebar-collapsed";
 const SIDEBAR_SECTIONS_KEY = "kiln-sidebar-sections";
@@ -78,7 +82,7 @@ interface NavSection {
 
 /* ── Navigation Structure ── */
 
-const NAV_SECTIONS: NavSection[] = [
+export const AGENCY_NAV_SECTIONS: NavSection[] = [
   {
     id: "core",
     label: null,
@@ -122,6 +126,14 @@ const NAV_SECTIONS: NavSection[] = [
         tooltipDescription: "Autonomous manager-led teams",
       },
       {
+        name: "Templates",
+        href: "/dashboard/templates/agents",
+        icon: Layers3,
+        minAgents: 0,
+        requiresAgencyTier: true,
+        tooltipDescription: "Master snapshots for agents and workflows",
+      },
+      {
         name: "Orchestration",
         href: "/dashboard/orchestration",
         icon: Network,
@@ -160,6 +172,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { name: "Clients", href: "/dashboard/clients", icon: Building2, minAgents: 1, requiresBusiness: true },
       { name: "Sub-orgs", href: "/dashboard/agency/sub-orgs", icon: Building2, minAgents: 0, requiresAgencyTier: true },
+      { name: "Industry Packs", href: "/dashboard/admin/industry-packs", icon: ShieldCheck, minAgents: 0, requiresAgencyTier: true },
       { name: "Branding", href: "/dashboard/agency/branding", icon: Settings, minAgents: 0, requiresBusiness: true },
       { name: "Email Branding", href: "/dashboard/agency/email-branding", icon: Mail, minAgents: 0, requiresBusiness: true },
       { name: "Billing", href: "/dashboard/agency/billing", icon: CreditCard, minAgents: 0, requiresBusiness: true },
@@ -169,6 +182,49 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
 ];
+
+export const SUB_ORG_NAV_SECTIONS: NavSection[] = [
+  {
+    id: "sub-org-core",
+    label: null,
+    defaultOpen: true,
+    items: [
+      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, minAgents: 0 },
+      { name: "Meine Departments", href: "/dashboard/departments", icon: Building2, minAgents: 0 },
+      { name: "Meine Agents", href: "/dashboard/agents", icon: Bot, minAgents: 0 },
+      { name: "Meine Workflows", href: "/dashboard/teams", icon: Workflow, minAgents: 0 },
+      { name: "Meine Conversations", href: "/dashboard/conversations", icon: MessageSquare, minAgents: 0 },
+      { name: "Meine Knowledge Base", href: "/dashboard/knowledge", icon: Waypoints, minAgents: 0 },
+      { name: "Meine Approvals", href: "/dashboard/departments", icon: ShieldCheck, minAgents: 0 },
+      { name: "Meine Integrationen", href: "/dashboard/integrations", icon: Plug, minAgents: 0 },
+      { name: "Settings", href: "/dashboard/settings", icon: Settings, minAgents: 0 },
+    ],
+  },
+];
+
+export const STANDALONE_NAV_SECTIONS: NavSection[] = AGENCY_NAV_SECTIONS.map((section) => ({
+  ...section,
+  items: section.items.filter(
+    (item) =>
+      ![
+        "/dashboard/operations",
+        "/dashboard/onboarding",
+        "/dashboard/templates/agents",
+        "/dashboard/agency/sub-orgs",
+        "/dashboard/admin/industry-packs",
+        "/dashboard/agency/branding",
+        "/dashboard/agency/email-branding",
+        "/dashboard/agency/billing",
+        "/dashboard/agency/revenue",
+      ].includes(item.href)
+  ),
+}));
+
+export function getSidebarSectionsForMode(mode: OrgMode): NavSection[] {
+  if (mode === "SUB_ORG") return SUB_ORG_NAV_SECTIONS;
+  if (mode === "STANDALONE") return STANDALONE_NAV_SECTIONS;
+  return AGENCY_NAV_SECTIONS;
+}
 
 /* ── Helpers ── */
 
@@ -223,6 +279,7 @@ function NavTooltip({
 export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const { advancedMode, setAdvancedMode } = useAdvancedMode();
+  const orgModeDetails = useOrgModeDetails();
   const { user } = useUser();
   const { signOut } = useClerk();
   const [plan, setPlan] = useState<string>("FREE");
@@ -243,7 +300,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
   // Section expand/collapse state
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
     const defaults: Record<string, boolean> = {};
-    for (const s of NAV_SECTIONS) {
+    for (const s of AGENCY_NAV_SECTIONS) {
       if (s.label) defaults[s.id] = s.defaultOpen;
     }
     return defaults;
@@ -405,6 +462,8 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
   const displayEmail = user?.emailAddresses?.[0]?.emailAddress || "";
 
   const isCollapsed = collapsed;
+  const orgMode = orgModeDetails.loading ? null : orgModeDetails.mode;
+  const navSections = getSidebarSectionsForMode(orgMode ?? "STANDALONE");
 
   // Check if an item should be visible based on plan/agent gates
   function isItemVisible(item: NavItem): boolean {
@@ -437,7 +496,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
 
   // Auto-expand section if it contains active item
   useEffect(() => {
-    for (const section of NAV_SECTIONS) {
+    for (const section of navSections) {
       if (!section.label) continue;
       const hasActive = section.items.some((item) => isActive(item.href));
       if (hasActive && !openSections[section.id]) {
@@ -445,7 +504,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [pathname, navSections]);
 
   return (
     <>
@@ -475,7 +534,15 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
             onClick={onClose}
             title="Dashboard"
           >
-            {agencyBrand?.isInherited &&
+            {orgMode === "SUB_ORG" &&
+            orgModeDetails.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={orgModeDetails.logoUrl}
+                alt={orgModeDetails.subOrgName ?? "Sub-Org"}
+                className="h-8 w-auto max-w-[140px] object-contain transition-transform duration-200 group-hover:scale-[1.04]"
+              />
+            ) : agencyBrand?.isInherited &&
             agencyBrand.showAgencyLogo &&
             agencyBrand.logoUrl ? (
               // White-label: render the agency's logo image. KILN moves to
@@ -495,13 +562,16 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
               className={cn(
                 "font-serif text-lg text-foreground transition-all duration-200 group-hover:text-kiln-orange",
                 isCollapsed && "lg:hidden",
-                agencyBrand?.isInherited &&
+                ((orgMode === "SUB_ORG" && orgModeDetails.logoUrl) ||
+                  (agencyBrand?.isInherited &&
                   agencyBrand.showAgencyLogo &&
-                  agencyBrand.logoUrl &&
+                  agencyBrand.logoUrl)) &&
                   "hidden"
               )}
             >
-              {agencyBrand?.isInherited &&
+              {orgMode === "SUB_ORG" && orgModeDetails.subOrgName
+                ? orgModeDetails.subOrgName
+                : agencyBrand?.isInherited &&
               agencyBrand.showAgencyLogo &&
               agencyBrand.agencyName
                 ? agencyBrand.agencyName
@@ -547,7 +617,14 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
 
         {/* Navigation */}
         <nav className={cn("kiln-sidebar-scroll flex flex-1 flex-col overflow-y-auto pb-2", isCollapsed ? "lg:px-1.5" : "px-2")}>
-          {NAV_SECTIONS.map((section) => {
+          {orgMode === null && (
+            <div className={cn("space-y-2 px-2 py-3", isCollapsed && "lg:px-1.5")}>
+              {Array.from({ length: 7 }).map((_, index) => (
+                <div key={index} className="h-8 rounded-md bg-muted/40" />
+              ))}
+            </div>
+          )}
+          {orgMode !== null && navSections.map((section) => {
             const visibleItems = section.items.filter(isItemVisible);
             if (visibleItems.length === 0) return null;
 

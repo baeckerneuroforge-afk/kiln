@@ -19,6 +19,7 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { PWAInstallPrompt } from "@/components/mobile/pwa-install-prompt";
 import { OrgRequired } from "@/components/org-required";
 import { ClientModeBanner } from "@/components/client-mode-banner";
+import { SubOrgWelcomeModal } from "@/components/sub-org-welcome-modal";
 
 export default function DashboardLayout({
   children,
@@ -102,6 +103,7 @@ export default function DashboardLayout({
         <CookieBanner />
         <MetaAgentChat />
         <PWAInstallPrompt />
+        <SubOrgWelcomeModal />
         </KeyboardShortcutProvider>
       </ToastProvider>
     </AdvancedModeProvider>

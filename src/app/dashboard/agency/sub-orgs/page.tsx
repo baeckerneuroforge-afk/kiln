@@ -271,7 +271,7 @@ export default function AgencySubOrgsPage() {
                         title="Switch into this workspace as a client"
                       >
                         <LogIn className="mr-1 h-3 w-3" />
-                        Login as client
+                        Login as User
                       </Button>
                       <Button
                         size="sm"

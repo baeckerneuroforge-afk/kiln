@@ -5,6 +5,8 @@ import { GettingStartedSection } from "@/components/onboarding-checklist";
 import { QuickStartSection, RecentActivityFeed } from "@/components/quick-actions";
 import { ErrorState } from "@/components/ui/error-state";
 import { cn } from "@/lib/utils";
+import { SubOrgDashboard } from "@/components/dashboard/sub-org-dashboard";
+import { useOrgMode } from "@/hooks/use-org-mode";
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useState, useCallback } from "react";
 
@@ -91,6 +93,7 @@ type StatsState = {
 
 export default function DashboardPage() {
   const { user } = useUser();
+  const orgMode = useOrgMode();
   const [stats, setStats] = useState<StatsState>({
     agents: 0,
     conversations: 0,
@@ -208,6 +211,10 @@ export default function DashboardPage() {
           </Link>
         )
       : undefined;
+
+  if (orgMode === "SUB_ORG") {
+    return <SubOrgDashboard />;
+  }
 
   return (
     <div className="relative mx-auto max-w-5xl">
