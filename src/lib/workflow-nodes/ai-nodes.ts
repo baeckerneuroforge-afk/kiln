@@ -13,50 +13,41 @@ import { executeDeepResearch } from "./deep-research-node";
 import { executeCodeSandbox } from "./code-sandbox-node";
 import { executeDiffDetection } from "./diff-detection-node";
 import { executeMultiSite } from "./multi-site-node";
+import { callLlm } from "@/lib/llm";
 
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 
-async function callHaiku(systemPrompt: string, userPrompt: string): Promise<{ text: string; tokensIn: number; tokensOut: number }> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY nicht konfiguriert");
-  }
-
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: HAIKU_MODEL,
-      max_tokens: 2048,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    }),
+async function callHaiku(
+  systemPrompt: string,
+  userPrompt: string,
+  context: ExpressionContext,
+): Promise<{ text: string; tokensIn: number; tokensOut: number; model: string }> {
+  const result = await callLlm({
+    orgId: getLlmOrgId(context),
+    userId: getOptionalString(context.userId),
+    modelId: HAIKU_MODEL,
+    taskType: "structured_output",
+    systemPrompt,
+    messages: [{ role: "user", content: userPrompt }],
+    maxTokens: 2048,
   });
-
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(`Claude API Fehler: ${(errData as Record<string, unknown>).error || response.statusText}`);
-  }
-
-  const data = await response.json() as {
-    content: Array<{ type: string; text: string }>;
-    usage: { input_tokens: number; output_tokens: number };
-  };
-
-  const text = data.content
-    .filter((block) => block.type === "text")
-    .map((block) => block.text)
-    .join("");
-
   return {
-    text,
-    tokensIn: data.usage.input_tokens,
-    tokensOut: data.usage.output_tokens,
+    text: result.content,
+    tokensIn: result.inputTokens,
+    tokensOut: result.outputTokens,
+    model: result.modelUsed.modelId,
   };
+}
+
+function getLlmOrgId(context: ExpressionContext): string {
+  return getOptionalString(context.orgId)
+    ?? getOptionalString(context.organizationId)
+    ?? getOptionalString(context.userId)
+    ?? "platform";
+}
+
+function getOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
 }
 
 /* ── AI Summarize ── */
@@ -82,7 +73,7 @@ export async function executeAiSummarize(
   const systemPrompt = `Du bist ein Zusammenfassungs-Experte. Fasse den gegebenen Text präzise zusammen. ${lengthInstruction} Antworte in ${language === "de" ? "Deutsch" : language === "en" ? "Englisch" : language}.`;
 
   try {
-    const result = await callHaiku(systemPrompt, input);
+    const result = await callHaiku(systemPrompt, input, context);
 
     return {
       contextDelta: {
@@ -95,7 +86,7 @@ export async function executeAiSummarize(
         maxLength,
         tokensIn: result.tokensIn,
         tokensOut: result.tokensOut,
-        model: HAIKU_MODEL,
+        model: result.model,
       },
     };
   } catch (err) {
@@ -127,7 +118,7 @@ Antworte AUSSCHLIESSLICH im folgenden JSON-Format:
 {"category": "<gewählte Kategorie>", "confidence": <0.0-1.0>, "reasoning": "<kurze Begründung>"}`;
 
   try {
-    const result = await callHaiku(systemPrompt, input);
+    const result = await callHaiku(systemPrompt, input, context);
 
     let parsed: Record<string, unknown>;
     try {
@@ -146,7 +137,7 @@ Antworte AUSSCHLIESSLICH im folgenden JSON-Format:
         confidence: parsed.confidence,
         tokensIn: result.tokensIn,
         tokensOut: result.tokensOut,
-        model: HAIKU_MODEL,
+        model: result.model,
       },
     };
   } catch (err) {
@@ -177,7 +168,7 @@ export async function executeAiExtract(
 Antworte AUSSCHLIESSLICH als JSON-Objekt mit den genannten Feldern als Keys. Wenn ein Feld nicht gefunden wird, setze den Wert auf null.`;
 
   try {
-    const result = await callHaiku(systemPrompt, input);
+    const result = await callHaiku(systemPrompt, input, context);
 
     let parsed: Record<string, unknown>;
     try {
@@ -195,7 +186,7 @@ Antworte AUSSCHLIESSLICH als JSON-Objekt mit den genannten Feldern als Keys. Wen
         fieldsExtracted: Object.keys(parsed).filter((k) => parsed[k] !== null),
         tokensIn: result.tokensIn,
         tokensOut: result.tokensOut,
-        model: HAIKU_MODEL,
+        model: result.model,
       },
     };
   } catch (err) {
