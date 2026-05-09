@@ -21,9 +21,9 @@ describe("industry templates", () => {
 
   it("dental template includes required departments", () => {
     const dental = getIndustryTemplate("dental");
-    expect(dental?.departmentTemplates.map((item) => item.name)).toContain("Termin-Anfrage Department");
-    expect(dental?.departmentTemplates.map((item) => item.name)).toContain("Recall-Erinnerungs Department");
-    expect(dental?.departmentTemplates.find((item) => item.id === "zahnzusatzversicherung")?.defaultSelected).toBe(false);
+    expect(dental?.departmentTemplates.map((item) => item.name)).toContain("Termin-Anfrage");
+    expect(dental?.departmentTemplates.map((item) => item.name)).toContain("Recall-Erinnerungen");
+    expect(dental?.departmentTemplates.find((item) => item.id === "dental-zahnzusatzversicherung")?.defaultSelected).toBe(true);
   });
 
   it("kfz template recommends WhatsApp and image intake", () => {
