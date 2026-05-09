@@ -9,6 +9,7 @@ import { checkOpenTrackings } from "@/lib/sla/tracker";
 import { dispatchSlaEscalation } from "@/lib/sla/notifications";
 import { executeDeletion, findDueDeletions } from "@/lib/dsgvo/delete-service";
 import { expireOldExports } from "@/lib/dsgvo/export-service";
+import { runReportCron } from "@/lib/reporting/cron";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -92,6 +93,18 @@ export async function GET(request: Request) {
       console.error("[cron/process-queue] DSGVO sweep failed", err);
     }
 
+    let reportingResult = {
+      configsInspected: 0,
+      reportsGenerated: 0,
+      reportsSent: 0,
+      failures: 0,
+    };
+    try {
+      reportingResult = await runReportCron();
+    } catch (err) {
+      console.error("[cron/process-queue] reporting sweep failed", err);
+    }
+
     return Response.json({
       ok: true,
       ...result,
@@ -99,6 +112,7 @@ export async function GET(request: Request) {
       staleMarkedFailed: failedStaleCount,
       sla: slaResult,
       dsgvo: dsgvoResult,
+      reporting: reportingResult,
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
