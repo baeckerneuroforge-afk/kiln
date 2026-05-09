@@ -87,10 +87,52 @@ export interface DepartmentTemplate {
   name: string;
   description: string;
   defaultSelected: boolean;
+  managerSystemPrompt?: string;
+  managerModel?: string;
+  approvalMode?: "APPROVAL_FIRST" | "AUTO" | "OFF";
+  scheduleEnabled?: boolean;
+  scheduleCron?: string;
+  webhookEnabled?: boolean;
+  useKnowledgeBase?: boolean;
   workers: WorkerTemplate[];
   operatingMemory?: Prisma.JsonObject;
   seasonal?: boolean;
   premium?: boolean;
+}
+
+export interface WhatsAppTemplateDefinition {
+  name: string;
+  category: "UTILITY" | "MARKETING";
+  language: string;
+  body: string;
+  variables: string[];
+  submissionNotes: string;
+}
+
+export interface VoiceScriptDefinition {
+  id: string;
+  title: string;
+  script: string;
+  routingTarget?: string;
+}
+
+export interface RecallScheduleDefinition {
+  id: string;
+  label: string;
+  months: 3 | 6 | 12;
+  dailyRunTime: string;
+  cron: string;
+}
+
+export interface IndustryTemplateMetadata {
+  packVersion?: string;
+  setupTimeMinutes?: number;
+  estimatedManualSetupHours?: number;
+  whatsappTemplates?: WhatsAppTemplateDefinition[];
+  voiceScripts?: VoiceScriptDefinition[];
+  recallSchedules?: RecallScheduleDefinition[];
+  metaSubmissionGuide?: string[];
+  notes?: string[];
 }
 
 export interface IndustryTemplateDefinition {
@@ -102,6 +144,7 @@ export interface IndustryTemplateDefinition {
   departmentTemplates: DepartmentTemplate[];
   knowledgeBaseSeeds: { title: string; content: string }[];
   recommendedChannels: OnboardingChannel[];
+  metadata?: IndustryTemplateMetadata;
   sortOrder: number;
   iconName: string;
 }
