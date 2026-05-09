@@ -722,6 +722,19 @@ export default function AgentDetailPage() {
     toast("Config exported", "success");
   }
 
+  async function handleConvertToTemplate() {
+    if (!agent) return;
+    try {
+      const response = await fetch(`/api/templates/agents/from-agent/${agent.id}`, { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to create template");
+      toast("Agent Template erstellt", "success");
+      router.push(`/dashboard/templates/agents/${data.template.id}`);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Template konnte nicht erstellt werden", "error");
+    }
+  }
+
   // Wenn Advanced ausgeschaltet wird und wir auf einem Advanced-Tab sind → zurück zu config
   useEffect(() => {
     if (!advancedMode && advancedTabs.some((t) => t.id === activeTab)) {
@@ -867,6 +880,10 @@ export default function AgentDetailPage() {
           <Button variant="outline" size="sm" onClick={handleExportConfig}>
             <Download className="mr-2 h-3.5 w-3.5" />
             Export
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleConvertToTemplate}>
+            <CopyPlus className="mr-2 h-3.5 w-3.5" />
+            Convert to Template
           </Button>
           <Button
             variant="outline"

@@ -2812,6 +2812,22 @@ function TeamDetailInner() {
                     onClick={async () => {
                       setShowSettings(false);
                       try {
+                        const res = await fetch(`/api/templates/workflows/from-workflow/${teamId}`, { method: "POST" });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || "Template konnte nicht erstellt werden");
+                        router.push(`/dashboard/templates/workflows/${data.template.id}`);
+                      } catch {
+                        alert("Workflow Template konnte nicht erstellt werden.");
+                      }
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted flex items-center gap-2"
+                  >
+                    <Copy className="h-4 w-4" /> Convert to Template
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setShowSettings(false);
+                      try {
                         const res = await fetch("/api/marketplace/submit-template", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
