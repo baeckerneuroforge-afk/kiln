@@ -2778,6 +2778,7 @@ model IndustryTemplate {
   departmentTemplates Json
   knowledgeBaseSeeds  Json?
   recommendedChannels Json
+  metadata            Json?
 
   isActive            Boolean  @default(true)
   sortOrder           Int      @default(0)
