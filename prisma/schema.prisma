@@ -1295,6 +1295,8 @@ model DepartmentChannelMessage {
   sentAt            DateTime?
   externalId        String?
 
+  customerProfileId String?
+
   createdAt         DateTime             @default(now())
 
   department        Department           @relation(fields: [departmentId], references: [id], onDelete: Cascade)
@@ -1303,6 +1305,7 @@ model DepartmentChannelMessage {
   @@index([departmentId, channel, createdAt])
   @@index([departmentId, direction, status])
   @@index([backlogItemId])
+  @@index([customerProfileId])
 }
 
 model TeamPermission {
@@ -3028,4 +3031,86 @@ enum InvoiceType {
   SUBSCRIPTION
   SETUP_FEE
   ADD_ON
+}
+
+/// Cross-conversation customer profile, scoped to a single Sub-Org.
+/// Identifies the same person across email/WhatsApp/web-chat by email or
+/// phone aliases and persists durable memory and DSGVO state.
+model CustomerProfile {
+  id                 String    @id @default(cuid())
+
+  orgId              String    // Sub-Org (Clerk Org ID) where this customer exists
+
+  primaryEmail       String?
+  primaryPhone       String?   // E.164
+  fullName           String?
+
+  emailAliases       String[]  @default([])
+  phoneAliases       String[]  @default([])
+
+  preferences        Json?     // {language, preferredChannel, salutation}
+  metadata           Json?     // industry-specific (patientId, lastVisit, etc)
+
+  totalConversations Int       @default(0)
+  firstSeenAt        DateTime  @default(now())
+  lastSeenAt         DateTime  @default(now())
+
+  isAnonymized       Boolean   @default(false)
+  anonymizedAt       DateTime?
+  consentGiven       Boolean   @default(false)
+  consentGivenAt     DateTime?
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  memoryEntries      CustomerMemoryEntry[]
+
+  @@index([orgId])
+  @@index([orgId, primaryEmail])
+  @@index([orgId, primaryPhone])
+  @@index([orgId, lastSeenAt])
+}
+
+/// Durable memory entries linked to a CustomerProfile. Used to enrich
+/// the manager-loop prompt with cross-conversation context.
+model CustomerMemoryEntry {
+  id                String    @id @default(cuid())
+  customerProfileId String
+
+  type              String    // INTERACTION | PREFERENCE | FACT | EVENT
+  content           String    @db.Text
+  source            String    // CONVERSATION | MANUAL | IMPORTED
+  sourceId          String?   // Conversation/Message id
+
+  departmentId      String?
+  workerId          String?
+
+  importance        Int       @default(5) // 1-10
+  embedding         Bytes?
+
+  isActive          Boolean   @default(true)
+  expiresAt         DateTime?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  customerProfile   CustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([customerProfileId])
+  @@index([customerProfileId, isActive, importance])
+  @@index([customerProfileId, createdAt])
+}
+
+/// Audit log for customer-memory edits and DSGVO actions. Append-only.
+model CustomerProfileAudit {
+  id                String   @id @default(cuid())
+  customerProfileId String?
+  orgId             String
+  actorUserId       String?
+  action            String   // CREATE | UPDATE | DELETE | ANONYMIZE | EXPORT | MERGE | MEMORY_ADD | MEMORY_EDIT | MEMORY_DELETE
+  details           Json?
+  createdAt         DateTime @default(now())
+
+  @@index([orgId, createdAt])
+  @@index([customerProfileId, createdAt])
 }
