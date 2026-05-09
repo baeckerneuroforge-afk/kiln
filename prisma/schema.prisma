@@ -2799,6 +2799,8 @@ model OnboardingWizard {
 
   basics           Json     @default("{}")
   selectedTemplates Json    @default("[]")
+  selectedAgentTemplates Json @default("[]")
+  selectedWorkflowTemplates Json @default("[]")
   knowledgeConfig  Json     @default("{}")
   channelConfig    Json     @default("{}")
   brandingConfig   Json     @default("{}")
@@ -2817,6 +2819,63 @@ model OnboardingWizard {
   @@index([agencyOrgId, status])
   @@index([userId, updatedAt])
   @@index([expiresAt])
+}
+
+model AgentTemplate {
+  id              String   @id @default(cuid())
+  agencyOrgId     String
+
+  name            String
+  description     String?  @db.Text
+  category        String?
+  agentConfig     Json
+
+  version         Int      @default(1)
+  isPublished     Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([agencyOrgId])
+  @@index([agencyOrgId, isPublished])
+}
+
+model WorkflowTemplate {
+  id              String   @id @default(cuid())
+  agencyOrgId     String
+
+  name            String
+  description     String?  @db.Text
+  category        String?
+  workflowConfig  Json
+
+  version         Int      @default(1)
+  isPublished     Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([agencyOrgId])
+  @@index([agencyOrgId, isPublished])
+}
+
+model TemplateInstance {
+  id              String   @id @default(cuid())
+
+  templateType    String
+  templateId      String
+  templateVersion Int
+
+  subOrgId        String
+  instanceId      String
+
+  isCustomized    Boolean  @default(false)
+  installedAt     DateTime @default(now())
+  lastSyncedAt    DateTime?
+
+  @@index([subOrgId])
+  @@index([templateType, templateId])
+  @@unique([templateType, templateId, subOrgId, instanceId])
 }
 
 enum SubOrgStatus {
