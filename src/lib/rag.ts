@@ -131,6 +131,32 @@ export async function storeChunks(
   }
 }
 
+// Store org-scoped chunks for KnowledgeBase rows that are not owned by a
+// single agent/team, such as onboarding seed FAQs used by departments.
+export async function storeOrgChunks(
+  knowledgeBaseId: string,
+  orgId: string,
+  chunks: string[],
+  embeddings: number[][]
+): Promise<void> {
+  const supabase = getSupabaseAdmin();
+
+  const rows = chunks.map((content, i) => ({
+    knowledge_base_id: knowledgeBaseId,
+    agent_id: `org_${orgId}`,
+    org_id: orgId,
+    content,
+    embedding: JSON.stringify(embeddings[i]),
+    chunk_index: i,
+  }));
+
+  const { error } = await supabase.from("knowledge_chunks").insert(rows);
+
+  if (error) {
+    throw new Error(`Error saving org chunks: ${error.message}`);
+  }
+}
+
 // Search relevant chunks (semantic search). orgId is optional — when set,
 // the org-aware RPC variant filters chunks to the active org plus legacy
 // (org_id IS NULL) rows. Server-side admin callers without an org context

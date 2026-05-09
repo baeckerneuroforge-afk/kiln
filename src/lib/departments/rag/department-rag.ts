@@ -30,6 +30,7 @@ export async function getRelevantKnowledgeForDepartment(
       id: true,
       useKnowledgeBase: true,
       knowledgeBaseId: true,
+      operatingMemory: true,
       orgId: true,
       userId: true,
     },
@@ -39,6 +40,24 @@ export async function getRelevantKnowledgeForDepartment(
 
   const limit = args.maxResults ?? DEFAULT_LIMIT;
   const orgId = args.orgId ?? department.orgId ?? null;
+
+  const industryKnowledgeBaseIds = extractIndustryKnowledgeBaseIds(department.operatingMemory);
+  if (industryKnowledgeBaseIds.length > 0) {
+    const matches = await Promise.all(
+      industryKnowledgeBaseIds.map((knowledgeBaseId) =>
+        searchByKnowledgeBaseId({
+          knowledgeBaseId,
+          query: args.query,
+          limit,
+          orgId,
+        })
+      )
+    );
+    return matches
+      .flat()
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, limit);
+  }
 
   if (department.knowledgeBaseId) {
     return searchByKnowledgeBaseId({
@@ -68,6 +87,13 @@ export async function getRelevantKnowledgeForDepartment(
   }
 
   return [];
+}
+
+function extractIndustryKnowledgeBaseIds(value: unknown): string[] {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return [];
+  const maybeIds = (value as Record<string, unknown>).industryKnowledgeBaseIds;
+  if (!Array.isArray(maybeIds)) return [];
+  return maybeIds.filter((item): item is string => typeof item === "string" && item.length > 0);
 }
 
 async function searchByKnowledgeBaseId(args: {
@@ -203,4 +229,3 @@ function tokenize(text: string): string[] {
     .split(/[^a-z0-9äöüß]+/iu)
     .filter((token) => token.length >= 3);
 }
-
