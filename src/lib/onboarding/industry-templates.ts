@@ -1,66 +1,13 @@
 import type { IndustryTemplateDefinition, OnboardingIndustry } from "@/lib/onboarding/types";
 import { dentalIndustryTemplate } from "@/lib/industries/dental";
+import { kfzIndustryTemplate } from "@/lib/industries/kfz";
 
 const sharedSchedulerPrompt =
   "Coordinate appointment requests. Ask for missing details, propose clear next steps, and keep customer-facing drafts concise.";
 
 export const INDUSTRY_TEMPLATES: IndustryTemplateDefinition[] = [
   dentalIndustryTemplate,
-  {
-    industry: "kfz",
-    displayName: "KFZ",
-    displayNameDe: "KFZ-Werkstatt",
-    description: "Workshop bookings, estimates, tire-season intake, and WhatsApp image handling.",
-    descriptionDe: "Werkstatt-Termine, Kostenvoranschläge, Reifenwechsel-Saison und WhatsApp-Bilder.",
-    recommendedChannels: ["email", "whatsapp", "webchat"],
-    sortOrder: 20,
-    iconName: "Car",
-    knowledgeBaseSeeds: [
-      { title: "Reparatur-Standards", content: "Standardinformationen zu Diagnose, HU/AU, Inspektion, Ölwechsel, Bremsen und Ersatzteilen." },
-      { title: "Inspektionspakete", content: "Beschreibung kleiner und großer Inspektionen, übliche Dauer und benötigte Fahrzeugdaten." },
-    ],
-    departmentTemplates: [
-      {
-        id: "werkstatt-termin",
-        name: "Werkstatt-Termin Department",
-        description: "Collects vehicle details and prepares booking replies.",
-        defaultSelected: true,
-        workers: [
-          { role: "TRIAGE", name: "Werkstatt Triage", description: "Classifies service requests.", prompt: "Classify vehicle service requests by urgency, required data, and likely department.", priority: 100 },
-          { role: "SCHEDULER", name: "Werkstatt Scheduler", description: "Drafts appointment replies.", prompt: "Collect make, model, plate, mileage, symptoms, and preferred dates before drafting appointment replies.", priority: 80 },
-        ],
-      },
-      {
-        id: "kostenvoranschlag",
-        name: "Kostenvoranschlag Department",
-        description: "Drafts estimate intake and escalation summaries.",
-        defaultSelected: true,
-        workers: [
-          { role: "ESTIMATE_TRIAGE", name: "KVA Triage", description: "Identifies estimate scope.", prompt: "Extract repair scope, photos mentioned, parts, and risk from estimate requests.", priority: 90 },
-          { role: "DRAFTER", name: "KVA Drafter", description: "Drafts estimate request replies.", prompt: "Draft replies requesting missing vehicle and damage information. Do not invent prices.", priority: 70 },
-        ],
-      },
-      {
-        id: "reifenwechsel-saison",
-        name: "Reifenwechsel-Saison Department",
-        description: "Handles seasonal tire-change surges.",
-        defaultSelected: true,
-        seasonal: true,
-        workers: [
-          { role: "SEASONAL_ROUTER", name: "Reifenwechsel Router", description: "Routes tire-season requests.", prompt: "Classify tire-change requests and collect tire storage, size, and preferred date information.", priority: 80 },
-        ],
-      },
-      {
-        id: "whatsapp-bilder",
-        name: "WhatsApp Inbound mit Bilder-Verarbeitung",
-        description: "Captures WhatsApp damage photos for human review.",
-        defaultSelected: true,
-        workers: [
-          { role: "IMAGE_INTAKE", name: "Bild Intake", description: "Summarizes photo-based requests.", prompt: "Summarize customer-provided images and text. Flag visual uncertainty clearly.", priority: 80 },
-        ],
-      },
-    ],
-  },
+  kfzIndustryTemplate,
   {
     industry: "shk",
     displayName: "SHK",
