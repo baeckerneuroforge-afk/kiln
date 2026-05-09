@@ -5,6 +5,8 @@ import { enqueueTask } from "@/lib/departments/backlog";
 import { runManagerLoop } from "@/lib/departments/department-engine";
 import { isInboundAllowed, verifyMetaSignature } from "@/lib/departments/channels/safety";
 import { logDepartmentChannelEvent } from "@/lib/departments/channels/logging";
+import { identifyCustomer } from "@/lib/customer-memory/identifier";
+import { recordInteraction } from "@/lib/customer-memory/writer";
 
 interface WhatsappMessage {
   from?: string;
@@ -57,7 +59,7 @@ export async function POST(
     const payload = JSON.parse(rawBody) as WhatsappPayload;
     const department = await prisma.department.findUnique({
       where: { id: params.departmentId },
-      select: { id: true, whatsappEnabled: true, status: true },
+      select: { id: true, whatsappEnabled: true, status: true, orgId: true },
     });
     if (!department || !department.whatsappEnabled) {
       return Response.json({ ok: true });
@@ -88,6 +90,16 @@ export async function POST(
       continue;
     }
 
+    const customer = department.orgId
+      ? await identifyCustomer({
+          orgId: department.orgId,
+          phone: from,
+        }).catch((err) => {
+          console.warn("[department-whatsapp] customer identification failed", err);
+          return null;
+        })
+      : null;
+
     const channelMessage = await prisma.departmentChannelMessage.create({
       data: {
         departmentId: department.id,
@@ -100,6 +112,7 @@ export async function POST(
         whatsappType: type,
         whatsappMediaId: mediaId,
         status: "RECEIVED",
+        customerProfileId: customer?.id ?? null,
       },
     });
 
@@ -109,6 +122,7 @@ export async function POST(
       triggerPayload: {
         channel: "WHATSAPP",
         channelMessageId: channelMessage.id,
+        customerProfileId: customer?.id ?? null,
         from,
         to,
         body,
@@ -123,6 +137,20 @@ export async function POST(
       where: { id: channelMessage.id },
       data: { backlogItemId: backlogItem.id },
     });
+
+    if (customer) {
+      await recordInteraction({
+        customerProfileId: customer.id,
+        summary: `WhatsApp-Nachricht: ${(body || "[Medien]").slice(0, 200)}`,
+        type: "INTERACTION",
+        source: "CONVERSATION",
+        sourceId: channelMessage.id,
+        departmentId: department.id,
+        importance: 5,
+      }).catch((err) => {
+        console.warn("[department-whatsapp] recordInteraction failed", err);
+      });
+    }
 
     await logDepartmentChannelEvent({
       departmentId: department.id,

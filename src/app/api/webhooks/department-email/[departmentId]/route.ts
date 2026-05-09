@@ -10,6 +10,8 @@ import {
   verifyInboundEmailAuth,
 } from "@/lib/departments/channels/safety";
 import { logDepartmentChannelEvent } from "@/lib/departments/channels/logging";
+import { identifyCustomer } from "@/lib/customer-memory/identifier";
+import { recordInteraction } from "@/lib/customer-memory/writer";
 
 interface ResendInboundPayload {
   from?: string;
@@ -56,7 +58,7 @@ export async function POST(
 
     const department = await prisma.department.findUnique({
       where: { id: params.departmentId },
-      select: { id: true, emailEnabled: true, status: true },
+      select: { id: true, emailEnabled: true, status: true, orgId: true },
     });
 
     if (!department || !department.emailEnabled || !from || !body) {
@@ -79,6 +81,17 @@ export async function POST(
       return Response.json({ ok: true, ignored: true });
     }
 
+    const customer = department.orgId
+      ? await identifyCustomer({
+          orgId: department.orgId,
+          email: from,
+          name: extractDisplayName(from),
+        }).catch((err) => {
+          console.warn("[department-email] customer identification failed", err);
+          return null;
+        })
+      : null;
+
     const channelMessage = await prisma.departmentChannelMessage.create({
       data: {
         departmentId: department.id,
@@ -91,6 +104,7 @@ export async function POST(
         emailHeaders: payload.headers ? toPrismaJson(payload.headers) : undefined,
         emailBody: body,
         status: "RECEIVED",
+        customerProfileId: customer?.id ?? null,
       },
     });
 
@@ -100,6 +114,7 @@ export async function POST(
       triggerPayload: {
         channel: "EMAIL",
         channelMessageId: channelMessage.id,
+        customerProfileId: customer?.id ?? null,
         from,
         to,
         subject,
@@ -113,6 +128,20 @@ export async function POST(
       where: { id: channelMessage.id },
       data: { backlogItemId: backlogItem.id },
     });
+
+    if (customer) {
+      await recordInteraction({
+        customerProfileId: customer.id,
+        summary: `Email-Anfrage: ${subject}`.slice(0, 1_000),
+        type: "INTERACTION",
+        source: "CONVERSATION",
+        sourceId: channelMessage.id,
+        departmentId: department.id,
+        importance: 5,
+      }).catch((err) => {
+        console.warn("[department-email] recordInteraction failed", err);
+      });
+    }
 
     await logDepartmentChannelEvent({
       departmentId: department.id,
@@ -130,4 +159,10 @@ export async function POST(
     console.error("[department-email] inbound webhook failed", error);
     return Response.json({ ok: true, accepted: false });
   }
+}
+
+function extractDisplayName(rawFrom: string): string | null {
+  const match = rawFrom.match(/^\s*"?([^"<]+?)"?\s*<[^>]+>/);
+  if (match) return match[1].trim();
+  return null;
 }
