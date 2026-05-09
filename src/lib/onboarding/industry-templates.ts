@@ -1,58 +1,12 @@
 import type { IndustryTemplateDefinition, OnboardingIndustry } from "@/lib/onboarding/types";
 import { dentalIndustryTemplate } from "@/lib/industries/dental";
 import { kfzIndustryTemplate } from "@/lib/industries/kfz";
-
-const sharedSchedulerPrompt =
-  "Coordinate appointment requests. Ask for missing details, propose clear next steps, and keep customer-facing drafts concise.";
+import { shkIndustryTemplate } from "@/lib/industries/shk";
 
 export const INDUSTRY_TEMPLATES: IndustryTemplateDefinition[] = [
   dentalIndustryTemplate,
   kfzIndustryTemplate,
-  {
-    industry: "shk",
-    displayName: "SHK",
-    displayNameDe: "Sanitär/Heizung/Klima",
-    description: "Emergency triage, service appointment requests, and after-hours voice intake.",
-    descriptionDe: "Notfall-Triage, Termin-Anfragen und Notfall-Voice-Agent.",
-    recommendedChannels: ["email", "whatsapp", "voice"],
-    sortOrder: 30,
-    iconName: "Wrench",
-    knowledgeBaseSeeds: [
-      { title: "Notfall-Hotline-Times", content: "Regeln für Wasserrohrbruch, Heizungsausfall, Gasgeruch, Klimaanlagenstörung und Rückrufpriorität." },
-      { title: "Service-Bereich", content: "Orte, Postleitzahlen und Servicegrenzen für Notdienst und reguläre Wartung." },
-    ],
-    departmentTemplates: [
-      {
-        id: "notfall-triage",
-        name: "Notfall-Triage Department",
-        description: "Classifies urgent HVAC and plumbing issues.",
-        defaultSelected: true,
-        workers: [
-          { role: "URGENT_CLASSIFIER", name: "Notfall Classifier", description: "Detects emergency severity.", prompt: "Classify SHK requests by emergency severity and safety risk. Escalate gas, water damage, and heating outage risks.", priority: 100 },
-          { role: "DISPATCHER", name: "Notfall Dispatcher", description: "Drafts dispatch summaries.", prompt: "Draft structured dispatch summaries with address, symptoms, risk, and callback details.", priority: 90 },
-        ],
-      },
-      {
-        id: "termin-anfrage",
-        name: "Termin-Anfrage Department",
-        description: "Handles standard maintenance and repair appointments.",
-        defaultSelected: true,
-        workers: [
-          { role: "SCHEDULER", name: "SHK Scheduler", description: "Prepares appointment drafts.", prompt: sharedSchedulerPrompt, priority: 80 },
-        ],
-      },
-      {
-        id: "voice-notfaelle",
-        name: "Voice Agent für Notfälle",
-        description: "Captures after-hours emergency voice messages.",
-        defaultSelected: true,
-        premium: true,
-        workers: [
-          { role: "CALL_TRIAGE", name: "Notfall Call Triage", description: "Extracts emergency call details.", prompt: "Extract risk, address, callback number, and urgency from emergency call transcripts.", priority: 90 },
-        ],
-      },
-    ],
-  },
+  shkIndustryTemplate,
   {
     industry: "restaurant",
     displayName: "Restaurant",
