@@ -120,7 +120,8 @@ describe("reporting generator", () => {
       customMessage: "Vielen Dank für Ihre Zusammenarbeit!",
       preview: true,
     });
-    const callData = mockRender.mock.calls[0]?.[0]?.data as Record<string, unknown>;
+    const firstCall = mockRender.mock.calls[0] as unknown as [{ data: Record<string, unknown> }] | undefined;
+    const callData = firstCall?.[0].data;
     expect(callData?.customMessage).toBe("Vielen Dank für Ihre Zusammenarbeit!");
   });
 

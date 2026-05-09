@@ -86,6 +86,8 @@ export interface EmailTemplateData {
     avgFirstResponseMinutes?: number | null;
     slaCompliancePercent?: number;
     costSavedEur?: number;
+    llmCostSavedUsd?: number;
+    llmSavingsPercent?: number;
     newCustomers?: number;
     returningCustomers?: number;
     highlights?: string[];

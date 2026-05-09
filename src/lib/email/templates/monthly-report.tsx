@@ -26,6 +26,10 @@ export function MonthlyReportEmail({ branding, data }: Props) {
     typeof data.costSavedEur === "number" && data.costSavedEur > 0
       ? `${data.costSavedEur.toLocaleString("de-DE")} €`
       : null;
+  const llmSavings =
+    typeof data.llmCostSavedUsd === "number" && data.llmCostSavedUsd > 0
+      ? `${data.llmCostSavedUsd.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+      : null;
   const safeCustomMessage =
     typeof data.customMessage === "string" && data.customMessage.trim()
       ? escapeHtml(data.customMessage.trim())
@@ -77,6 +81,15 @@ export function MonthlyReportEmail({ branding, data }: Props) {
               • {line}
             </Text>
           ))}
+        </Section>
+      ) : null}
+
+      {llmSavings ? (
+        <Section style={highlightsSection}>
+          <Text style={paragraph}>
+            Sie haben {llmSavings} vs naiver Implementierung gespart
+            {typeof data.llmSavingsPercent === "number" ? ` (${data.llmSavingsPercent}%)` : ""}.
+          </Text>
         </Section>
       ) : null}
 

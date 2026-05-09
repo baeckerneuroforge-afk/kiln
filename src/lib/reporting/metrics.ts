@@ -15,6 +15,10 @@ export interface ReportMetrics {
   returningCustomers: number;
   topTopics: Array<{ topic: string; count: number }>;
   costSavedEur: number;
+  totalLlmCostUsd?: number;
+  totalNaiveLlmCostUsd?: number;
+  llmCostSavedUsd?: number;
+  llmSavingsPercent?: number;
 }
 
 export interface ComputeMetricsArgs {
@@ -40,6 +44,7 @@ export async function computeReportMetrics(args: ComputeMetricsArgs): Promise<Re
     slaRows,
     customerProfiles,
     topTopics,
+    llmSavings,
   ] = await Promise.all([
     prisma.departmentChannelMessage.count({
       where: { department: { orgId: args.orgId }, direction: "INBOUND", createdAt: period },
@@ -63,6 +68,7 @@ export async function computeReportMetrics(args: ComputeMetricsArgs): Promise<Re
       select: { firstSeenAt: true, totalConversations: true, lastSeenAt: true },
     }),
     extractTopTopics(args.orgId, args.periodStart, args.periodEnd),
+    computeLlmSavings(args.orgId, args.periodStart, args.periodEnd),
   ]);
 
   const approvalsApproved = backlogItems.filter((item) => item.approvedAt && !item.rejectedAt).length;
@@ -115,7 +121,40 @@ export async function computeReportMetrics(args: ComputeMetricsArgs): Promise<Re
     returningCustomers,
     topTopics,
     costSavedEur,
+    totalLlmCostUsd: llmSavings.totalCostUsd,
+    totalNaiveLlmCostUsd: llmSavings.totalNaiveCostUsd,
+    llmCostSavedUsd: llmSavings.totalSavedUsd,
+    llmSavingsPercent: llmSavings.savingsPercent,
   };
+}
+
+async function computeLlmSavings(
+  orgId: string,
+  periodStart: Date,
+  periodEnd: Date,
+): Promise<{
+  totalCostUsd: number;
+  totalSavedUsd: number;
+  totalNaiveCostUsd: number;
+  savingsPercent: number;
+}> {
+  try {
+    const rows = await prisma.llmUsage.findMany({
+      where: { orgId, createdAt: { gte: periodStart, lte: periodEnd } },
+      select: { costUsd: true, costSavedUsd: true },
+    });
+    const totalCostUsd = rows.reduce((sum, row) => sum + Number(row.costUsd), 0);
+    const totalSavedUsd = rows.reduce((sum, row) => sum + Number(row.costSavedUsd), 0);
+    const totalNaiveCostUsd = totalCostUsd + totalSavedUsd;
+    return {
+      totalCostUsd,
+      totalSavedUsd,
+      totalNaiveCostUsd,
+      savingsPercent: totalNaiveCostUsd > 0 ? Math.round((totalSavedUsd / totalNaiveCostUsd) * 100) : 0,
+    };
+  } catch {
+    return { totalCostUsd: 0, totalSavedUsd: 0, totalNaiveCostUsd: 0, savingsPercent: 0 };
+  }
 }
 
 /**
@@ -158,8 +197,17 @@ export function buildHighlights(metrics: ReportMetrics, monthLabel: string): str
   if (metrics.costSavedEur > 0) {
     highlights.push(`${metrics.costSavedEur.toLocaleString("de-DE")}€ Personalkosten gespart`);
   }
+  if (metrics.llmCostSavedUsd && metrics.llmCostSavedUsd > 0) {
+    highlights.push(
+      `${formatUsdAsEur(metrics.llmCostSavedUsd)} vs naiver LLM-Implementierung gespart (${metrics.llmSavingsPercent ?? 0}%)`,
+    );
+  }
   if (metrics.newCustomers > 0) {
     highlights.push(`${metrics.newCustomers} neue Kunden gewonnen`);
   }
   return highlights;
+}
+
+function formatUsdAsEur(value: number): string {
+  return `${value.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€`;
 }

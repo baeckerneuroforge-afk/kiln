@@ -85,6 +85,8 @@ export async function generateReport(args: GenerateReportArgs): Promise<Generate
       avgFirstResponseMinutes: metrics.avgFirstResponseMinutes,
       slaCompliancePercent: metrics.slaCompliancePercent,
       costSavedEur: metrics.costSavedEur,
+      llmCostSavedUsd: metrics.llmCostSavedUsd,
+      llmSavingsPercent: metrics.llmSavingsPercent,
       newCustomers: metrics.newCustomers,
       returningCustomers: metrics.returningCustomers,
       highlights,
