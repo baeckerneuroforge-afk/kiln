@@ -103,10 +103,10 @@ describe("Agency sub-orgs list — clickable cards", () => {
       expect(screen.getByText("Widgets Inc")).toBeInTheDocument();
     });
 
-    // The archived row has no Login-as-client / Invite / Archive buttons —
+    // The archived row has no Login-as-User / Invite / Archive buttons —
     // exactly one Login button overall (for Acme).
     const loginButtons = screen.getAllByRole("button", {
-      name: /login as client/i,
+      name: /login as user/i,
     });
     expect(loginButtons).toHaveLength(1);
   });

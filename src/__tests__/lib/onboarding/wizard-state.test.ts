@@ -5,6 +5,7 @@ import {
   parseBasics,
   parseChannelConfig,
   parseKnowledgeConfig,
+  parseTemplateIdSelection,
   parseTemplateSelection,
   wizardToConfig,
 } from "@/lib/onboarding/wizard-state";
@@ -34,6 +35,14 @@ describe("wizard state parsing", () => {
     expect(selected).toEqual([{ templateId: "a", departmentName: "A", selected: false }]);
   });
 
+  it("parses agency agent template ids uniquely", () => {
+    expect(parseTemplateIdSelection(["a", "b", "a", "", 1])).toEqual(["a", "b"]);
+  });
+
+  it("defaults agency template ids to empty arrays", () => {
+    expect(parseTemplateIdSelection({ bad: true })).toEqual([]);
+  });
+
   it("parses knowledge config with files and urls", () => {
     const config = parseKnowledgeConfig({ urls: ["https://x.test"], files: [{ fileName: "faq.pdf", mimeType: "application/pdf" }] });
     expect(config.urls).toEqual(["https://x.test"]);
@@ -52,11 +61,15 @@ describe("wizard state parsing", () => {
       id: "wiz_1",
       basics: { customerName: "Acme", industry: "restaurant" },
       selectedTemplates: [],
+      selectedAgentTemplates: ["agent_1"],
+      selectedWorkflowTemplates: ["workflow_1"],
       knowledgeConfig: { urls: ["https://restaurant.test"] },
       channelConfig: { email: { enabled: true } },
       brandingConfig: { brandColor: "#ff6600" },
     });
     expect(config.wizardId).toBe("wiz_1");
     expect(config.basics.industry).toBe("restaurant");
+    expect(config.selectedAgentTemplates).toEqual(["agent_1"]);
+    expect(config.selectedWorkflowTemplates).toEqual(["workflow_1"]);
   });
 });

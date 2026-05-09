@@ -6,6 +6,7 @@ const mockApplyBranding = vi.hoisted(() => vi.fn());
 const mockSetupChannels = vi.hoisted(() => vi.fn());
 const mockImportKnowledge = vi.hoisted(() => vi.fn());
 const mockInstallIndustryPack = vi.hoisted(() => vi.fn());
+const mockInstallSelectedTemplates = vi.hoisted(() => vi.fn());
 const mockPrisma = vi.hoisted(() => ({
   onboardingWizard: { update: vi.fn() },
   orgRelationship: { findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
@@ -18,6 +19,7 @@ vi.mock("@/lib/onboarding/branding-applier", () => ({ applySubOrgBranding: mockA
 vi.mock("@/lib/onboarding/channel-setup", () => ({ setupOnboardingChannels: mockSetupChannels }));
 vi.mock("@/lib/onboarding/kb-bulk-import", () => ({ importKnowledgeForSubOrg: mockImportKnowledge }));
 vi.mock("@/lib/industries/shared/industry-installer", () => ({ installIndustryPack: mockInstallIndustryPack }));
+vi.mock("@/lib/templates/service", () => ({ installSelectedTemplatesForSubOrg: mockInstallSelectedTemplates }));
 
 import { executeOnboardingWizard } from "@/lib/onboarding/wizard-orchestrator";
 
@@ -33,6 +35,12 @@ describe("wizard orchestrator", () => {
     mockApplyBranding.mockResolvedValue(undefined);
     mockSetupChannels.mockResolvedValue({ activated: ["email"], warnings: [] });
     mockImportKnowledge.mockResolvedValue({ indexed: 2, warnings: [] });
+    mockInstallSelectedTemplates.mockResolvedValue({
+      agentInstanceIds: [],
+      workflowInstanceIds: [],
+      createdInstances: 0,
+      reusedInstances: 0,
+    });
     mockInstallIndustryPack.mockResolvedValue({
       industry: "dental",
       packVersion: "1.2",
@@ -53,6 +61,8 @@ describe("wizard orchestrator", () => {
       config: {
         basics: { customerName: "Praxis Test", industry: "dental" },
         selectedTemplates: [{ templateId: "dental-termin-anfrage", departmentName: "Termin-Anfrage", selected: true }],
+        selectedAgentTemplates: ["agent_template_1"],
+        selectedWorkflowTemplates: ["workflow_template_1"],
         knowledge: {},
         channels: { email: { enabled: true } },
         branding: { brandColor: "#f97316" },
@@ -65,6 +75,10 @@ describe("wizard orchestrator", () => {
     }));
     expect(mockApplyBranding).toHaveBeenCalled();
     expect(mockSetupChannels).toHaveBeenCalled();
+    expect(mockInstallSelectedTemplates).toHaveBeenCalledWith(expect.objectContaining({
+      agentTemplateIds: ["agent_template_1"],
+      workflowTemplateIds: ["workflow_template_1"],
+    }));
   });
 
   it("rejects users without sub-org creation permissions", async () => {
