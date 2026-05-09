@@ -4,6 +4,7 @@ import type { OrgScope } from "@/lib/auth/org-scope";
 import { asJsonRecord, toPrismaJson, truncateError } from "./json";
 import { invokeDraftedAction } from "./invocation";
 import { logDepartmentChannelEvent } from "./channels/logging";
+import { findActiveTracking, markResolved, recordFirstResponse } from "@/lib/sla/tracker";
 
 export async function getPendingApprovals(
   orgId: string
@@ -83,6 +84,23 @@ export async function approveItem(
     status: result.ok ? "APPROVED" : "FAILED",
     payload: { draft, result },
   });
+
+  if (result.ok) {
+    try {
+      const tracking = await findActiveTracking({
+        departmentId: item.departmentId,
+        conversationId: item.id,
+      });
+      if (tracking) {
+        if (!tracking.firstResponseAt) {
+          await recordFirstResponse(tracking.id);
+        }
+        await markResolved(tracking.id);
+      }
+    } catch (err) {
+      console.warn("[approval-gate] SLA tracking update failed", err);
+    }
+  }
 }
 
 export async function rejectItem(
@@ -125,4 +143,16 @@ export async function rejectItem(
     status: "REJECTED",
     payload: { reason },
   });
+
+  try {
+    const tracking = await findActiveTracking({
+      departmentId: item.departmentId,
+      conversationId: itemId,
+    });
+    if (tracking) {
+      await markResolved(tracking.id);
+    }
+  } catch (err) {
+    console.warn("[approval-gate] SLA tracking close on reject failed", err);
+  }
 }
