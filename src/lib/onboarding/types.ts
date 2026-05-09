@@ -131,6 +131,7 @@ export interface IndustryTemplateMetadata {
   whatsappTemplates?: WhatsAppTemplateDefinition[];
   voiceScripts?: VoiceScriptDefinition[];
   recallSchedules?: RecallScheduleDefinition[];
+  seasonLogic?: Prisma.JsonObject;
   metaSubmissionGuide?: string[];
   notes?: string[];
 }
