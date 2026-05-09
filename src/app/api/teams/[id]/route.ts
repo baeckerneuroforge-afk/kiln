@@ -20,6 +20,7 @@ import {
   extractSubWorkflowIdsFromConfig,
   syncParentWorkflowReferences,
 } from "@/lib/workflow-subworkflows";
+import { markTemplateInstanceCustomized } from "@/lib/templates/service";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -201,6 +202,12 @@ export async function PATCH(
           ) as Prisma.InputJsonValue,
         }),
       },
+    });
+
+    await markTemplateInstanceCustomized({
+      templateType: "WORKFLOW",
+      instanceId: params.id,
+      subOrgId: scope.orgId,
     });
 
     if (mergedConfig !== undefined) {

@@ -8,6 +8,7 @@ import { normalizeAgentSchedule } from "@/lib/agent-scheduling";
 import { validateSchema } from "@/lib/agents/io-schema-validator";
 import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
 import { orgScopeFilter } from "@/lib/auth/org-scope";
+import { markTemplateInstanceCustomized } from "@/lib/templates/service";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -150,6 +151,12 @@ export async function PATCH(
     const agent = await prisma.agent.update({
       where: { id: params.id },
       data: sanitizedBody,
+    });
+
+    await markTemplateInstanceCustomized({
+      templateType: "AGENT",
+      instanceId: params.id,
+      subOrgId: scope.orgId,
     });
 
     // Webhook: agent.updated
