@@ -1,8 +1,14 @@
 export interface DepartmentWorkerView {
   id: string;
+  departmentId?: string;
   role: string;
   description: string | null;
   priority: number;
+  preferredModelTier?: string | null;
+  preferredProvider?: string | null;
+  customModelId?: string | null;
+  enableCitationCheck?: boolean;
+  outputSchema?: unknown;
   agent: {
     id: string;
     name: string;

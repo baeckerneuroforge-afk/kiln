@@ -150,6 +150,7 @@ export const AGENCY_NAV_SECTIONS: NavSection[] = [
     defaultOpen: false,
     items: [
       { name: "Analytics", href: "/dashboard/intelligence", icon: Activity, minAgents: 1 },
+      { name: "LLM Usage", href: "/dashboard/llm-usage", icon: Database, minAgents: 0 },
       { name: "Monitoring", href: "/dashboard/teams/monitor", icon: Radio, minAgents: 0, requiresPro: true },
       { name: "A/B Tests", href: "/dashboard/teams/ab-tests", icon: FlaskConical, minAgents: 0, requiresPro: true },
     ],
