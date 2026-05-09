@@ -29,7 +29,8 @@ describe("industry templates", () => {
   it("kfz template recommends WhatsApp and image intake", () => {
     const kfz = getIndustryTemplate("kfz");
     expect(kfz?.recommendedChannels).toContain("whatsapp");
-    expect(kfz?.departmentTemplates.map((item) => item.name)).toContain("WhatsApp Inbound mit Bilder-Verarbeitung");
+    expect(kfz?.departmentTemplates.map((item) => item.name)).toContain("Reifenwechsel-Saison-Kampagne");
+    expect(kfz?.departmentTemplates.find((item) => item.id === "kfz-kostenvoranschlag")?.defaultSelected).toBe(true);
   });
 
   it("custom template starts empty", () => {
