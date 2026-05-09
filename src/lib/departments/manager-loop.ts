@@ -1,42 +1,7 @@
-import type Anthropic from "@anthropic-ai/sdk";
 import type { ManagerDecision, ManagerDecisionResult, DepartmentManagerArgs } from "./types";
-import { getAnthropicClientForUser } from "./anthropic-client";
 import { asJsonRecord } from "./json";
-
-const DECISION_TOOL_NAME = "department_manager_decision";
-
-const decisionTool = {
-  name: DECISION_TOOL_NAME,
-  description: "Return the next action for the department manager loop.",
-  input_schema: {
-    type: "object",
-    additionalProperties: false,
-    required: ["type"],
-    properties: {
-      type: {
-        type: "string",
-        enum: [
-          "INVOKE_WORKER",
-          "INVOKE_WORKFLOW",
-          "INVOKE_SWARM",
-          "REQUEST_APPROVAL",
-          "UPDATE_MEMORY",
-          "MARK_DONE",
-          "FOLLOWUP_LATER",
-        ],
-      },
-      workerId: { type: "string" },
-      workflowId: { type: "string" },
-      swarmConfig: { type: "object", additionalProperties: true },
-      input: { type: "object", additionalProperties: true },
-      draftedAction: { type: "object", additionalProperties: true },
-      patch: { type: "object", additionalProperties: true },
-      result: { type: "object", additionalProperties: true },
-      scheduledFor: { type: "string" },
-      payload: { type: "object", additionalProperties: true },
-    },
-  },
-} satisfies Anthropic.Tool;
+import { callLlm } from "@/lib/llm";
+import { z } from "zod";
 
 export async function decideNextAction(
   args: DepartmentManagerArgs
@@ -45,34 +10,25 @@ export async function decideNextAction(
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const client = await getAnthropicClientForUser(
-        args.department.userId,
-        args.department.managerModel
-      );
-      const response = await client.messages.create({
-        model: args.department.managerModel,
-        max_tokens: 1200,
+      const response = await callLlm({
+        orgId: args.department.orgId ?? args.department.userId,
+        userId: args.department.userId,
+        departmentId: args.department.id,
+        modelId: args.department.managerModel,
+        taskType: "manager_loop",
+        maxTokens: 1200,
         temperature: 0,
-        system: buildSystemPrompt(args),
+        systemPrompt: buildSystemPrompt(args),
         messages: [{ role: "user", content: buildUserPrompt(args, lastError) }],
-        tools: [decisionTool],
-        tool_choice: { type: "tool", name: DECISION_TOOL_NAME },
+        outputSchema: managerDecisionSchema,
+        maxRetries: 2,
       });
 
-      const toolUse = response.content.find(
-        (block): block is Anthropic.ToolUseBlock =>
-          block.type === "tool_use" && block.name === DECISION_TOOL_NAME
-      );
-      if (!toolUse) {
-        throw new Error("Manager response did not include a decision tool call.");
-      }
-
-      const decision = normalizeDecision(asJsonRecord(toolUse.input));
+      const decision = normalizeDecision(asJsonRecord(response.parsedOutput));
       return {
         decision,
-        tokensUsed:
-          (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0),
-        raw: toolUse.input,
+        tokensUsed: response.inputTokens + response.outputTokens,
+        raw: response.parsedOutput,
       };
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
@@ -180,3 +136,26 @@ function requireString(value: unknown, field: string): string {
   }
   return value;
 }
+
+const jsonRecordSchema = z.record(z.unknown()).default({});
+
+const managerDecisionSchema = z.object({
+  type: z.enum([
+    "INVOKE_WORKER",
+    "INVOKE_WORKFLOW",
+    "INVOKE_SWARM",
+    "REQUEST_APPROVAL",
+    "UPDATE_MEMORY",
+    "MARK_DONE",
+    "FOLLOWUP_LATER",
+  ]),
+  workerId: z.string().optional(),
+  workflowId: z.string().optional(),
+  swarmConfig: jsonRecordSchema.optional(),
+  input: jsonRecordSchema.optional(),
+  draftedAction: jsonRecordSchema.optional(),
+  patch: jsonRecordSchema.optional(),
+  result: jsonRecordSchema.optional(),
+  scheduledFor: z.string().optional(),
+  payload: jsonRecordSchema.optional(),
+});

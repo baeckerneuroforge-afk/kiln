@@ -1,11 +1,9 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { searchRelevantChunks } from "@/lib/rag";
 import { executeWorkflow } from "@/lib/services/workflow-runtime";
 import { executeAgentSwarm } from "@/lib/workflow-nodes/agent-swarm-node";
 import { sendDepartmentEmail } from "./channels/email-sender";
 import { sendDepartmentWhatsapp } from "./channels/whatsapp-sender";
-import { getAnthropicClientForUser } from "./anthropic-client";
 import { asJsonRecord, toPrismaJson, truncateError } from "./json";
 import {
   buildWorkerContext,
@@ -13,6 +11,7 @@ import {
 } from "./rag/worker-context-builder";
 import type { KnowledgeMatch } from "./rag/department-rag";
 import type { DepartmentContext, InvocationResult } from "./types";
+import { callLlm } from "@/lib/llm";
 
 export async function invokeWorker(
   workerId: string,
@@ -41,8 +40,8 @@ export async function invokeWorker(
     }
 
     const agent = worker.agent;
-    const model = agent.llmModel || "claude-sonnet-4-6";
-    const client = await getAnthropicClientForUser(agent.userId, model);
+    const model = worker.customModelId
+      || (!worker.preferredModelTier && !worker.preferredProvider ? agent.llmModel || "claude-sonnet-4-6" : undefined);
 
     const baseRolePrompt = buildBaseWorkerSystemPrompt(agent.systemPrompt, worker.role);
     const ticketContent = stringifyTicket(input);
@@ -73,19 +72,22 @@ export async function invokeWorker(
       }
     }
 
-    const response = await client.messages.create({
-      model,
-      max_tokens: 1800,
+    const response = await callLlm({
+      orgId: context.orgId,
+      userId: context.userId,
+      workerId,
+      departmentId: context.departmentId,
+      ...(model ? { modelId: model } : {}),
+      taskType: "department_worker",
+      maxTokens: 1800,
       temperature: agent.temperature ?? 0.4,
-      system: systemPrompt,
+      systemPrompt,
       messages: [{ role: "user", content: JSON.stringify(input, null, 2) }],
+      requireCitations: worker.enableCitationCheck,
+      knowledgeBaseChunks: knowledgeSources.map((source) => source.content),
     });
 
-    const output = response.content
-      .filter((block): block is Anthropic.TextBlock => block.type === "text")
-      .map((block) => block.text)
-      .join("\n")
-      .trim();
+    const output = response.content.trim();
 
     const durationMs = Date.now() - startedAt;
     const run = await prisma.agentRun.create({
