@@ -3204,3 +3204,89 @@ model SlaEvent {
 
   @@index([slaTrackingId, createdAt])
 }
+
+/// System-wide append-only audit log. Records actor, target resource,
+/// action, optional before/after diff, and request context. Never deleted
+/// in normal operation; pruned by the daily cron after the legal retention
+/// window (default 7 years).
+model AuditLog {
+  id              String   @id @default(cuid())
+
+  actorUserId     String?
+  actorType       String   @default("USER") // USER | SYSTEM | API | CRON | WEBHOOK
+  actorOrgId      String?
+
+  orgId           String
+
+  action          String
+  resourceType    String
+  resourceId      String?
+
+  description     String?
+  changes         Json?
+  metadata        Json?
+
+  ipAddress       String?
+  userAgent       String?
+  requestId       String?
+
+  severity        String   @default("INFO") // INFO | WARN | CRITICAL
+
+  createdAt       DateTime @default(now())
+
+  @@index([orgId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([resourceType, resourceId])
+  @@index([action, createdAt])
+  @@index([severity, createdAt])
+}
+
+/// Async DSGVO data-export request for an entire Sub-Org. The background
+/// worker streams the org's data into a ZIP / JSON bundle and stores the
+/// download URL with a 7-day expiry.
+model DataExportRequest {
+  id                 String    @id @default(cuid())
+  orgId              String
+  requestedByUserId  String
+
+  status             String    @default("PENDING") // PENDING | PROCESSING | READY | EXPIRED | FAILED
+  scope              String    @default("FULL")    // FULL | CUSTOMERS_ONLY | AGENTS_ONLY | AUDIT_ONLY
+  format             String    @default("JSON")    // JSON | CSV | BOTH
+
+  fileUrl            String?
+  fileSizeBytes      BigInt?
+  expiresAt          DateTime?
+
+  errorMessage       String?
+
+  createdAt          DateTime  @default(now())
+  completedAt        DateTime?
+
+  @@index([orgId, createdAt])
+  @@index([status, createdAt])
+}
+
+/// DSGVO deletion request with a 30-day grace period. After the grace
+/// expires the daily cron executes the deletion (cascades through
+/// Customer-Memory, Departments, etc; preserves legally-required Stripe
+/// invoice records).
+model DataDeletionRequest {
+  id                 String    @id @default(cuid())
+  orgId              String
+  requestedByUserId  String
+
+  status             String    @default("PENDING") // PENDING | GRACE_PERIOD | PROCESSING | COMPLETED | CANCELLED
+  scope              String    @default("FULL")    // FULL | CUSTOMERS_ONLY | AUDIT_ONLY
+
+  graceUntil         DateTime
+  reason             String?
+
+  scheduledFor       DateTime?
+  executedAt         DateTime?
+  itemsDeleted       Json?
+
+  createdAt          DateTime  @default(now())
+
+  @@index([orgId])
+  @@index([status, scheduledFor])
+}
