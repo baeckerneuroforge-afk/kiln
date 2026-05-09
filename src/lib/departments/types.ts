@@ -42,12 +42,20 @@ export type DepartmentWithWorkers = Department & {
   workerAgents: DepartmentWorker[];
 };
 
+export interface CustomerMemoryContext {
+  profileId: string;
+  promptBlock: string;
+  totalEntries: number;
+  preferences: Record<string, unknown> | null;
+}
+
 export type DepartmentManagerArgs = {
   department: Department;
   backlogItem: DepartmentBacklogItem;
   operatingMemory: JsonRecord;
   availableWorkers: DepartmentWorker[];
   recentRunLogs: DepartmentRunLog[];
+  customerMemory?: CustomerMemoryContext | null;
 };
 
 export type InvocationResult = {

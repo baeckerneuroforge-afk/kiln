@@ -95,6 +95,13 @@ function buildSystemPrompt(args: DepartmentManagerArgs): string {
     args.department.managerSystemPrompt ||
     "You manage this department. Choose the next concrete action that advances the current backlog item.";
 
+  const customerSection = args.customerMemory?.promptBlock
+    ? `\n\nCustomer-Memory (cross-conversation):\n${args.customerMemory.promptBlock}\n` +
+      (args.customerMemory.preferences
+        ? `\nKundenpraeferenzen: ${JSON.stringify(args.customerMemory.preferences)}\n`
+        : "")
+    : "";
+
   return `${customPrompt}
 
 Department:
@@ -116,7 +123,7 @@ ${workerLines || "- No workers configured"}
 
 Operating memory:
 ${JSON.stringify(args.operatingMemory, null, 2)}
-
+${customerSection}
 Recent run logs:
 ${JSON.stringify(args.recentRunLogs.slice(0, 5), null, 2)}`;
 }

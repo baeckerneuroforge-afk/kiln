@@ -17,7 +17,14 @@ import {
   notifyApprovalNeeded,
   type NotifyChannelKind,
 } from "./notifications/notification-router";
-import type { DepartmentContext, InvocationResult, ManagerDecision, TriggerEvent } from "./types";
+import { buildMemorySummary } from "@/lib/customer-memory/retriever";
+import type {
+  CustomerMemoryContext,
+  DepartmentContext,
+  InvocationResult,
+  ManagerDecision,
+  TriggerEvent,
+} from "./types";
 
 const MAX_DECISIONS_PER_ITEM = 8;
 
@@ -108,6 +115,10 @@ async function runBacklogItem(departmentId: string, itemId: string): Promise<voi
       if (!backlogItem || backlogItem.status !== "RUNNING") return;
 
       const memory = await readMemory(departmentId);
+      const customerMemory = await loadCustomerMemoryForBacklogItem(
+        backlogItem.triggerPayload,
+        departmentId,
+      );
       const startedAt = Date.now();
       const decisionResult = await decideNextAction({
         department,
@@ -118,6 +129,7 @@ async function runBacklogItem(departmentId: string, itemId: string): Promise<voi
         },
         availableWorkers: department.workerAgents,
         recentRunLogs: department.runLogs,
+        customerMemory,
       });
       const durationMs = Date.now() - startedAt;
 
@@ -279,6 +291,28 @@ function enrichDraftWithKnowledgeSources(
     return { ...draft, knowledgeSourcesUsed: sources };
   }
   return draft;
+}
+
+async function loadCustomerMemoryForBacklogItem(
+  triggerPayload: unknown,
+  departmentId: string,
+): Promise<CustomerMemoryContext | null> {
+  try {
+    const payload = asJsonRecord(triggerPayload);
+    const channelMessageId =
+      typeof payload.channelMessageId === "string" ? payload.channelMessageId : null;
+    if (!channelMessageId) return null;
+    const message = await prisma.departmentChannelMessage.findUnique({
+      where: { id: channelMessageId },
+      select: { customerProfileId: true },
+    });
+    if (!message?.customerProfileId) return null;
+    const summary = await buildMemorySummary(message.customerProfileId, { departmentId });
+    return summary;
+  } catch (err) {
+    console.warn("[department] customer-memory lookup failed", err);
+    return null;
+  }
 }
 
 async function dispatchApprovalNotification(
