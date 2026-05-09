@@ -102,6 +102,7 @@ enum ModelProvider {
   OPENAI
   PERPLEXITY
   GOOGLE
+  MISTRAL
   GROQ
 }
 
@@ -1209,6 +1210,11 @@ model DepartmentWorker {
   role         String
   description  String?    @db.Text
   priority     Int        @default(0)
+  preferredModelTier String?
+  preferredProvider  String?
+  customModelId      String?
+  enableCitationCheck Boolean @default(false)
+  outputSchema       Json?
 
   department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   agent        Agent      @relation("DepartmentWorker", fields: [agentId], references: [id], onDelete: Cascade)
@@ -1216,6 +1222,30 @@ model DepartmentWorker {
   @@unique([departmentId, agentId])
   @@index([departmentId])
   @@index([agentId])
+}
+
+model LlmUsage {
+  id                 String   @id @default(cuid())
+  orgId              String
+  workerId           String?
+  departmentId       String?
+  modelId            String
+  provider           String
+  inputTokens        Int
+  outputTokens       Int
+  cachedInputTokens  Int      @default(0)
+  costUsd            Decimal  @default(0) @db.Decimal(10, 6)
+  costSavedUsd       Decimal  @default(0) @db.Decimal(10, 6)
+  routingReason      String?
+  cacheHit           Boolean  @default(false)
+  byokActive         Boolean  @default(false)
+  validationAttempts Int      @default(1)
+  durationMs         Int
+  createdAt          DateTime @default(now())
+
+  @@index([orgId, createdAt])
+  @@index([orgId, modelId])
+  @@index([departmentId, createdAt])
 }
 
 model DepartmentBacklogItem {
