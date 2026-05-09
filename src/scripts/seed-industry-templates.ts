@@ -12,6 +12,7 @@ async function main() {
       departmentTemplates: data.departmentTemplates as unknown as Prisma.InputJsonValue,
       knowledgeBaseSeeds: data.knowledgeBaseSeeds as unknown as Prisma.InputJsonValue,
       recommendedChannels: data.recommendedChannels as unknown as Prisma.InputJsonValue,
+      metadata: data.metadata as unknown as Prisma.InputJsonValue,
     };
     await prisma.industryTemplate.upsert({
       where: { industry: data.industry },

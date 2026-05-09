@@ -1,67 +1,11 @@
 import type { IndustryTemplateDefinition, OnboardingIndustry } from "@/lib/onboarding/types";
+import { dentalIndustryTemplate } from "@/lib/industries/dental";
 
 const sharedSchedulerPrompt =
   "Coordinate appointment requests. Ask for missing details, propose clear next steps, and keep customer-facing drafts concise.";
 
 export const INDUSTRY_TEMPLATES: IndustryTemplateDefinition[] = [
-  {
-    industry: "dental",
-    displayName: "Dental",
-    displayNameDe: "Zahnarztpraxis",
-    description: "Appointment requests, recall reminders, after-hours voice capture, and insurance advice.",
-    descriptionDe: "Termin-Anfragen, Recall-Erinnerungen, Anrufannahme nach Öffnungszeiten und optionale Versicherungsberatung.",
-    recommendedChannels: ["email", "whatsapp", "webchat", "voice"],
-    sortOrder: 10,
-    iconName: "Stethoscope",
-    knowledgeBaseSeeds: [
-      { title: "Praxiszeiten", content: "Standardfragen zu Öffnungszeiten, Akutsprechstunden, Terminverschiebungen und Notfallkontakten." },
-      { title: "Versicherungsfragen", content: "Hinweise zu gesetzlicher Krankenversicherung, privaten Rechnungen und Zahnzusatzversicherung." },
-      { title: "Behandlungsdauer", content: "Orientierungswerte für Kontrolle, professionelle Zahnreinigung, Füllung, Wurzelbehandlung und Beratung." },
-    ],
-    departmentTemplates: [
-      {
-        id: "termin-anfrage",
-        name: "Termin-Anfrage Department",
-        description: "Triages appointment requests, collects missing details, and prepares confirmations.",
-        defaultSelected: true,
-        workers: [
-          { role: "TRIAGE", name: "Termin Triage", description: "Classifies appointment intent and urgency.", prompt: "Classify dental appointment requests by urgency, treatment type, and missing information.", priority: 100 },
-          { role: "SCHEDULER", name: "Termin Scheduler", description: "Prepares scheduling replies.", prompt: sharedSchedulerPrompt, priority: 80 },
-          { role: "CONFIRMATOR", name: "Termin Confirmator", description: "Drafts confirmation and preparation messages.", prompt: "Draft friendly appointment confirmations with preparation notes and cancellation guidance.", priority: 60 },
-        ],
-      },
-      {
-        id: "recall-erinnerung",
-        name: "Recall-Erinnerungs Department",
-        description: "Prepares recall reminders for checkups and hygiene appointments.",
-        defaultSelected: true,
-        workers: [
-          { role: "FETCHER", name: "Recall Fetcher", description: "Identifies recall context from payloads.", prompt: "Extract recall due dates, patient preferences, and appointment intent from the task payload.", priority: 90 },
-          { role: "DRAFTER", name: "Recall Drafter", description: "Drafts reminder messages.", prompt: "Draft concise, friendly recall reminder messages with clear booking calls to action.", priority: 70 },
-        ],
-      },
-      {
-        id: "zahnzusatzversicherung",
-        name: "Zahnzusatzversicherungs-Beratung Department",
-        description: "Answers common insurance pre-qualification questions for human review.",
-        defaultSelected: false,
-        workers: [
-          { role: "QUALIFIER", name: "Versicherung Qualifier", description: "Classifies insurance intent.", prompt: "Classify dental insurance questions and identify when a human advisor must review.", priority: 80 },
-          { role: "ADVISOR", name: "Versicherung Advisor", description: "Drafts careful advice summaries.", prompt: "Draft non-binding insurance guidance and always recommend human confirmation.", priority: 60 },
-        ],
-      },
-      {
-        id: "voice-after-hours",
-        name: "Voice Agent für Anrufe nach Öffnungszeiten",
-        description: "Captures after-hours caller intent and queues follow-up tasks.",
-        defaultSelected: true,
-        premium: true,
-        workers: [
-          { role: "CALL_TRIAGE", name: "After-Hours Call Triage", description: "Classifies voicemail and call transcripts.", prompt: "Extract urgency, caller details, requested treatment, and callback priority from call transcripts.", priority: 80 },
-        ],
-      },
-    ],
-  },
+  dentalIndustryTemplate,
   {
     industry: "kfz",
     displayName: "KFZ",
@@ -302,6 +246,7 @@ export function toIndustryTemplateRow(template: IndustryTemplateDefinition) {
     departmentTemplates: template.departmentTemplates,
     knowledgeBaseSeeds: template.knowledgeBaseSeeds,
     recommendedChannels: template.recommendedChannels,
+    metadata: template.metadata ?? null,
     isActive: true,
     sortOrder: template.sortOrder,
     iconName: template.iconName,
