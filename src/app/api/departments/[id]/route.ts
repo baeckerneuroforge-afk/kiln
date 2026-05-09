@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
 import { orgScopeFilter } from "@/lib/auth/org-scope";
 import { prisma } from "@/lib/prisma";
+import { logAudit } from "@/lib/audit/logger";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -147,20 +148,32 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const scope = await requireOrgId();
     const existing = await prisma.department.findFirst({
       where: { id: params.id, ...orgScopeFilter(scope) },
-      select: { id: true },
+      select: { id: true, name: true, orgId: true },
     });
     if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
 
     await prisma.department.update({
       where: { id: params.id },
       data: { status: "ARCHIVED" },
+    });
+
+    await logAudit({
+      orgId: existing.orgId ?? scope.orgId,
+      actorUserId: scope.userId,
+      actorOrgId: scope.orgId,
+      action: "DEPARTMENT_ARCHIVED",
+      resourceType: "DEPARTMENT",
+      resourceId: existing.id,
+      description: `Department '${existing.name}' archived`,
+      severity: "CRITICAL",
+      request,
     });
 
     return Response.json({ ok: true });

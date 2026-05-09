@@ -5,6 +5,7 @@ import { asJsonRecord, toPrismaJson, truncateError } from "./json";
 import { invokeDraftedAction } from "./invocation";
 import { logDepartmentChannelEvent } from "./channels/logging";
 import { findActiveTracking, markResolved, recordFirstResponse } from "@/lib/sla/tracker";
+import { logAudit } from "@/lib/audit/logger";
 
 export async function getPendingApprovals(
   orgId: string
@@ -101,6 +102,20 @@ export async function approveItem(
       console.warn("[approval-gate] SLA tracking update failed", err);
     }
   }
+
+  if (item.department.orgId) {
+    await logAudit({
+      orgId: item.department.orgId,
+      actorUserId: userId,
+      actorOrgId: scope?.orgId ?? null,
+      action: "APPROVAL_APPROVED",
+      resourceType: "BACKLOG_ITEM",
+      resourceId: itemId,
+      description: result.ok ? "Approval approved" : "Approval approved but execution failed",
+      severity: result.ok ? "INFO" : "WARN",
+      metadata: { departmentId: item.departmentId, executionOk: result.ok },
+    });
+  }
 }
 
 export async function rejectItem(
@@ -154,5 +169,19 @@ export async function rejectItem(
     }
   } catch (err) {
     console.warn("[approval-gate] SLA tracking close on reject failed", err);
+  }
+
+  if (item.department.orgId) {
+    await logAudit({
+      orgId: item.department.orgId,
+      actorUserId: userId,
+      actorOrgId: scope?.orgId ?? null,
+      action: "APPROVAL_REJECTED",
+      resourceType: "BACKLOG_ITEM",
+      resourceId: itemId,
+      description: `Approval rejected: ${reason}`,
+      severity: "INFO",
+      metadata: { departmentId: item.departmentId, reason },
+    });
   }
 }

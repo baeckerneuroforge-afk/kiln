@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
 import { prisma } from "@/lib/prisma";
+import { logAudit } from "@/lib/audit/logger";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -43,6 +44,20 @@ export async function PATCH(
         action: "MEMORY_EDIT",
         details: { entryId: entry.id },
       },
+    });
+    await logAudit({
+      orgId: scope.orgId,
+      actorUserId: scope.userId,
+      actorOrgId: scope.orgId,
+      action: "MEMORY_EDITED",
+      resourceType: "MEMORY_ENTRY",
+      resourceId: entry.id,
+      description: `Memory entry edited (customer ${entry.customerProfileId})`,
+      changes: {
+        before: { content: entry.content, importance: entry.importance, isActive: entry.isActive },
+        after: { content: updated.content, importance: updated.importance, isActive: updated.isActive },
+      },
+      request,
     });
     return Response.json(updated);
   } catch (error) {

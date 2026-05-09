@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
 import { prisma } from "@/lib/prisma";
+import { logAudit } from "@/lib/audit/logger";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -66,6 +67,17 @@ export async function POST(request: NextRequest) {
         priority: typeof body.priority === "number" ? Math.max(0, Math.min(100, Math.trunc(body.priority))) : 50,
         isActive: body.isActive !== false,
       },
+    });
+    await logAudit({
+      orgId: scope.orgId,
+      actorUserId: scope.userId,
+      actorOrgId: scope.orgId,
+      action: "SLA_POLICY_CREATED",
+      resourceType: "SLA_POLICY",
+      resourceId: policy.id,
+      description: `SLA Policy '${policy.name}' created`,
+      metadata: { departmentId, target: policy.firstResponseTargetMinutes },
+      request,
     });
     return Response.json(policy, { status: 201 });
   } catch (error) {
