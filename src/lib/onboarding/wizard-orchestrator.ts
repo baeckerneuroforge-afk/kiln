@@ -4,24 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { canCreateSubOrg } from "@/lib/agency/permissions";
 import { applySubOrgBranding } from "@/lib/onboarding/branding-applier";
 import { setupOnboardingChannels } from "@/lib/onboarding/channel-setup";
-import { getIndustryTemplate } from "@/lib/onboarding/industry-templates";
+import { installIndustryPack } from "@/lib/industries/shared/industry-installer";
 import { importKnowledgeForSubOrg } from "@/lib/onboarding/kb-bulk-import";
 import type {
-  DepartmentTemplate,
   OnboardingResult,
   WizardConfig,
   WizardProgress,
 } from "@/lib/onboarding/types";
-
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    .slice(0, 60);
-}
 
 async function setWizardProgress(wizardId: string | undefined, progress: WizardProgress): Promise<void> {
   if (!wizardId) return;
@@ -56,86 +45,6 @@ async function findAvailableCustomerName(agencyOrgId: string, requestedName: str
   return {
     name: `${requestedName} ${Date.now()}`,
     warning: "Customer name conflict detected. A timestamp was appended.",
-  };
-}
-
-function selectedDepartmentTemplates(config: WizardConfig): DepartmentTemplate[] {
-  const template = getIndustryTemplate(config.basics.industry);
-  if (!template) return [];
-  const selections = new Map(config.selectedTemplates.map((item) => [item.templateId, item.selected]));
-  return template.departmentTemplates.filter((department) => selections.get(department.id) ?? department.defaultSelected);
-}
-
-async function createDepartmentsAndWorkers(args: {
-  userId: string;
-  childOrgId: string;
-  customerName: string;
-  departments: DepartmentTemplate[];
-}): Promise<{ departmentIds: string[]; departmentsCreated: number; workersCreated: number }> {
-  const slugSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-  let workersCreated = 0;
-  const departmentIds: string[] = [];
-
-  await prisma.$transaction(async (tx) => {
-    for (const template of args.departments) {
-      const department = await tx.department.create({
-        data: {
-          userId: args.userId,
-          orgId: args.childOrgId,
-          name: template.name,
-          description: template.description,
-          type: "CUSTOM",
-          status: "ACTIVE",
-          approvalMode: "APPROVAL_FIRST",
-          managerModel: "claude-sonnet-4-6",
-          managerSystemPrompt: `You manage ${template.name} for ${args.customerName}. Route tasks to the right worker, draft customer-facing actions, and use approval-first mode for outbound communication.`,
-          webhookEnabled: true,
-          scheduleEnabled: false,
-          operatingMemory: {
-            onboardingTemplateId: template.id,
-            customerName: args.customerName,
-            recentEvents: [],
-          } satisfies Prisma.InputJsonValue,
-        },
-      });
-      departmentIds.push(department.id);
-
-      for (const worker of template.workers) {
-        const agent = await tx.agent.create({
-          data: {
-            userId: args.userId,
-            orgId: args.childOrgId,
-            name: worker.name,
-            slug: `${slugify(worker.role)}-${slugify(args.customerName)}-${slugSuffix}`,
-            description: worker.description,
-            systemPrompt: worker.prompt,
-            mode: "TASK",
-            status: "DRAFT",
-            visibility: "INTERNAL",
-            llmModel: "claude-sonnet-4-6",
-            modelProvider: "ANTHROPIC",
-            suggestedQuestions: [],
-            a2aCapabilities: [],
-          },
-        });
-        await tx.departmentWorker.create({
-          data: {
-            departmentId: department.id,
-            agentId: agent.id,
-            role: worker.role,
-            description: worker.description,
-            priority: worker.priority,
-          },
-        });
-        workersCreated += 1;
-      }
-    }
-  });
-
-  return {
-    departmentIds,
-    departmentsCreated: departmentIds.length,
-    workersCreated,
   };
 }
 
@@ -203,20 +112,23 @@ export async function executeOnboardingWizard(args: {
     });
 
     await setWizardProgress(args.config.wizardId, { label: "Creating Departments and Worker Agents", step: 3, total: totalSteps, status: "running" });
-    const departments = selectedDepartmentTemplates(args.config);
-    const created = await createDepartmentsAndWorkers({
+    const selectedTemplateIds = args.config.selectedTemplates
+      .filter((template) => template.selected)
+      .map((template) => template.templateId);
+    const installed = await installIndustryPack({
+      industry: args.config.basics.industry,
       userId: args.userId,
-      childOrgId: newOrg.id,
+      orgId: newOrg.id,
       customerName: nameChoice.name,
-      departments,
+      selectedTemplateIds,
     });
+    warnings.push(...installed.warnings);
 
-    await setWizardProgress(args.config.wizardId, { label: "Indexing Knowledge Base", step: 4, total: totalSteps, status: "running" });
-    const industryTemplate = getIndustryTemplate(args.config.basics.industry);
+    await setWizardProgress(args.config.wizardId, { label: "Indexing Uploaded Knowledge", step: 4, total: totalSteps, status: "running" });
     const kbResult = await importKnowledgeForSubOrg({
       orgId: newOrg.id,
       config: args.config.knowledge,
-      seedEntries: industryTemplate?.knowledgeBaseSeeds ?? [],
+      seedEntries: [],
     });
     warnings.push(...kbResult.warnings);
 
@@ -230,7 +142,7 @@ export async function executeOnboardingWizard(args: {
 
     await setWizardProgress(args.config.wizardId, { label: "Activating Channels", step: 6, total: totalSteps, status: "running" });
     const channels = await setupOnboardingChannels({
-      departmentIds: created.departmentIds,
+      departmentIds: installed.departmentIds,
       basics: { ...args.config.basics, customerName: nameChoice.name },
       channels: args.config.channels,
       branding: args.config.branding,
@@ -244,9 +156,9 @@ export async function executeOnboardingWizard(args: {
     const result: OnboardingResult = {
       subOrgId: newOrg.id,
       relationshipId: relationship.id,
-      departmentsCreated: created.departmentsCreated,
-      workersCreated: created.workersCreated,
-      kbEntriesIndexed: kbResult.indexed,
+      departmentsCreated: installed.departmentsCreated,
+      workersCreated: installed.workersCreated,
+      kbEntriesIndexed: installed.kbEntriesIndexed + kbResult.indexed,
       channelsActivated: channels.activated,
       durationSeconds,
       warnings,
