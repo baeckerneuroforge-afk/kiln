@@ -3329,6 +3329,25 @@ model CustomerReport {
   @@index([status, periodEnd])
 }
 
+/// Saved mock-data per workflow node. Used by the debug runner to skip
+/// real execution (and any LLM/API cost) and instead replay a pinned
+/// payload. One row may be marked default; others are named alternates.
+model WorkflowMockData {
+  id          String   @id @default(cuid())
+  orgId       String
+  workflowId  String
+  nodeId      String
+  name        String
+  data        Json
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orgId, workflowId])
+  @@index([workflowId, nodeId])
+  @@index([workflowId, nodeId, isDefault])
+}
+
 /// Sub-Org-level configuration that controls whether and when monthly /
 /// weekly reports are generated and which metrics they include.
 model CustomerReportConfig {
