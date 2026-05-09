@@ -7,6 +7,8 @@ import { isInboundAllowed, verifyMetaSignature } from "@/lib/departments/channel
 import { logDepartmentChannelEvent } from "@/lib/departments/channels/logging";
 import { identifyCustomer } from "@/lib/customer-memory/identifier";
 import { recordInteraction } from "@/lib/customer-memory/writer";
+import { startTracking, checkOpenTrackings } from "@/lib/sla/tracker";
+import { dispatchSlaEscalation } from "@/lib/sla/notifications";
 
 interface WhatsappMessage {
   from?: string;
@@ -149,6 +151,23 @@ export async function POST(
         importance: 5,
       }).catch((err) => {
         console.warn("[department-whatsapp] recordInteraction failed", err);
+      });
+    }
+
+    if (department.orgId) {
+      await startTracking({
+        conversationId: backlogItem.id,
+        channelMessageId: channelMessage.id,
+        customerProfileId: customer?.id ?? null,
+        orgId: department.orgId,
+        departmentId: department.id,
+        matchInput: { channel: "WHATSAPP" },
+      }).catch((err) => {
+        console.warn("[department-whatsapp] startTracking failed", err);
+        return null;
+      });
+      checkOpenTrackings({ orgIds: [department.orgId], sinceHours: 24, notify: dispatchSlaEscalation }).catch((err) => {
+        console.warn("[department-whatsapp] checkOpenTrackings failed", err);
       });
     }
 

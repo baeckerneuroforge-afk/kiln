@@ -12,6 +12,8 @@ import {
 import { logDepartmentChannelEvent } from "@/lib/departments/channels/logging";
 import { identifyCustomer } from "@/lib/customer-memory/identifier";
 import { recordInteraction } from "@/lib/customer-memory/writer";
+import { startTracking, checkOpenTrackings } from "@/lib/sla/tracker";
+import { dispatchSlaEscalation } from "@/lib/sla/notifications";
 
 interface ResendInboundPayload {
   from?: string;
@@ -140,6 +142,25 @@ export async function POST(
         importance: 5,
       }).catch((err) => {
         console.warn("[department-email] recordInteraction failed", err);
+      });
+    }
+
+    if (department.orgId) {
+      await startTracking({
+        conversationId: backlogItem.id,
+        channelMessageId: channelMessage.id,
+        customerProfileId: customer?.id ?? null,
+        orgId: department.orgId,
+        departmentId: department.id,
+        matchInput: { channel: "EMAIL" },
+      }).catch((err) => {
+        console.warn("[department-email] startTracking failed", err);
+        return null;
+      });
+      // Inline best-effort SLA check (workaround for hobby-plan cron limit).
+      // Only inspects the last 24h to keep this fast (<200ms typical).
+      checkOpenTrackings({ orgIds: [department.orgId], sinceHours: 24, notify: dispatchSlaEscalation }).catch((err) => {
+        console.warn("[department-email] checkOpenTrackings failed", err);
       });
     }
 
