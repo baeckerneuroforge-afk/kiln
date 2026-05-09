@@ -25,6 +25,7 @@ import { IntelligentMerge, type IntelligentMergeStrategy, type IntelligentMergeR
 import { CostTracker } from "@/lib/cost/cost-tracker";
 import { SwarmRebalancer } from "@/lib/execution/swarm-rebalancer";
 import type { QuickUseResultType } from "@/lib/quick-use/types";
+import { callLlm } from "@/lib/llm";
 
 /* ── Config ── */
 
@@ -42,6 +43,8 @@ export interface AgentSwarmConfig {
   mcpAgentId?: string;
   /** User ID für Cost-Tracking */
   userId?: string;
+  /** Org ID für LLM usage/cache isolation */
+  orgId?: string;
   /** Agent ID für Cost-Tracking */
   agentId?: string;
   /** Optional: bereits vorbereitete Task-Zerlegung */
@@ -67,6 +70,7 @@ export async function executeAgentSwarm(
     budgetCredits: config.budgetCredits ? Number(config.budgetCredits) : undefined,
     mcpAgentId: config.mcpAgentId ? String(config.mcpAgentId) : undefined,
     userId: config.userId ? String(config.userId) : undefined,
+    orgId: config.orgId ? String(config.orgId) : undefined,
     agentId: config.agentId ? String(config.agentId) : undefined,
     taskDecomposition: config.taskDecomposition as DecompositionResult | undefined,
     eventStream: config.eventStream as SwarmEventStream | undefined,
@@ -234,7 +238,14 @@ export async function executeAgentSwarm(
     } else if (mergeStrategy === "custom_merge" && swarmConfig.customMergePrompt) {
       const completedResults = result.results.filter((r) => r.status === "completed");
       if (completedResults.length > 0) {
-        mergedOutput = await customMerge(anthropic, completedResults, swarmConfig.customMergePrompt, swarmConfig.goal);
+        mergedOutput = await customMerge(
+          anthropic,
+          completedResults,
+          swarmConfig.customMergePrompt,
+          swarmConfig.goal,
+          swarmConfig.orgId,
+          swarmConfig.userId,
+        );
       }
     } else {
       const merged = mergeResults(result.results, mergeStrategy as MergeStrategy);
@@ -397,27 +408,29 @@ async function executeSwarmSubAgent(
 /* ── Legacy: Custom Merge ── */
 
 async function customMerge(
-  anthropic: Anthropic,
+  _anthropic: Anthropic,
   results: SubTaskResult[],
   mergePrompt: string,
-  goal: string
+  goal: string,
+  orgId?: string,
+  userId?: string,
 ): Promise<string> {
   const resultsSummary = results.map((r) => `[${r.id}]: ${String(r.output).slice(0, 500)}`).join("\n\n");
 
-  const response = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 2048,
-    system: "Du bist ein Merge-Agent. Konsolidiere die Ergebnisse mehrerer paralleler Agents in ein kohärentes Ergebnis.",
+  const response = await callLlm({
+    orgId: orgId ?? userId ?? "agent-swarm",
+    userId,
+    modelId: "claude-haiku-4-5-20251001",
+    taskType: "summarization",
+    maxTokens: 2048,
+    systemPrompt: "Du bist ein Merge-Agent. Konsolidiere die Ergebnisse mehrerer paralleler Agents in ein kohärentes Ergebnis.",
     messages: [{
       role: "user",
       content: `Ziel: ${goal}\n\nMerge-Anweisung: ${mergePrompt}\n\nAgent-Ergebnisse:\n${resultsSummary}`,
     }],
   });
 
-  return response.content
-    .filter((b) => b.type === "text")
-    .map((b) => ("text" in b ? (b as { text: string }).text : ""))
-    .join("");
+  return response.content;
 }
 
 function buildPreliminaryPayload(
