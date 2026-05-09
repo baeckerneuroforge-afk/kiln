@@ -19,7 +19,7 @@ export function getClaudeClientWithKey(apiKey: string): Anthropic {
 
 // ===== Multi-LLM Provider & Model Configuration =====
 
-export type ProviderKey = "ANTHROPIC" | "OPENAI" | "PERPLEXITY" | "GOOGLE" | "GROQ";
+export type ProviderKey = "ANTHROPIC" | "OPENAI" | "PERPLEXITY" | "GOOGLE" | "MISTRAL" | "GROQ";
 
 export interface ModelDef {
   id: string;
@@ -40,6 +40,7 @@ export const PROVIDERS: Record<ProviderKey, { label: string; keyPrefix?: string;
   OPENAI: { label: "OpenAI", keyPrefix: "sk-", keyPlaceholder: "sk-..." },
   PERPLEXITY: { label: "Perplexity", keyPrefix: "pplx-", keyPlaceholder: "pplx-..." },
   GOOGLE: { label: "Google AI", keyPrefix: "AI", keyPlaceholder: "AIza..." },
+  MISTRAL: { label: "Mistral", keyPlaceholder: "Mistral API key..." },
   GROQ: { label: "Groq", keyPrefix: "gsk_", keyPlaceholder: "gsk_..." },
 };
 
@@ -101,6 +102,17 @@ export const ALL_MODELS: ModelDef[] = [
     supportsVision: true,
     requiresByok: true,
   },
+  {
+    id: "gpt-5.4",
+    label: "GPT-5.4",
+    shortLabel: "GPT-5.4",
+    provider: "OPENAI",
+    badge: "Smart",
+    speed: 2, quality: 3, cost: 3,
+    supportsTools: true,
+    supportsVision: true,
+    requiresByok: true,
+  },
   // Perplexity
   {
     id: "sonar-pro",
@@ -144,6 +156,40 @@ export const ALL_MODELS: ModelDef[] = [
     badge: "Fastest",
     speed: 3, quality: 2, cost: 1,
     supportsTools: false,
+    supportsVision: true,
+    requiresByok: true,
+  },
+  // Mistral
+  {
+    id: "mistral-small-latest",
+    label: "Mistral Small",
+    shortLabel: "Mistral Small",
+    provider: "MISTRAL",
+    badge: "Fast",
+    speed: 3, quality: 2, cost: 1,
+    supportsTools: true,
+    supportsVision: true,
+    requiresByok: true,
+  },
+  {
+    id: "mistral-medium-latest",
+    label: "Mistral Medium",
+    shortLabel: "Mistral Medium",
+    provider: "MISTRAL",
+    badge: "EU Balanced",
+    speed: 2, quality: 3, cost: 2,
+    supportsTools: true,
+    supportsVision: true,
+    requiresByok: true,
+  },
+  {
+    id: "mistral-large-latest",
+    label: "Mistral Large",
+    shortLabel: "Mistral Large",
+    provider: "MISTRAL",
+    badge: "EU Smart",
+    speed: 2, quality: 3, cost: 2,
+    supportsTools: true,
     supportsVision: true,
     requiresByok: true,
   },
@@ -191,6 +237,10 @@ export const DEPRECATED_MODEL_MAP: Record<string, string> = {
   "gemini-2.5-pro": "gemini-2.0-pro",
   "gemini-1.5-pro": "gemini-2.0-pro",
   "gemini-1.5-flash": "gemini-2.0-flash",
+  "gpt-5": "gpt-5.4",
+  "mistral-small-2603": "mistral-small-latest",
+  "mistral-medium-3-5": "mistral-medium-latest",
+  "mistral-large-2512": "mistral-large-latest",
 };
 
 /**

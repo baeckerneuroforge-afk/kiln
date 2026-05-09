@@ -213,7 +213,7 @@ const settingsTabs: { id: SettingsTab; label: string; icon: React.ElementType }[
 
 const VALID_SETTINGS_TABS = settingsTabs.map((tab) => tab.id);
 
-const PROVIDER_ORDER: ApiKeyProvider[] = ["anthropic", "openai", "perplexity", "google", "groq"];
+const PROVIDER_ORDER: ApiKeyProvider[] = ["anthropic", "openai", "google", "mistral", "groq"];
 
 const WEBHOOK_EVENT_DESCRIPTIONS: Record<string, string> = {
   "conversation.started": "Conversation Started: Fires when a user begins a chat with one of your agents.",
@@ -251,11 +251,13 @@ function SettingsContent() {
   const [openaiKey, setOpenaiKey] = useState("");
   const [perplexityKey, setPerplexityKey] = useState("");
   const [googleKey, setGoogleKey] = useState("");
+  const [mistralKey, setMistralKey] = useState("");
   const [groqKey, setGroqKey] = useState("");
   const [showAnthropicKey, setShowAnthropicKey] = useState(false);
   const [showOpenaiKey, setShowOpenaiKey] = useState(false);
   const [showPerplexityKey, setShowPerplexityKey] = useState(false);
   const [showGoogleKey, setShowGoogleKey] = useState(false);
+  const [showMistralKey, setShowMistralKey] = useState(false);
   const [showGroqKey, setShowGroqKey] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [testingKey, setTestingKey] = useState<string | null>(null);
@@ -579,6 +581,7 @@ function SettingsContent() {
       if (provider === "openai") setOpenaiKey("");
       if (provider === "perplexity") setPerplexityKey("");
       if (provider === "google") setGoogleKey("");
+      if (provider === "mistral") setMistralKey("");
       if (provider === "groq") setGroqKey("");
       toast(`${API_KEY_PROVIDER_META[provider].label} API key saved`);
       setKeySuccess(`${API_KEY_PROVIDER_META[provider].label} API key saved successfully.`);
@@ -800,6 +803,7 @@ function SettingsContent() {
     openai: openaiKey,
     perplexity: perplexityKey,
     google: googleKey,
+    mistral: mistralKey,
     groq: groqKey,
   };
   const apiKeyVisibility: Record<ApiKeyProvider, boolean> = {
@@ -807,6 +811,7 @@ function SettingsContent() {
     openai: showOpenaiKey,
     perplexity: showPerplexityKey,
     google: showGoogleKey,
+    mistral: showMistralKey,
     groq: showGroqKey,
   };
   const setApiKeyDraft: Record<ApiKeyProvider, (value: string) => void> = {
@@ -814,6 +819,7 @@ function SettingsContent() {
     openai: setOpenaiKey,
     perplexity: setPerplexityKey,
     google: setGoogleKey,
+    mistral: setMistralKey,
     groq: setGroqKey,
   };
   const setApiKeyVisibility: Record<ApiKeyProvider, (value: boolean) => void> = {
@@ -821,6 +827,7 @@ function SettingsContent() {
     openai: setShowOpenaiKey,
     perplexity: setShowPerplexityKey,
     google: setShowGoogleKey,
+    mistral: setShowMistralKey,
     groq: setShowGroqKey,
   };
 

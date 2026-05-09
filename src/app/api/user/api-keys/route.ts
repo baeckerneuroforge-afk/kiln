@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Provider and API key are required" }, { status: 400 });
     }
 
-    const validProviders = ["anthropic", "openai", "perplexity", "google", "groq"];
+    const validProviders = ["anthropic", "openai", "perplexity", "google", "mistral", "groq"];
     if (!validProviders.includes(provider)) {
       return Response.json({ error: `Invalid provider. Use one of: ${validProviders.join(", ")}` }, { status: 400 });
     }
@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
       openai: { prefix: "sk-", label: "OpenAI" },
       perplexity: { prefix: "pplx-", label: "Perplexity" },
       google: { prefix: "AI", label: "Google AI" },
+      mistral: { prefix: "", label: "Mistral" },
       groq: { prefix: "gsk_", label: "Groq" },
     };
     const expected = prefixMap[provider];

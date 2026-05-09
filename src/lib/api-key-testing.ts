@@ -1,4 +1,4 @@
-export type ApiKeyProvider = "anthropic" | "openai" | "perplexity" | "google" | "groq";
+export type ApiKeyProvider = "anthropic" | "openai" | "perplexity" | "google" | "mistral" | "groq";
 
 export const API_KEY_PROVIDER_META: Record<
   ApiKeyProvider,
@@ -37,6 +37,13 @@ export const API_KEY_PROVIDER_META: Record<
     placeholder: "AIza...",
     help: "Get your key in Google AI Studio under API keys.",
     docsUrl: "https://aistudio.google.com/app/apikey",
+  },
+  mistral: {
+    label: "Mistral",
+    prefix: "",
+    placeholder: "Mistral API key...",
+    help: "Get your key in Mistral Studio under API keys.",
+    docsUrl: "https://console.mistral.ai/api-keys",
   },
   groq: {
     label: "Groq",
@@ -128,6 +135,11 @@ export async function testProviderApiKey(
         `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`,
         { signal: requestTimeout.signal },
       );
+    } else if (provider === "mistral") {
+      response = await fetch("https://api.mistral.ai/v1/models", {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: requestTimeout.signal,
+      });
     } else {
       response = await fetch("https://api.groq.com/openai/v1/models", {
         headers: { Authorization: `Bearer ${apiKey}` },

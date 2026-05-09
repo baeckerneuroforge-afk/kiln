@@ -74,26 +74,34 @@ export const MODEL_CREDIT_COSTS: Record<string, number> = {
   "llama-3.3-70b-versatile": 1,
   "mixtral-8x7b-32768": 1,
   "gemini-2.0-flash": 1,
+  "gemini-2.5-flash": 1,
+  "mistral-small-latest": 1,
   // 2 credits — balanced
   "claude-sonnet-4-6": 2,
   "sonar": 2,
   "gemini-2.0-pro": 2,
+  "gemini-2.5-pro": 2,
+  "mistral-medium-latest": 2,
   // 3 credits — capable
   "gpt-4o": 3,
+  "mistral-large-latest": 3,
   // 4 credits — premium
   "sonar-pro": 4,
   // 5 credits — most capable
   "claude-opus-4-6": 5,
+  "claude-opus-4-7": 5,
+  "gpt-5.4": 5,
 };
 
 // Backward-compat mapping for credit lookups
 const CREDIT_MODEL_MAP: Record<string, string> = {
-  "claude-opus-4-20250514": "claude-opus-4-6",
+  "claude-opus-4-20250514": "claude-opus-4-7",
   "claude-sonnet-4-20250514": "claude-sonnet-4-6",
   "o3-mini": "gpt-4o-mini",
   "gpt-4.1": "gpt-4o",
   "gpt-4.1-mini": "gpt-4o-mini",
   "gemini-2.5-pro": "gemini-2.0-pro",
+  "gpt-5": "gpt-5.4",
 };
 
 export function getCreditCost(modelId: string): number {
@@ -106,6 +114,7 @@ export function getModelProvider(modelId: string): string {
   if (modelId.startsWith("claude")) return "anthropic";
   if (modelId.startsWith("gpt") || modelId.startsWith("o3")) return "openai";
   if (modelId.startsWith("gemini")) return "google";
+  if (modelId.startsWith("mistral")) return "mistral";
   if (modelId.startsWith("llama") || modelId.startsWith("mixtral")) return "groq";
   if (modelId.startsWith("sonar")) return "perplexity";
   return "anthropic";
