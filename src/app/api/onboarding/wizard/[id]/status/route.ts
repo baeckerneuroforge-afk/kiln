@@ -14,6 +14,8 @@ export async function GET(
       currentStep: wizard.currentStep,
       basics: wizard.basics,
       selectedTemplates: wizard.selectedTemplates,
+      selectedAgentTemplates: wizard.selectedAgentTemplates,
+      selectedWorkflowTemplates: wizard.selectedWorkflowTemplates,
       knowledgeConfig: wizard.knowledgeConfig,
       channelConfig: wizard.channelConfig,
       brandingConfig: wizard.brandingConfig,

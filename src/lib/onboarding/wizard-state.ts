@@ -85,6 +85,13 @@ export function parseTemplateSelection(value: unknown, industry: OnboardingIndus
     .filter((item) => item.templateId);
 }
 
+export function parseTemplateIdSelection(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(
+    new Set(value.filter((item): item is string => typeof item === "string" && item.trim().length > 0))
+  );
+}
+
 export function parseKnowledgeConfig(value: unknown): WizardKnowledgeConfig {
   const input = isRecord(value) ? value : {};
   const urls = Array.isArray(input.urls) ? input.urls.filter((url): url is string => typeof url === "string") : [];
@@ -136,6 +143,8 @@ export function wizardToConfig(wizard: {
   id: string;
   basics: Prisma.JsonValue;
   selectedTemplates: Prisma.JsonValue;
+  selectedAgentTemplates?: Prisma.JsonValue;
+  selectedWorkflowTemplates?: Prisma.JsonValue;
   knowledgeConfig: Prisma.JsonValue;
   channelConfig: Prisma.JsonValue;
   brandingConfig: Prisma.JsonValue;
@@ -145,6 +154,8 @@ export function wizardToConfig(wizard: {
     wizardId: wizard.id,
     basics,
     selectedTemplates: parseTemplateSelection(wizard.selectedTemplates, basics.industry),
+    selectedAgentTemplates: parseTemplateIdSelection(wizard.selectedAgentTemplates),
+    selectedWorkflowTemplates: parseTemplateIdSelection(wizard.selectedWorkflowTemplates),
     knowledge: parseKnowledgeConfig(wizard.knowledgeConfig),
     channels: parseChannelConfig(wizard.channelConfig),
     branding: parseBrandingConfig(wizard.brandingConfig),

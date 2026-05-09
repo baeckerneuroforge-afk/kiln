@@ -6,6 +6,7 @@ import {
   jsonInput,
   loadWizardForAgency,
   parseBasics,
+  parseTemplateIdSelection,
   requireOnboardingAccess,
 } from "@/lib/onboarding/wizard-state";
 
@@ -41,7 +42,14 @@ export async function POST(
       data.basics = jsonInput(basics);
       data.selectedTemplates = jsonInput(defaultTemplateSelection(basics.industry));
     } else if (step === 2) {
-      data.selectedTemplates = jsonInput(Array.isArray(body.templates) ? body.templates : body);
+      const input = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+      data.selectedTemplates = jsonInput(Array.isArray(input.templates) ? input.templates : body);
+      if (input.agentTemplates !== undefined) {
+        data.selectedAgentTemplates = jsonInput(parseTemplateIdSelection(input.agentTemplates));
+      }
+      if (input.workflowTemplates !== undefined) {
+        data.selectedWorkflowTemplates = jsonInput(parseTemplateIdSelection(input.workflowTemplates));
+      }
     } else if (step === 3) {
       data.knowledgeConfig = jsonInput(body);
     } else if (step === 4) {

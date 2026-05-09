@@ -6,6 +6,7 @@ import { applySubOrgBranding } from "@/lib/onboarding/branding-applier";
 import { setupOnboardingChannels } from "@/lib/onboarding/channel-setup";
 import { installIndustryPack } from "@/lib/industries/shared/industry-installer";
 import { importKnowledgeForSubOrg } from "@/lib/onboarding/kb-bulk-import";
+import { installSelectedTemplatesForSubOrg } from "@/lib/templates/service";
 import type {
   OnboardingResult,
   WizardConfig,
@@ -124,7 +125,16 @@ export async function executeOnboardingWizard(args: {
     });
     warnings.push(...installed.warnings);
 
-    await setWizardProgress(args.config.wizardId, { label: "Indexing Uploaded Knowledge", step: 4, total: totalSteps, status: "running" });
+    await setWizardProgress(args.config.wizardId, { label: "Installing Agency Templates", step: 4, total: totalSteps, status: "running" });
+    const installedTemplates = await installSelectedTemplatesForSubOrg({
+      agencyOrgId: args.agencyOrgId,
+      subOrgId: newOrg.id,
+      userId: args.userId,
+      agentTemplateIds: args.config.selectedAgentTemplates ?? [],
+      workflowTemplateIds: args.config.selectedWorkflowTemplates ?? [],
+    });
+
+    await setWizardProgress(args.config.wizardId, { label: "Indexing Uploaded Knowledge", step: 5, total: totalSteps, status: "running" });
     const kbResult = await importKnowledgeForSubOrg({
       orgId: newOrg.id,
       config: args.config.knowledge,
@@ -132,7 +142,7 @@ export async function executeOnboardingWizard(args: {
     });
     warnings.push(...kbResult.warnings);
 
-    await setWizardProgress(args.config.wizardId, { label: "Applying Branding", step: 5, total: totalSteps, status: "running" });
+    await setWizardProgress(args.config.wizardId, { label: "Applying Branding", step: 6, total: totalSteps, status: "running" });
     await applySubOrgBranding({
       relationshipId: relationship.id,
       childOrgId: newOrg.id,
@@ -140,7 +150,7 @@ export async function executeOnboardingWizard(args: {
       branding: args.config.branding,
     });
 
-    await setWizardProgress(args.config.wizardId, { label: "Activating Channels", step: 6, total: totalSteps, status: "running" });
+    await setWizardProgress(args.config.wizardId, { label: "Activating Channels", step: 7, total: totalSteps, status: "running" });
     const channels = await setupOnboardingChannels({
       departmentIds: installed.departmentIds,
       basics: { ...args.config.basics, customerName: nameChoice.name },
@@ -159,6 +169,8 @@ export async function executeOnboardingWizard(args: {
       departmentsCreated: installed.departmentsCreated,
       workersCreated: installed.workersCreated,
       kbEntriesIndexed: installed.kbEntriesIndexed + kbResult.indexed,
+      templateInstancesCreated: installedTemplates.createdInstances,
+      templateInstancesReused: installedTemplates.reusedInstances,
       channelsActivated: channels.activated,
       durationSeconds,
       warnings,

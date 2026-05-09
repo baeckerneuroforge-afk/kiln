@@ -68,6 +68,8 @@ export interface WizardBrandingConfig {
 export interface WizardConfig {
   basics: WizardBasics;
   selectedTemplates: WizardTemplateSelection[];
+  selectedAgentTemplates?: string[];
+  selectedWorkflowTemplates?: string[];
   knowledge: WizardKnowledgeConfig;
   channels: WizardChannelConfig;
   branding: WizardBrandingConfig;
@@ -156,6 +158,8 @@ export interface OnboardingResult {
   departmentsCreated: number;
   workersCreated: number;
   kbEntriesIndexed: number;
+  templateInstancesCreated?: number;
+  templateInstancesReused?: number;
   channelsActivated: string[];
   durationSeconds: number;
   warnings: string[];
