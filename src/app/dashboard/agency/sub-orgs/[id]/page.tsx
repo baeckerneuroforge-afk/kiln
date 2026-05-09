@@ -33,6 +33,7 @@ import {
   LogIn,
   Mail,
   Palette,
+  RefreshCw,
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,9 @@ export type SubOrgMeta = {
   name: string;
   status: "ACTIVE" | "SUSPENDED" | "ARCHIVED";
   createdAt: string;
+  industry: string | null;
+  industryDisplayName: string | null;
+  industryPackVersion: string | null;
   pricingMode: "NONE" | "FIXED" | "CUSTOM";
 };
 
@@ -90,6 +94,7 @@ export default function SubOrgDetailPage({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [refreshingPack, setRefreshingPack] = useState(false);
 
   const loadMeta = useCallback(async () => {
     setLoadingMeta(true);
@@ -167,6 +172,28 @@ export default function SubOrgDetailPage({
       setArchiving(false);
     }
   }, [id, meta, toast, loadMeta]);
+
+  const handleRefreshIndustryPack = useCallback(async () => {
+    if (!meta?.industry || meta.industry === "custom") return;
+    setRefreshingPack(true);
+    try {
+      const res = await fetch(`/api/agency/sub-orgs/${id}/industry-pack/refresh`, {
+        method: "POST",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast(typeof body.error === "string" ? body.error : "Industry pack refresh failed", "error");
+        return;
+      }
+      const result = body.result as { departmentsCreated?: number; departmentsReused?: number; kbEntriesIndexed?: number };
+      toast(
+        `Industry pack refreshed: ${result.departmentsCreated ?? 0} new departments, ${result.departmentsReused ?? 0} reused, ${result.kbEntriesIndexed ?? 0} KB entries indexed.`,
+      );
+      void loadMeta();
+    } finally {
+      setRefreshingPack(false);
+    }
+  }, [id, loadMeta, meta, toast]);
 
   // ─── render ────────────────────────────────────────────────
   if (loadingMeta) {
@@ -248,6 +275,12 @@ export default function SubOrgDetailPage({
             >
               {meta.status}
             </span>
+            {meta.industry && meta.industry !== "custom" && (
+              <span className="inline-flex items-center rounded-full border border-kiln-orange/30 bg-kiln-orange/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-kiln-orange">
+                Industry-Pack: {meta.industryDisplayName ?? meta.industry}
+                {meta.industryPackVersion ? ` v${meta.industryPackVersion}` : ""}
+              </span>
+            )}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             <button
@@ -269,6 +302,20 @@ export default function SubOrgDetailPage({
         <div className="flex shrink-0 flex-wrap gap-1.5">
           {meta.status === "ACTIVE" && (
             <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleRefreshIndustryPack}
+                disabled={refreshingPack || !meta.industry || meta.industry === "custom"}
+                title="Refresh Industry-Pack without overwriting customized departments"
+              >
+                {refreshingPack ? (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-1 h-3 w-3" />
+                )}
+                Refresh Industry-Pack
+              </Button>
               <Button size="sm" onClick={handleLoginAsClient}>
                 <LogIn className="mr-1 h-3 w-3" />
                 Login as client

@@ -23,12 +23,24 @@ export async function GET(
   const access = await requireSubOrgAccess(params.id);
   if (!access.ok) return access.response;
   const r = access.relationship;
+  const template = r.industry
+    ? await prisma.industryTemplate.findUnique({
+        where: { industry: r.industry },
+        select: { metadata: true, displayNameDe: true },
+      })
+    : null;
+  const metadata = template?.metadata && typeof template.metadata === "object" && !Array.isArray(template.metadata)
+    ? template.metadata as Record<string, unknown>
+    : {};
   return Response.json({
     id: r.id,
     childOrgId: r.childOrgId,
     name: r.subOrgName,
     status: r.subOrgStatus,
     createdAt: r.createdAt.toISOString(),
+    industry: r.industry,
+    industryDisplayName: template?.displayNameDe ?? null,
+    industryPackVersion: typeof metadata.packVersion === "string" ? metadata.packVersion : null,
     pricingMode: r.pricingMode,
     monthlyPriceCents: r.monthlyPriceCents,
     setupFeeCents: r.setupFeeCents,
