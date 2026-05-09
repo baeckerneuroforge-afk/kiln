@@ -7,6 +7,9 @@ import {
 import { executeWorkflow } from "@/lib/services/workflow-runtime";
 import { checkOpenTrackings } from "@/lib/sla/tracker";
 import { dispatchSlaEscalation } from "@/lib/sla/notifications";
+import { executeDeletion, findDueDeletions } from "@/lib/dsgvo/delete-service";
+import { expireOldExports } from "@/lib/dsgvo/export-service";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -66,12 +69,36 @@ export async function GET(request: Request) {
       console.error("[cron/process-queue] SLA sweep failed", err);
     }
 
+    const dsgvoResult: { deletionsExecuted: number; exportsExpired: number; auditPruned: number } = {
+      deletionsExecuted: 0,
+      exportsExpired: 0,
+      auditPruned: 0,
+    };
+    try {
+      const due = await findDueDeletions();
+      for (const deletion of due) {
+        await executeDeletion({ deletionId: deletion.id }).catch((err) => {
+          console.error("[cron/process-queue] deletion execution failed", err);
+          return null;
+        });
+        dsgvoResult.deletionsExecuted += 1;
+      }
+      dsgvoResult.exportsExpired = await expireOldExports();
+      // 7-year retention: prune audit log older than 7 years (HGB §257 territory).
+      const cutoff = new Date(Date.now() - 7 * 365 * 24 * 3_600_000);
+      const pruned = await prisma.auditLog.deleteMany({ where: { createdAt: { lt: cutoff } } });
+      dsgvoResult.auditPruned = pruned.count;
+    } catch (err) {
+      console.error("[cron/process-queue] DSGVO sweep failed", err);
+    }
+
     return Response.json({
       ok: true,
       ...result,
       staleRecovered: recoveredCount,
       staleMarkedFailed: failedStaleCount,
       sla: slaResult,
+      dsgvo: dsgvoResult,
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
