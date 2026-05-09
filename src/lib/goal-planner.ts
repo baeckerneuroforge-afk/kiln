@@ -4,7 +4,8 @@
  * Der Agent plant die Schritte selbst, statt einem festen DAG zu folgen.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { callLlm } from "@/lib/llm";
+import { z } from "zod";
 
 /* ── Types ── */
 
@@ -76,13 +77,6 @@ export async function planWorkflow(
   availableAgents: { id: string; name: string; description: string }[] = [],
   contextHints?: Record<string, unknown>
 ): Promise<ExecutionPlan> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY nicht konfiguriert");
-  }
-
-  const anthropic = new Anthropic({ apiKey });
-
   const agentList = availableAgents.length > 0
     ? `\n\nVerfügbare Agents:\n${availableAgents.map((a) => `- ${a.name}: ${a.description}`).join("\n")}`
     : "";
@@ -91,10 +85,14 @@ export async function planWorkflow(
     ? `\n\nVerfügbarer Kontext:\n${JSON.stringify(contextHints, null, 2)}`
     : "";
 
-  const response = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 2048,
-    system: PLAN_SYSTEM_PROMPT,
+  const response = await callLlm({
+    orgId: getPlannerOrgId(contextHints),
+    userId: getPlannerUserId(contextHints),
+    modelId: "claude-haiku-4-5-20251001",
+    taskType: "structured_output",
+    maxTokens: 2048,
+    systemPrompt: PLAN_SYSTEM_PROMPT,
+    outputSchema: planSchema,
     messages: [
       {
         role: "user",
@@ -103,23 +101,8 @@ export async function planWorkflow(
     ],
   });
 
-  const text = response.content
-    .filter((block): block is Anthropic.TextBlock => block.type === "text")
-    .map((block) => block.text)
-    .join("");
-
-  let parsed: { steps: PlannedStep[]; estimatedTotalSec: number; reasoning: string };
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    // Versuche JSON aus dem Text zu extrahieren
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      parsed = JSON.parse(jsonMatch[0]);
-    } else {
-      throw new Error("Plan-Antwort konnte nicht als JSON geparst werden");
-    }
-  }
+  const parsed: { steps: PlannedStep[]; estimatedTotalSec: number; reasoning: string } =
+    normalizePlanPayload(response.parsedOutput, response.content);
 
   // Validierung
   if (!Array.isArray(parsed.steps) || parsed.steps.length === 0) {
@@ -158,15 +141,13 @@ export async function modifyPlan(
   intermediateResults: Record<string, unknown>,
   modificationReason: string
 ): Promise<ExecutionPlan> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY nicht konfiguriert");
-
-  const anthropic = new Anthropic({ apiKey });
-
-  const response = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 2048,
-    system: PLAN_SYSTEM_PROMPT,
+  const response = await callLlm({
+    orgId: "workflow-planner",
+    modelId: "claude-haiku-4-5-20251001",
+    taskType: "structured_output",
+    maxTokens: 2048,
+    systemPrompt: PLAN_SYSTEM_PROMPT,
+    outputSchema: planSchema,
     messages: [
       {
         role: "user",
@@ -175,15 +156,9 @@ export async function modifyPlan(
     ],
   });
 
-  const text = response.content
-    .filter((block): block is Anthropic.TextBlock => block.type === "text")
-    .map((block) => block.text)
-    .join("");
-
   let parsed: { steps: PlannedStep[]; estimatedTotalSec: number; reasoning: string };
   try {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+    parsed = normalizePlanPayload(response.parsedOutput, response.content);
   } catch {
     // Bei Parse-Fehler den alten Plan beibehalten
     return currentPlan;
@@ -238,4 +213,53 @@ export function resolveModelHint(hint?: string): string {
     case "opus": return "claude-opus-4-6";
     default: return "auto";
   }
+}
+
+const plannedStepSchema = z.object({
+  id: z.string().optional().default(""),
+  type: z.enum(["agent", "action", "research", "decision", "output"]),
+  title: z.string(),
+  description: z.string(),
+  suggestedModel: z.string().optional(),
+  dependsOn: z.array(z.string()).default([]),
+  estimatedDurationSec: z.number().optional(),
+  config: z.record(z.unknown()).default({}),
+});
+
+const planSchema = z.object({
+  steps: z.array(plannedStepSchema).min(1),
+  estimatedTotalSec: z.number().default(60),
+  reasoning: z.string().default(""),
+});
+
+function normalizePlanPayload(
+  parsedOutput: unknown,
+  content: string,
+): { steps: PlannedStep[]; estimatedTotalSec: number; reasoning: string } {
+  if (isPlanPayload(parsedOutput)) return parsedOutput;
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : content) as unknown;
+  if (!isPlanPayload(parsed)) {
+    throw new Error("Plan-Antwort konnte nicht als JSON geparst werden");
+  }
+  return parsed;
+}
+
+function isPlanPayload(value: unknown): value is { steps: PlannedStep[]; estimatedTotalSec: number; reasoning: string } {
+  return Boolean(
+    value
+      && typeof value === "object"
+      && !Array.isArray(value)
+      && Array.isArray((value as Record<string, unknown>).steps),
+  );
+}
+
+function getPlannerOrgId(contextHints?: Record<string, unknown>): string {
+  const orgId = contextHints?.orgId ?? contextHints?.organizationId ?? contextHints?.userId;
+  return typeof orgId === "string" && orgId.trim() ? orgId : "workflow-planner";
+}
+
+function getPlannerUserId(contextHints?: Record<string, unknown>): string | undefined {
+  const userId = contextHints?.userId;
+  return typeof userId === "string" && userId.trim() ? userId : undefined;
 }
