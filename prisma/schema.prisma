@@ -1192,6 +1192,7 @@ model Department {
   backlog             DepartmentBacklogItem[]
   runLogs             DepartmentRunLog[]
   channelMessages     DepartmentChannelMessage[]
+  slaPolicies         SlaPolicy[]
 
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
@@ -3113,4 +3114,93 @@ model CustomerProfileAudit {
 
   @@index([orgId, createdAt])
   @@index([customerProfileId, createdAt])
+}
+
+/// SLA policy attached to a Department. One Department can have multiple
+/// policies; the highest-priority active match wins for a given inbound
+/// message.
+model SlaPolicy {
+  id                          String    @id @default(cuid())
+  departmentId                String
+
+  name                        String
+  description                 String?
+
+  appliesTo                   String    // ALL | BY_PRIORITY | BY_CHANNEL | BY_TAG
+  conditionValue              String?
+
+  firstResponseTargetMinutes  Int
+  resolutionTargetMinutes     Int?
+
+  warningThresholdPercent     Int       @default(75)
+  escalationChannel           String?   // SLACK | EMAIL | BOTH
+  escalationTargetUserId      String?
+
+  isActive                    Boolean   @default(true)
+  priority                    Int       @default(50)
+
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+
+  department                  Department    @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  trackings                   SlaTracking[]
+
+  @@index([departmentId, isActive])
+  @@index([departmentId, priority])
+}
+
+/// Per-conversation SLA tracking row. Started when an inbound message
+/// matches an active policy; closed when first response or resolution
+/// happens. Status transitions are append-only via SlaEvent.
+model SlaTracking {
+  id                    String    @id @default(cuid())
+
+  conversationId        String?
+  channelMessageId      String?
+  customerProfileId     String?
+
+  slaPolicyId           String
+
+  orgId                 String
+  departmentId          String
+
+  startedAt             DateTime
+  firstResponseAt       DateTime?
+  resolvedAt            DateTime?
+
+  status                String    @default("OPEN") // OPEN | WARNING | BREACHED | MET | CANCELLED
+
+  firstResponseMinutes  Int?
+  resolutionMinutes     Int?
+
+  warningEscalatedAt    DateTime?
+  breachEscalatedAt     DateTime?
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  slaPolicy             SlaPolicy @relation(fields: [slaPolicyId], references: [id])
+  events                SlaEvent[]
+
+  @@index([orgId, status])
+  @@index([departmentId, status])
+  @@index([status, startedAt])
+  @@index([conversationId])
+  @@index([customerProfileId])
+}
+
+/// Append-only event log per SlaTracking row.
+model SlaEvent {
+  id              String      @id @default(cuid())
+  slaTrackingId   String
+
+  type            String      // STARTED | WARNING | BREACHED | RESPONDED | RESOLVED | CANCELLED
+  message         String?
+  metadata        Json?
+
+  createdAt       DateTime    @default(now())
+
+  slaTracking     SlaTracking @relation(fields: [slaTrackingId], references: [id], onDelete: Cascade)
+
+  @@index([slaTrackingId, createdAt])
 }
