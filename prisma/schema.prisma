@@ -3266,6 +3266,63 @@ model DataExportRequest {
   @@index([status, createdAt])
 }
 
+/// White-label customer report sent to a Sub-Org owner. Generated either
+/// by the daily cron or via manual trigger; the rendered HTML is stored
+/// alongside computed metrics for re-send and audit.
+model CustomerReport {
+  id                String    @id @default(cuid())
+  orgId             String
+
+  periodType        String    // MONTHLY | WEEKLY | CUSTOM
+  periodStart       DateTime
+  periodEnd         DateTime
+
+  status            String    @default("PENDING") // PENDING | GENERATING | READY | SENT | FAILED
+
+  metrics           Json
+  highlights        Json?
+  pdfUrl            String?
+  htmlBody          String?   @db.Text
+
+  recipientEmail    String
+  recipientName     String?
+  sentAt            DateTime?
+  errorMessage      String?
+
+  triggerType       String    @default("CRON")    // CRON | MANUAL | API
+  triggeredByUserId String?
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([orgId, periodEnd])
+  @@index([status, periodEnd])
+}
+
+/// Sub-Org-level configuration that controls whether and when monthly /
+/// weekly reports are generated and which metrics they include.
+model CustomerReportConfig {
+  id                String    @id @default(cuid())
+  orgId             String    @unique
+
+  isEnabled         Boolean   @default(true)
+  frequency         String    @default("MONTHLY") // MONTHLY | WEEKLY | NONE
+
+  recipientEmails   String[]  @default([])
+
+  includeMetrics    String[]  @default([])
+  customMessage     String?   @db.Text
+
+  sendDayOfMonth    Int       @default(1)
+  sendHour          Int       @default(8)
+  sendOnEmpty       Boolean   @default(true)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([isEnabled, frequency])
+}
+
 /// DSGVO deletion request with a 30-day grace period. After the grace
 /// expires the daily cron executes the deletion (cascades through
 /// Customer-Memory, Departments, etc; preserves legally-required Stripe
