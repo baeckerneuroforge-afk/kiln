@@ -82,6 +82,15 @@ export interface EmailTemplateData {
     totalLeads: number;
     totalApprovals: number;
     reportUrl: string;
+    /** Optional richer payload populated by the reporting generator. */
+    avgFirstResponseMinutes?: number | null;
+    slaCompliancePercent?: number;
+    costSavedEur?: number;
+    newCustomers?: number;
+    returningCustomers?: number;
+    highlights?: string[];
+    topTopics?: Array<{ topic: string; count: number }>;
+    customMessage?: string | null;
   };
   "department-digest": {
     departmentName: string;
