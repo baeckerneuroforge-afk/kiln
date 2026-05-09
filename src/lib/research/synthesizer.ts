@@ -4,6 +4,8 @@
  */
 
 import type { PageResult } from "@/lib/browser/http-extractor";
+import { callLlm } from "@/lib/llm";
+import { z } from "zod";
 
 /* ── Types ── */
 
@@ -42,9 +44,6 @@ export async function synthesizeWithClaude(
   pages: PageResult[],
   depth: "concise" | "comprehensive",
 ): Promise<SynthesisResult> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
-
   const sourcesContext = pages
     .map(
       (p, i) =>
@@ -93,33 +92,20 @@ Respond as JSON:
   "followUpQuestions": ["specific question 1", "specific question 2", "specific question 3", "specific question 4"]
 }`;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: depth === "concise" ? 2048 : 4096,
-      messages: [{ role: "user", content: prompt }],
-    }),
-    signal: AbortSignal.timeout(60000),
+  const response = await callLlm({
+    orgId: "research",
+    modelId: model,
+    taskType: "deep_research_synthesis",
+    messages: [{ role: "user", content: prompt }],
+    maxTokens: depth === "concise" ? 2048 : 4096,
+    outputSchema: synthesisSchema,
+    requireCitations: true,
+    knowledgeBaseChunks: pages.map((page) => `${page.title}\n${page.snippet ?? ""}\n${page.extractedText ?? ""}`),
+    timeoutMs: 60_000,
   });
 
-  if (!response.ok) throw new Error(`Claude API: ${response.status}`);
-
-  const data = (await response.json()) as {
-    content: Array<{ type: string; text: string }>;
-  };
-
-  const text = data.content
-    .filter((b) => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-
-  const parsed = parseJsonResponse(text);
+  const text = response.content;
+  const parsed = isSynthesisPayload(response.parsedOutput) ? response.parsedOutput : parseJsonResponse(text);
 
   const sources: SynthesisSource[] = pages.map((p, i) => ({
     index: i + 1,
@@ -136,7 +122,7 @@ Respond as JSON:
     resultType: depth === "concise" ? "search" : "deep",
     sources,
     followUpQuestions: parsed.followUpQuestions || [],
-    model,
+    model: response.modelUsed.modelId,
     depth,
   };
 }
@@ -201,6 +187,23 @@ function parseJsonResponse(text: string): {
     // Parse failed
   }
   return {};
+}
+
+const synthesisSchema = z.object({
+  summary: z.string(),
+  fullReport: z.string(),
+  confidence: z.number(),
+  followUpQuestions: z.array(z.string()).default([]),
+});
+
+function isSynthesisPayload(value: unknown): value is z.infer<typeof synthesisSchema> {
+  return Boolean(
+    value
+      && typeof value === "object"
+      && !Array.isArray(value)
+      && typeof (value as Record<string, unknown>).summary === "string"
+      && typeof (value as Record<string, unknown>).fullReport === "string",
+  );
 }
 
 function extractDomain(url: string): string {
