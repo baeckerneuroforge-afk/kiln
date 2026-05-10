@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { decrypt, encrypt } from "@/lib/encryption";
+import { encrypt } from "@/lib/encryption";
+import { readConfigJson } from "@/lib/integrations/config-storage";
+import { logAudit } from "@/lib/audit/logger";
 import {
   GMAIL_PROVIDER,
   GmailIntegration,
@@ -42,7 +44,7 @@ export async function GET(request: Request) {
     // Vorherige Verbindung laden (für refresh_token merge)
     const previousConnection = await getGmailConnection(state.userId);
     const previousConfig = previousConnection
-      ? (JSON.parse(decrypt(previousConnection.config)) as GmailConnectionConfig)
+      ? readConfigJson<GmailConnectionConfig>(previousConnection.config).data
       : null;
 
     const tokens = await exchangeGmailCode(code);
@@ -66,6 +68,7 @@ export async function GET(request: Request) {
 
     const encryptedConfig = encrypt(JSON.stringify(mergedConfig));
 
+    let connectionId: string;
     if (previousConnection) {
       await prisma.integrationConnection.update({
         where: { id: previousConnection.id },
@@ -77,8 +80,9 @@ export async function GET(request: Request) {
           lastSyncAt: new Date(),
         },
       });
+      connectionId = previousConnection.id;
     } else {
-      await prisma.integrationConnection.create({
+      const created = await prisma.integrationConnection.create({
         data: {
           userId: state.userId,
           provider: GMAIL_PROVIDER,
@@ -87,7 +91,19 @@ export async function GET(request: Request) {
           isActive: true,
         },
       });
+      connectionId = created.id;
     }
+
+    await logAudit({
+      orgId: previousConnection?.orgId ?? state.userId,
+      actorUserId: state.userId,
+      action: "INTEGRATION_CONNECTED",
+      resourceType: "INTEGRATION_CONNECTION",
+      resourceId: connectionId,
+      description: `Gmail OAuth completed${mergedConfig.email ? ` (${mergedConfig.email})` : ""}`,
+      severity: "INFO",
+      metadata: { provider: GMAIL_PROVIDER, hasRefreshToken: !!mergedConfig.refreshToken },
+    });
 
     const redirectTo = state.redirectTo || "/dashboard/integrations";
     const redirect = redirectTo.startsWith("/") ? redirectTo : "/dashboard/integrations";

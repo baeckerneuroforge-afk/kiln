@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { decrypt, encrypt } from "@/lib/encryption";
+import { encrypt } from "@/lib/encryption";
+import { readConfigJson } from "./config-storage";
+import { logAudit } from "@/lib/audit/logger";
 
 const GOOGLE_OAUTH_BASE = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -350,17 +352,36 @@ export async function getGmailConnection(userId: string) {
 }
 
 function parseConnectionConfig(connection: { config: string }): GmailConnectionConfig {
-  return JSON.parse(decrypt(connection.config)) as GmailConnectionConfig;
+  return readConfigJson<GmailConnectionConfig>(connection.config).data;
 }
 
-async function saveConnectionConfig(connectionId: string, config: GmailConnectionConfig) {
+async function saveConnectionConfig(args: {
+  connectionId: string;
+  orgId?: string | null;
+  userId?: string | null;
+  config: GmailConnectionConfig;
+  reason: "oauth_callback" | "token_refresh" | "manual_update";
+}) {
   await prisma.integrationConnection.update({
-    where: { id: connectionId },
+    where: { id: args.connectionId },
     data: {
-      config: encrypt(JSON.stringify(config)),
+      config: encrypt(JSON.stringify(args.config)),
       lastSyncAt: new Date(),
     },
   });
+  if (args.reason === "token_refresh" && args.orgId) {
+    await logAudit({
+      orgId: args.orgId,
+      actorUserId: args.userId ?? null,
+      actorType: "SYSTEM",
+      action: "INTEGRATION_TOKEN_REFRESHED",
+      resourceType: "INTEGRATION_CONNECTION",
+      resourceId: args.connectionId,
+      description: `Gmail access token refreshed`,
+      severity: "INFO",
+      metadata: { provider: GMAIL_PROVIDER },
+    });
+  }
 }
 
 export async function getGmailIntegrationForUser(userId: string) {
@@ -373,7 +394,13 @@ export async function getGmailIntegrationForUser(userId: string) {
   const integration = new GmailIntegration(config, async (tokens) => {
     const nextConfig: GmailConnectionConfig = { ...config, ...tokens };
     Object.assign(config, nextConfig);
-    await saveConnectionConfig(connection.id, nextConfig);
+    await saveConnectionConfig({
+      connectionId: connection.id,
+      orgId: connection.orgId,
+      userId: connection.userId,
+      config: nextConfig,
+      reason: "token_refresh",
+    });
   });
 
   return {
@@ -382,7 +409,13 @@ export async function getGmailIntegrationForUser(userId: string) {
     integration,
     saveConfig: async (nextConfig: GmailConnectionConfig) => {
       Object.assign(config, nextConfig);
-      await saveConnectionConfig(connection.id, nextConfig);
+      await saveConnectionConfig({
+        connectionId: connection.id,
+        orgId: connection.orgId,
+        userId: connection.userId,
+        config: nextConfig,
+        reason: "manual_update",
+      });
     },
   };
 }
@@ -412,7 +445,13 @@ export async function getGmailIntegrationForAgent(agentId: string) {
   const integration = new GmailIntegration(config, async (tokens) => {
     const nextConfig: GmailConnectionConfig = { ...config, ...tokens };
     Object.assign(config, nextConfig);
-    await saveConnectionConfig(connection.id, nextConfig);
+    await saveConnectionConfig({
+      connectionId: connection.id,
+      orgId: connection.orgId,
+      userId: connection.userId,
+      config: nextConfig,
+      reason: "token_refresh",
+    });
   });
 
   return {
@@ -421,7 +460,13 @@ export async function getGmailIntegrationForAgent(agentId: string) {
     integration,
     saveConfig: async (nextConfig: GmailConnectionConfig) => {
       Object.assign(config, nextConfig);
-      await saveConnectionConfig(connection.id, nextConfig);
+      await saveConnectionConfig({
+        connectionId: connection.id,
+        orgId: connection.orgId,
+        userId: connection.userId,
+        config: nextConfig,
+        reason: "manual_update",
+      });
     },
   };
 }

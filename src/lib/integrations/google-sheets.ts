@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import { decrypt, encrypt } from "@/lib/encryption";
+import { encrypt } from "@/lib/encryption";
+import { readConfigJson } from "./config-storage";
+import { logAudit } from "@/lib/audit/logger";
 
 const GOOGLE_OAUTH_BASE = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -293,17 +295,36 @@ export async function getGoogleSheetsConnection(userId: string) {
 }
 
 function parseConnectionConfig(connection: { config: string }): GoogleSheetsConnectionConfig {
-  return JSON.parse(decrypt(connection.config)) as GoogleSheetsConnectionConfig;
+  return readConfigJson<GoogleSheetsConnectionConfig>(connection.config).data;
 }
 
-async function saveConnectionConfig(connectionId: string, config: GoogleSheetsConnectionConfig) {
+async function saveConnectionConfig(args: {
+  connectionId: string;
+  orgId?: string | null;
+  userId?: string | null;
+  config: GoogleSheetsConnectionConfig;
+  reason: "oauth_callback" | "token_refresh" | "manual_update";
+}) {
   await prisma.integrationConnection.update({
-    where: { id: connectionId },
+    where: { id: args.connectionId },
     data: {
-      config: encrypt(JSON.stringify(config)),
+      config: encrypt(JSON.stringify(args.config)),
       lastSyncAt: new Date(),
     },
   });
+  if (args.reason === "token_refresh" && args.orgId) {
+    await logAudit({
+      orgId: args.orgId,
+      actorUserId: args.userId ?? null,
+      actorType: "SYSTEM",
+      action: "INTEGRATION_TOKEN_REFRESHED",
+      resourceType: "INTEGRATION_CONNECTION",
+      resourceId: args.connectionId,
+      description: "Google Sheets access token refreshed",
+      severity: "INFO",
+      metadata: { provider: GOOGLE_SHEETS_PROVIDER },
+    });
+  }
 }
 
 export async function getGoogleSheetsIntegrationForUser(userId: string) {
@@ -314,7 +335,13 @@ export async function getGoogleSheetsIntegrationForUser(userId: string) {
   const integration = new GoogleSheetsIntegration(config, async (tokens) => {
     const nextConfig: GoogleSheetsConnectionConfig = { ...config, ...tokens };
     Object.assign(config, nextConfig);
-    await saveConnectionConfig(connection.id, nextConfig);
+    await saveConnectionConfig({
+      connectionId: connection.id,
+      orgId: connection.orgId,
+      userId: connection.userId,
+      config: nextConfig,
+      reason: "token_refresh",
+    });
   });
 
   return {
@@ -323,7 +350,13 @@ export async function getGoogleSheetsIntegrationForUser(userId: string) {
     integration,
     saveConfig: async (nextConfig: GoogleSheetsConnectionConfig) => {
       Object.assign(config, nextConfig);
-      await saveConnectionConfig(connection.id, nextConfig);
+      await saveConnectionConfig({
+        connectionId: connection.id,
+        orgId: connection.orgId,
+        userId: connection.userId,
+        config: nextConfig,
+        reason: "manual_update",
+      });
     },
   };
 }
@@ -353,7 +386,13 @@ export async function getGoogleSheetsIntegrationForAgent(agentId: string) {
   const integration = new GoogleSheetsIntegration(config, async (tokens) => {
     const nextConfig: GoogleSheetsConnectionConfig = { ...config, ...tokens };
     Object.assign(config, nextConfig);
-    await saveConnectionConfig(connection.id, nextConfig);
+    await saveConnectionConfig({
+      connectionId: connection.id,
+      orgId: connection.orgId,
+      userId: connection.userId,
+      config: nextConfig,
+      reason: "token_refresh",
+    });
   });
 
   return {
@@ -362,7 +401,13 @@ export async function getGoogleSheetsIntegrationForAgent(agentId: string) {
     integration,
     saveConfig: async (nextConfig: GoogleSheetsConnectionConfig) => {
       Object.assign(config, nextConfig);
-      await saveConnectionConfig(connection.id, nextConfig);
+      await saveConnectionConfig({
+        connectionId: connection.id,
+        orgId: connection.orgId,
+        userId: connection.userId,
+        config: nextConfig,
+        reason: "manual_update",
+      });
     },
   };
 }
