@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
 import { orgScopeFilter } from "@/lib/auth/org-scope";
+import { encryptConfigJson } from "@/lib/integrations/config-storage";
+import { logAudit } from "@/lib/audit/logger";
+import { revokeIntegrationToken } from "@/lib/integrations/revoke";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -51,6 +54,15 @@ export async function POST(request: Request) {
       return Response.json({ error: "Provider and name required" }, { status: 400 });
     }
 
+    // Always encrypt before persistence (Sprint 18 security fix). Legacy
+    // plaintext rows are still readable via readConfigJson on the read path.
+    const encryptedConfig = encryptConfigJson(config || {});
+
+    const existing = await prisma.integrationConnection.findUnique({
+      where: { userId_provider: { userId, provider } },
+      select: { id: true, name: true, isActive: true, isCustom: true },
+    });
+
     // Upsert: update if same provider exists
     const connection = await prisma.integrationConnection.upsert({
       where: { userId_provider: { userId, provider } },
@@ -59,18 +71,30 @@ export async function POST(request: Request) {
         orgId,
         provider,
         name,
-        config: JSON.stringify(config || {}),
+        config: encryptedConfig,
         isCustom: isCustom || false,
         isActive: true,
       },
       update: {
         name,
-        config: JSON.stringify(config || {}),
+        config: encryptedConfig,
         isActive: true,
         isCustom: isCustom || false,
         // Stamp orgId on legacy rows that didn't have one yet.
         orgId,
       },
+    });
+
+    await logAudit({
+      orgId,
+      actorUserId: userId,
+      actorOrgId: orgId,
+      action: existing ? "INTEGRATION_CONFIG_UPDATED" : "INTEGRATION_CONNECTED",
+      resourceType: "INTEGRATION_CONNECTION",
+      resourceId: connection.id,
+      description: `${existing ? "Updated" : "Connected"} integration ${provider} (${name})`,
+      severity: "INFO",
+      metadata: { provider, isCustom: !!isCustom },
     });
 
     return Response.json(connection);
@@ -104,6 +128,18 @@ export async function PATCH(request: Request) {
       data: { isActive: isActive !== undefined ? isActive : !existing.isActive },
     });
 
+    await logAudit({
+      orgId: scope.orgId,
+      actorUserId: scope.userId,
+      actorOrgId: scope.orgId,
+      action: "INTEGRATION_CONFIG_UPDATED",
+      resourceType: "INTEGRATION_CONNECTION",
+      resourceId: id,
+      description: `Toggled integration ${existing.provider} active=${updated.isActive}`,
+      severity: "INFO",
+      metadata: { provider: existing.provider, isActive: updated.isActive },
+    });
+
     return Response.json(updated);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
@@ -130,8 +166,37 @@ export async function DELETE(request: Request) {
     });
     if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
 
+    // Best-effort: tell the provider to revoke the token. Failure does not
+    // block deletion — the user requested disconnect.
+    let revoked: { ok: boolean; error?: string };
+    try {
+      revoked = await revokeIntegrationToken({
+        provider: existing.provider,
+        config: existing.config,
+      });
+    } catch (err) {
+      revoked = { ok: false, error: err instanceof Error ? err.message : "unknown" };
+    }
+
     await prisma.integrationConnection.delete({ where: { id } });
-    return Response.json({ deleted: true });
+
+    await logAudit({
+      orgId: scope.orgId,
+      actorUserId: scope.userId,
+      actorOrgId: scope.orgId,
+      action: "INTEGRATION_DISCONNECTED",
+      resourceType: "INTEGRATION_CONNECTION",
+      resourceId: id,
+      description: `Disconnected integration ${existing.provider}`,
+      severity: "INFO",
+      metadata: {
+        provider: existing.provider,
+        tokenRevoked: revoked.ok,
+        revokeError: revoked.error ?? null,
+      },
+    });
+
+    return Response.json({ deleted: true, tokenRevoked: revoked.ok });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Server error";
     return Response.json({ error: message }, { status: 500 });
