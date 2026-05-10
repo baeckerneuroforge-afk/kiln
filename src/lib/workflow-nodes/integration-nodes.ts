@@ -13,6 +13,13 @@ import {
 } from "@/lib/workflow-expressions";
 import type { ActionNodeResult } from "./action-nodes";
 import { executeDataQuery } from "./data-pipeline-node";
+import {
+  classifyWorkflowError,
+  recordDeadLetter,
+  runWithRetry,
+  type WorkflowErrorType,
+} from "@/lib/workflows/error-handling";
+import { pickMockData } from "@/lib/workflows/mock-data";
 
 /* ── Helper: userId aus Context extrahieren ── */
 
@@ -194,7 +201,7 @@ export async function executeSlackSendIntegration(
 
   try {
     const { prisma } = await import("@/lib/prisma");
-    const { decrypt } = await import("@/lib/encryption");
+    const { readConfigJson } = await import("@/lib/integrations/config-storage");
     const { sendSlackMessage } = await import("@/lib/integrations/slack");
 
     const connection = await prisma.integrationConnection.findFirst({
@@ -204,7 +211,7 @@ export async function executeSlackSendIntegration(
       return { contextDelta: {}, success: false, error: "Slack nicht verbunden. Bitte zuerst im Integration Hub verbinden." };
     }
 
-    const slackConfig = JSON.parse(decrypt(connection.config)) as { accessToken: string };
+    const slackConfig = readConfigJson<{ accessToken: string }>(connection.config).data;
     const result = await sendSlackMessage(slackConfig.accessToken, channel, message, threadTs || undefined);
 
     return {
@@ -452,7 +459,7 @@ export async function executeAirtableCreate(
 
   try {
     const { prisma } = await import("@/lib/prisma");
-    const { decrypt } = await import("@/lib/encryption");
+    const { readConfigJson } = await import("@/lib/integrations/config-storage");
     const { createRecord } = await import("@/lib/integrations/airtable");
 
     // Airtable nutzt IntegrationConnection ODER AgentChannel — für Workflows verwenden wir IntegrationConnection
@@ -462,7 +469,7 @@ export async function executeAirtableCreate(
 
     let token: string;
     if (connection) {
-      const airtableConfig = JSON.parse(decrypt(connection.config)) as { personalAccessToken: string };
+      const airtableConfig = readConfigJson<{ personalAccessToken: string }>(connection.config).data;
       token = airtableConfig.personalAccessToken;
     } else {
       // Fallback: Token direkt in der Config (z.B. vom User eingegeben)
@@ -500,6 +507,162 @@ export async function executeAirtableCreate(
 
 /* ── Dispatcher ── */
 
+/** Error types for which a retry is wired in node executors. */
+const NODE_RETRY_ON: WorkflowErrorType[] = ["RATE_LIMIT", "TIMEOUT", "SERVER_ERROR", "NETWORK"];
+
+/**
+ * Synthesize an Error object that classifyWorkflowError can map to one of
+ * the retryable types. Uses inner.meta.status when present and pattern-
+ * matches common HTTP 5xx / 429 / timeout phrases in the message.
+ */
+function buildClassifiableError(
+  message: string | undefined,
+  meta: Record<string, unknown> | undefined,
+): Error & { status?: number } {
+  const text = message || "node-failure";
+  const error = new Error(text) as Error & { status?: number };
+  const status = typeof meta?.status === "number" ? (meta.status as number) : undefined;
+  if (status) {
+    error.status = status;
+    return error;
+  }
+  // Best-effort: extract status from "HTTP 503 Service Unavailable" style strings.
+  const httpMatch = text.match(/HTTP\s+(\d{3})/i);
+  if (httpMatch) {
+    error.status = Number.parseInt(httpMatch[1], 10);
+    return error;
+  }
+  // Pattern-only hints — let the classifier infer from the message keywords.
+  if (/internal server error|service unavailable|bad gateway|gateway timeout/i.test(text)) {
+    error.status = 503;
+  } else if (/too many requests|rate.?limit/i.test(text)) {
+    error.status = 429;
+  } else if (/timeout/i.test(text)) {
+    error.status = 408;
+  }
+  return error;
+}
+
+interface NodeWrapperOptions {
+  nodeKey: string; // stable identifier for dead-letter rows
+  retryCount?: number;
+  retryDelayMs?: number;
+}
+
+/**
+ * Pin-data short-circuit: if config carries useMockData + workflow ids, look
+ * up the saved mock payload and return it instead of executing. Saves LLM /
+ * API cost during debug runs.
+ */
+async function maybeReturnMockData(
+  config: Record<string, unknown>,
+  context: ExpressionContext,
+): Promise<ActionNodeResult | null> {
+  if (config.useMockData !== true) return null;
+  const orgId = typeof context._orgId === "string" ? (context._orgId as string) : null;
+  const workflowId =
+    typeof config.workflowId === "string"
+      ? (config.workflowId as string)
+      : typeof context._workflowId === "string"
+        ? (context._workflowId as string)
+        : null;
+  const nodeId =
+    typeof config.nodeId === "string"
+      ? (config.nodeId as string)
+      : typeof context._currentNodeId === "string"
+        ? (context._currentNodeId as string)
+        : null;
+  if (!orgId || !workflowId || !nodeId) return null;
+  const mockName = typeof config.mockDataName === "string" ? (config.mockDataName as string) : undefined;
+  const mock = await pickMockData({ orgId, workflowId, nodeId, name: mockName }).catch(() => null);
+  if (!mock) return null;
+  const resultKey = typeof config.resultKey === "string" ? (config.resultKey as string) : "mocked";
+  return {
+    contextDelta: { [resultKey]: mock },
+    success: true,
+    meta: { mocked: true, mockName: mockName ?? "default" },
+  };
+}
+
+/**
+ * Wraps a per-node executor with mock-data short-circuit, retry-with-backoff
+ * for retryable provider errors, and a dead-letter record on terminal
+ * failure.  Intentionally a thin wrapper — individual executors already
+ * handle config-validation and return shaped ActionNodeResult on their own
+ * error paths; this layer kicks in when those paths surface a retryable
+ * error string we can classify.
+ */
+async function executeWithRetryAndDeadLetter(
+  exec: (config: Record<string, unknown>, ctx: ExpressionContext) => Promise<ActionNodeResult>,
+  config: Record<string, unknown>,
+  context: ExpressionContext,
+  options: NodeWrapperOptions,
+): Promise<ActionNodeResult> {
+  const mocked = await maybeReturnMockData(config, context);
+  if (mocked) return mocked;
+
+  const retryCount = typeof config.retryCount === "number" ? config.retryCount : options.retryCount ?? 2;
+  const retryDelayMs = typeof config.retryDelayMs === "number" ? config.retryDelayMs : options.retryDelayMs ?? 500;
+
+  const result = await runWithRetry(
+    async () => {
+      const inner = await exec(config, context);
+      // Executors return success:false for both retryable and non-retryable
+      // failures. Classify on a synthesized error that carries the inner
+      // status hint (when available) and that recognises common upstream
+      // 5xx / 429 / timeout error-message patterns.
+      if (!inner.success) {
+        const synthesized = buildClassifiableError(inner.error, inner.meta);
+        const classified = classifyWorkflowError(synthesized);
+        if (classified.retryable && NODE_RETRY_ON.includes(classified.type)) {
+          throw synthesized;
+        }
+      }
+      return inner;
+    },
+    { retryCount, retryDelayMs, backoff: "EXPONENTIAL", retryOn: NODE_RETRY_ON },
+  );
+
+  if (result.ok && result.value) {
+    if (result.attempts.length > 0) {
+      return {
+        ...result.value,
+        meta: { ...(result.value.meta ?? {}), retried: true, retries: result.attempts.length },
+      };
+    }
+    return result.value;
+  }
+
+  // Terminal failure — record to dead-letter when execution context allows.
+  const teamId = typeof context._teamId === "string" ? (context._teamId as string) : null;
+  const executionId = typeof context._executionId === "string" ? (context._executionId as string) : null;
+  if (teamId) {
+    try {
+      await recordDeadLetter({
+        agentTeamId: teamId,
+        teamExecutionId: executionId,
+        nodeId: typeof context._currentNodeId === "string" ? (context._currentNodeId as string) : options.nodeKey,
+        nodeType: options.nodeKey,
+        payload: config,
+        error: result.error?.message ?? "unknown",
+        attempts: result.attempts.length,
+      });
+    } catch (err) {
+      console.warn("[integration-nodes] dead-letter record failed", err);
+    }
+  }
+
+  return {
+    contextDelta: {},
+    success: false,
+    error: result.error?.message ?? "node-failure",
+    meta: {
+      attempts: result.attempts.length,
+      classified: result.error?.type ?? "UNKNOWN",
+    },
+  };
+}
+
 export async function executeIntegrationNode(
   nodeType: string,
   config: Record<string, unknown>,
@@ -507,21 +670,21 @@ export async function executeIntegrationNode(
 ): Promise<ActionNodeResult> {
   switch (nodeType) {
     case "google_sheets_read":
-      return executeGoogleSheetsRead(config, context);
+      return executeWithRetryAndDeadLetter(executeGoogleSheetsRead, config, context, { nodeKey: "google_sheets_read" });
     case "google_sheets_write":
-      return executeGoogleSheetsWrite(config, context);
+      return executeWithRetryAndDeadLetter(executeGoogleSheetsWrite, config, context, { nodeKey: "google_sheets_write" });
     case "gmail_send":
-      return executeGmailSend(config, context);
+      return executeWithRetryAndDeadLetter(executeGmailSend, config, context, { nodeKey: "gmail_send" });
     case "slack_send_integration":
-      return executeSlackSendIntegration(config, context);
+      return executeWithRetryAndDeadLetter(executeSlackSendIntegration, config, context, { nodeKey: "slack_send_integration" });
     case "calendar_create":
-      return executeCalendarCreate(config, context);
+      return executeWithRetryAndDeadLetter(executeCalendarCreate, config, context, { nodeKey: "calendar_create" });
     case "calendar_check":
-      return executeCalendarCheck(config, context);
+      return executeWithRetryAndDeadLetter(executeCalendarCheck, config, context, { nodeKey: "calendar_check" });
     case "notion_create":
-      return executeNotionCreate(config, context);
+      return executeWithRetryAndDeadLetter(executeNotionCreate, config, context, { nodeKey: "notion_create" });
     case "airtable_create":
-      return executeAirtableCreate(config, context);
+      return executeWithRetryAndDeadLetter(executeAirtableCreate, config, context, { nodeKey: "airtable_create" });
     case "data_query":
       return executeDataQuery(config, context);
     case "mcp_tool": {
