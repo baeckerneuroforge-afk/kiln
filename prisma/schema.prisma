@@ -3422,6 +3422,13 @@ model SubAccountModuleConfig {
 
   isActive             Boolean  @default(false)
 
+  /// Sprint 19.5 — Stripe subscription-item ID created when this row is
+  /// in pool mode + active, billing the agency for the module add-on.
+  /// Null in BYOK modes (no charge) and when the billing service skipped
+  /// the sync (missing env vars / no agency subscription). Reconciliation
+  /// catches the latter up later.
+  stripeSubscriptionItemId String?
+
   /// Last credential validation result (for UX hints in settings page).
   lastValidatedAt      DateTime?
   validationError      String?
