@@ -14,28 +14,18 @@ import {
   LogOut,
   ChevronUp,
   ChevronRight,
-  Network,
   Plug,
   Store,
   ChevronsLeft,
   ChevronsRight,
   MessageSquare,
   HelpCircle,
-  Radio,
-  FlaskConical,
   Waypoints,
-  Users,
   Code2,
-  Database,
   Bolt,
-  Globe,
-  Search,
   Workflow,
   CreditCard,
   TrendingUp,
-  Plus,
-  Mail,
-  Layers3,
   ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -82,27 +72,43 @@ interface NavSection {
 
 /* ── Navigation Structure ── */
 
+// Sprint 19.6 — sidebar consolidated to 14 primary items across 6 sections.
+//
+// Items removed from the sidebar but still reachable via direct URL or via
+// inline buttons on the new home pages:
+//   - /dashboard/operations  → consolidated into /dashboard (redirected)
+//   - /dashboard/onboarding  → "Add Customer" button on /dashboard/agency/sub-orgs
+//   - /dashboard/computer-use, /dashboard/agent-swarm, /dashboard/deep-research,
+//     /dashboard/orchestration  → still routable, not in sidebar
+//   - /dashboard/llm-usage, /dashboard/teams/monitor, /dashboard/teams/ab-tests
+//     → still routable; future sprint folds them under Analytics tabs
+//   - /dashboard/nodes-marketplace  → still routable; future sprint folds
+//     under Developers tabs
+//   - /dashboard/shared  → still routable; future sprint folds under
+//     Marketplace tabs
+//   - /dashboard/clients  → semantically separate from Sub-Orgs; kept routable
+//     until product confirms whether to merge (TODO: clarify with stakeholder)
+//   - /dashboard/agency/email-branding  → still routable; future sprint folds
+//     under Branding tabs
+//   - /dashboard/data-explorer  → still routable; lives under Settings flow
+//   - /dashboard/templates/agents  → still routable; future sprint folds
+//     under Workflows tabs
 export const AGENCY_NAV_SECTIONS: NavSection[] = [
   {
-    id: "core",
+    id: "primary",
     label: null,
     defaultOpen: true,
     items: [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, minAgents: 0 },
-      { name: "Operations", href: "/dashboard/operations", icon: Activity, minAgents: 0, requiresAgencyOps: true },
-      { name: "Add Customer", href: "/dashboard/onboarding", icon: Plus, minAgents: 0, requiresAgencyOps: true },
-      { name: "Agents", href: "/dashboard/agents", icon: Bot, minAgents: 0, tourId: "agents" },
-      { name: "Conversations", href: "/dashboard/conversations", icon: MessageSquare, minAgents: 0 },
     ],
   },
   {
-    id: "quick-use",
-    label: "Quick Use",
+    id: "customers",
+    label: "Customers",
     defaultOpen: true,
     items: [
-      { name: "Computer Use", href: "/dashboard/computer-use", icon: Globe, minAgents: 0 },
-      { name: "Agent Swarm", href: "/dashboard/agent-swarm", icon: Users, minAgents: 0 },
-      { name: "Deep Research", href: "/dashboard/deep-research", icon: Search, minAgents: 0 },
+      { name: "Sub-Orgs", href: "/dashboard/agency/sub-orgs", icon: Building2, minAgents: 0, requiresAgencyTier: true },
+      { name: "Conversations", href: "/dashboard/conversations", icon: MessageSquare, minAgents: 0 },
     ],
   },
   {
@@ -110,6 +116,7 @@ export const AGENCY_NAV_SECTIONS: NavSection[] = [
     label: "Build",
     defaultOpen: true,
     items: [
+      { name: "Agents", href: "/dashboard/agents", icon: Bot, minAgents: 0, tourId: "agents" },
       {
         name: "Workflows",
         href: "/dashboard/teams",
@@ -125,34 +132,16 @@ export const AGENCY_NAV_SECTIONS: NavSection[] = [
         minAgents: 0,
         tooltipDescription: "Autonomous manager-led teams",
       },
-      {
-        name: "Templates",
-        href: "/dashboard/templates/agents",
-        icon: Layers3,
-        minAgents: 0,
-        requiresAgencyTier: true,
-        tooltipDescription: "Master snapshots for agents and workflows",
-      },
-      {
-        name: "Orchestration",
-        href: "/dashboard/orchestration",
-        icon: Network,
-        minAgents: 2,
-        tooltipDescription: "Agent-to-agent handoffs (different from workflows)",
-      },
       { name: "Knowledge", href: "/dashboard/knowledge", icon: Waypoints, minAgents: 1, tooltipDescription: "Knowledge bases and graph" },
       { name: "Integrations", href: "/dashboard/integrations", icon: Plug, minAgents: 1, tourId: "integrations" },
     ],
   },
   {
-    id: "monitor",
-    label: "Monitor",
+    id: "insights",
+    label: "Insights",
     defaultOpen: false,
     items: [
       { name: "Analytics", href: "/dashboard/intelligence", icon: Activity, minAgents: 1 },
-      { name: "LLM Usage", href: "/dashboard/llm-usage", icon: Database, minAgents: 0 },
-      { name: "Monitoring", href: "/dashboard/teams/monitor", icon: Radio, minAgents: 0, requiresPro: true },
-      { name: "A/B Tests", href: "/dashboard/teams/ab-tests", icon: FlaskConical, minAgents: 0, requiresPro: true },
     ],
   },
   {
@@ -161,9 +150,8 @@ export const AGENCY_NAV_SECTIONS: NavSection[] = [
     defaultOpen: false,
     items: [
       { name: "Marketplace", href: "/marketplace", icon: Store, minAgents: 0 },
-      { name: "Nodes SDK", href: "/dashboard/nodes-marketplace", icon: Bolt, minAgents: 1 },
+      { name: "Industry Packs", href: "/dashboard/admin/industry-packs", icon: ShieldCheck, minAgents: 0, requiresAgencyTier: true },
       { name: "Developers", href: "/developers", icon: Code2, minAgents: 0 },
-      { name: "Shared Agents", href: "/dashboard/shared", icon: Users, minAgents: 1 },
     ],
   },
   {
@@ -171,14 +159,9 @@ export const AGENCY_NAV_SECTIONS: NavSection[] = [
     label: "Manage",
     defaultOpen: false,
     items: [
-      { name: "Clients", href: "/dashboard/clients", icon: Building2, minAgents: 1, requiresBusiness: true },
-      { name: "Sub-orgs", href: "/dashboard/agency/sub-orgs", icon: Building2, minAgents: 0, requiresAgencyTier: true },
-      { name: "Industry Packs", href: "/dashboard/admin/industry-packs", icon: ShieldCheck, minAgents: 0, requiresAgencyTier: true },
-      { name: "Branding", href: "/dashboard/agency/branding", icon: Settings, minAgents: 0, requiresBusiness: true },
-      { name: "Email Branding", href: "/dashboard/agency/email-branding", icon: Mail, minAgents: 0, requiresBusiness: true },
       { name: "Billing", href: "/dashboard/agency/billing", icon: CreditCard, minAgents: 0, requiresBusiness: true },
       { name: "Revenue", href: "/dashboard/agency/revenue", icon: TrendingUp, minAgents: 0, requiresBusiness: true },
-      { name: "Data Explorer", href: "/dashboard/data-explorer", icon: Database, minAgents: 1 },
+      { name: "Branding", href: "/dashboard/agency/branding", icon: Settings, minAgents: 0, requiresBusiness: true },
       { name: "Settings", href: "/dashboard/settings", icon: Settings, minAgents: 0 },
     ],
   },
