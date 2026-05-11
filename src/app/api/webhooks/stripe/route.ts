@@ -3,6 +3,12 @@ import { getStripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import type { Plan } from "@prisma/client";
 import type Stripe from "stripe";
+import {
+  handleInvoiceCreated,
+  handleInvoicePaymentFailed,
+  handleInvoicePaymentSucceeded,
+  handleSubscriptionUpdated,
+} from "@/lib/billing/module-billing-webhooks";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +94,14 @@ export async function POST(request: Request) {
             data: { plan },
           });
         }
+
+        // Sprint 19.5.3 — also sync the new AgencyPlatformSubscription
+        // row (tier / status / period end / trial). Best-effort.
+        try {
+          await handleSubscriptionUpdated({ event });
+        } catch (err) {
+          console.error("[stripe-webhook] AgencyPlatformSubscription sync failed", err);
+        }
         break;
       }
 
@@ -99,6 +113,33 @@ export async function POST(request: Request) {
           where: { stripeCustomerId: customerId },
           data: { plan: "FREE" },
         });
+        break;
+      }
+
+      case "invoice.created": {
+        try {
+          await handleInvoiceCreated({ event });
+        } catch (err) {
+          console.error("[stripe-webhook] invoice.created handler failed", err);
+        }
+        break;
+      }
+
+      case "invoice.payment_succeeded": {
+        try {
+          await handleInvoicePaymentSucceeded({ event });
+        } catch (err) {
+          console.error("[stripe-webhook] invoice.payment_succeeded handler failed", err);
+        }
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        try {
+          await handleInvoicePaymentFailed({ event });
+        } catch (err) {
+          console.error("[stripe-webhook] invoice.payment_failed handler failed", err);
+        }
         break;
       }
     }

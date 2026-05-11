@@ -10,6 +10,7 @@ import { dispatchSlaEscalation } from "@/lib/sla/notifications";
 import { executeDeletion, findDueDeletions } from "@/lib/dsgvo/delete-service";
 import { expireOldExports } from "@/lib/dsgvo/export-service";
 import { runReportCron } from "@/lib/reporting/cron";
+import { runPaymentGraceSweep } from "@/lib/billing/module-billing-webhooks";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -105,6 +106,18 @@ export async function GET(request: Request) {
       console.error("[cron/process-queue] reporting sweep failed", err);
     }
 
+    let paymentGraceResult = {
+      inspected: 0,
+      disabledAgencies: 0,
+      modulesDisabled: 0,
+      errors: [] as string[],
+    };
+    try {
+      paymentGraceResult = await runPaymentGraceSweep();
+    } catch (err) {
+      console.error("[cron/process-queue] payment-grace sweep failed", err);
+    }
+
     return Response.json({
       ok: true,
       ...result,
@@ -113,6 +126,7 @@ export async function GET(request: Request) {
       sla: slaResult,
       dsgvo: dsgvoResult,
       reporting: reportingResult,
+      paymentGrace: paymentGraceResult,
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
