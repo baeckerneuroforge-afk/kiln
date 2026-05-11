@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockAuth = vi.hoisted(() => vi.fn(async () => ({ userId: "user_a", orgId: "org_a" })));
+const mockAuth = vi.hoisted(() =>
+  vi.fn<() => Promise<{ userId: string | null; orgId: string | null }>>(async () => ({ userId: "user_a", orgId: "org_a" })),
+);
 const mockPrisma = vi.hoisted(() => ({
   user: { findUnique: vi.fn(), update: vi.fn() },
   auditLog: { create: vi.fn() },

@@ -187,12 +187,16 @@ describe("POST toggle route", () => {
   it("audits with MODULE_ACTIVATED / MODULE_DEACTIVATED", async () => {
     const { POST } = await import("@/app/api/agency/sub-orgs/[id]/modules/[moduleName]/toggle/route");
     await POST(makeJsonRequest({ isActive: true }), { params: { id: "rel_1", moduleName: "ai" } });
-    const action = mockPrisma.auditLog.create.mock.calls[0]?.[0]?.data?.action;
-    expect(action).toBe("MODULE_ACTIVATED");
+    // The billing service may emit MODULE_BILLING_SKIPPED first when env
+    // is unset; the user-facing toggle audit is whichever entry matches
+    // the toggle action. Scan rather than indexing.
+    const actions = mockPrisma.auditLog.create.mock.calls.map((c) => c?.[0]?.data?.action);
+    expect(actions).toContain("MODULE_ACTIVATED");
 
+    mockPrisma.auditLog.create.mockClear();
     await POST(makeJsonRequest({ isActive: false }), { params: { id: "rel_1", moduleName: "sms" } });
-    const action2 = mockPrisma.auditLog.create.mock.calls[1]?.[0]?.data?.action;
-    expect(action2).toBe("MODULE_DEACTIVATED");
+    const actions2 = mockPrisma.auditLog.create.mock.calls.map((c) => c?.[0]?.data?.action);
+    expect(actions2).toContain("MODULE_DEACTIVATED");
   });
 });
 
