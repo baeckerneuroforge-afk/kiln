@@ -1,12 +1,16 @@
 import { NextRequest } from "next/server";
 import { requireSubOrgAccess } from "@/lib/agency/sub-org-auth";
-import { upsertModuleConfig } from "@/lib/modules/store";
+import { findModuleConfig, upsertModuleConfig } from "@/lib/modules/store";
 import {
   isModuleMode,
   isModuleName,
   type ModuleCredentials,
 } from "@/lib/modules/types";
 import { logAudit } from "@/lib/audit/logger";
+import {
+  addModuleSubscriptionItem,
+  removeModuleSubscriptionItem,
+} from "@/lib/billing/module-billing";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +52,13 @@ export async function POST(
 
   const isActive = typeof body.isActive === "boolean" ? body.isActive : true;
 
+  // Snapshot the previous row so we can decide whether billing state
+  // needs to flip pool→BYOK (remove item) or BYOK→pool (add item).
+  const previousRow = await findModuleConfig({
+    subAccountId: auth.relationship.childOrgId,
+    moduleName: params.moduleName,
+  });
+
   const row = await upsertModuleConfig({
     subAccountId: auth.relationship.childOrgId,
     moduleName: params.moduleName,
@@ -56,6 +67,30 @@ export async function POST(
     credentialsOwner,
     isActive,
   });
+
+  // Stripe sync — best-effort, never blocks the API response. The DB row
+  // is the source of truth; failures are audited (MODULE_BILLING_SYNC_FAILED)
+  // or skipped (MODULE_BILLING_SKIPPED) inside module-billing.ts.
+  try {
+    const wasPoolActive = previousRow?.mode === "pool" && previousRow?.isActive === true;
+    const isNowPoolActive = row.mode === "pool" && row.isActive === true;
+
+    if (!wasPoolActive && isNowPoolActive) {
+      await addModuleSubscriptionItem({
+        agencyOrgId: auth.agencyOrgId,
+        subAccountId: auth.relationship.childOrgId,
+        moduleName: params.moduleName,
+      });
+    } else if (wasPoolActive && !isNowPoolActive) {
+      await removeModuleSubscriptionItem({
+        agencyOrgId: auth.agencyOrgId,
+        subAccountId: auth.relationship.childOrgId,
+        moduleName: params.moduleName,
+      });
+    }
+  } catch (err) {
+    console.error("[modules/configure] billing sync threw unexpectedly", err);
+  }
 
   await logAudit({
     orgId: auth.agencyOrgId,
