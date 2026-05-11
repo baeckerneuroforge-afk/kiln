@@ -12,6 +12,9 @@ const mockPrisma = vi.hoisted(() => ({
     findMany: vi.fn(),
     update: vi.fn(),
   },
+  agencyPlatformSubscription: {
+    findUnique: vi.fn(async () => null),
+  },
   auditLog: { create: vi.fn() },
 }));
 
