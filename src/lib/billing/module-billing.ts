@@ -88,17 +88,19 @@ export function getStripePriceIdForModule(moduleName: ModuleName): string | null
 }
 
 /**
- * Resolver stub. Today returns null because the schema does not yet
- * carry an `agencyStripeSubscriptionId` column. Wire this up when the
- * decision is made about which platform subscription holds module items
- * (typically: the agency owner User.stripeCustomerId's monthly platform
- * subscription, or a new AgencyStripeAccount.platformSubscriptionId).
+ * Sprint 19.5.1: real implementation lives in agency-tier.ts and reads
+ * the AgencyPlatformSubscription row. We re-export the resolver here so
+ * legacy callers keep importing from module-billing without breakage.
+ * Status-gating (`active` / `trialing` only) lives in agency-tier.ts so
+ * the same rules apply everywhere a subscription id is needed.
  */
 export async function resolveAgencyStripeSubscriptionId(
   agencyOrgId: string,
 ): Promise<string | null> {
-  void agencyOrgId; // TODO Sprint 19.6+: implement once schema lands.
-  return null;
+  const { resolveAgencyStripeSubscriptionId: realResolver } = await import(
+    "./agency-tier"
+  );
+  return realResolver(agencyOrgId);
 }
 
 async function recordSkipAudit(args: {
