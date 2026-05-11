@@ -57,6 +57,10 @@ model User {
   emailNotifications Boolean   @default(true)
   tourCompleted         Boolean  @default(false)
   lastSeenChangelog     String?  // ISO date of last seen changelog entry
+  // Sprint 19.6 — controls the unified /dashboard view selection.
+  // `auto` switches between onboarding and operations based on activity;
+  // explicit values pin the view regardless of sub-org count / age.
+  dashboardPreference   String   @default("auto") // auto | onboarding | operations
   weeklyReportEnabled Boolean  @default(true)
   enableTrendAlerts   Boolean  @default(true)
 
