@@ -3396,3 +3396,37 @@ model DataDeletionRequest {
   @@index([orgId])
   @@index([status, scheduledFor])
 }
+
+/// Per-Sub-Org configuration for usage-based modules (AI, SMS, Voice,
+/// WhatsApp). Each module can run in three modes: pool (KILN-managed
+/// credentials, agency billed), byok_agency (agency-owned API key),
+/// or byok_customer (end-customer-owned API key). Encrypted credentials
+/// are stored via the Sprint 18 config-storage helpers.
+model SubAccountModuleConfig {
+  id                   String   @id @default(cuid())
+
+  /// Clerk Org ID of the Sub-Account (Sub-Org).
+  subAccountId         String
+  moduleName           String   // ai | sms | voice | whatsapp
+  mode                 String   @default("pool") // pool | byok_agency | byok_customer
+
+  /// AES-256-GCM encrypted JSON blob; shape depends on moduleName.
+  /// AI:    { anthropicKey?, openaiKey? }
+  /// Twilio (sms/voice/whatsapp): { accountSid, authToken, phoneNumber? }
+  encryptedCredentials String?  @db.Text
+  credentialsOwner     String?  // "agency" or end-customer email for audit trail
+
+  isActive             Boolean  @default(false)
+
+  /// Last credential validation result (for UX hints in settings page).
+  lastValidatedAt      DateTime?
+  validationError      String?
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([subAccountId, moduleName])
+  @@index([subAccountId])
+  @@index([mode, isActive])
+  @@index([moduleName, isActive])
+}
