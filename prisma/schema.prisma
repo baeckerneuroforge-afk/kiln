@@ -2999,6 +2999,19 @@ model AgencyPlatformSubscription {
   trialEnd             DateTime?
   cancelAtPeriodEnd    Boolean   @default(false)
 
+  /// Sprint 19.5.3 — set to the first invoice.payment_failed timestamp;
+  /// cleared on the next successful payment. The grace-period sweep
+  /// auto-disables pool-mode modules once invoiceFailedAt is older than
+  /// 7 days. Null in healthy steady state.
+  invoiceFailedAt      DateTime?
+
+  /// Sprint 19.5.3 — last Stripe event id we processed for this row.
+  /// Used to short-circuit re-deliveries (Stripe sends events at least
+  /// once). Compared lexicographically only on customer.subscription.*;
+  /// invoice.* events use their own dedupe via lastInvoiceEventId.
+  lastSubscriptionEventId String?
+  lastInvoiceEventId      String?
+
   /// Identifies the actor that originally created the subscription
   /// (founding-customer migration script, signup flow, support).
   createdSource        String    @default("api") // api | migration | support
@@ -3008,6 +3021,7 @@ model AgencyPlatformSubscription {
 
   @@index([status])
   @@index([tier, status])
+  @@index([invoiceFailedAt])
 }
 
 /// Phase 3 — Stripe Connect Express account owned by an agency. One row per
