@@ -25,6 +25,18 @@ import {
   DepartmentDigestEmail,
   departmentDigestSubject,
 } from "./templates/department-digest";
+import {
+  InvoicePaidEmail,
+  invoicePaidSubject,
+} from "./templates/invoice-paid";
+import {
+  InvoicePaymentFailedEmail,
+  invoicePaymentFailedSubject,
+} from "./templates/invoice-payment-failed";
+import {
+  ModulesDisabledPaymentEmail,
+  modulesDisabledPaymentSubject,
+} from "./templates/modules-disabled-payment";
 
 export interface RenderEmailArgs<T extends EmailTemplateName> {
   template: T;
@@ -85,6 +97,21 @@ function buildSubject<T extends EmailTemplateName>(
         args.branding,
         args.data as EmailTemplateData["department-digest"]
       );
+    case "invoice-paid":
+      return invoicePaidSubject(
+        args.branding,
+        args.data as EmailTemplateData["invoice-paid"]
+      );
+    case "invoice-payment-failed":
+      return invoicePaymentFailedSubject(
+        args.branding,
+        args.data as EmailTemplateData["invoice-payment-failed"]
+      );
+    case "modules-disabled-payment":
+      return modulesDisabledPaymentSubject(
+        args.branding,
+        args.data as EmailTemplateData["modules-disabled-payment"]
+      );
     default:
       return `Message from ${args.branding.brandName}`;
   }
@@ -123,6 +150,21 @@ function buildElement<T extends EmailTemplateName>(
       return DepartmentDigestEmail({
         branding: args.branding,
         data: args.data as EmailTemplateData["department-digest"],
+      });
+    case "invoice-paid":
+      return InvoicePaidEmail({
+        branding: args.branding,
+        data: args.data as EmailTemplateData["invoice-paid"],
+      });
+    case "invoice-payment-failed":
+      return InvoicePaymentFailedEmail({
+        branding: args.branding,
+        data: args.data as EmailTemplateData["invoice-payment-failed"],
+      });
+    case "modules-disabled-payment":
+      return ModulesDisabledPaymentEmail({
+        branding: args.branding,
+        data: args.data as EmailTemplateData["modules-disabled-payment"],
       });
     default:
       throw new Error(`Unknown template: ${String(args.template)}`);

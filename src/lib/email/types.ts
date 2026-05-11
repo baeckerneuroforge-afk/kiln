@@ -104,6 +104,28 @@ export interface EmailTemplateData {
       createdAt: string;
     }>;
   };
+  /** Sprint 19.5.3 — billing notifications */
+  "invoice-paid": {
+    customerName: string;
+    invoiceNumber: string;
+    amountFormatted: string;
+    invoiceDate: string;
+    hostedInvoiceUrl?: string | null;
+    invoicePdfUrl?: string | null;
+  };
+  "invoice-payment-failed": {
+    customerName: string;
+    invoiceNumber: string;
+    amountFormatted: string;
+    hostedInvoiceUrl?: string | null;
+    graceUntilFormatted: string;
+  };
+  "modules-disabled-payment": {
+    customerName: string;
+    modulesDisabled: number;
+    graceDays: number;
+    billingUrl: string;
+  };
 }
 
 export type EmailTemplateName = keyof EmailTemplateData;
