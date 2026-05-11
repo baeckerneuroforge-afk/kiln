@@ -70,6 +70,13 @@ export async function resolveProviderApiKey(
     return { key: request.byokKey.key, byokActive: true, source: "request-byok" };
   }
 
+  // Sprint 19: Sub-Account module config layer. Wins over the generic
+  // ApiKey table so per-Sub-Account module mode overrides agency defaults.
+  const moduleKey = await loadSubAccountModuleKey(provider, request);
+  if (moduleKey) {
+    return { key: moduleKey, byokActive: true, source: "stored-byok" };
+  }
+
   const stored = await loadStoredByok(provider, request);
   if (stored) {
     return { key: stored, byokActive: true, source: "stored-byok" };
@@ -81,6 +88,24 @@ export async function resolveProviderApiKey(
   }
 
   return null;
+}
+
+async function loadSubAccountModuleKey(
+  provider: LlmProvider,
+  request: LlmRequest,
+): Promise<string | null> {
+  if (!request.orgId) return null;
+  if (provider !== "anthropic" && provider !== "openai") return null;
+  try {
+    const { resolveAiKeyForProvider } = await import("@/lib/modules/module-resolver");
+    const resolved = await resolveAiKeyForProvider({
+      subAccountId: request.orgId,
+      provider,
+    });
+    return resolved?.key ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function loadStoredByok(provider: LlmProvider, request: LlmRequest): Promise<string | null> {
