@@ -2968,6 +2968,48 @@ model OrgBranding {
   @@index([customDomain])
 }
 
+/// Sprint 19.5.1 — Platform-side subscription that KILN bills the agency
+/// for. One row per agency org. Holds:
+///   - the org-scoped Stripe Customer (one customer per agency, not per
+///     User; persists when the seat that signed up leaves)
+///   - the org-scoped Stripe Subscription that carries the tier price
+///     line item AND the per-sub-account module add-on items (see
+///     SubAccountModuleConfig.stripeSubscriptionItemId)
+///   - the chosen tier (starter/professional/agency_pro/enterprise) and
+///     the current subscription status mirrored from Stripe.
+///
+/// Conceptually opposite to AgencyStripeAccount: that table is the
+/// agency's CONNECT account for RECEIVING sub-org payments. This table
+/// is the agency's PLATFORM customer for PAYING KILN.
+model AgencyPlatformSubscription {
+  id                   String    @id @default(cuid())
+  orgId                String    @unique // Clerk Org ID of the agency
+
+  stripeCustomerId     String    @unique // cus_xxx (in the KILN platform account)
+  stripeSubscriptionId String?   @unique // sub_xxx; null while customer exists but no subscription yet
+  /** Subscription-Item ID of the tier price line. Module items live in
+   * SubAccountModuleConfig.stripeSubscriptionItemId and address the same
+   * subscription, but the tier item itself is tracked here so /change-tier
+   * can swap it in place. */
+  tierSubscriptionItemId String?
+
+  tier                 String    @default("starter") // starter | professional | agency_pro | enterprise
+  status               String    @default("incomplete") // incomplete | trialing | active | past_due | canceled | unpaid
+  currentPeriodEnd     DateTime?
+  trialEnd             DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false)
+
+  /// Identifies the actor that originally created the subscription
+  /// (founding-customer migration script, signup flow, support).
+  createdSource        String    @default("api") // api | migration | support
+
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([status])
+  @@index([tier, status])
+}
+
 /// Phase 3 — Stripe Connect Express account owned by an agency. One row per
 /// agency org. Onboarding kicks off Stripe-hosted KYC/payout setup; we
 /// mirror the relevant readiness flags here so the dashboard can render
