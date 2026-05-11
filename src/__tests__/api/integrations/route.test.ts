@@ -19,7 +19,9 @@ const mockPrisma = vi.hoisted(() => ({
 }));
 
 const mockRequireOrgId = vi.hoisted(() => vi.fn(async () => ({ userId: "user_a", orgId: "org_a" })));
-const mockRevoke = vi.hoisted(() => vi.fn(async () => ({ ok: true })));
+const mockRevoke = vi.hoisted(() =>
+  vi.fn<(args: unknown) => Promise<{ ok: boolean; error?: string; unsupported?: boolean }>>(async () => ({ ok: true })),
+);
 
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/auth/org-context", () => ({

@@ -46,7 +46,8 @@ describe("integration config-storage helpers", () => {
     });
     expect(data.apiKey).toBe("plaintext");
     expect(writeBack).toHaveBeenCalledTimes(1);
-    expect(writeBack.mock.calls[0]?.[0]).toMatch(/^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/);
+    const firstCall = writeBack.mock.calls[0] as unknown as [string];
+    expect(firstCall[0]).toMatch(/^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/);
   });
 
   it("readAndUpgradeConfigJson does not write back already-encrypted rows", async () => {
