@@ -35,12 +35,12 @@ vi.mock("@/lib/agency/sub-org-auth", () => ({
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
 
-function makeJsonRequest(body: unknown): Request {
+function makeJsonRequest(body: unknown): import("next/server").NextRequest {
   return new Request("https://example.com/x", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
-  });
+  }) as unknown as import("next/server").NextRequest;
 }
 
 describe("POST configure route", () => {
@@ -237,7 +237,10 @@ describe("GET modules route", () => {
       },
     ]);
     const { GET } = await import("@/app/api/agency/sub-orgs/[id]/modules/route");
-    const response = await GET(new Request("https://example.com/x"), { params: { id: "rel_1" } });
+    const response = await GET(
+      new Request("https://example.com/x") as unknown as import("next/server").NextRequest,
+      { params: { id: "rel_1" } },
+    );
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.moduleNames).toEqual(["ai", "sms", "voice", "whatsapp"]);

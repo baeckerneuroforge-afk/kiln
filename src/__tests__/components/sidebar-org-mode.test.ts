@@ -41,8 +41,11 @@ describe("sidebar org-mode navigation", () => {
     expect(getSidebarSectionsForMode("STANDALONE")).toBe(STANDALONE_NAV_SECTIONS);
   });
 
-  it("includes template management for agencies", () => {
-    expect(itemNames("AGENCY")).toContain("Templates");
+  it("no longer surfaces Templates as a top-level sidebar item after Sprint 19.6", () => {
+    // Templates is reachable via /dashboard/templates/agents but lives
+    // under the future Workflows-tabs consolidation. It's intentionally
+    // removed from the sidebar.
+    expect(itemNames("AGENCY")).not.toContain("Templates");
   });
 
   it("includes industry packs for agencies", () => {
