@@ -32,7 +32,7 @@ function makePrismaWith(memberships: ReturnType<typeof makeMembership>[]) {
     subOrgMembership: {
       findMany: vi.fn().mockResolvedValue(memberships),
     },
-  } as unknown as Parameters<typeof getUserSubOrgs>[1];
+  } as unknown as NonNullable<Parameters<typeof getUserSubOrgs>[1]>;
 }
 
 describe("getUserSubOrgs", () => {
