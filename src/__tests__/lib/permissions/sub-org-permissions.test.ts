@@ -66,8 +66,23 @@ describe("permissionsFor", () => {
     expect(perms.has("workflows.read")).toBe(true);
     expect(perms.has("workflows.write")).toBe(true);
     expect(perms.has("integrations.read")).toBe(true);
-    expect(perms.has("integrations.write")).toBe(true);
+    expect(perms.has("integrations.manage")).toBe(true);
     expect(perms.has("memberships.manage")).toBe(true);
+  });
+
+  // Sprint 19.7.4 — integrations.read is in every tier so members can
+  // see what's wired up; .manage stays FULL_ACCESS-only.
+  it("integrations.read is in every permission set", () => {
+    for (const set of ["READ_ONLY", "USE_AGENTS", "USE_AGENTS_PLUS_KNOWLEDGE", "FULL_ACCESS"] as const) {
+      expect(permissionsFor(set).has("integrations.read")).toBe(true);
+    }
+  });
+
+  it("integrations.manage is FULL_ACCESS only", () => {
+    expect(permissionsFor("READ_ONLY").has("integrations.manage")).toBe(false);
+    expect(permissionsFor("USE_AGENTS").has("integrations.manage")).toBe(false);
+    expect(permissionsFor("USE_AGENTS_PLUS_KNOWLEDGE").has("integrations.manage")).toBe(false);
+    expect(permissionsFor("FULL_ACCESS").has("integrations.manage")).toBe(true);
   });
 });
 

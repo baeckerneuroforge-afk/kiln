@@ -32,16 +32,24 @@ export type SubOrgPermission =
   | "workflows.read"
   | "workflows.write"
   | "integrations.read"
-  | "integrations.write"
+  | "integrations.manage"
   | "memberships.manage";
 
+// Sprint 19.7.4 — integrations.read is now in every permission set so
+// every member can see "Integrations are configured" (without seeing the
+// secrets), while .manage stays gated to FULL_ACCESS.
 const PERMISSIONS_BY_SET: Record<PermissionSet, ReadonlySet<SubOrgPermission>> = {
-  READ_ONLY: new Set<SubOrgPermission>(["conversations.read", "analytics.read"]),
+  READ_ONLY: new Set<SubOrgPermission>([
+    "conversations.read",
+    "analytics.read",
+    "integrations.read",
+  ]),
   USE_AGENTS: new Set<SubOrgPermission>([
     "conversations.read",
     "analytics.read",
     "agents.read",
     "agents.execute",
+    "integrations.read",
   ]),
   USE_AGENTS_PLUS_KNOWLEDGE: new Set<SubOrgPermission>([
     "conversations.read",
@@ -50,6 +58,7 @@ const PERMISSIONS_BY_SET: Record<PermissionSet, ReadonlySet<SubOrgPermission>> =
     "agents.execute",
     "knowledge.read",
     "knowledge.write",
+    "integrations.read",
   ]),
   FULL_ACCESS: new Set<SubOrgPermission>([
     "conversations.read",
@@ -62,7 +71,7 @@ const PERMISSIONS_BY_SET: Record<PermissionSet, ReadonlySet<SubOrgPermission>> =
     "workflows.read",
     "workflows.write",
     "integrations.read",
-    "integrations.write",
+    "integrations.manage",
     "memberships.manage",
   ]),
 };
