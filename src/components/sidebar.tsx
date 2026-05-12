@@ -320,7 +320,6 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
   const { user } = useUser();
   const { signOut } = useClerk();
   const [plan, setPlan] = useState<string>("FREE");
-  const [agentCount, setAgentCount] = useState<number>(0);
   const [canViewOperations, setCanViewOperations] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -438,21 +437,15 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
   }
 
   useEffect(() => {
-    // /api/stripe/plan returns both plan AND agentCount, scoped by userId
-    // (NOT by active org). We use both fields here so the Clients link
-    // gating (requiresBusiness + minAgents) doesn't depend on the
-    // sidebar-mount-vs-org-activation race: a separate /api/agents fetch
-    // is org-scoped after Phase 2.2 and returns 0 when the active org
-    // hasn't been set yet, which would hide every minAgents-gated link.
+    // Sprint 19.6.1 — only plan is read here now; agentCount used to
+    // gate minAgents items but that gate was removed. canViewOperations
+    // upgrades any AGENCY/ENTERPRISE/ADMIN tier into the ops view.
     fetch("/api/stripe/plan")
       .then((res) => res.json())
       .then((data) => {
         setPlan(data.plan || "FREE");
         if (["AGENCY", "ENTERPRISE", "ADMIN"].includes(data.plan || "FREE")) {
           setCanViewOperations(true);
-        }
-        if (typeof data.agentCount === "number") {
-          setAgentCount(data.agentCount);
         }
       })
       .catch(() => {});
