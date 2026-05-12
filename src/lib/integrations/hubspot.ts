@@ -374,13 +374,8 @@ export class HubSpotIntegration {
 }
 
 export async function getHubSpotConnection(userId: string) {
-  return prisma.integrationConnection.findUnique({
-    where: {
-      userId_provider: {
-        userId,
-        provider: HUBSPOT_PROVIDER,
-      },
-    },
+  return prisma.integrationConnection.findFirst({
+    where: { userId, provider: HUBSPOT_PROVIDER },
   });
 }
 

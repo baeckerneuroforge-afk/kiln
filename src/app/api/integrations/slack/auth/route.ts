@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { encodeOAuthState } from "@/lib/integrations/oauth-state";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +19,11 @@ export async function GET(request: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
   const redirectUri = `${appUrl}/api/integrations/slack/callback`;
 
-  // Pass agentId through state param so we know which agent to connect after OAuth
-  const agentId = request.nextUrl.searchParams.get("agentId") || "";
-  const state = Buffer.from(JSON.stringify({ userId, agentId })).toString("base64url");
+  // Carry agentId + subOrgId through state so the callback can return to
+  // the right page and persist under the right org.
+  const agentId = request.nextUrl.searchParams.get("agentId") || undefined;
+  const subOrgId = request.nextUrl.searchParams.get("subOrgId") || undefined;
+  const state = encodeOAuthState({ userId, agentId, subOrgId });
 
   const scopes = [
     "channels:history",

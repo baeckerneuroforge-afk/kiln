@@ -1,12 +1,14 @@
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/encryption";
 import { readConfigJson } from "@/lib/integrations/config-storage";
 import { logAudit } from "@/lib/audit/logger";
+import { decodeOAuthState } from "@/lib/integrations/oauth-state";
+import { resolveOAuthTargetOrgId } from "@/lib/integrations/oauth-target";
 import {
   GMAIL_PROVIDER,
   GmailIntegration,
   exchangeGmailCode,
-  getGmailConnection,
   getGmailRedirectUri,
   type GmailConnectionConfig,
 } from "@/lib/integrations/gmail";
@@ -34,15 +36,28 @@ export async function GET(request: Request) {
       console.warn("Gmail callback hit an unexpected redirect URI", `${url.origin}${url.pathname}`, getGmailRedirectUri());
     }
 
-    let state: { userId: string; redirectTo?: string };
-    try {
-      state = JSON.parse(Buffer.from(stateParam, "base64url").toString()) as { userId: string; redirectTo?: string };
-    } catch {
+    const state = decodeOAuthState(stateParam);
+    if (!state) {
       return Response.redirect(`${appUrl}/dashboard/integrations?gmail_error=invalid_state`);
     }
 
-    // Vorherige Verbindung laden (für refresh_token merge)
-    const previousConnection = await getGmailConnection(state.userId);
+    // Resolve which Clerk org this connection should land in. The agency
+    // fallback is the user's current active Clerk org from auth() — this
+    // also matters when the user hits /callback in a different tab than
+    // /auth (Clerk session is fresh, state.subOrgId is still authoritative).
+    const { orgId: activeOrgId } = await auth();
+    const target = await resolveOAuthTargetOrgId({
+      userId: state.userId,
+      agencyOrgId: activeOrgId,
+      subOrgId: state.subOrgId,
+    });
+    if (!target.ok) {
+      return Response.redirect(`${appUrl}/dashboard/integrations?gmail_error=${target.status === 404 ? "sub_org_not_found" : "forbidden"}`);
+    }
+
+    const previousConnection = await prisma.integrationConnection.findFirst({
+      where: { userId: state.userId, orgId: target.orgId, provider: GMAIL_PROVIDER },
+    });
     const previousConfig = previousConnection
       ? readConfigJson<GmailConnectionConfig>(previousConnection.config).data
       : null;
@@ -57,7 +72,6 @@ export async function GET(request: Request) {
       email: previousConfig?.email || null,
     };
 
-    // E-Mail-Adresse des verbundenen Kontos ermitteln
     const integration = new GmailIntegration(mergedConfig);
     try {
       const profile = await integration.getProfile();
@@ -78,6 +92,7 @@ export async function GET(request: Request) {
           config: encryptedConfig,
           isActive: true,
           lastSyncAt: new Date(),
+          orgId: target.orgId,
         },
       });
       connectionId = previousConnection.id;
@@ -85,6 +100,7 @@ export async function GET(request: Request) {
       const created = await prisma.integrationConnection.create({
         data: {
           userId: state.userId,
+          orgId: target.orgId,
           provider: GMAIL_PROVIDER,
           name: mergedConfig.email ? `Gmail (${mergedConfig.email})` : "Gmail",
           config: encryptedConfig,
@@ -95,17 +111,26 @@ export async function GET(request: Request) {
     }
 
     await logAudit({
-      orgId: previousConnection?.orgId ?? state.userId,
+      orgId: target.orgId ?? state.userId,
       actorUserId: state.userId,
       action: "INTEGRATION_CONNECTED",
       resourceType: "INTEGRATION_CONNECTION",
       resourceId: connectionId,
       description: `Gmail OAuth completed${mergedConfig.email ? ` (${mergedConfig.email})` : ""}`,
       severity: "INFO",
-      metadata: { provider: GMAIL_PROVIDER, hasRefreshToken: !!mergedConfig.refreshToken },
+      metadata: {
+        provider: GMAIL_PROVIDER,
+        hasRefreshToken: !!mergedConfig.refreshToken,
+        subOrgId: target.usedSubOrg?.subOrgId,
+      },
     });
 
-    const redirectTo = state.redirectTo || "/dashboard/integrations";
+    // Sub-org flows bounce back to the sub-org integrations page when we
+    // know we came from one; agency flows fall back to the redirectTo.
+    const subOrgRedirect = target.usedSubOrg
+      ? `/dashboard/sub-org/${target.usedSubOrg.subOrgId}/integrations`
+      : null;
+    const redirectTo = subOrgRedirect || state.redirectTo || "/dashboard/integrations";
     const redirect = redirectTo.startsWith("/") ? redirectTo : "/dashboard/integrations";
     return Response.redirect(`${appUrl}${redirect}${redirect.includes("?") ? "&" : "?"}gmail=connected`);
   } catch (error) {

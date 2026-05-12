@@ -58,32 +58,36 @@ export async function POST(request: Request) {
     // plaintext rows are still readable via readConfigJson on the read path.
     const encryptedConfig = encryptConfigJson(config || {});
 
-    const existing = await prisma.integrationConnection.findUnique({
-      where: { userId_provider: { userId, provider } },
+    // Sprint 19.7.5 — uniqueness is now per (userId, orgId, provider).
+    // Find the matching row scoped to the active org first, then update it
+    // in place; otherwise create one.
+    const existing = await prisma.integrationConnection.findFirst({
+      where: { userId, orgId, provider },
       select: { id: true, name: true, isActive: true, isCustom: true },
     });
 
-    // Upsert: update if same provider exists
-    const connection = await prisma.integrationConnection.upsert({
-      where: { userId_provider: { userId, provider } },
-      create: {
-        userId,
-        orgId,
-        provider,
-        name,
-        config: encryptedConfig,
-        isCustom: isCustom || false,
-        isActive: true,
-      },
-      update: {
-        name,
-        config: encryptedConfig,
-        isActive: true,
-        isCustom: isCustom || false,
-        // Stamp orgId on legacy rows that didn't have one yet.
-        orgId,
-      },
-    });
+    const connection = existing
+      ? await prisma.integrationConnection.update({
+          where: { id: existing.id },
+          data: {
+            name,
+            config: encryptedConfig,
+            isActive: true,
+            isCustom: isCustom || false,
+            orgId,
+          },
+        })
+      : await prisma.integrationConnection.create({
+          data: {
+            userId,
+            orgId,
+            provider,
+            name,
+            config: encryptedConfig,
+            isCustom: isCustom || false,
+            isActive: true,
+          },
+        });
 
     await logAudit({
       orgId,

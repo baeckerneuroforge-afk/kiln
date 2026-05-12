@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { encodeOAuthState } from "@/lib/integrations/oauth-state";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +17,9 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "Notion integration not configured" }, { status: 500 });
   }
 
-  // Pass agentId through state so we know which agent to configure after OAuth
-  const agentId = request.nextUrl.searchParams.get("agentId") || "";
-  const state = Buffer.from(JSON.stringify({ userId, agentId })).toString("base64url");
+  const agentId = request.nextUrl.searchParams.get("agentId") || undefined;
+  const subOrgId = request.nextUrl.searchParams.get("subOrgId") || undefined;
+  const state = encodeOAuthState({ userId, agentId, subOrgId });
 
   const notionUrl = new URL("https://api.notion.com/v1/oauth/authorize");
   notionUrl.searchParams.set("client_id", clientId);

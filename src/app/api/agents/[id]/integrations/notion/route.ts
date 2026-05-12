@@ -36,8 +36,8 @@ export async function GET(
     if (!agent) return Response.json({ error: "Agent not found" }, { status: 404 });
 
     // Check Notion connection
-    const connection = await prisma.integrationConnection.findUnique({
-      where: { userId_provider: { userId, provider: "notion" } },
+    const connection = await prisma.integrationConnection.findFirst({
+      where: { userId, provider: "notion" },
     });
 
     if (!connection || !connection.isActive) {
@@ -123,8 +123,8 @@ export async function POST(
     const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
     if (!agent) return Response.json({ error: "Agent not found" }, { status: 404 });
 
-    const connection = await prisma.integrationConnection.findUnique({
-      where: { userId_provider: { userId, provider: "notion" } },
+    const connection = await prisma.integrationConnection.findFirst({
+      where: { userId, provider: "notion" },
     });
 
     if (!connection || !connection.isActive) {
@@ -237,8 +237,8 @@ export async function DELETE(
     const agent = await prisma.agent.findFirst({ where: { id: agentId, userId } });
     if (!agent) return Response.json({ error: "Agent not found" }, { status: 404 });
 
-    const connection = await prisma.integrationConnection.findUnique({
-      where: { userId_provider: { userId, provider: "notion" } },
+    const connection = await prisma.integrationConnection.findFirst({
+      where: { userId, provider: "notion" },
     });
 
     if (connection) {

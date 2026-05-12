@@ -1,10 +1,12 @@
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { decrypt, encrypt } from "@/lib/encryption";
+import { decodeOAuthState } from "@/lib/integrations/oauth-state";
+import { resolveOAuthTargetOrgId } from "@/lib/integrations/oauth-target";
 import {
   GOOGLE_CALENDAR_PROVIDER,
   GoogleCalendarIntegration,
   exchangeGoogleCalendarCode,
-  getGoogleCalendarConnection,
   getGoogleCalendarRedirectUri,
   type GoogleCalendarConnectionConfig,
 } from "@/lib/integrations/google-calendar";
@@ -36,17 +38,24 @@ export async function GET(request: Request) {
       );
     }
 
-    let state: { userId: string; redirectTo?: string };
-    try {
-      state = JSON.parse(Buffer.from(stateParam, "base64url").toString()) as {
-        userId: string;
-        redirectTo?: string;
-      };
-    } catch {
+    const state = decodeOAuthState(stateParam);
+    if (!state) {
       return Response.redirect(`${appUrl}/dashboard/integrations?google_calendar_error=invalid_state`);
     }
 
-    const previousConnection = await getGoogleCalendarConnection(state.userId);
+    const { orgId: activeOrgId } = await auth();
+    const target = await resolveOAuthTargetOrgId({
+      userId: state.userId,
+      agencyOrgId: activeOrgId,
+      subOrgId: state.subOrgId,
+    });
+    if (!target.ok) {
+      return Response.redirect(`${appUrl}/dashboard/integrations?google_calendar_error=${target.status === 404 ? "sub_org_not_found" : "forbidden"}`);
+    }
+
+    const previousConnection = await prisma.integrationConnection.findFirst({
+      where: { userId: state.userId, orgId: target.orgId, provider: GOOGLE_CALENDAR_PROVIDER },
+    });
     const previousConfig = previousConnection
       ? (JSON.parse(decrypt(previousConnection.config)) as GoogleCalendarConnectionConfig)
       : null;
@@ -86,12 +95,14 @@ export async function GET(request: Request) {
           config: encryptedConfig,
           isActive: true,
           lastSyncAt: new Date(),
+          orgId: target.orgId,
         },
       });
     } else {
       await prisma.integrationConnection.create({
         data: {
           userId: state.userId,
+          orgId: target.orgId,
           provider: GOOGLE_CALENDAR_PROVIDER,
           name: "Google Calendar",
           config: encryptedConfig,
@@ -100,7 +111,10 @@ export async function GET(request: Request) {
       });
     }
 
-    const redirectTo = state.redirectTo || "/dashboard/integrations";
+    const subOrgRedirect = target.usedSubOrg
+      ? `/dashboard/sub-org/${target.usedSubOrg.subOrgId}/integrations`
+      : null;
+    const redirectTo = subOrgRedirect || state.redirectTo || "/dashboard/integrations";
     const redirect = redirectTo.startsWith("/") ? redirectTo : "/dashboard/integrations";
 
     return Response.redirect(`${appUrl}${redirect}${redirect.includes("?") ? "&" : "?"}google_calendar=connected`);

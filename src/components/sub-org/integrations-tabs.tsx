@@ -93,7 +93,7 @@ export function IntegrationsTabs({ subOrgId, agencyOrgPath, canManage }: Props) 
       </nav>
 
       {tab === "api-keys" && <ApiKeysTab subOrgId={subOrgId} canManage={canManage} />}
-      {tab === "oauth" && <OAuthTab canManage={canManage} />}
+      {tab === "oauth" && <OAuthTab subOrgId={subOrgId} canManage={canManage} />}
       {tab === "modules" && <ModulesTab agencyOrgPath={agencyOrgPath} />}
     </div>
   );
@@ -282,38 +282,140 @@ function ApiKeysTab({ subOrgId, canManage }: { subOrgId: string; canManage: bool
   );
 }
 
-function OAuthTab({ canManage }: { canManage: boolean }) {
+interface OAuthConnection {
+  id: string;
+  provider: string;
+  identifier: string;
+  connectedAt: string;
+}
+
+function OAuthTab({ subOrgId, canManage }: { subOrgId: string; canManage: boolean }) {
+  const [connections, setConnections] = useState<OAuthConnection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyProvider, setBusyProvider] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/sub-orgs/${subOrgId}/oauth`);
+      if (!res.ok) {
+        setError("Konnte OAuth-Connections nicht laden.");
+        return;
+      }
+      const data = await res.json();
+      setConnections(data.connections ?? []);
+      setError(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subOrgId]);
+
+  async function handleDisconnect(provider: string) {
+    setBusyProvider(provider);
+    try {
+      const res = await fetch(`/api/sub-orgs/${subOrgId}/oauth/${provider}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Disconnect fehlgeschlagen.");
+        return;
+      }
+      await load();
+    } finally {
+      setBusyProvider(null);
+    }
+  }
+
+  function connectUrl(providerId: string) {
+    return `/api/integrations/${providerId}/auth?subOrgId=${encodeURIComponent(subOrgId)}`;
+  }
+
+  const connectedByProvider = new Map(connections.map((c) => [c.provider, c]));
+
   return (
     <div data-testid="integrations-oauth-panel">
       <p className="mb-4 text-sm text-muted-foreground">
         OAuth-Konnektoren pro Sub-Org. Verbindungen werden separat verwaltet —
-        eine Agency kann z.B. unterschiedliche Slack-Workspaces pro Sub-Org
-        anbinden. Connect-Flow + tiefe Callback-Verknüpfung kommen in Sprint 19.7.5.
+        die Agency kann z.B. unterschiedliche Slack-Workspaces oder Gmail-Konten
+        pro Sub-Org anbinden.
       </p>
-      <div className="space-y-2">
-        {OAUTH_PROVIDERS.map((p) => (
-          <div
-            key={p.id}
-            className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4"
-            data-testid={`integrations-oauth-row-${p.id}`}
-          >
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">{p.name}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{p.blurb}</p>
-            </div>
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs",
-                canManage
-                  ? "border-border bg-card/40 text-muted-foreground"
-                  : "border-border bg-muted/40 text-muted-foreground/70",
-              )}
-            >
-              {canManage ? "Coming in 19.7.5" : (<><Lock className="h-3 w-3" /> Nur Lesen</>)}
-            </span>
-          </div>
-        ))}
-      </div>
+
+      {error && (
+        <div className="mb-3 rounded-lg border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-400">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex h-24 items-center justify-center text-muted-foreground">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Lädt…
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {OAUTH_PROVIDERS.map((p) => {
+            const connection = connectedByProvider.get(p.id);
+            const isConnected = !!connection;
+            return (
+              <div
+                key={p.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4"
+                data-testid={`integrations-oauth-row-${p.id}`}
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">{p.name}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{p.blurb}</p>
+                  {isConnected && (
+                    <p
+                      className="mt-1 text-xs text-kiln-orange"
+                      data-testid={`integrations-oauth-status-${p.id}`}
+                    >
+                      Connected · {connection.identifier}
+                    </p>
+                  )}
+                </div>
+                {isConnected ? (
+                  canManage ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => handleDisconnect(p.id)}
+                      disabled={busyProvider === p.id}
+                      data-testid={`integrations-oauth-disconnect-${p.id}`}
+                    >
+                      {busyProvider === p.id ? (
+                        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      ) : null}
+                      Disconnect
+                    </Button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-md border border-border bg-card/40 px-3 py-1.5 text-xs text-muted-foreground">
+                      <Lock className="h-3 w-3" /> Verbunden
+                    </span>
+                  )
+                ) : canManage ? (
+                  <Link
+                    href={connectUrl(p.id)}
+                    className={buttonVariants({ variant: "default" })}
+                    data-testid={`integrations-oauth-connect-${p.id}`}
+                  >
+                    Connect
+                  </Link>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground/70">
+                    <Lock className="h-3 w-3" /> Nur Lesen
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

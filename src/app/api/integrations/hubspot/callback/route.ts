@@ -1,10 +1,12 @@
+import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { decrypt, encrypt } from "@/lib/encryption";
+import { decodeOAuthState } from "@/lib/integrations/oauth-state";
+import { resolveOAuthTargetOrgId } from "@/lib/integrations/oauth-target";
 import {
   HUBSPOT_PROVIDER,
   HubSpotIntegration,
   exchangeHubSpotCode,
-  getHubSpotConnection,
   type HubSpotConnectionConfig,
 } from "@/lib/integrations/hubspot";
 
@@ -27,18 +29,24 @@ export async function GET(request: Request) {
       return Response.redirect(`${appUrl}/dashboard/integrations?hubspot_error=missing_code`);
     }
 
-    let state: { userId: string; redirectTo?: string; agentId?: string };
-    try {
-      state = JSON.parse(Buffer.from(stateParam, "base64url").toString()) as {
-        userId: string;
-        redirectTo?: string;
-        agentId?: string;
-      };
-    } catch {
+    const state = decodeOAuthState(stateParam);
+    if (!state) {
       return Response.redirect(`${appUrl}/dashboard/integrations?hubspot_error=invalid_state`);
     }
 
-    const previousConnection = await getHubSpotConnection(state.userId);
+    const { orgId: activeOrgId } = await auth();
+    const target = await resolveOAuthTargetOrgId({
+      userId: state.userId,
+      agencyOrgId: activeOrgId,
+      subOrgId: state.subOrgId,
+    });
+    if (!target.ok) {
+      return Response.redirect(`${appUrl}/dashboard/integrations?hubspot_error=${target.status === 404 ? "sub_org_not_found" : "forbidden"}`);
+    }
+
+    const previousConnection = await prisma.integrationConnection.findFirst({
+      where: { userId: state.userId, orgId: target.orgId, provider: HUBSPOT_PROVIDER },
+    });
     const previousConfig = previousConnection
       ? (JSON.parse(decrypt(previousConnection.config)) as HubSpotConnectionConfig)
       : null;
@@ -70,12 +78,14 @@ export async function GET(request: Request) {
           config: encryptedConfig,
           isActive: true,
           lastSyncAt: new Date(),
+          orgId: target.orgId,
         },
       });
     } else {
       await prisma.integrationConnection.create({
         data: {
           userId: state.userId,
+          orgId: target.orgId,
           provider: HUBSPOT_PROVIDER,
           name: mergedConfig.accountLabel || "HubSpot",
           config: encryptedConfig,
@@ -84,8 +94,12 @@ export async function GET(request: Request) {
       });
     }
 
-    const redirect =
-      state.agentId && state.agentId.trim()
+    const subOrgRedirect = target.usedSubOrg
+      ? `/dashboard/sub-org/${target.usedSubOrg.subOrgId}/integrations`
+      : null;
+    const redirect = subOrgRedirect
+      ? subOrgRedirect
+      : state.agentId && state.agentId.trim()
         ? `/dashboard/agents/${state.agentId}?tab=channels&hubspot=connected`
         : state.redirectTo && state.redirectTo.startsWith("/")
         ? state.redirectTo

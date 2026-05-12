@@ -160,8 +160,11 @@ describe("runCleanup", () => {
     // To test the abort branch we simulate a stale snapshot: classifier
     // input misses the referencedIds set's contents.
     mockFindMany.mockResolvedValueOnce([
+      // The script narrows the query with `select: {id, parentOrgId, childOrgId}`
+      // but the Prisma type still describes the full row — cast through
+      // unknown so the mock fits the wider return type.
       { id: "r1", parentOrgId: "orphan", childOrgId: "child" },
-    ]);
+    ] as unknown as Parameters<typeof mockFindMany.mockResolvedValueOnce>[0]);
     // The classifier itself will mark "orphan" as KEEP_AGENCY (since it
     // appears in agencyClerkIds), so abortedReferencedDelete stays null
     // — verify the happy-path. To hit the abort we'd need the row to be

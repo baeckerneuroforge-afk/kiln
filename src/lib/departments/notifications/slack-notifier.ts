@@ -18,8 +18,8 @@ export interface SlackNotifyResult {
 export async function sendSlackApprovalNotification(
   args: SlackNotifyArgs
 ): Promise<SlackNotifyResult> {
-  const connection = await prisma.integrationConnection.findUnique({
-    where: { userId_provider: { userId: args.userId, provider: "slack" } },
+  const connection = await prisma.integrationConnection.findFirst({
+    where: { userId: args.userId, provider: "slack", isActive: true },
   });
 
   if (!connection || !connection.isActive) {

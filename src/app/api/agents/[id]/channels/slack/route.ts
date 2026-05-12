@@ -24,8 +24,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!agent) return Response.json({ error: "Agent not found" }, { status: 404 });
 
     // Load Slack integration connection (user-level)
-    const connection = await prisma.integrationConnection.findUnique({
-      where: { userId_provider: { userId, provider: "slack" } },
+    const connection = await prisma.integrationConnection.findFirst({
+      where: { userId, provider: "slack", isActive: true },
     });
 
     if (!connection || !connection.isActive) {
@@ -116,8 +116,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!agent) return Response.json({ error: "Agent not found" }, { status: 404 });
 
     // Check if Slack is connected at user level
-    const connection = await prisma.integrationConnection.findUnique({
-      where: { userId_provider: { userId, provider: "slack" } },
+    const connection = await prisma.integrationConnection.findFirst({
+      where: { userId, provider: "slack", isActive: true },
     });
 
     if (!connection || !connection.isActive) {

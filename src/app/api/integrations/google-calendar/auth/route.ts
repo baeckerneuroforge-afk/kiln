@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { buildGoogleCalendarAuthUrl } from "@/lib/integrations/google-calendar";
+import { encodeOAuthState } from "@/lib/integrations/oauth-state";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,8 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const redirectTo = url.searchParams.get("redirectTo") || "/dashboard/integrations";
-  const state = Buffer.from(JSON.stringify({ userId, redirectTo })).toString("base64url");
+  const subOrgId = url.searchParams.get("subOrgId") || undefined;
+  const state = encodeOAuthState({ userId, redirectTo, subOrgId });
 
   return Response.redirect(buildGoogleCalendarAuthUrl(state));
 }

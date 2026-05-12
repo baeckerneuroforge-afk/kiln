@@ -17,8 +17,8 @@ export async function exportLeadToNotion(
 ): Promise<void> {
   try {
     // Find Notion connection
-    const connection = await prisma.integrationConnection.findUnique({
-      where: { userId_provider: { userId, provider: "notion" } },
+    const connection = await prisma.integrationConnection.findFirst({
+      where: { userId, provider: "notion" },
     });
 
     if (!connection || !connection.isActive) return;
