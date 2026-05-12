@@ -12,6 +12,7 @@ const mockPrisma = vi.hoisted(() => ({
     findFirst: vi.fn(),
     findMany: vi.fn(),
     upsert: vi.fn(),
+    create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
   },
@@ -48,10 +49,16 @@ function makeRequest(body: unknown): Request {
 describe("POST /api/integrations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPrisma.integrationConnection.findUnique.mockResolvedValue(null);
-    mockPrisma.integrationConnection.upsert.mockImplementation(async ({ create }: { create: Record<string, unknown> }) => ({
+    // Sprint 19.7.5 — route now uses findFirst + create/update instead of
+    // upsert(userId_provider). Default: no existing row → create path.
+    mockPrisma.integrationConnection.findFirst.mockResolvedValue(null);
+    mockPrisma.integrationConnection.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
       id: "ic_new",
-      ...create,
+      ...data,
+    }));
+    mockPrisma.integrationConnection.update.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
+      id: "ic_1",
+      ...data,
     }));
     mockPrisma.auditLog.create.mockResolvedValue({});
   });
@@ -64,8 +71,8 @@ describe("POST /api/integrations", () => {
     const { POST } = await import("@/app/api/integrations/route");
     const response = await POST(makeRequest({ provider: "telegram", name: "Bot", config: { token: "secret-token" } }));
     expect(response.status).toBe(200);
-    const upsertArgs = mockPrisma.integrationConnection.upsert.mock.calls[0]?.[0];
-    const writtenConfig = upsertArgs?.create?.config as string;
+    const createArgs = mockPrisma.integrationConnection.create.mock.calls[0]?.[0];
+    const writtenConfig = createArgs?.data?.config as string;
     expect(writtenConfig).toMatch(/^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/);
     expect(writtenConfig).not.toContain("secret-token");
   });
@@ -81,7 +88,7 @@ describe("POST /api/integrations", () => {
   });
 
   it("logs INTEGRATION_CONFIG_UPDATED on existing-row update", async () => {
-    mockPrisma.integrationConnection.findUnique.mockResolvedValueOnce({
+    mockPrisma.integrationConnection.findFirst.mockResolvedValueOnce({
       id: "ic_1",
       name: "Bot",
       isActive: true,

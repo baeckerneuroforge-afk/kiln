@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockPrisma = vi.hoisted(() => ({
-  integrationConnection: { findUnique: vi.fn() },
+  integrationConnection: { findFirst: vi.fn() },
 }));
 const decryptMock = vi.hoisted(() => vi.fn());
 const sendSlackMock = vi.hoisted(() => vi.fn());
@@ -23,7 +23,7 @@ describe("slack-notifier", () => {
   });
 
   it("returns no_slack_integration when connection missing", async () => {
-    mockPrisma.integrationConnection.findUnique.mockResolvedValue(null);
+    mockPrisma.integrationConnection.findFirst.mockResolvedValue(null);
     const result = await sendSlackApprovalNotification({
       userId: "u1",
       orgId: "o1",
@@ -35,7 +35,7 @@ describe("slack-notifier", () => {
   });
 
   it("returns missing_access_token when decrypted config has none", async () => {
-    mockPrisma.integrationConnection.findUnique.mockResolvedValue({
+    mockPrisma.integrationConnection.findFirst.mockResolvedValue({
       isActive: true,
       config: "encrypted",
     });
@@ -50,7 +50,7 @@ describe("slack-notifier", () => {
   });
 
   it("calls sendSlackMessage with token and channel", async () => {
-    mockPrisma.integrationConnection.findUnique.mockResolvedValue({
+    mockPrisma.integrationConnection.findFirst.mockResolvedValue({
       isActive: true,
       config: "encrypted",
     });
@@ -68,7 +68,7 @@ describe("slack-notifier", () => {
   });
 
   it("returns error when slack API responds with not_ok", async () => {
-    mockPrisma.integrationConnection.findUnique.mockResolvedValue({
+    mockPrisma.integrationConnection.findFirst.mockResolvedValue({
       isActive: true,
       config: "encrypted",
     });

@@ -105,7 +105,7 @@ export function TemplateDeployModal({
         <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
           <div className="min-w-0">
             <h2 className="font-serif text-lg text-foreground">
-              Deploy „{templateName}" auf Sub-Org(s)
+              Deploy {templateName} auf Sub-Org(s)
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
               Wähle die Sub-Orgs aus, in denen das Template installiert werden soll.

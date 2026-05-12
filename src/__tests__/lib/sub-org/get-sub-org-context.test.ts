@@ -28,8 +28,11 @@ function makeContextDeps(overrides: {
         }
       : overrides.subOrg,
   );
+  // Use `in` to honour an explicit `null` override (??) coerces null
+  // to the default and made the unauthenticated branch unreachable).
+  const userId = "userId" in overrides ? overrides.userId : "user_1";
   return {
-    auth: vi.fn().mockResolvedValue({ userId: overrides.userId ?? "user_1" }),
+    auth: vi.fn().mockResolvedValue({ userId }),
     prisma: {
       orgRelationship: { findUnique: findSubOrg },
       subOrgMembership: { findUnique: findMembership },
@@ -42,7 +45,9 @@ function makeContextDeps(overrides: {
 describe("getSubOrgContext", () => {
   it("returns null when the caller is unauthenticated", async () => {
     const deps = makeContextDeps({ userId: null });
-    await expect(getSubOrgContext("sub_1", { auth: deps.auth })).resolves.toBeNull();
+    // Pass the fake prisma too so the helper never falls through to
+    // defaultPrisma (which would crash without a DATABASE_URL in unit tests).
+    await expect(getSubOrgContext("sub_1", { auth: deps.auth, prisma: deps.prisma })).resolves.toBeNull();
   });
 
   it("returns null when the user has no SubOrgMembership for the sub-org", async () => {
