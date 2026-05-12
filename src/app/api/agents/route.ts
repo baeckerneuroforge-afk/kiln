@@ -5,6 +5,7 @@ import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
 import { validateSchema } from "@/lib/agents/io-schema-validator";
 import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
 import { orgScopeFilter } from "@/lib/auth/org-scope";
+import { resolveCreateTargetOrgId } from "@/lib/sub-org/resolve-create-target";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -69,7 +70,23 @@ export async function POST(request: NextRequest) {
       triggerConfig,
       outputType,
       outputConfig,
+      // Sprint 19.7.4 — when the create flow originates from a sub-org
+      // page, the client passes the OrgRelationship.id here so we
+      // create the agent under the sub-org's Clerk org instead of the
+      // active agency org.
+      subOrgId,
     } = body;
+
+    const target = await resolveCreateTargetOrgId({
+      userId,
+      defaultOrgId: orgId,
+      subOrgId: typeof subOrgId === "string" ? subOrgId : null,
+      requiredPermission: "agents.write",
+    });
+    if (!target.ok) {
+      return Response.json({ error: target.error }, { status: target.status });
+    }
+    const effectiveOrgId = target.orgId;
     // Backward-compat: accept legacy field names (agentMode, agentType) from
     // older API consumers; prefer the new names (mode, visibility) when present.
     const mode = body.mode ?? body.agentMode;
@@ -129,7 +146,7 @@ export async function POST(request: NextRequest) {
     const agent = await prisma.agent.create({
       data: {
         userId,
-        orgId,
+        orgId: effectiveOrgId,
         name,
         slug: finalSlug,
         description,

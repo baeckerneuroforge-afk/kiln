@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCurrentContext } from "@/hooks/useCurrentContext";
 import {
   ArrowLeft,
   ArrowRight,
@@ -33,6 +34,14 @@ type TaskStep = "describe" | "trigger" | "tools" | "output" | "review";
 export default function NewAgentPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Sprint 19.7.4 — when the form is reached from /dashboard/sub-org/[id]
+  // the new agent gets scoped to that sub-org instead of the agency.
+  const ctx = useCurrentContext();
+  const subOrgId = ctx.type === "sub_org" ? ctx.id : null;
+  const successPath = (agentId: string) =>
+    subOrgId
+      ? `/dashboard/sub-org/${subOrgId}/agents`
+      : `/dashboard/agents/${agentId}`;
   const [mode, setMode] = useState<AgentMode | null>(null);
   const [config, setConfig] = useState<GeneratedAgentConfig | null>(null);
   const [streamingText, setStreamingText] = useState("");
@@ -77,6 +86,7 @@ export default function NewAgentPage() {
           suggestedQuestions: config.suggested_questions,
           suggestedActions: config.suggested_actions,
           mode: "CHAT",
+          ...(subOrgId ? { subOrgId } : {}),
         }),
       });
 
@@ -86,7 +96,7 @@ export default function NewAgentPage() {
       }
 
       const agent = await res.json();
-      router.push(`/dashboard/agents/${agent.id}`);
+      router.push(successPath(agent.id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
       setIsSaving(false);
@@ -119,6 +129,7 @@ export default function NewAgentPage() {
           triggerConfig: triggerType === "SCHEDULE" ? { cron: cronExpression } : null,
           outputType,
           outputConfig: Object.keys(outputConfig).length > 0 ? outputConfig : null,
+          ...(subOrgId ? { subOrgId } : {}),
         }),
       });
 
@@ -128,7 +139,7 @@ export default function NewAgentPage() {
       }
 
       const agent = await res.json();
-      router.push(`/dashboard/agents/${agent.id}`);
+      router.push(successPath(agent.id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
       setTaskSaving(false);
@@ -278,6 +289,7 @@ export default function NewAgentPage() {
           suggestedQuestions: data.suggestedQuestions || [],
           suggestedActions,
           mode,
+          ...(subOrgId ? { subOrgId } : {}),
         }),
       });
 
@@ -313,7 +325,7 @@ export default function NewAgentPage() {
         });
       }
 
-      router.push(`/dashboard/agents/${agent.id}`);
+      router.push(successPath(agent.id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid config file");
       setIsSaving(false);

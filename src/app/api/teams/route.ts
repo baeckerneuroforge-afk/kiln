@@ -6,6 +6,7 @@ import { describeTeamSchedule, normalizeTeamScheduleConfig } from "@/lib/team-sc
 import { getAccessibleTeamIds } from "@/lib/team-permissions";
 import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
 import { orgScopeFilter } from "@/lib/auth/org-scope";
+import { resolveCreateTargetOrgId } from "@/lib/sub-org/resolve-create-target";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -165,7 +166,7 @@ export async function POST(request: NextRequest) {
     const { userId, orgId } = scope;
 
     const body = await request.json();
-    const { name, description, goal, template: templateKey, isSubWorkflow } = body;
+    const { name, description, goal, template: templateKey, isSubWorkflow, subOrgId } = body;
 
     if (!name && !templateKey) {
       return Response.json(
@@ -173,6 +174,20 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Sprint 19.7.4 — sub-org-scoped create. When the client is in a
+    // sub-org page it passes the OrgRelationship.id so the new workflow
+    // lands under the sub-org's Clerk org rather than the active agency.
+    const target = await resolveCreateTargetOrgId({
+      userId,
+      defaultOrgId: orgId,
+      subOrgId: typeof subOrgId === "string" ? subOrgId : null,
+      requiredPermission: "workflows.write",
+    });
+    if (!target.ok) {
+      return Response.json({ error: target.error }, { status: target.status });
+    }
+    const effectiveOrgId = target.orgId;
 
     // Ensure user exists
     const userEmail = await getUserEmailOrPlaceholder(userId);
@@ -203,7 +218,7 @@ export async function POST(request: NextRequest) {
     const team = await prisma.agentTeam.create({
       data: {
         userId,
-        orgId,
+        orgId: effectiveOrgId,
         name,
         description: description || null,
         goal: goal || null,
