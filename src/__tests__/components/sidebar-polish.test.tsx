@@ -38,6 +38,10 @@ vi.mock("@/components/org-switcher", () => ({
   OrgChangeRefresh: () => null,
 }));
 
+vi.mock("@/components/context-switcher", () => ({
+  ContextSwitcher: () => <div data-testid="context-switcher" />,
+}));
+
 vi.mock("@/components/agency-org-switcher", () => ({
   AgencyOrgSwitcher: () => <div data-testid="agency-org-switcher" />,
 }));
