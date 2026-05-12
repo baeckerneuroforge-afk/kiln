@@ -35,7 +35,6 @@ import { Separator } from "@/components/ui/separator";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 import { WhatsNewBell } from "@/components/whats-new";
 import { OrgChangeRefresh } from "@/components/org-switcher";
-import { AgencyOrgSwitcher } from "@/components/agency-org-switcher";
 import { ContextSwitcher } from "@/components/context-switcher";
 import { useOrgModeDetails } from "@/hooks/use-org-mode";
 import { useEffect, useRef, useState } from "react";
@@ -645,16 +644,11 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
 
         <Separator className={cn("my-2", isCollapsed ? "lg:mx-2" : "mx-3")} />
 
-        {/* Active organization — custom switcher with agency / sub-org grouping */}
+        {/* Sprint 19.7.4.1 — single hierarchical context switcher.
+            Combines Clerk-org switching (setActive) and KILN-side
+            route switching (/dashboard ↔ /dashboard/sub-org/[id]) in
+            one dropdown; the old AgencyOrgSwitcher is retired. */}
         <OrgChangeRefresh />
-        <div className="mb-1">
-          <AgencyOrgSwitcher collapsed={isCollapsed} />
-        </div>
-
-        {/* Sprint 19.7.2 — KILN-side context switcher: routes between
-            Agency Overview and any sub-org the user has membership in,
-            without touching the Clerk session. Self-hides when the
-            user has no sub-org memberships. */}
         <ContextSwitcher collapsed={isCollapsed} />
 
         <Separator className={cn("my-2", isCollapsed ? "lg:mx-2" : "mx-3")} />
