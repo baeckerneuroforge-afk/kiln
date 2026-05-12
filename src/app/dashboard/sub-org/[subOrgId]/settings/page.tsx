@@ -44,7 +44,7 @@ export default async function SubOrgSettingsPage({ params }: PageProps) {
             Settings
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Profil + Branding für „{subOrg.subOrgName}".
+            Profil + Branding für {subOrg.subOrgName}.
           </p>
         </div>
         {canEdit ? (

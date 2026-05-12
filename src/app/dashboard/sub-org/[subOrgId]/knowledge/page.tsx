@@ -33,7 +33,7 @@ export default async function SubOrgKnowledgePage({ params }: PageProps) {
             Knowledge Base
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Dokumente und Sources für „{context.subOrg.subOrgName}".
+            Dokumente und Sources für {context.subOrg.subOrgName}.
           </p>
         </div>
         {canWrite ? (

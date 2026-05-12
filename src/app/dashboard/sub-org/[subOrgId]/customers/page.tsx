@@ -27,7 +27,7 @@ export default async function SubOrgCustomersPage({ params }: PageProps) {
           Customers
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          End-Customer-Profile im Workspace „{context.subOrg.subOrgName}".
+          End-Customer-Profile im Workspace {context.subOrg.subOrgName}.
         </p>
       </header>
 

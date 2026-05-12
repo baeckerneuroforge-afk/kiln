@@ -48,7 +48,7 @@ export default async function SubOrgMembershipsPage({ params }: PageProps) {
             Memberships
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Team-Members im Workspace „{context.subOrg.subOrgName}".
+            Team-Members im Workspace {context.subOrg.subOrgName}.
           </p>
         </div>
         {canManage ? (
@@ -75,7 +75,7 @@ export default async function SubOrgMembershipsPage({ params }: PageProps) {
           <p className="text-base font-medium text-foreground">Noch keine Members.</p>
           <p className="mt-1 text-sm text-muted-foreground">
             {canManage
-              ? `Lade Team-Members ein, damit sie an „${context.subOrg.subOrgName}" arbeiten können.`
+              ? `Lade Team-Members ein, damit sie an ${context.subOrg.subOrgName} arbeiten können.`
               : "Kontaktiere deine Agency, um Members hinzuzufügen."}
           </p>
         </div>

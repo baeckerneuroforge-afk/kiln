@@ -38,7 +38,7 @@ export default async function SubOrgAgentsPage({ params }: PageProps) {
             Agents
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Agents im Workspace „{context.subOrg.subOrgName}".
+            Agents im Workspace {context.subOrg.subOrgName}.
           </p>
         </div>
         {canWrite ? (

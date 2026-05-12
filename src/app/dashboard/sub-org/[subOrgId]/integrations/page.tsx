@@ -27,7 +27,7 @@ export default async function SubOrgIntegrationsPage({ params }: PageProps) {
           Integrations
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Verbinde „{context.subOrg.subOrgName}" mit deinen Tools.
+          Verbinde {context.subOrg.subOrgName} mit deinen Tools.
         </p>
       </header>
 

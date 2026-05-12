@@ -26,7 +26,7 @@ export default async function SubOrgConversationsPage({ params }: PageProps) {
           Conversations
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Letzte Chats im Workspace „{context.subOrg.subOrgName}".
+          Letzte Chats im Workspace {context.subOrg.subOrgName}.
         </p>
       </header>
 
