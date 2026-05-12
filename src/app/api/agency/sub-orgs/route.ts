@@ -16,6 +16,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { canCreateSubOrg } from "@/lib/agency/permissions";
+import { addOwnerMembership, subOrgMetadata } from "@/lib/sub-org/provision";
 
 export const dynamic = "force-dynamic";
 
@@ -107,11 +108,14 @@ export async function POST(request: Request) {
     );
   }
 
-  // Create the Clerk org with the agency owner as creator/admin.
+  // Create the Clerk org with the agency owner as creator/admin. The
+  // publicMetadata tag lets the clerk webhook recognise sub-org events
+  // without a DB round-trip (Sprint 19.7.1).
   const client = await clerkClient();
   const newOrg = await client.organizations.createOrganization({
     name: rawName,
     createdBy: userId,
+    publicMetadata: subOrgMetadata(agencyOrgId),
   });
 
   // Persist the parent → child link.
@@ -123,6 +127,10 @@ export async function POST(request: Request) {
       subOrgName: rawName,
     },
   });
+
+  // Agency owner gets OWNER/FULL_ACCESS on the new sub-org so subsequent
+  // permission checks recognise them without a separate invite.
+  await addOwnerMembership({ subOrgId: relationship.id, userId });
 
   return Response.json(
     {

@@ -2,6 +2,7 @@ import { clerkClient } from "@clerk/nextjs/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { canCreateSubOrg } from "@/lib/agency/permissions";
+import { addOwnerMembership, subOrgMetadata } from "@/lib/sub-org/provision";
 import { applySubOrgBranding } from "@/lib/onboarding/branding-applier";
 import { setupOnboardingChannels } from "@/lib/onboarding/channel-setup";
 import { installIndustryPack } from "@/lib/industries/shared/industry-installer";
@@ -95,6 +96,7 @@ export async function executeOnboardingWizard(args: {
     const newOrg = await client.organizations.createOrganization({
       name: nameChoice.name,
       createdBy: args.userId,
+      publicMetadata: subOrgMetadata(args.agencyOrgId),
     });
 
     const relationship = await prisma.orgRelationship.create({
@@ -111,6 +113,8 @@ export async function executeOnboardingWizard(args: {
         emailSignature: args.config.branding.emailSignature,
       },
     });
+
+    await addOwnerMembership({ subOrgId: relationship.id, userId: args.userId });
 
     await setWizardProgress(args.config.wizardId, { label: "Creating Departments and Worker Agents", step: 3, total: totalSteps, status: "running" });
     const selectedTemplateIds = args.config.selectedTemplates
