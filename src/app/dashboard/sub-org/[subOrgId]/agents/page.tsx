@@ -16,6 +16,8 @@ import { Bot, Lock, Plus } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { getSubOrgContext } from "@/lib/sub-org/get-sub-org-context";
 import { getSubOrgAgents } from "@/lib/sub-org/get-sub-org-data";
+import { getAvailableAgentTemplateUpdates } from "@/lib/sub-org/get-template-updates";
+import { TemplateUpdatesBanner } from "@/components/sub-org/template-updates-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -28,9 +30,12 @@ export default async function SubOrgAgentsPage({ params }: PageProps) {
 
   const canWrite = context.permissions.has("agents.write");
   const agents = await getSubOrgAgents(context.clerkOrgId);
+  const templateUpdates = await getAvailableAgentTemplateUpdates(context.clerkOrgId);
 
   return (
     <div className="mx-auto max-w-5xl">
+      <TemplateUpdatesBanner updates={templateUpdates} kind="agents" />
+
       <header className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="flex items-center gap-2 font-serif text-2xl text-foreground">

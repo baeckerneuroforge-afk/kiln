@@ -29,6 +29,13 @@ const mockGetSubOrgCustomers = vi.hoisted(() => vi.fn());
 const mockGetSubOrgUsageStats = vi.hoisted(() => vi.fn());
 const mockGetSubOrgMemberships = vi.hoisted(() => vi.fn());
 const mockUserFindMany = vi.hoisted(() => vi.fn());
+// Sprint 19.7.5 — sub-org agents + workflows pages now call into the
+// template-updates helper, which queries these tables. Reset to
+// resolve-empty in beforeEach so banners don't render in tests that
+// don't care about template updates.
+const mockTemplateInstanceFindMany = vi.hoisted(() => vi.fn());
+const mockAgentTemplateFindMany = vi.hoisted(() => vi.fn());
+const mockWorkflowTemplateFindMany = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
   notFound: () => { throw new NotFoundError(); },
@@ -46,7 +53,12 @@ vi.mock("@/lib/sub-org/get-sub-org-data", () => ({
   getSubOrgMemberships: mockGetSubOrgMemberships,
 }));
 vi.mock("@/lib/prisma", () => ({
-  prisma: { user: { findMany: mockUserFindMany } },
+  prisma: {
+    user: { findMany: mockUserFindMany },
+    templateInstance: { findMany: mockTemplateInstanceFindMany },
+    agentTemplate: { findMany: mockAgentTemplateFindMany },
+    workflowTemplate: { findMany: mockWorkflowTemplateFindMany },
+  },
 }));
 
 import AgentsPage from "@/app/dashboard/sub-org/[subOrgId]/agents/page";
@@ -99,6 +111,12 @@ beforeEach(() => {
   mockGetSubOrgUsageStats.mockReset();
   mockGetSubOrgMemberships.mockReset();
   mockUserFindMany.mockReset();
+  mockTemplateInstanceFindMany.mockReset();
+  mockTemplateInstanceFindMany.mockResolvedValue([]);
+  mockAgentTemplateFindMany.mockReset();
+  mockAgentTemplateFindMany.mockResolvedValue([]);
+  mockWorkflowTemplateFindMany.mockReset();
+  mockWorkflowTemplateFindMany.mockResolvedValue([]);
 });
 
 const params = { subOrgId: "sub_1" };

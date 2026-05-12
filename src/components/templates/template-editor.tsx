@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, Send } from "lucide-react";
+import { Loader2, Save, Send, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TemplateDeployModal } from "@/components/templates/template-deploy-modal";
 
 type TemplateKind = "agents" | "workflows";
 
@@ -32,6 +33,7 @@ export function TemplateEditor({ kind, id }: { kind: TemplateKind; id: string })
   const [saving, setSaving] = useState(false);
   const [pushing, setPushing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [deployModalOpen, setDeployModalOpen] = useState(false);
 
   async function load() {
     const [templateResponse, instancesResponse] = await Promise.all([
@@ -128,6 +130,14 @@ export function TemplateEditor({ kind, id }: { kind: TemplateKind; id: string })
           />
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setDeployModalOpen(true)}
+            data-testid="template-editor-open-deploy"
+          >
+            <Rocket className="mr-2 h-4 w-4" />
+            Deploy auf Sub-Org(s)
+          </Button>
           <Button variant="outline" onClick={push} disabled={pushing || instances.length === 0}>
             <Send className="mr-2 h-4 w-4" />
             Push Update
@@ -198,6 +208,17 @@ export function TemplateEditor({ kind, id }: { kind: TemplateKind; id: string })
           </div>
         </aside>
       </div>
+
+      <TemplateDeployModal
+        open={deployModalOpen}
+        onClose={() => {
+          setDeployModalOpen(false);
+          void load();
+        }}
+        templateId={id}
+        templateKind={kind}
+        templateName={template.name}
+      />
     </div>
   );
 }
