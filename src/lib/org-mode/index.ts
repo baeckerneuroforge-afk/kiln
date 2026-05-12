@@ -2,7 +2,11 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireOrgId } from "@/lib/auth/org-context";
 
-export type OrgMode = "AGENCY" | "SUB_ORG" | "STANDALONE";
+// Sprint 19.6.1 — STANDALONE removed. KILN is a B2B2B agency platform,
+// so every Clerk org is either an AGENCY (provisions sub-orgs) or a
+// SUB_ORG (provisioned by an agency). A fresh agency org with no
+// sub-orgs yet is still "AGENCY" — sub-org count is not the gate.
+export type OrgMode = "AGENCY" | "SUB_ORG";
 
 export type OrgModeDetails = {
   mode: OrgMode;
@@ -28,13 +32,10 @@ export async function getOrgMode(orgId: string): Promise<OrgMode> {
   });
   if (asSubOrg) return "SUB_ORG";
 
-  const hasSubOrgs = await prisma.orgRelationship.findFirst({
-    where: { parentOrgId: orgId },
-    select: { id: true },
-  });
-  if (hasSubOrgs) return "AGENCY";
-
-  return "STANDALONE";
+  // Sprint 19.6.1 — Anything that isn't a sub-org is an AGENCY, even if
+  // no sub-orgs have been provisioned yet. The old STANDALONE branch
+  // collapsed empty agencies into a stripped-down sidebar; that's gone.
+  return "AGENCY";
 }
 
 export async function getOrgModeDetails(orgId: string): Promise<OrgModeDetails> {

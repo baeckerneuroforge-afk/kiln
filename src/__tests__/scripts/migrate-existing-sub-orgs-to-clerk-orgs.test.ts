@@ -101,7 +101,7 @@ function makeDeps(opts: {
       ? never
       : NonNullable<Parameters<typeof backfillSubOrg>[1]>["prismaClient"]
     : never;
-  return { clerk: clerk as never, prismaClient, getOrg, updateOrg, findUnique, create, update };
+  return { clerk, prismaClient, getOrg, updateOrg, findUnique, create, update };
 }
 
 describe("backfillSubOrg", () => {

@@ -28,9 +28,11 @@ describe("org mode detection", () => {
     await expect(getOrgMode("org_agency")).resolves.toBe("AGENCY");
   });
 
-  it("detects standalone orgs without relationships", async () => {
+  // Sprint 19.6.1 — STANDALONE removed. An org with no relationship rows
+  // is still an AGENCY, just one that hasn't provisioned a sub-org yet.
+  it("treats orgs without any relationship rows as AGENCY", async () => {
     mockPrisma.orgRelationship.findFirst.mockResolvedValue(null);
-    await expect(getOrgMode("org_solo")).resolves.toBe("STANDALONE");
+    await expect(getOrgMode("org_solo")).resolves.toBe("AGENCY");
   });
 
   it("checks child relationship before parent relationship", async () => {
@@ -55,10 +57,11 @@ describe("org mode detection", () => {
   });
 
   it("falls back to mode detection for non-sub-org details", async () => {
+    // Two findFirst calls: getOrgModeDetails (child check) +
+    // getOrgMode (child check again). Both null → AGENCY.
     mockPrisma.orgRelationship.findFirst
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: "rel_parent" });
+      .mockResolvedValueOnce(null);
     await expect(getOrgModeDetails("org_agency")).resolves.toMatchObject({ mode: "AGENCY", parentOrgId: null });
   });
 

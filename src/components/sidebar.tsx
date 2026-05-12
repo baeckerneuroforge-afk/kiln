@@ -27,6 +27,7 @@ import {
   CreditCard,
   TrendingUp,
   ShieldCheck,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -48,8 +49,11 @@ interface NavItem {
   name: string;
   href: string;
   icon: LucideIcon;
-  minAgents: number;
-  requiresPro?: boolean;
+  // Sprint 19.6.1 — minAgents/requiresPro removed. Items are always
+  // visible so users can discover the platform's surface; tier-locked
+  // items render with a Lock badge + "Upgrade to unlock" tooltip
+  // instead of disappearing.
+  //
   // Stripe-Connect-class features (AGENCY / ENTERPRISE / ADMIN only).
   // Branding white-label, Stripe Connect, revenue dashboard. NOT BUSINESS.
   requiresBusiness?: boolean;
@@ -93,13 +97,15 @@ interface NavSection {
 //   - /dashboard/data-explorer  → still routable; lives under Settings flow
 //   - /dashboard/templates/agents  → still routable; future sprint folds
 //     under Workflows tabs
+// Sprint 19.6.1 — items no longer carry a `minAgents` gate. Tier-locked
+// items still render but with a Lock badge (see Sidebar.isItemLocked).
 export const AGENCY_NAV_SECTIONS: NavSection[] = [
   {
     id: "primary",
     label: null,
     defaultOpen: true,
     items: [
-      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, minAgents: 0 },
+      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     ],
   },
   {
@@ -107,8 +113,8 @@ export const AGENCY_NAV_SECTIONS: NavSection[] = [
     label: "Customers",
     defaultOpen: true,
     items: [
-      { name: "Sub-Orgs", href: "/dashboard/agency/sub-orgs", icon: Building2, minAgents: 0, requiresAgencyTier: true },
-      { name: "Conversations", href: "/dashboard/conversations", icon: MessageSquare, minAgents: 0 },
+      { name: "Sub-Orgs", href: "/dashboard/agency/sub-orgs", icon: Building2, requiresAgencyTier: true },
+      { name: "Conversations", href: "/dashboard/conversations", icon: MessageSquare },
     ],
   },
   {
@@ -116,12 +122,11 @@ export const AGENCY_NAV_SECTIONS: NavSection[] = [
     label: "Build",
     defaultOpen: true,
     items: [
-      { name: "Agents", href: "/dashboard/agents", icon: Bot, minAgents: 0, tourId: "agents" },
+      { name: "Agents", href: "/dashboard/agents", icon: Bot, tourId: "agents" },
       {
         name: "Workflows",
         href: "/dashboard/teams",
         icon: Workflow,
-        minAgents: 0,
         tourId: "workflows",
         tooltipDescription: "Multi-step workflows + visual editor",
       },
@@ -129,11 +134,10 @@ export const AGENCY_NAV_SECTIONS: NavSection[] = [
         name: "Departments",
         href: "/dashboard/departments",
         icon: Building2,
-        minAgents: 0,
         tooltipDescription: "Autonomous manager-led teams",
       },
-      { name: "Knowledge", href: "/dashboard/knowledge", icon: Waypoints, minAgents: 1, tooltipDescription: "Knowledge bases and graph" },
-      { name: "Integrations", href: "/dashboard/integrations", icon: Plug, minAgents: 1, tourId: "integrations" },
+      { name: "Knowledge", href: "/dashboard/knowledge", icon: Waypoints, tooltipDescription: "Knowledge bases and graph" },
+      { name: "Integrations", href: "/dashboard/integrations", icon: Plug, tourId: "integrations" },
     ],
   },
   {
@@ -141,7 +145,7 @@ export const AGENCY_NAV_SECTIONS: NavSection[] = [
     label: "Insights",
     defaultOpen: false,
     items: [
-      { name: "Analytics", href: "/dashboard/intelligence", icon: Activity, minAgents: 1 },
+      { name: "Analytics", href: "/dashboard/intelligence", icon: Activity },
     ],
   },
   {
@@ -149,9 +153,9 @@ export const AGENCY_NAV_SECTIONS: NavSection[] = [
     label: "Extend",
     defaultOpen: false,
     items: [
-      { name: "Marketplace", href: "/marketplace", icon: Store, minAgents: 0 },
-      { name: "Industry Packs", href: "/dashboard/admin/industry-packs", icon: ShieldCheck, minAgents: 0, requiresAgencyTier: true },
-      { name: "Developers", href: "/developers", icon: Code2, minAgents: 0 },
+      { name: "Marketplace", href: "/marketplace", icon: Store },
+      { name: "Industry Packs", href: "/dashboard/admin/industry-packs", icon: ShieldCheck, requiresAgencyTier: true },
+      { name: "Developers", href: "/developers", icon: Code2 },
     ],
   },
   {
@@ -159,10 +163,10 @@ export const AGENCY_NAV_SECTIONS: NavSection[] = [
     label: "Manage",
     defaultOpen: false,
     items: [
-      { name: "Billing", href: "/dashboard/agency/billing", icon: CreditCard, minAgents: 0, requiresBusiness: true },
-      { name: "Revenue", href: "/dashboard/agency/revenue", icon: TrendingUp, minAgents: 0, requiresBusiness: true },
-      { name: "Branding", href: "/dashboard/agency/branding", icon: Settings, minAgents: 0, requiresBusiness: true },
-      { name: "Settings", href: "/dashboard/settings", icon: Settings, minAgents: 0 },
+      { name: "Billing", href: "/dashboard/agency/billing", icon: CreditCard, requiresBusiness: true },
+      { name: "Revenue", href: "/dashboard/agency/revenue", icon: TrendingUp, requiresBusiness: true },
+      { name: "Branding", href: "/dashboard/agency/branding", icon: Settings, requiresBusiness: true },
+      { name: "Settings", href: "/dashboard/settings", icon: Settings },
     ],
   },
 ];
@@ -173,40 +177,21 @@ export const SUB_ORG_NAV_SECTIONS: NavSection[] = [
     label: null,
     defaultOpen: true,
     items: [
-      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, minAgents: 0 },
-      { name: "Meine Departments", href: "/dashboard/departments", icon: Building2, minAgents: 0 },
-      { name: "Meine Agents", href: "/dashboard/agents", icon: Bot, minAgents: 0 },
-      { name: "Meine Workflows", href: "/dashboard/teams", icon: Workflow, minAgents: 0 },
-      { name: "Meine Conversations", href: "/dashboard/conversations", icon: MessageSquare, minAgents: 0 },
-      { name: "Meine Knowledge Base", href: "/dashboard/knowledge", icon: Waypoints, minAgents: 0 },
-      { name: "Meine Approvals", href: "/dashboard/departments", icon: ShieldCheck, minAgents: 0 },
-      { name: "Meine Integrationen", href: "/dashboard/integrations", icon: Plug, minAgents: 0 },
-      { name: "Settings", href: "/dashboard/settings", icon: Settings, minAgents: 0 },
+      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { name: "Meine Departments", href: "/dashboard/departments", icon: Building2 },
+      { name: "Meine Agents", href: "/dashboard/agents", icon: Bot },
+      { name: "Meine Workflows", href: "/dashboard/teams", icon: Workflow },
+      { name: "Meine Conversations", href: "/dashboard/conversations", icon: MessageSquare },
+      { name: "Meine Knowledge Base", href: "/dashboard/knowledge", icon: Waypoints },
+      { name: "Meine Approvals", href: "/dashboard/departments", icon: ShieldCheck },
+      { name: "Meine Integrationen", href: "/dashboard/integrations", icon: Plug },
+      { name: "Settings", href: "/dashboard/settings", icon: Settings },
     ],
   },
 ];
 
-export const STANDALONE_NAV_SECTIONS: NavSection[] = AGENCY_NAV_SECTIONS.map((section) => ({
-  ...section,
-  items: section.items.filter(
-    (item) =>
-      ![
-        "/dashboard/operations",
-        "/dashboard/onboarding",
-        "/dashboard/templates/agents",
-        "/dashboard/agency/sub-orgs",
-        "/dashboard/admin/industry-packs",
-        "/dashboard/agency/branding",
-        "/dashboard/agency/email-branding",
-        "/dashboard/agency/billing",
-        "/dashboard/agency/revenue",
-      ].includes(item.href)
-  ),
-}));
-
 export function getSidebarSectionsForMode(mode: OrgMode): NavSection[] {
   if (mode === "SUB_ORG") return SUB_ORG_NAV_SECTIONS;
-  if (mode === "STANDALONE") return STANDALONE_NAV_SECTIONS;
   return AGENCY_NAV_SECTIONS;
 }
 
@@ -447,31 +432,33 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
 
   const isCollapsed = collapsed;
   const orgMode = orgModeDetails.loading ? null : orgModeDetails.mode;
-  const navSections = getSidebarSectionsForMode(orgMode ?? "STANDALONE");
+  const navSections = getSidebarSectionsForMode(orgMode ?? "AGENCY");
 
-  // Check if an item should be visible based on plan/agent gates
+  // Sprint 19.6.1 — items are always visible (so users can discover the
+  // surface area of the platform). The only thing we hide entirely is
+  // `requiresAgencyOps`, which is internal and not a sales surface.
   function isItemVisible(item: NavItem): boolean {
     if (item.requiresAgencyOps && !canViewOperations && !pathname.startsWith("/dashboard/operations")) {
       return false;
     }
+    return true;
+  }
+
+  // Tier gates: still visible, but rendered with a Lock badge + tooltip.
+  // The link itself stays clickable so the user can hit the page and see
+  // its native upgrade prompt — we don't pre-empt that messaging here.
+  function isItemLocked(item: NavItem): boolean {
     if (item.requiresBusiness) {
       // Stripe-Connect-class plans only — BUSINESS does NOT qualify.
       const isBusiness = ["AGENCY", "ENTERPRISE", "ADMIN"].includes(plan);
-      if (!isBusiness) return false;
+      if (!isBusiness) return true;
     }
     if (item.requiresAgencyTier) {
       // Anyone with sub-orgs — BUSINESS, AGENCY, ENTERPRISE, ADMIN.
       const isAgencyTier = ["BUSINESS", "AGENCY", "ENTERPRISE", "ADMIN"].includes(plan);
-      if (!isAgencyTier) return false;
+      if (!isAgencyTier) return true;
     }
-    if (agentCount < item.minAgents) {
-      if (item.requiresPro) {
-        const isPro = ["PRO", "BUSINESS", "AGENCY", "ENTERPRISE", "ADMIN"].includes(plan);
-        if (isPro) return true;
-      }
-      return false;
-    }
-    return true;
+    return false;
   }
 
   function isActive(href: string): boolean {
@@ -645,17 +632,19 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                   <div className="flex flex-col gap-0.5">
                     {visibleItems.map((item, idx) => {
                       const active = isActive(item.href);
+                      const locked = isItemLocked(item);
                       return (
                         <NavTooltip
                           key={item.href}
                           label={item.name}
-                          description={item.tooltipDescription}
+                          description={locked ? "Upgrade to unlock" : item.tooltipDescription}
                           show={isCollapsed}
                         >
                           <Link
                             href={item.href}
                             onClick={onClose}
                             {...(item.tourId ? { "data-tour": item.tourId } : {})}
+                            {...(locked ? { "data-locked": "true" } : {})}
                             style={{ animationDelay: `${idx * 25}ms` }}
                             className={cn(
                               "group relative flex items-center rounded-md text-[13px] font-medium kiln-sidebar-fade-in",
@@ -665,7 +654,9 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                                 : "gap-3 px-3 py-2",
                               active
                                 ? "bg-kiln-orange/10 text-kiln-orange font-semibold"
-                                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                : locked
+                                  ? "text-muted-foreground/60 hover:bg-muted/30 hover:text-muted-foreground"
+                                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                             )}
                           >
                             {/* Strong 3px-wide kiln-orange left border —
@@ -682,7 +673,9 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                                 "h-4 w-4 shrink-0 transition-colors duration-200",
                                 active
                                   ? "text-kiln-orange"
-                                  : "text-muted-foreground/80 group-hover:text-foreground"
+                                  : locked
+                                    ? "text-muted-foreground/50"
+                                    : "text-muted-foreground/80 group-hover:text-foreground"
                               )}
                             />
                             <span
@@ -693,6 +686,12 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
                             >
                               {item.name}
                             </span>
+                            {locked && !isCollapsed && (
+                              <Lock
+                                aria-label="locked"
+                                className="ml-auto h-3 w-3 shrink-0 text-muted-foreground/60"
+                              />
+                            )}
                           </Link>
                         </NavTooltip>
                       );

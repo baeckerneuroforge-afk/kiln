@@ -16,15 +16,16 @@ vi.mock("@/hooks/use-advanced-mode", () => ({
 import {
   AGENCY_NAV_SECTIONS,
   SUB_ORG_NAV_SECTIONS,
-  STANDALONE_NAV_SECTIONS,
   getSidebarSectionsForMode,
 } from "@/components/sidebar";
 
-function itemNames(mode: "AGENCY" | "SUB_ORG" | "STANDALONE"): string[] {
+type Mode = "AGENCY" | "SUB_ORG";
+
+function itemNames(mode: Mode): string[] {
   return getSidebarSectionsForMode(mode).flatMap((section) => section.items.map((item) => item.name));
 }
 
-function itemHrefs(mode: "AGENCY" | "SUB_ORG" | "STANDALONE"): string[] {
+function itemHrefs(mode: Mode): string[] {
   return getSidebarSectionsForMode(mode).flatMap((section) => section.items.map((item) => item.href));
 }
 
@@ -35,10 +36,6 @@ describe("sidebar org-mode navigation", () => {
 
   it("returns sub-org navigation for sub-org mode", () => {
     expect(getSidebarSectionsForMode("SUB_ORG")).toBe(SUB_ORG_NAV_SECTIONS);
-  });
-
-  it("returns standalone navigation for standalone mode", () => {
-    expect(getSidebarSectionsForMode("STANDALONE")).toBe(STANDALONE_NAV_SECTIONS);
   });
 
   it("no longer surfaces Templates as a top-level sidebar item after Sprint 19.6", () => {
@@ -69,10 +66,5 @@ describe("sidebar org-mode navigation", () => {
 
   it("keeps knowledge and integrations visible for sub-orgs", () => {
     expect(itemNames("SUB_ORG")).toEqual(expect.arrayContaining(["Meine Knowledge Base", "Meine Integrationen"]));
-  });
-
-  it("removes agency billing routes from standalone navigation", () => {
-    expect(itemHrefs("STANDALONE")).not.toContain("/dashboard/agency/billing");
-    expect(itemHrefs("STANDALONE")).not.toContain("/dashboard/agency/revenue");
   });
 });

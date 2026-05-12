@@ -207,12 +207,20 @@ export default function AgencySubOrgsPage() {
           Loading sub-orgs…
         </div>
       ) : subOrgs.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card/30 p-8 text-center">
-          <Building2 className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-          <p className="text-sm text-foreground">No sub-orgs yet.</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Create the first one to spin up a client workspace.
+        <div className="rounded-xl border border-dashed border-border bg-card/30 p-10 text-center">
+          <Building2 className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
+          <p className="text-base font-medium text-foreground">
+            Noch keine Sub-Orgs.
           </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Lege deine erste an um zu starten.
+          </p>
+          <div className="mt-5 flex justify-center">
+            <Button onClick={() => setCreateOpen(true)} data-testid="sub-orgs-empty-cta">
+              <Plus className="mr-1.5 h-4 w-4" />
+              Create your first Sub-Org
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="space-y-2">

@@ -9,7 +9,10 @@ type OrgModeState = OrgModeDetails & {
 
 const initialState: OrgModeState = {
   loading: true,
-  mode: "STANDALONE",
+  // Sprint 19.6.1 — STANDALONE no longer exists. While loading we default
+  // to AGENCY; the real mode arrives once /api/org/mode resolves. SUB_ORG
+  // mode is only entered on confirmed sub-org membership.
+  mode: "AGENCY",
   orgId: "",
   parentOrgId: null,
   subOrgName: null,

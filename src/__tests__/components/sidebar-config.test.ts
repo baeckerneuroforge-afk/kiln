@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   AGENCY_NAV_SECTIONS,
-  STANDALONE_NAV_SECTIONS,
   SUB_ORG_NAV_SECTIONS,
 } from "@/components/sidebar";
 
@@ -95,17 +94,26 @@ describe("AGENCY_NAV_SECTIONS after Sprint 19.6 consolidation", () => {
   });
 });
 
-describe("Sub-Org and Standalone nav still functional", () => {
+describe("Sub-Org nav still functional", () => {
   it("SUB_ORG_NAV_SECTIONS unchanged in shape", () => {
     expect(SUB_ORG_NAV_SECTIONS).toHaveLength(1);
     expect(SUB_ORG_NAV_SECTIONS[0].id).toBe("sub-org-core");
   });
+});
 
-  it("STANDALONE_NAV_SECTIONS mirrors AGENCY without agency-tier-only items", () => {
-    expect(STANDALONE_NAV_SECTIONS).toHaveLength(AGENCY_NAV_SECTIONS.length);
-    // Sub-Orgs section requires agency tier; standalone drops it from the
-    // Customers section, leaving Conversations only.
-    const standaloneCustomers = STANDALONE_NAV_SECTIONS.find((section) => section.id === "customers");
-    expect(standaloneCustomers?.items.map((item) => item.href)).not.toContain("/dashboard/agency/sub-orgs");
+// Sprint 19.6.1 — STANDALONE removed. The agency nav surface is now the
+// same regardless of whether an org has provisioned a sub-org yet.
+describe("STANDALONE removal (Sprint 19.6.1)", () => {
+  it("does not export STANDALONE_NAV_SECTIONS", async () => {
+    const sidebar = await import("@/components/sidebar");
+    expect((sidebar as Record<string, unknown>).STANDALONE_NAV_SECTIONS).toBeUndefined();
+  });
+
+  it("AGENCY items no longer carry a minAgents field", () => {
+    for (const section of AGENCY_NAV_SECTIONS) {
+      for (const item of section.items) {
+        expect(item).not.toHaveProperty("minAgents");
+      }
+    }
   });
 });
