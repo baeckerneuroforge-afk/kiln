@@ -1,13 +1,16 @@
 /**
- * Sprint 19.7.3 — Sub-Org integrations stub.
+ * Sprint 19.7.4 — Sub-Org Integrations.
  *
- * The full integrations management UI lands in Sprint 19.7.4; this
- * page exists today so the sidebar link doesn't 404 and so future
- * pages can be added without touching nav config.
+ * Three tabs: API Keys (real), OAuth (status surface — wiring lands in
+ * 19.7.5), Module Settings (deep link back to the agency-side editor).
+ *
+ * Anyone with sub-org membership can land on this page; per-tab actions
+ * gate on integrations.manage.
  */
 import { notFound } from "next/navigation";
-import { Plug, Construction } from "lucide-react";
+import { Plug } from "lucide-react";
 import { getSubOrgContext } from "@/lib/sub-org/get-sub-org-context";
+import { IntegrationsTabs } from "@/components/sub-org/integrations-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +19,10 @@ interface PageProps { params: { subOrgId: string } }
 export default async function SubOrgIntegrationsPage({ params }: PageProps) {
   const context = await getSubOrgContext(params.subOrgId);
   if (!context) notFound();
-  // All permission levels can land on this page — gating happens once
-  // real management UI shows up in Sprint 19.7.4.
+  if (!context.permissions.has("integrations.read")) notFound();
+
+  const canManage = context.permissions.has("integrations.manage");
+  const agencyOrgPath = `/dashboard/agency/sub-orgs/${context.subOrg.id}/modules`;
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -27,20 +32,15 @@ export default async function SubOrgIntegrationsPage({ params }: PageProps) {
           Integrations
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Verbinde {context.subOrg.subOrgName} mit deinen Tools.
+          API-Keys, OAuth-Connections und Module-Settings für {context.subOrg.subOrgName}.
         </p>
       </header>
 
-      <div className="rounded-xl border border-dashed border-border bg-card/30 p-10 text-center" data-testid="sub-org-integrations-stub">
-        <Construction className="mx-auto mb-4 h-10 w-10 text-kiln-orange" />
-        <p className="text-base font-medium text-foreground">
-          Integrations werden in Kürze verfügbar sein.
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Sprint 19.7.4 bringt OAuth-Konnektoren für Slack, Telegram, WhatsApp,
-          Email und mehr — pro Sub-Org getrennt verwaltbar.
-        </p>
-      </div>
+      <IntegrationsTabs
+        subOrgId={context.subOrg.id}
+        agencyOrgPath={agencyOrgPath}
+        canManage={canManage}
+      />
     </div>
   );
 }

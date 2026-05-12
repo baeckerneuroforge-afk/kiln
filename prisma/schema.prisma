@@ -2780,6 +2780,9 @@ model OrgRelationship {
   // the user/auth side, KILN owns the permission-set side.
   memberships SubOrgMembership[]
 
+  // Sprint 19.7.4 — per-sub-org LLM provider API keys (BYO).
+  apiKeys     SubOrgApiKey[]
+
   @@index([parentOrgId])
   @@index([childOrgId])
   @@index([parentOrgId, subOrgStatus])
@@ -2830,6 +2833,33 @@ enum PermissionSet {
   USE_AGENTS                  // + agents.read, agents.execute
   USE_AGENTS_PLUS_KNOWLEDGE   // + knowledge.read, knowledge.write
   FULL_ACCESS                 // + agents.write, workflows.*, integrations.*, memberships.manage
+}
+
+/// Sprint 19.7.4 — per-sub-org LLM API keys (BYO Anthropic / OpenAI /
+/// Google / Azure / other). The key value itself is stored AES-256-GCM
+/// encrypted by src/lib/encryption.ts; the API never returns the
+/// plaintext after persistence.
+model SubOrgApiKey {
+  id            String           @id @default(cuid())
+  subOrgId      String
+  subOrg        OrgRelationship  @relation(fields: [subOrgId], references: [id], onDelete: Cascade)
+  provider      ApiKeyProvider
+  label         String
+  encryptedKey  String           @db.Text
+  createdBy     String           // Clerk user id
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([subOrgId, provider, label])
+  @@index([subOrgId, provider])
+}
+
+enum ApiKeyProvider {
+  ANTHROPIC
+  OPENAI
+  GOOGLE
+  AZURE_OPENAI
+  OTHER
 }
 
 model AgencyOpsSnapshot {
