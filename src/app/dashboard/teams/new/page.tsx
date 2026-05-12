@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useCurrentContext } from "@/hooks/useCurrentContext";
 import {
   ArrowLeft,
   ArrowRight,
@@ -204,6 +205,7 @@ export default function NewTeamTemplatePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const currentContext = useCurrentContext();
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -293,6 +295,11 @@ export default function NewTeamTemplatePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           templateId: selectedTemplate.id,
+          // Sprint 19.7.5 — when the user is in a sub-org context, the
+          // server validates workflows.write inside the sub-org and
+          // stamps the new team + agents with the sub-org's Clerk org.
+          subOrgId:
+            currentContext.type === "sub_org" ? currentContext.id : undefined,
           customization: {
             teamName: teamPreviewName,
             businessName: businessName.trim() || undefined,
@@ -308,7 +315,13 @@ export default function NewTeamTemplatePage() {
       }
 
       toast(`Workflow "${data.teamName}" deployed`);
-      router.push(data.detailUrl || `/dashboard/teams/${data.teamId}`);
+      // Sub-org flows redirect into the sub-org's workflows list so the
+      // new team is visible inside the right context.
+      const subOrgId = data.subOrgId as string | null | undefined;
+      const target = subOrgId
+        ? `/dashboard/sub-org/${subOrgId}/workflows`
+        : data.detailUrl || `/dashboard/teams/${data.teamId}`;
+      router.push(target);
     } catch (err) {
       console.error("Failed to deploy workflow template:", err);
       toast(

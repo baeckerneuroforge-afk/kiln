@@ -198,9 +198,15 @@ export async function POST(request: NextRequest) {
     });
 
     if (templateKey) {
-      const result = await deployTeamTemplate(userId, templateKey, {
-        teamName: name,
-      });
+      // Sprint 19.7.5 — thread the resolved orgId into deployTeamTemplate
+      // so the AgentTeam + every Agent created by the long transaction
+      // land in the right Clerk org instead of inheriting the agency's.
+      const result = await deployTeamTemplate(
+        userId,
+        templateKey,
+        { teamName: name },
+        effectiveOrgId,
+      );
 
       const fullTeam = await prisma.agentTeam.findUnique({
         where: { id: result.teamId },

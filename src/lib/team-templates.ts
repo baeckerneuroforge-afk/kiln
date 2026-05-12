@@ -1182,10 +1182,22 @@ export const TEAM_MARKETPLACE_TEMPLATES = TEAM_TEMPLATES.map((template) => ({
   },
 }));
 
+/**
+ * Sprint 19.7.5 — optional `targetOrgId` lands every entity created by
+ * the template deploy under the right Clerk org. When omitted, behaviour
+ * matches pre-19.7.5: rows are created with no orgId set (which is the
+ * legacy path many existing teams already use, and which the agency-side
+ * scope filters still tolerate).
+ *
+ * Sub-org callers thread the sub-org's Clerk org id (=
+ * OrgRelationship.childOrgId) in here so the AgentTeam + every Agent
+ * created during the long transaction shows up inside the sub-org view.
+ */
 export async function deployTeamTemplate(
   userId: string,
   templateId: string,
-  customization?: TeamTemplateCustomization
+  customization?: TeamTemplateCustomization,
+  targetOrgId?: string | null,
 ) {
   const template = getTeamTemplate(templateId);
   if (!template) {
@@ -1217,6 +1229,7 @@ export async function deployTeamTemplate(
     const team = await tx.agentTeam.create({
       data: {
         userId,
+        orgId: targetOrgId ?? undefined,
         name: configured.teamName,
         description: configured.description,
         goal: configured.goal,
@@ -1262,6 +1275,7 @@ export async function deployTeamTemplate(
       const agent = await tx.agent.create({
         data: {
           userId,
+          orgId: targetOrgId ?? undefined,
           name: agentDef.name,
           slug: generateSlug(agentDef.name),
           description: agentDef.description,
