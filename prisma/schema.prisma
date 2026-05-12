@@ -2775,10 +2775,61 @@ model OrgRelationship {
   // sub-org's context. Shape: EmailBrandOverride in src/lib/email/types.
   emailBrandOverride   Json?
 
+  // Sprint 19.7.1 — Sub-Org Auth Foundation. Memberships are scoped to
+  // this OrgRelationship row (the canonical sub-org record); Clerk owns
+  // the user/auth side, KILN owns the permission-set side.
+  memberships SubOrgMembership[]
+
   @@index([parentOrgId])
   @@index([childOrgId])
   @@index([parentOrgId, subOrgStatus])
   @@index([parentOrgId, industry])
+}
+
+/// Sprint 19.7.1 — Sub-Org membership with KILN-side permission-set.
+///
+/// One row per (sub-org, user). Created either when an agency owner
+/// provisions a sub-org (OWNER + FULL_ACCESS), or when an invited user
+/// accepts a Clerk org invitation and our clerk webhook fires.
+///
+/// `subOrgId` is the OrgRelationship.id (CUID), not the Clerk org id —
+/// the row IS the sub-org from KILN's perspective; the Clerk org id
+/// lives on OrgRelationship.childOrgId.
+model SubOrgMembership {
+  id            String        @id @default(cuid())
+  subOrgId      String
+  subOrg        OrgRelationship @relation(fields: [subOrgId], references: [id], onDelete: Cascade)
+  userId        String        // Clerk user id
+  role          SubOrgRole    @default(MEMBER)
+  permissionSet PermissionSet @default(READ_ONLY)
+  invitedById   String?       // Clerk user id of the inviter
+  invitedAt     DateTime?
+  acceptedAt    DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([subOrgId, userId])
+  @@index([userId])
+  @@index([subOrgId, role])
+}
+
+/// Sprint 19.7.1 — KILN-side sub-org role. Mapped onto Clerk's two-role
+/// model (org:admin/org:member) by the invite endpoint, but tracked here
+/// at full fidelity so a future Clerk role expansion is trivial.
+enum SubOrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+/// Sprint 19.7.1 — what the user can do inside the sub-org. Cumulative:
+/// each tier adds capabilities to the one below.
+enum PermissionSet {
+  READ_ONLY                   // conversations.read, analytics.read
+  USE_AGENTS                  // + agents.read, agents.execute
+  USE_AGENTS_PLUS_KNOWLEDGE   // + knowledge.read, knowledge.write
+  FULL_ACCESS                 // + agents.write, workflows.*, integrations.*, memberships.manage
 }
 
 model AgencyOpsSnapshot {
