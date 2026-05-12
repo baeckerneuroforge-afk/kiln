@@ -11,7 +11,13 @@ import type { PrismaClient } from "@prisma/client";
 
 type PrismaLike = Pick<
   PrismaClient,
-  "agent" | "agentTeam" | "conversation" | "knowledgeBase" | "customerProfile" | "llmUsage"
+  | "agent"
+  | "agentTeam"
+  | "conversation"
+  | "knowledgeBase"
+  | "customerProfile"
+  | "llmUsage"
+  | "subOrgMembership"
 >;
 
 export type UsagePeriod = "day" | "week" | "month";
@@ -198,6 +204,41 @@ export function periodToSince(period: UsagePeriod, now: Date = new Date()): Date
         ? 7 * 24 * 60 * 60 * 1000
         : 30 * 24 * 60 * 60 * 1000;
   return new Date(now.getTime() - ms);
+}
+
+export interface SubOrgMembershipEntry {
+  id: string;
+  userId: string;
+  role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+  permissionSet: "READ_ONLY" | "USE_AGENTS" | "USE_AGENTS_PLUS_KNOWLEDGE" | "FULL_ACCESS";
+  invitedAt: Date | null;
+  acceptedAt: Date | null;
+  createdAt: Date;
+}
+
+/**
+ * Sprint 19.7.3 — list the SubOrgMembership rows for a sub-org. We
+ * don't enrich with Clerk user data here; the page does a best-effort
+ * lookup against our User table for emails / display names.
+ */
+export async function getSubOrgMemberships(
+  subOrgId: string,
+  prisma: PrismaLike = defaultPrisma,
+): Promise<SubOrgMembershipEntry[]> {
+  const rows = await prisma.subOrgMembership.findMany({
+    where: { subOrgId },
+    orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      userId: true,
+      role: true,
+      permissionSet: true,
+      invitedAt: true,
+      acceptedAt: true,
+      createdAt: true,
+    },
+  });
+  return rows;
 }
 
 export async function getSubOrgUsageStats(
