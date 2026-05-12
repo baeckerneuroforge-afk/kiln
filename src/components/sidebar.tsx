@@ -28,6 +28,7 @@ import {
   TrendingUp,
   ShieldCheck,
   Lock,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -35,6 +36,7 @@ import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 import { WhatsNewBell } from "@/components/whats-new";
 import { OrgChangeRefresh } from "@/components/org-switcher";
 import { AgencyOrgSwitcher } from "@/components/agency-org-switcher";
+import { ContextSwitcher } from "@/components/context-switcher";
 import { useOrgModeDetails } from "@/hooks/use-org-mode";
 import { useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
@@ -193,6 +195,72 @@ export const SUB_ORG_NAV_SECTIONS: NavSection[] = [
 export function getSidebarSectionsForMode(mode: OrgMode): NavSection[] {
   if (mode === "SUB_ORG") return SUB_ORG_NAV_SECTIONS;
   return AGENCY_NAV_SECTIONS;
+}
+
+// Sprint 19.7.2 — sub-org nested-route navigation.
+//
+// When an agency user opens /dashboard/sub-org/[subOrgId]/* the sidebar
+// shows a sub-org-scoped 10-item nav. Hrefs are absolute and prefixed
+// with the sub-org id so the routes stay scoped under the agency
+// session. Only Dashboard exists today; Sprint 19.7.3 fills in the
+// rest of the pages.
+export function getNestedSubOrgNavSections(subOrgId: string): NavSection[] {
+  const base = `/dashboard/sub-org/${subOrgId}`;
+  return [
+    {
+      id: "primary",
+      label: null,
+      defaultOpen: true,
+      items: [
+        { name: "Dashboard", href: base, icon: LayoutDashboard },
+      ],
+    },
+    {
+      id: "agents",
+      label: "Agents",
+      defaultOpen: true,
+      items: [
+        { name: "Agents", href: `${base}/agents`, icon: Bot },
+        { name: "Workflows", href: `${base}/workflows`, icon: Workflow },
+        { name: "Knowledge", href: `${base}/knowledge`, icon: Waypoints },
+      ],
+    },
+    {
+      id: "engagement",
+      label: "Engagement",
+      defaultOpen: true,
+      items: [
+        { name: "Conversations", href: `${base}/conversations`, icon: MessageSquare },
+        { name: "Customers", href: `${base}/customers`, icon: Building2 },
+      ],
+    },
+    {
+      id: "insights",
+      label: "Insights",
+      defaultOpen: false,
+      items: [
+        { name: "Analytics", href: `${base}/analytics`, icon: Activity },
+      ],
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      defaultOpen: false,
+      items: [
+        { name: "Integrations", href: `${base}/integrations`, icon: Plug },
+        { name: "Memberships", href: `${base}/memberships`, icon: Users },
+        { name: "Settings", href: `${base}/settings`, icon: Settings },
+      ],
+    },
+  ];
+}
+
+const SUB_ORG_PATH_REGEX = /^\/dashboard\/sub-org\/([^/]+)/;
+
+export function extractNestedSubOrgIdFromPath(pathname: string | null | undefined): string | null {
+  if (!pathname) return null;
+  const match = SUB_ORG_PATH_REGEX.exec(pathname);
+  return match?.[1] ?? null;
 }
 
 /* ── Helpers ── */
@@ -432,7 +500,13 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
 
   const isCollapsed = collapsed;
   const orgMode = orgModeDetails.loading ? null : orgModeDetails.mode;
-  const navSections = getSidebarSectionsForMode(orgMode ?? "AGENCY");
+  const nestedSubOrgId = extractNestedSubOrgIdFromPath(pathname);
+  // Sprint 19.7.2 — URL beats orgMode here. An agency user visiting
+  // /dashboard/sub-org/[id]/* sees the sub-org nav even though their
+  // active Clerk org is still the agency.
+  const navSections = nestedSubOrgId
+    ? getNestedSubOrgNavSections(nestedSubOrgId)
+    : getSidebarSectionsForMode(orgMode ?? "AGENCY");
 
   // Sprint 19.6.1 — items are always visible (so users can discover the
   // surface area of the platform). The only thing we hide entirely is
@@ -583,6 +657,12 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
         <div className="mb-1">
           <AgencyOrgSwitcher collapsed={isCollapsed} />
         </div>
+
+        {/* Sprint 19.7.2 — KILN-side context switcher: routes between
+            Agency Overview and any sub-org the user has membership in,
+            without touching the Clerk session. Self-hides when the
+            user has no sub-org memberships. */}
+        <ContextSwitcher collapsed={isCollapsed} />
 
         <Separator className={cn("my-2", isCollapsed ? "lg:mx-2" : "mx-3")} />
 
