@@ -36,6 +36,7 @@ const mockPrisma = vi.hoisted(() => ({
     create: vi.fn(),
     update: vi.fn(),
   },
+  subOrgMembership: { upsert: vi.fn() },
   agent: { groupBy: vi.fn() },
 }));
 
@@ -127,6 +128,10 @@ describe("POST /api/agency/sub-orgs", () => {
     expect(createOrg).toHaveBeenCalledWith({
       name: "Acme Corp",
       createdBy: AGENCY_USER,
+      publicMetadata: {
+        kiln_type: "sub_org",
+        parentAgencyOrgId: AGENCY_ORG,
+      },
     });
     expect(mockPrisma.orgRelationship.create).toHaveBeenCalledWith({
       data: {
@@ -136,6 +141,17 @@ describe("POST /api/agency/sub-orgs", () => {
         subOrgName: "Acme Corp",
       },
     });
+    expect(mockPrisma.subOrgMembership.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { subOrgId_userId: { subOrgId: "rel_1", userId: AGENCY_USER } },
+        create: expect.objectContaining({
+          subOrgId: "rel_1",
+          userId: AGENCY_USER,
+          role: "OWNER",
+          permissionSet: "FULL_ACCESS",
+        }),
+      }),
+    );
 
     const body = await res.json();
     expect(body).toMatchObject({

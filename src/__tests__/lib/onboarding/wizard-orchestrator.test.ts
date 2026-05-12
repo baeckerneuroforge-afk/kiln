@@ -10,6 +10,7 @@ const mockInstallSelectedTemplates = vi.hoisted(() => vi.fn());
 const mockPrisma = vi.hoisted(() => ({
   onboardingWizard: { update: vi.fn() },
   orgRelationship: { findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
+  subOrgMembership: { upsert: vi.fn() },
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({ clerkClient: mockClerkClient }));
@@ -29,9 +30,10 @@ describe("wizard orchestrator", () => {
     mockCanCreateSubOrg.mockResolvedValue({ allowed: true, max: 10, current: 1 });
     mockClerkClient.mockResolvedValue({ organizations: { createOrganization: vi.fn().mockResolvedValue({ id: "org_child" }) } });
     mockPrisma.orgRelationship.findMany.mockResolvedValue([]);
-    mockPrisma.orgRelationship.create.mockResolvedValue({ id: "rel_1" });
+    mockPrisma.orgRelationship.create.mockResolvedValue({ id: "rel_1", createdAt: new Date() });
     mockPrisma.orgRelationship.update.mockResolvedValue({});
     mockPrisma.onboardingWizard.update.mockResolvedValue({});
+    mockPrisma.subOrgMembership.upsert.mockResolvedValue({ id: "mem_1" });
     mockApplyBranding.mockResolvedValue(undefined);
     mockSetupChannels.mockResolvedValue({ activated: ["email"], warnings: [] });
     mockImportKnowledge.mockResolvedValue({ indexed: 2, warnings: [] });
