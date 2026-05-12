@@ -229,8 +229,13 @@ describe("/dashboard/sub-org/[id]/integrations", () => {
     await expectNotFound(IntegrationsPage({ params }));
   });
 
-  it("renders the placeholder for any permission level", async () => {
+  it("notFound when caller lacks integrations.read", async () => {
     mockGetSubOrgContext.mockResolvedValueOnce(makeContext([]));
+    await expectNotFound(IntegrationsPage({ params }));
+  });
+
+  it("renders the IntegrationsTabs shell when caller has integrations.read", async () => {
+    mockGetSubOrgContext.mockResolvedValueOnce(makeContext(["integrations.read"]));
     const el = await IntegrationsPage({ params });
     expect(el).toBeTruthy();
   });
