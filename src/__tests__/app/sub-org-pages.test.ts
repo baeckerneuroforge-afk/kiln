@@ -101,6 +101,36 @@ async function expectNotFound(promise: Promise<unknown>) {
   await expect(promise).rejects.toBeInstanceOf(NotFoundError);
 }
 
+/**
+ * Walk a server-rendered React-element tree to find a node with a
+ * given `data-testid` prop and return that node. Returns null if
+ * absent. Lets us assert URL shape without a DOM.
+ */
+function findByTestId(
+  node: unknown,
+  testId: string,
+): { props: Record<string, unknown> } | null {
+  if (node == null || typeof node !== "object") return null;
+  const candidate = node as { props?: Record<string, unknown> };
+  const props = candidate.props;
+  if (props && (props as Record<string, unknown>)["data-testid"] === testId) {
+    return { props };
+  }
+  if (props) {
+    const children = props.children;
+    if (Array.isArray(children)) {
+      for (const child of children) {
+        const hit = findByTestId(child, testId);
+        if (hit) return hit;
+      }
+    } else if (children) {
+      const hit = findByTestId(children, testId);
+      if (hit) return hit;
+    }
+  }
+  return null;
+}
+
 beforeEach(() => {
   mockGetSubOrgContext.mockReset();
   mockGetSubOrgAgents.mockReset();
@@ -148,6 +178,17 @@ describe("/dashboard/sub-org/[id]/agents", () => {
     const el = await AgentsPage({ params });
     expect(el).toBeTruthy();
   });
+
+  // Sprint 19.7.5.1 — create CTA carries subOrgId so /dashboard/agents/new
+  // can re-derive the sub-org context via useCurrentContext (P-B).
+  it("create CTA href includes ?subOrgId so the destination keeps sub-org context", async () => {
+    mockGetSubOrgContext.mockResolvedValueOnce(makeContext(["agents.read", "agents.write"]));
+    mockGetSubOrgAgents.mockResolvedValueOnce([]);
+    const el = await AgentsPage({ params });
+    const cta = findByTestId(el, "sub-org-agents-create-cta");
+    expect(cta).toBeTruthy();
+    expect(cta!.props.href).toBe("/dashboard/agents/new?subOrgId=sub_1");
+  });
 });
 
 describe("/dashboard/sub-org/[id]/workflows", () => {
@@ -166,6 +207,18 @@ describe("/dashboard/sub-org/[id]/workflows", () => {
     mockGetSubOrgWorkflows.mockResolvedValueOnce([]);
     const el = await WorkflowsPage({ params });
     expect(el).toBeTruthy();
+  });
+
+  // Sprint 19.7.5.1 — same subOrgId carry as agents page.
+  it("create CTA href includes ?subOrgId for workflows.write callers", async () => {
+    mockGetSubOrgContext.mockResolvedValueOnce(
+      makeContext(["agents.read", "workflows.write"]),
+    );
+    mockGetSubOrgWorkflows.mockResolvedValueOnce([]);
+    const el = await WorkflowsPage({ params });
+    const cta = findByTestId(el, "sub-org-workflows-create-cta");
+    expect(cta).toBeTruthy();
+    expect(cta!.props.href).toBe("/dashboard/teams/new?subOrgId=sub_1");
   });
 });
 

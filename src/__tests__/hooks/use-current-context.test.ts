@@ -5,7 +5,7 @@
  * alone in a node env so failures pinpoint the routing rule.
  */
 import { describe, expect, it } from "vitest";
-import { parseContextFromPath } from "@/hooks/useCurrentContext";
+import { parseContextFromPath, resolveContext } from "@/hooks/useCurrentContext";
 
 describe("parseContextFromPath", () => {
   it("returns agency context for null/undefined paths", () => {
@@ -45,5 +45,40 @@ describe("parseContextFromPath", () => {
       type: "agency",
       id: null,
     });
+  });
+});
+
+describe("resolveContext (Sprint 19.7.5.1 subOrgId search-param override)", () => {
+  it("uses the path-derived sub-org context when the URL is already inside a sub-org", () => {
+    expect(resolveContext("/dashboard/sub-org/sub_a/workflows", null)).toMatchObject({
+      type: "sub_org",
+      id: "sub_a",
+    });
+  });
+
+  it("path wins even when a stale ?subOrgId is on the URL", () => {
+    expect(resolveContext("/dashboard/sub-org/sub_a/workflows", "sub_b")).toMatchObject({
+      type: "sub_org",
+      id: "sub_a",
+    });
+  });
+
+  it("falls back to the search-param when the path is the agency-side create page", () => {
+    expect(resolveContext("/dashboard/teams/new", "sub_a")).toEqual({
+      type: "sub_org",
+      id: "sub_a",
+      name: null,
+    });
+    expect(resolveContext("/dashboard/agents/new", "sub_a")).toEqual({
+      type: "sub_org",
+      id: "sub_a",
+      name: null,
+    });
+  });
+
+  it("treats an empty/missing search-param as agency context outside sub-org paths", () => {
+    expect(resolveContext("/dashboard/teams/new", null)).toMatchObject({ type: "agency", id: null });
+    expect(resolveContext("/dashboard/teams/new", "")).toMatchObject({ type: "agency", id: null });
+    expect(resolveContext("/dashboard/teams/new", undefined)).toMatchObject({ type: "agency", id: null });
   });
 });

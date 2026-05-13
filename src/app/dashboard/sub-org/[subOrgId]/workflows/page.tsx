@@ -47,7 +47,7 @@ export default async function SubOrgWorkflowsPage({ params }: PageProps) {
         </div>
         {canWrite ? (
           <Link
-            href="/dashboard/teams/new"
+            href={`/dashboard/teams/new?subOrgId=${context.subOrg.id}`}
             className={buttonVariants()}
             data-testid="sub-org-workflows-create-cta"
           >

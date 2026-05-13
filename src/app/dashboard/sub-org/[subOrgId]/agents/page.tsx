@@ -48,7 +48,7 @@ export default async function SubOrgAgentsPage({ params }: PageProps) {
         </div>
         {canWrite ? (
           <Link
-            href="/dashboard/agents/new"
+            href={`/dashboard/agents/new?subOrgId=${context.subOrg.id}`}
             className={buttonVariants()}
             data-testid="sub-org-agents-create-cta"
           >
