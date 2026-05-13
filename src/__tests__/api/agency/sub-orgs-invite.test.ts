@@ -16,13 +16,19 @@ const mockPrisma = vi.hoisted(() => ({
     findUnique: vi.fn(),
     upsert: vi.fn(),
   },
+  user: { findUnique: vi.fn() },
+  emailLog: { create: vi.fn().mockResolvedValue({}) },
 }));
+const mockSendBrandedEmail = vi.hoisted(() => vi.fn());
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mockAuth,
   clerkClient: mockClerkClient,
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
+vi.mock("@/lib/email/send-branded-email", () => ({
+  sendBrandedEmail: mockSendBrandedEmail,
+}));
 
 import { POST as invitePOST } from "@/app/api/agency/sub-orgs/[id]/invite/route";
 
@@ -49,6 +55,14 @@ beforeEach(() => {
   mockPrisma.orgRelationship.findUnique.mockReset();
   mockPrisma.subOrgMembership.findUnique.mockReset();
   mockPrisma.subOrgMembership.upsert.mockReset();
+  mockPrisma.user.findUnique.mockReset();
+  // Default: no user row found. Inviter lookup falls back to "KILN",
+  // shouldSendEmail returns allow=true (no_user_row).
+  mockPrisma.user.findUnique.mockResolvedValue(null);
+  mockPrisma.emailLog.create.mockReset();
+  mockPrisma.emailLog.create.mockResolvedValue({});
+  mockSendBrandedEmail.mockReset();
+  mockSendBrandedEmail.mockResolvedValue({ ok: true });
 });
 
 function makeReq(body: unknown) {
@@ -292,5 +306,183 @@ describe("POST /api/agency/sub-orgs/[id]/invite", () => {
         publicMetadata: { kilnRole: "MEMBER", permissionSet: "READ_ONLY" },
       }),
     );
+  });
+
+  // Sprint 19.7.8 — branded email notifications on top of Clerk's path.
+  describe("email notifications (Sprint 19.7.8)", () => {
+    it("path-2 sends the existing-user template with role + permission + locale", async () => {
+      mockAuth.mockResolvedValueOnce({ userId: CALLER });
+      mockPrisma.subOrgMembership.findUnique.mockResolvedValueOnce(FULL_ACCESS_OWNER);
+      mockPrisma.orgRelationship.findUnique.mockResolvedValueOnce({
+        id: "rel_1",
+        childOrgId: "org_child_1",
+        parentOrgId: "org_parent_1",
+        subOrgName: "ACME Sub",
+        subOrgStatus: "ACTIVE",
+      });
+      // First call = inviter lookup; second call = recipient lookup;
+      // third call = shouldSendEmail's User check (returns the same row).
+      mockPrisma.user.findUnique
+        .mockResolvedValueOnce({
+          firstName: "André",
+          lastName: "Bäcker",
+          email: "andre@x.de",
+        })
+        .mockResolvedValueOnce({
+          preferredLanguage: "en",
+          firstName: "Sarah",
+          lastName: null,
+        })
+        .mockResolvedValueOnce({
+          emailNotifications: true,
+          notificationPreferences: {},
+        });
+      mockClerkClient.mockResolvedValueOnce({
+        users: {
+          getUserList: vi.fn().mockResolvedValueOnce({ data: [{ id: "user_existing" }] }),
+        },
+        organizations: {
+          createOrganizationMembership: vi.fn().mockResolvedValue({}),
+        },
+      });
+
+      const res = await invitePOST(
+        makeReq({
+          email: "existing@example.com",
+          role: "ADMIN",
+          permissionSet: "USE_AGENTS",
+        }),
+        { params: { id: "rel_1" } },
+      );
+      expect(res.status).toBe(200);
+
+      expect(mockSendBrandedEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          template: "sub-org-member-invited-existing",
+          orgId: "org_parent_1",
+          subOrgId: "org_child_1",
+          userId: "user_existing",
+          to: "existing@example.com",
+          data: expect.objectContaining({
+            locale: "en",
+            recipientName: "Sarah",
+            inviterName: "André Bäcker",
+            subOrgName: "ACME Sub",
+            role: "ADMIN",
+            permissionSet: "USE_AGENTS",
+          }),
+        }),
+      );
+    });
+
+    it("path-2 skips the email when shouldSendEmail returns disallow (kill-switch)", async () => {
+      mockAuth.mockResolvedValueOnce({ userId: CALLER });
+      mockPrisma.subOrgMembership.findUnique.mockResolvedValueOnce(FULL_ACCESS_OWNER);
+      mockPrisma.orgRelationship.findUnique.mockResolvedValueOnce({
+        id: "rel_1",
+        childOrgId: "org_child_1",
+        parentOrgId: "org_parent_1",
+        subOrgName: "ACME Sub",
+        subOrgStatus: "ACTIVE",
+      });
+      mockPrisma.user.findUnique
+        .mockResolvedValueOnce({ firstName: "André", lastName: null, email: null })
+        .mockResolvedValueOnce({ preferredLanguage: "de", firstName: null, lastName: null })
+        .mockResolvedValueOnce({
+          emailNotifications: false,
+          notificationPreferences: null,
+        });
+      mockClerkClient.mockResolvedValueOnce({
+        users: {
+          getUserList: vi.fn().mockResolvedValueOnce({ data: [{ id: "user_existing" }] }),
+        },
+        organizations: { createOrganizationMembership: vi.fn().mockResolvedValue({}) },
+      });
+
+      const res = await invitePOST(
+        makeReq({ email: "existing@example.com", role: "MEMBER", permissionSet: "READ_ONLY" }),
+        { params: { id: "rel_1" } },
+      );
+      expect(res.status).toBe(200);
+      expect(mockSendBrandedEmail).not.toHaveBeenCalled();
+    });
+
+    it("path-1 sends the new-email template even though no User row exists yet", async () => {
+      mockAuth.mockResolvedValueOnce({ userId: CALLER });
+      mockPrisma.subOrgMembership.findUnique.mockResolvedValueOnce(FULL_ACCESS_OWNER);
+      mockPrisma.orgRelationship.findUnique.mockResolvedValueOnce({
+        id: "rel_1",
+        childOrgId: "org_child_1",
+        parentOrgId: "org_parent_1",
+        subOrgName: "ACME Sub",
+        subOrgStatus: "ACTIVE",
+      });
+      // Inviter row only.
+      mockPrisma.user.findUnique.mockResolvedValueOnce({
+        firstName: "André",
+        lastName: "Bäcker",
+        email: null,
+      });
+      mockClerkClient.mockResolvedValueOnce({
+        users: { getUserList: vi.fn().mockResolvedValueOnce({ data: [] }) },
+        organizations: {
+          createOrganizationInvitation: vi.fn().mockResolvedValueOnce({
+            id: "inv_x",
+            emailAddress: "new@example.com",
+            status: "pending",
+          }),
+        },
+      });
+
+      const res = await invitePOST(
+        makeReq({ email: "new@example.com", role: "VIEWER" }),
+        { params: { id: "rel_1" } },
+      );
+      expect(res.status).toBe(200);
+      expect(mockSendBrandedEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          template: "sub-org-member-invited-new",
+          orgId: "org_parent_1",
+          subOrgId: "org_child_1",
+          userId: null,
+          to: "new@example.com",
+          data: expect.objectContaining({
+            locale: "de",
+            inviterName: "André Bäcker",
+            subOrgName: "ACME Sub",
+            role: "VIEWER",
+          }),
+        }),
+      );
+    });
+
+    it("email-send failure does not break the API contract (200 still returned)", async () => {
+      mockAuth.mockResolvedValueOnce({ userId: CALLER });
+      mockPrisma.subOrgMembership.findUnique.mockResolvedValueOnce(FULL_ACCESS_OWNER);
+      mockPrisma.orgRelationship.findUnique.mockResolvedValueOnce({
+        id: "rel_1",
+        childOrgId: "org_child_1",
+        parentOrgId: "org_parent_1",
+        subOrgName: "ACME Sub",
+        subOrgStatus: "ACTIVE",
+      });
+      mockSendBrandedEmail.mockRejectedValueOnce(new Error("Resend down"));
+      mockClerkClient.mockResolvedValueOnce({
+        users: { getUserList: vi.fn().mockResolvedValueOnce({ data: [] }) },
+        organizations: {
+          createOrganizationInvitation: vi.fn().mockResolvedValueOnce({
+            id: "inv_x",
+            emailAddress: "new@example.com",
+            status: "pending",
+          }),
+        },
+      });
+
+      const res = await invitePOST(
+        makeReq({ email: "new@example.com" }),
+        { params: { id: "rel_1" } },
+      );
+      expect(res.status).toBe(200);
+    });
   });
 });

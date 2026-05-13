@@ -137,3 +137,146 @@ describe("template-renderer", () => {
     expect(out.subject).toBe("Welcome to KILN");
   });
 });
+
+// Sprint 19.7.8 — sub-org + agency RBAC + onboarding templates.
+describe("template-renderer — Sprint 19.7.8 templates", () => {
+  it("renders sub-org-member-invited-existing in DE with role + permission labels", async () => {
+    const out = await renderEmail({
+      template: "sub-org-member-invited-existing",
+      branding: sampleBranding,
+      data: {
+        locale: "de",
+        recipientName: "Lena Müller",
+        inviterName: "André Bäcker",
+        subOrgName: "ACME Sub",
+        role: "ADMIN",
+        permissionSet: "FULL_ACCESS",
+        workspaceUrl: "https://x.test/dashboard/sub-org/rel_1",
+      },
+    });
+    expect(out.html).toContain("Lena Müller");
+    expect(out.html).toContain("André Bäcker");
+    expect(out.html).toContain("ACME Sub");
+    // DE role label
+    expect(out.html).toContain("Admin");
+    // DE permission label
+    expect(out.html).toContain("Vollzugriff");
+    expect(out.html).toContain("https://x.test/dashboard/sub-org/rel_1");
+    expect(out.subject).toContain("ACME Sub");
+    // DE subject
+    expect(out.subject).toMatch(/Du wurdest zu/);
+  });
+
+  it("renders sub-org-member-invited-existing in EN with role + permission labels", async () => {
+    const out = await renderEmail({
+      template: "sub-org-member-invited-existing",
+      branding: sampleBranding,
+      data: {
+        locale: "en",
+        recipientName: "Sarah",
+        inviterName: "Alex",
+        subOrgName: "ACME Sub",
+        role: "MEMBER",
+        permissionSet: "READ_ONLY",
+        workspaceUrl: "https://x.test",
+      },
+    });
+    expect(out.html).toContain("Sarah");
+    expect(out.html).toContain("read-only");
+    expect(out.subject).toMatch(/You.{0,3}ve been added/);
+  });
+
+  it("renders sub-org-member-invited-new without recipient name (no User row yet)", async () => {
+    const out = await renderEmail({
+      template: "sub-org-member-invited-new",
+      branding: sampleBranding,
+      data: {
+        locale: "de",
+        inviterName: "André Bäcker",
+        subOrgName: "ACME Sub",
+        role: "VIEWER",
+        permissionSet: "USE_AGENTS",
+        learnMoreUrl: "https://x.test",
+      },
+    });
+    expect(out.html).toContain("André Bäcker");
+    expect(out.html).toContain("ACME Sub");
+    expect(out.html).toContain("Hephaistos Systems"); // brandName from branding
+    expect(out.html).toContain("Viewer");
+    expect(out.html).toContain("Agenten nutzen");
+    expect(out.subject).toContain("ACME Sub");
+    expect(out.subject).toContain("Hephaistos Systems");
+  });
+
+  it("renders agency-member-invited with assignment count when > 0", async () => {
+    const out = await renderEmail({
+      template: "agency-member-invited",
+      branding: sampleBranding,
+      data: {
+        locale: "de",
+        recipientName: "Lena",
+        inviterName: "André",
+        role: "CONSULTANT",
+        assignmentCount: 3,
+        teamUrl: "https://x.test/team",
+      },
+    });
+    expect(out.html).toContain("Lena");
+    expect(out.html).toContain("André");
+    expect(out.html).toContain("Consultant");
+    expect(out.html).toContain("3");
+    expect(out.html).toContain("https://x.test/team");
+    expect(out.subject).toContain("Hephaistos Systems");
+  });
+
+  it("agency-member-invited omits assignment line when count is 0", async () => {
+    const out = await renderEmail({
+      template: "agency-member-invited",
+      branding: sampleBranding,
+      data: {
+        locale: "de",
+        recipientName: null,
+        inviterName: "André",
+        role: "OWNER",
+        assignmentCount: 0,
+        teamUrl: "https://x.test/team",
+      },
+    });
+    // The "Zugriff auf X Sub-Org(s)" phrasing must not appear when count=0.
+    expect(out.html).not.toMatch(/Zugriff auf 0 Sub-Org/);
+    expect(out.html).toContain("Agency-Owner");
+  });
+
+  it("renders sub-org-onboarding-completed in DE with tip + cta", async () => {
+    const out = await renderEmail({
+      template: "sub-org-onboarding-completed",
+      branding: sampleBranding,
+      data: {
+        locale: "de",
+        recipientName: "Lena",
+        subOrgName: "ACME Sub",
+        dashboardUrl: "https://x.test/dashboard/sub-org/rel_1",
+      },
+    });
+    expect(out.html).toContain("Lena");
+    expect(out.html).toContain("ACME Sub");
+    expect(out.html).toContain("Tipp:"); // DE tip prefix
+    expect(out.html).toContain("https://x.test/dashboard/sub-org/rel_1");
+    expect(out.subject).toContain("ACME Sub");
+  });
+
+  it("renders sub-org-onboarding-completed in EN", async () => {
+    const out = await renderEmail({
+      template: "sub-org-onboarding-completed",
+      branding: sampleBranding,
+      data: {
+        locale: "en",
+        recipientName: null,
+        subOrgName: "ACME Sub",
+        dashboardUrl: "https://x.test",
+      },
+    });
+    expect(out.html).toContain("Tip:"); // EN tip prefix
+    expect(out.subject).toMatch(/You.{0,3}re all set/);
+  });
+});

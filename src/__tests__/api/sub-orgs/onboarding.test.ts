@@ -11,11 +11,18 @@ const mockPrisma = vi.hoisted(() => ({
     findUnique: vi.fn(),
     update: vi.fn(),
   },
+  orgRelationship: { findUnique: vi.fn() },
+  user: { findUnique: vi.fn() },
+  emailLog: { create: vi.fn().mockResolvedValue({}) },
 }));
+const mockSendBrandedEmail = vi.hoisted(() => vi.fn());
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: mockAuth }));
 vi.mock("next/headers", () => ({ cookies: mockCookies }));
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
+vi.mock("@/lib/email/send-branded-email", () => ({
+  sendBrandedEmail: mockSendBrandedEmail,
+}));
 
 import { POST } from "@/app/api/sub-orgs/[id]/onboarding/route";
 
@@ -50,6 +57,16 @@ beforeEach(() => {
   mockSet.mockReset();
   mockPrisma.subOrgMembership.findUnique.mockReset();
   mockPrisma.subOrgMembership.update.mockReset();
+  mockPrisma.orgRelationship.findUnique.mockReset();
+  mockPrisma.user.findUnique.mockReset();
+  // Default: no row → completion email skipped silently in tests that
+  // don't care about email behaviour.
+  mockPrisma.orgRelationship.findUnique.mockResolvedValue(null);
+  mockPrisma.user.findUnique.mockResolvedValue(null);
+  mockPrisma.emailLog.create.mockReset();
+  mockPrisma.emailLog.create.mockResolvedValue({});
+  mockSendBrandedEmail.mockReset();
+  mockSendBrandedEmail.mockResolvedValue({ ok: true });
 });
 
 describe("POST /api/sub-orgs/[id]/onboarding", () => {
@@ -123,5 +140,58 @@ describe("POST /api/sub-orgs/[id]/onboarding", () => {
     const res = await POST(makeReq({ step: 99 }), { params: { id: SUB_ORG } });
     expect(res.status).toBe(400);
     expect(mockPrisma.subOrgMembership.update).not.toHaveBeenCalled();
+  });
+
+  // Sprint 19.7.8 — branded completion email.
+  it("sends sub-org-onboarding-completed on first completion only", async () => {
+    mockAuth.mockResolvedValueOnce({ userId: USER });
+    mockPrisma.subOrgMembership.findUnique.mockResolvedValueOnce(MEMBERSHIP);
+    mockPrisma.subOrgMembership.update.mockResolvedValueOnce(MEMBERSHIP);
+    mockPrisma.orgRelationship.findUnique.mockResolvedValueOnce({
+      parentOrgId: "org_parent",
+      childOrgId: "org_child",
+      subOrgName: "ACME",
+    });
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce({
+        email: "lena@x.de",
+        firstName: "Lena",
+        lastName: "Müller",
+        preferredLanguage: "de",
+      })
+      .mockResolvedValueOnce({
+        emailNotifications: true,
+        notificationPreferences: {},
+      });
+
+    const res = await POST(makeReq({ completed: true }), { params: { id: SUB_ORG } });
+    expect(res.status).toBe(200);
+    expect(mockSendBrandedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        template: "sub-org-onboarding-completed",
+        orgId: "org_parent",
+        subOrgId: "org_child",
+        userId: USER,
+        to: "lena@x.de",
+        data: expect.objectContaining({
+          locale: "de",
+          recipientName: "Lena Müller",
+          subOrgName: "ACME",
+        }),
+      }),
+    );
+  });
+
+  it("does NOT re-send the completion email when wizard is already done", async () => {
+    mockAuth.mockResolvedValueOnce({ userId: USER });
+    mockPrisma.subOrgMembership.findUnique.mockResolvedValueOnce({
+      ...MEMBERSHIP,
+      onboardingCompletedAt: new Date("2026-05-01"),
+    });
+    mockPrisma.subOrgMembership.update.mockResolvedValueOnce(MEMBERSHIP);
+
+    const res = await POST(makeReq({ completed: true }), { params: { id: SUB_ORG } });
+    expect(res.status).toBe(200);
+    expect(mockSendBrandedEmail).not.toHaveBeenCalled();
   });
 });

@@ -15,16 +15,21 @@ const mockPrisma = vi.hoisted(() => ({
     deleteMany: vi.fn(),
     createMany: vi.fn(),
   },
-  user: { findMany: vi.fn() },
+  user: { findMany: vi.fn(), findUnique: vi.fn() },
   orgRelationship: { findMany: vi.fn() },
+  emailLog: { create: vi.fn().mockResolvedValue({}) },
   $transaction: vi.fn(),
 }));
+const mockSendBrandedEmail = vi.hoisted(() => vi.fn());
 
 vi.mock("@clerk/nextjs/server", () => ({
   auth: mockAuth,
   clerkClient: mockClerkClient,
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
+vi.mock("@/lib/email/send-branded-email", () => ({
+  sendBrandedEmail: mockSendBrandedEmail,
+}));
 
 import { GET, POST } from "@/app/api/agency/team/route";
 
@@ -40,7 +45,15 @@ beforeEach(() => {
   mockPrisma.agencyMemberSubOrgAccess.deleteMany.mockReset();
   mockPrisma.agencyMemberSubOrgAccess.createMany.mockReset();
   mockPrisma.user.findMany.mockReset();
+  mockPrisma.user.findUnique.mockReset();
+  // Default: no user row found — inviter lookup falls back to "KILN" and
+  // shouldSendEmail returns allow=true (no_user_row).
+  mockPrisma.user.findUnique.mockResolvedValue(null);
   mockPrisma.orgRelationship.findMany.mockReset();
+  mockPrisma.emailLog.create.mockReset();
+  mockPrisma.emailLog.create.mockResolvedValue({});
+  mockSendBrandedEmail.mockReset();
+  mockSendBrandedEmail.mockResolvedValue({ ok: true });
   mockPrisma.$transaction.mockReset().mockImplementation((ops: unknown) => Promise.all(ops as Promise<unknown>[]));
 });
 
@@ -247,6 +260,105 @@ describe("POST /api/agency/team", () => {
         publicMetadata: expect.objectContaining({
           kilnAgencyRole: "VIEWER",
           kilnAssignedSubOrgIds: [],
+        }),
+      }),
+    );
+  });
+
+  // Sprint 19.7.8 — branded email notification on top of the agency invite.
+  it("sends agency-member-invited email with assignmentCount + role + locale", async () => {
+    mockAuth.mockResolvedValue({ userId: AGENCY_USER, orgId: AGENCY_ORG });
+    mockPrisma.agencyMembership.findUnique.mockResolvedValue(OWNER_MEMBERSHIP);
+    mockPrisma.orgRelationship.findMany.mockResolvedValue([
+      { id: "rel_x" },
+      { id: "rel_y" },
+    ]);
+    // Inviter lookup + recipient lookup + shouldSendEmail's user lookup.
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce({
+        firstName: "André",
+        lastName: "Bäcker",
+        email: "andre@x.de",
+      })
+      .mockResolvedValueOnce({
+        preferredLanguage: "en",
+        firstName: "Sarah",
+        lastName: null,
+      })
+      .mockResolvedValueOnce({
+        emailNotifications: true,
+        notificationPreferences: {},
+      });
+    mockPrisma.agencyMembership.upsert.mockResolvedValueOnce({ id: "am_new" });
+    mockClerkClient.mockResolvedValueOnce({
+      users: {
+        getUserList: vi
+          .fn()
+          .mockResolvedValueOnce({ data: [{ id: "user_existing" }] }),
+      },
+      organizations: {
+        createOrganizationMembership: vi.fn().mockResolvedValue({}),
+      },
+    });
+
+    const res = await POST(
+      makePostReq({
+        email: "existing@x.de",
+        role: "CONSULTANT",
+        subOrgIds: ["rel_x", "rel_y"],
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(mockSendBrandedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        template: "agency-member-invited",
+        orgId: AGENCY_ORG,
+        userId: "user_existing",
+        to: "existing@x.de",
+        data: expect.objectContaining({
+          locale: "en",
+          recipientName: "Sarah",
+          inviterName: "André Bäcker",
+          role: "CONSULTANT",
+          assignmentCount: 2,
+        }),
+      }),
+    );
+  });
+
+  it("path-B (new email) also fires the branded notification", async () => {
+    mockAuth.mockResolvedValue({ userId: AGENCY_USER, orgId: AGENCY_ORG });
+    mockPrisma.agencyMembership.findUnique.mockResolvedValue(OWNER_MEMBERSHIP);
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      firstName: "André",
+      lastName: null,
+      email: null,
+    });
+    mockClerkClient.mockResolvedValueOnce({
+      users: { getUserList: vi.fn().mockResolvedValueOnce({ data: [] }) },
+      organizations: {
+        createOrganizationInvitation: vi.fn().mockResolvedValueOnce({
+          id: "inv_x",
+          emailAddress: "new@x.de",
+          status: "pending",
+        }),
+      },
+    });
+
+    const res = await POST(
+      makePostReq({ email: "new@x.de", role: "VIEWER", subOrgIds: [] }),
+    );
+    expect(res.status).toBe(200);
+    expect(mockSendBrandedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        template: "agency-member-invited",
+        userId: null,
+        data: expect.objectContaining({
+          locale: "de",
+          recipientName: null,
+          inviterName: "André",
+          role: "VIEWER",
+          assignmentCount: 0,
         }),
       }),
     );
