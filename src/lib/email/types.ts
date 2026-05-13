@@ -126,6 +126,53 @@ export interface EmailTemplateData {
     graceDays: number;
     billingUrl: string;
   };
+  /**
+   * Sprint 19.7.8 — sub-org / agency RBAC + onboarding notifications.
+   *
+   * All four templates accept a `locale` ("de"|"en") so the same template
+   * file renders the German DACH default or English fallback. `recipientName`
+   * is optional everywhere: the new-email path of sub-org invites has no
+   * KILN user row yet, so we render an anonymous greeting.
+   */
+  "sub-org-member-invited-existing": {
+    locale: "de" | "en";
+    recipientName: string | null;
+    inviterName: string;
+    subOrgName: string;
+    role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+    permissionSet:
+      | "READ_ONLY"
+      | "USE_AGENTS"
+      | "USE_AGENTS_PLUS_KNOWLEDGE"
+      | "FULL_ACCESS";
+    workspaceUrl: string;
+  };
+  "sub-org-member-invited-new": {
+    locale: "de" | "en";
+    inviterName: string;
+    subOrgName: string;
+    role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+    permissionSet:
+      | "READ_ONLY"
+      | "USE_AGENTS"
+      | "USE_AGENTS_PLUS_KNOWLEDGE"
+      | "FULL_ACCESS";
+    learnMoreUrl: string;
+  };
+  "agency-member-invited": {
+    locale: "de" | "en";
+    recipientName: string | null;
+    inviterName: string;
+    role: "OWNER" | "ADMIN" | "CONSULTANT" | "VIEWER";
+    assignmentCount: number;
+    teamUrl: string;
+  };
+  "sub-org-onboarding-completed": {
+    locale: "de" | "en";
+    recipientName: string | null;
+    subOrgName: string;
+    dashboardUrl: string;
+  };
 }
 
 export type EmailTemplateName = keyof EmailTemplateData;
