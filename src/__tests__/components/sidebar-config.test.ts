@@ -7,12 +7,14 @@ import {
 const AGENCY_PRIMARY_ITEMS = AGENCY_NAV_SECTIONS.flatMap((section) => section.items.map((item) => item.href));
 
 describe("AGENCY_NAV_SECTIONS after Sprint 19.6 consolidation", () => {
-  it("is consolidated down from the previous ~32 items to ≤16", () => {
+  it("is consolidated down from the previous ~32 items to ≤17", () => {
     // Sprint 19.6 spec asked for "14"; the concrete listed items in the
     // spec actually summed to 17 (16 here without /help, which lives in a
-    // header-area Help button and not in the side nav). 16 is the right
-    // floor: anything higher means the consolidation regressed.
-    expect(AGENCY_PRIMARY_ITEMS.length).toBeLessThanOrEqual(16);
+    // header-area Help button and not in the side nav). Sprint 19.7.6
+    // added a 17th item ("Team") gated to agency-members.manage — bump
+    // the cap by one. Anything beyond this means the consolidation
+    // regressed.
+    expect(AGENCY_PRIMARY_ITEMS.length).toBeLessThanOrEqual(17);
     expect(AGENCY_PRIMARY_ITEMS.length).toBeGreaterThanOrEqual(14);
   });
 

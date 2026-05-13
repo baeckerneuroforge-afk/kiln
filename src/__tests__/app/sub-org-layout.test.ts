@@ -20,6 +20,8 @@ const mockMembership = vi.hoisted(() => vi.fn());
 const mockPrisma = vi.hoisted(() => ({
   orgRelationship: { findUnique: vi.fn() },
 }));
+const mockHeadersGet = vi.hoisted(() => vi.fn());
+const mockCookiesGet = vi.hoisted(() => vi.fn());
 
 vi.mock("@clerk/nextjs/server", () => ({ auth: mockAuth }));
 vi.mock("next/navigation", () => ({
@@ -29,6 +31,10 @@ vi.mock("next/navigation", () => ({
   redirect: (path: string) => {
     throw new RedirectError(path);
   },
+}));
+vi.mock("next/headers", () => ({
+  headers: () => ({ get: mockHeadersGet }),
+  cookies: () => ({ get: mockCookiesGet }),
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/permissions/sub-org-permissions", () => ({
@@ -41,6 +47,10 @@ beforeEach(() => {
   mockAuth.mockReset();
   mockMembership.mockReset();
   mockPrisma.orgRelationship.findUnique.mockReset();
+  // Default: no skip cookie, render against the sub-org dashboard path —
+  // tests that exercise the onboarding redirect override these.
+  mockHeadersGet.mockReset().mockReturnValue("/dashboard/sub-org/sub_1");
+  mockCookiesGet.mockReset().mockReturnValue(undefined);
 });
 
 async function callLayout(subOrgId: string) {

@@ -37,6 +37,10 @@ import { WhatsNewBell } from "@/components/whats-new";
 import { OrgChangeRefresh } from "@/components/org-switcher";
 import { ContextSwitcher } from "@/components/context-switcher";
 import { useOrgModeDetails } from "@/hooks/use-org-mode";
+import {
+  useAgencyPermissions,
+  type AgencyPermissionName,
+} from "@/hooks/use-agency-permissions";
 import { useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import type { OrgMode } from "@/lib/org-mode";
@@ -62,6 +66,10 @@ interface NavItem {
   // Sub-orgs page itself, multi-tenant management. Includes BUSINESS.
   requiresAgencyTier?: boolean;
   requiresAgencyOps?: boolean;
+  // Sprint 19.7.6 — agency-internal RBAC. Hidden unless the caller's
+  // AgencyRole grants this permission. Distinct from the tier gates
+  // above (those check plan, this checks role).
+  requiresAgencyPermission?: AgencyPermissionName;
   // One-line context shown in the hover tooltip — used to disambiguate
   // visually-similar entries (e.g. Workflows vs Orchestration).
   tooltipDescription?: string;
@@ -164,7 +172,19 @@ export const AGENCY_NAV_SECTIONS: NavSection[] = [
     label: "Manage",
     defaultOpen: false,
     items: [
-      { name: "Billing", href: "/dashboard/agency/billing", icon: CreditCard, requiresBusiness: true },
+      {
+        name: "Team",
+        href: "/dashboard/agency/team",
+        icon: Users,
+        requiresAgencyPermission: "members.manage",
+      },
+      {
+        name: "Billing",
+        href: "/dashboard/agency/billing",
+        icon: CreditCard,
+        requiresBusiness: true,
+        requiresAgencyPermission: "billing.manage",
+      },
       { name: "Revenue", href: "/dashboard/agency/revenue", icon: TrendingUp, requiresBusiness: true },
       { name: "Branding", href: "/dashboard/agency/branding", icon: Settings, requiresBusiness: true },
       { name: "Settings", href: "/dashboard/settings", icon: Settings },
@@ -318,6 +338,7 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
   const orgModeDetails = useOrgModeDetails();
   const { user } = useUser();
   const { signOut } = useClerk();
+  const agencyPermissions = useAgencyPermissions();
   const [plan, setPlan] = useState<string>("FREE");
   const [canViewOperations, setCanViewOperations] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -503,9 +524,21 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
   // Sprint 19.6.1 — items are always visible (so users can discover the
   // surface area of the platform). The only thing we hide entirely is
   // `requiresAgencyOps`, which is internal and not a sales surface.
+  //
+  // Sprint 19.7.6 — agency-RBAC items (requiresAgencyPermission) are
+  // also fully hidden when the caller's AgencyRole doesn't grant the
+  // permission. Different from `requiresBusiness`: that gate is about
+  // pricing tier and shows a Lock badge to drive upgrades, this gate
+  // is about org-internal trust and should not be advertised at all.
   function isItemVisible(item: NavItem): boolean {
     if (item.requiresAgencyOps && !canViewOperations && !pathname.startsWith("/dashboard/operations")) {
       return false;
+    }
+    if (item.requiresAgencyPermission) {
+      // While loading we keep the item hidden — better a brief hide
+      // than a flash-then-disappear.
+      if (agencyPermissions.loading) return false;
+      if (!agencyPermissions.has(item.requiresAgencyPermission)) return false;
     }
     return true;
   }

@@ -38,6 +38,11 @@ const mockPrisma = vi.hoisted(() => ({
   },
   subOrgMembership: { upsert: vi.fn() },
   agent: { groupBy: vi.fn() },
+  // Sprint 19.7.6 — sub-orgs.create permission gate touches this table.
+  agencyMembership: {
+    findUnique: vi.fn(),
+    create: vi.fn(),
+  },
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
@@ -112,6 +117,13 @@ describe("POST /api/agency/sub-orgs", () => {
     mockAuth.mockResolvedValueOnce({ userId: AGENCY_USER, orgId: AGENCY_ORG });
     mockPrisma.user.findUnique.mockResolvedValueOnce({ plan: "AGENCY" });
     mockPrisma.orgRelationship.count.mockResolvedValueOnce(3);
+    // Sprint 19.7.6 — sub-orgs.create gate needs an OWNER membership row.
+    mockPrisma.agencyMembership.findUnique.mockResolvedValueOnce({
+      id: "am_owner",
+      agencyClerkOrgId: AGENCY_ORG,
+      userId: AGENCY_USER,
+      role: "OWNER",
+    });
     const createOrg = vi.fn().mockResolvedValueOnce({ id: "org_new_child" });
     mockClerkClient.mockResolvedValueOnce({
       organizations: { createOrganization: createOrg },

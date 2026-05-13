@@ -16,6 +16,10 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { canCreateSubOrg } from "@/lib/agency/permissions";
+import {
+  ensureAgencyMembershipFromClerkRole,
+  permissionsForAgencyRole,
+} from "@/lib/permissions/agency-permissions";
 import { addOwnerMembership, subOrgMetadata } from "@/lib/sub-org/provision";
 
 export const dynamic = "force-dynamic";
@@ -70,7 +74,7 @@ export async function GET() {
 
 // POST — create a new sub-org under the active agency.
 export async function POST(request: Request) {
-  const { userId, orgId: agencyOrgId } = await auth();
+  const { userId, orgId: agencyOrgId, orgRole } = await auth();
   if (!userId) return unauthorized();
   if (!agencyOrgId) return noActiveOrg();
 
@@ -105,6 +109,23 @@ export async function POST(request: Request) {
         current: decision.current,
       },
       { status }
+    );
+  }
+
+  // Sprint 19.7.6 — sub-orgs.create gate. OWNER + ADMIN qualify;
+  // CONSULTANT/VIEWER cannot mint new sub-orgs. Bootstrap the OWNER
+  // row for legacy Clerk org-admins on first hit. Runs after the plan-
+  // tier check so the "upgrade your plan" message wins over the
+  // role error for users on the wrong tier entirely.
+  const membership = await ensureAgencyMembershipFromClerkRole(
+    userId,
+    agencyOrgId,
+    orgRole ?? null,
+  );
+  if (!membership || !permissionsForAgencyRole(membership.role).has("sub-orgs.create")) {
+    return Response.json(
+      { error: "Insufficient permission", permission: "sub-orgs.create" },
+      { status: 403 },
     );
   }
 

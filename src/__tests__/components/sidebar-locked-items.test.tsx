@@ -69,6 +69,29 @@ function mockPlan(plan: string, agentCount = 0) {
         json: () => Promise.resolve({ subOrgs: [] }),
       } as Response);
     }
+    // Sprint 19.7.6 — the sidebar's new agency-role hook gates Team +
+    // Billing items via /api/agency/role. These plan-tier tests assume
+    // OWNER permissions so the items render and we can assert on the
+    // plan-tier lock UI; the role-gate tests cover the inverse.
+    if (url.endsWith("/api/agency/role")) {
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            role: "OWNER",
+            permissions: [
+              "agency.manage",
+              "billing.manage",
+              "members.manage",
+              "sub-orgs.create",
+              "sub-orgs.delete",
+              "sub-orgs.read",
+              "templates.manage",
+              "all-sub-orgs.access",
+            ],
+          }),
+      } as Response);
+    }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
   });
 }
