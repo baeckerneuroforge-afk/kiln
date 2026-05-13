@@ -37,6 +37,22 @@ import {
   ModulesDisabledPaymentEmail,
   modulesDisabledPaymentSubject,
 } from "./templates/modules-disabled-payment";
+import {
+  SubOrgMemberInvitedExistingEmail,
+  subOrgMemberInvitedExistingSubject,
+} from "./templates/sub-org-member-invited-existing";
+import {
+  SubOrgMemberInvitedNewEmail,
+  subOrgMemberInvitedNewSubject,
+} from "./templates/sub-org-member-invited-new";
+import {
+  AgencyMemberInvitedEmail,
+  agencyMemberInvitedSubject,
+} from "./templates/agency-member-invited";
+import {
+  SubOrgOnboardingCompletedEmail,
+  subOrgOnboardingCompletedSubject,
+} from "./templates/sub-org-onboarding-completed";
 
 export interface RenderEmailArgs<T extends EmailTemplateName> {
   template: T;
@@ -112,6 +128,26 @@ function buildSubject<T extends EmailTemplateName>(
         args.branding,
         args.data as EmailTemplateData["modules-disabled-payment"]
       );
+    case "sub-org-member-invited-existing":
+      return subOrgMemberInvitedExistingSubject(
+        args.branding,
+        args.data as EmailTemplateData["sub-org-member-invited-existing"]
+      );
+    case "sub-org-member-invited-new":
+      return subOrgMemberInvitedNewSubject(
+        args.branding,
+        args.data as EmailTemplateData["sub-org-member-invited-new"]
+      );
+    case "agency-member-invited":
+      return agencyMemberInvitedSubject(
+        args.branding,
+        args.data as EmailTemplateData["agency-member-invited"]
+      );
+    case "sub-org-onboarding-completed":
+      return subOrgOnboardingCompletedSubject(
+        args.branding,
+        args.data as EmailTemplateData["sub-org-onboarding-completed"]
+      );
     default:
       return `Message from ${args.branding.brandName}`;
   }
@@ -165,6 +201,26 @@ function buildElement<T extends EmailTemplateName>(
       return ModulesDisabledPaymentEmail({
         branding: args.branding,
         data: args.data as EmailTemplateData["modules-disabled-payment"],
+      });
+    case "sub-org-member-invited-existing":
+      return SubOrgMemberInvitedExistingEmail({
+        branding: args.branding,
+        data: args.data as EmailTemplateData["sub-org-member-invited-existing"],
+      });
+    case "sub-org-member-invited-new":
+      return SubOrgMemberInvitedNewEmail({
+        branding: args.branding,
+        data: args.data as EmailTemplateData["sub-org-member-invited-new"],
+      });
+    case "agency-member-invited":
+      return AgencyMemberInvitedEmail({
+        branding: args.branding,
+        data: args.data as EmailTemplateData["agency-member-invited"],
+      });
+    case "sub-org-onboarding-completed":
+      return SubOrgOnboardingCompletedEmail({
+        branding: args.branding,
+        data: args.data as EmailTemplateData["sub-org-onboarding-completed"],
       });
     default:
       throw new Error(`Unknown template: ${String(args.template)}`);
