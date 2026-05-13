@@ -29,7 +29,7 @@ import {
 import { useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { useToast } from "@/components/toast";
 import { cn } from "@/lib/utils";
 

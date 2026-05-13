@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2, Plus } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 import { DepartmentCard } from "@/components/departments/department-card";
 import { DepartmentEmptyState } from "@/components/departments/department-empty-state";

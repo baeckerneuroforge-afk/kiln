@@ -13,7 +13,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Bot, Lock, Plus } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { getSubOrgContext } from "@/lib/sub-org/get-sub-org-context";
 import { getSubOrgAgents } from "@/lib/sub-org/get-sub-org-data";
 import { getAvailableAgentTemplateUpdates } from "@/lib/sub-org/get-template-updates";

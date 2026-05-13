@@ -12,7 +12,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Users, Lock, UserPlus } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { prisma } from "@/lib/prisma";
 import { getSubOrgContext } from "@/lib/sub-org/get-sub-org-context";
 import { getSubOrgMemberships } from "@/lib/sub-org/get-sub-org-data";

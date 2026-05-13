@@ -8,7 +8,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Waypoints, Lock, Upload } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { getSubOrgContext } from "@/lib/sub-org/get-sub-org-context";
 import { getSubOrgKnowledgeBases } from "@/lib/sub-org/get-sub-org-data";
 

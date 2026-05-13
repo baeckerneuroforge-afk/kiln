@@ -6,7 +6,8 @@ import { Loader2 } from "lucide-react";
 import { ActivationProgress } from "@/components/onboarding/activation-progress";
 import { ReviewSummary } from "@/components/onboarding/review-summary";
 import { WizardShell } from "@/components/onboarding/wizard-shell";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import type { WizardBasics, WizardChannelConfig, WizardTemplateSelection } from "@/lib/onboarding/types";
 
 interface WizardStatus {

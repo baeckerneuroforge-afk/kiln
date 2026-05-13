@@ -9,7 +9,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Workflow, Lock, Plus } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { getSubOrgContext } from "@/lib/sub-org/get-sub-org-context";
 import { getSubOrgWorkflows } from "@/lib/sub-org/get-sub-org-data";
 import { getAvailableWorkflowTemplateUpdates } from "@/lib/sub-org/get-template-updates";
