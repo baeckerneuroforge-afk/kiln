@@ -111,3 +111,25 @@ export async function hasSubOrgPermission(
   if (!membership) return false;
   return permissionsFor(membership.permissionSet).has(permission);
 }
+
+/**
+ * Sprint 19.7.6.2 — member-management authorization for sub-org routes.
+ *
+ * Two paths grant memberships.manage:
+ *   1. The membership's PermissionSet already includes it (FULL_ACCESS
+ *      is the only set that does — see PERMISSIONS_BY_SET).
+ *   2. The membership's SubOrgRole is OWNER or ADMIN, regardless of
+ *      PermissionSet. The role conveys "this user runs the workspace",
+ *      and they shouldn't be able to lock themselves out by being
+ *      assigned a weaker PermissionSet by mistake.
+ *
+ * Used by the invite + (future) remove/update endpoints under
+ * /api/agency/sub-orgs/[id]/*. Pure function so callers can decide
+ * the order of auth checks.
+ */
+export function canManageSubOrgMembers(
+  membership: Pick<SubOrgMembership, "role" | "permissionSet">,
+): boolean {
+  if (membership.role === "OWNER" || membership.role === "ADMIN") return true;
+  return permissionsFor(membership.permissionSet).has("memberships.manage");
+}

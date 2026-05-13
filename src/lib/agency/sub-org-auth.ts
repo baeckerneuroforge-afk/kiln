@@ -8,6 +8,24 @@
  *
  * Cross-agency access is rejected as 404 (not 403) so the existence of
  * a sub-org under a different agency cannot be probed by ID-guessing.
+ *
+ * TODO Sprint 19.7.7 — auth-model consolidation.
+ *
+ * This helper assumes the caller is in agency-mode (auth().orgId is
+ * the parent agency org). That broke for sub-org-mode end-users on
+ * the invite endpoint (Sprint 19.7.6.2 fixed invite/ by switching to
+ * SubOrgMembership-driven auth via canManageSubOrgMembers). Seven
+ * sibling routes — members/, members/[id]/, agents/, workflows/,
+ * stats/, invoices/, branding/ — still use this helper and would
+ * exhibit the same bug if reached from a sub-org-mode session.
+ *
+ * They're not user-facing in sub-org-mode today (the sub-org pages
+ * fetch via Prisma helpers, not these HTTP routes), so the bug is
+ * latent. The right fix is a per-route `requiredPermission` argument
+ * to a unified helper, so each route declares its own
+ * SubOrgPermission floor (agents.read, memberships.manage, …) instead
+ * of relying on "you're the agency owner therefore you can do
+ * anything". Out of scope for this sprint.
  */
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";

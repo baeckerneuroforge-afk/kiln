@@ -1,14 +1,21 @@
 /**
- * Sprint 19.7.1 — sub-org invite endpoint covers role + permissionSet,
- * existing-user shortcut, and the Clerk invitation path with metadata.
+ * Sprint 19.7.1 / 19.7.6.2 — sub-org invite endpoint.
+ *
+ * Auth is SubOrgMembership-driven (Sprint 19.7.6.2 rewrite): callers
+ * with OWNER/ADMIN role OR FULL_ACCESS permissionSet pass; everyone
+ * else gets 403/404. The old "must own the agency that this sub-org
+ * belongs to" model was retired because it broke sub-org-mode users.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const mockAuth = vi.hoisted(() => vi.fn());
 const mockClerkClient = vi.hoisted(() => vi.fn());
 const mockPrisma = vi.hoisted(() => ({
-  orgRelationship: { findFirst: vi.fn() },
-  subOrgMembership: { upsert: vi.fn() },
+  orgRelationship: { findUnique: vi.fn() },
+  subOrgMembership: {
+    findUnique: vi.fn(),
+    upsert: vi.fn(),
+  },
 }));
 
 vi.mock("@clerk/nextjs/server", () => ({
@@ -19,13 +26,28 @@ vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
 
 import { POST as invitePOST } from "@/app/api/agency/sub-orgs/[id]/invite/route";
 
-const AGENCY_USER = "user_agency_1";
-const AGENCY_ORG = "org_agency_1";
+const CALLER = "user_caller";
+
+const FULL_ACCESS_OWNER = {
+  id: "mem_caller",
+  subOrgId: "rel_1",
+  userId: CALLER,
+  role: "OWNER" as const,
+  permissionSet: "FULL_ACCESS" as const,
+  invitedById: null,
+  invitedAt: null,
+  acceptedAt: new Date(),
+  onboardingStepCompleted: null,
+  onboardingCompletedAt: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
 
 beforeEach(() => {
   mockAuth.mockReset();
   mockClerkClient.mockReset();
-  mockPrisma.orgRelationship.findFirst.mockReset();
+  mockPrisma.orgRelationship.findUnique.mockReset();
+  mockPrisma.subOrgMembership.findUnique.mockReset();
   mockPrisma.subOrgMembership.upsert.mockReset();
 });
 
@@ -39,35 +61,75 @@ function makeReq(body: unknown) {
 
 const ACTIVE_REL = {
   id: "rel_1",
-  parentOrgId: AGENCY_ORG,
   childOrgId: "org_child_1",
   subOrgStatus: "ACTIVE" as const,
 };
 
 describe("POST /api/agency/sub-orgs/[id]/invite", () => {
   it("401 when unauthenticated", async () => {
-    mockAuth.mockResolvedValueOnce({ userId: null, orgId: null });
+    mockAuth.mockResolvedValueOnce({ userId: null });
     const res = await invitePOST(makeReq({ email: "a@b.com" }), { params: { id: "rel_1" } });
     expect(res.status).toBe(401);
   });
 
-  it("404 when relationship belongs to another agency", async () => {
-    mockAuth.mockResolvedValueOnce({ userId: AGENCY_USER, orgId: AGENCY_ORG });
-    mockPrisma.orgRelationship.findFirst.mockResolvedValueOnce(null);
+  it("404 when caller has no membership in the sub-org (cross-tenant or missing)", async () => {
+    mockAuth.mockResolvedValueOnce({ userId: CALLER });
+    mockPrisma.subOrgMembership.findUnique.mockResolvedValueOnce(null);
     const res = await invitePOST(makeReq({ email: "a@b.com" }), { params: { id: "rel_x" } });
     expect(res.status).toBe(404);
   });
 
+  it("403 when caller is a sub-org MEMBER with USE_AGENTS (no memberships.manage)", async () => {
+    mockAuth.mockResolvedValueOnce({ userId: CALLER });
+    mockPrisma.subOrgMembership.findUnique.mockResolvedValueOnce({
+      ...FULL_ACCESS_OWNER,
+      role: "MEMBER",
+      permissionSet: "USE_AGENTS",
+    });
+    const res = await invitePOST(
+      makeReq({ email: "a@b.com" }),
+      { params: { id: "rel_1" } },
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("allows SubOrgRole OWNER even when permissionSet is below FULL_ACCESS", async () => {
+    // Sprint 19.7.6.2 bypass: OWNER/ADMIN always manage members regardless
+    // of permissionSet floor.
+    mockAuth.mockResolvedValueOnce({ userId: CALLER });
+    mockPrisma.subOrgMembership.findUnique.mockResolvedValueOnce({
+      ...FULL_ACCESS_OWNER,
+      role: "OWNER",
+      permissionSet: "READ_ONLY",
+    });
+    mockPrisma.orgRelationship.findUnique.mockResolvedValueOnce(ACTIVE_REL);
+    mockClerkClient.mockResolvedValueOnce({
+      users: { getUserList: vi.fn().mockResolvedValueOnce({ data: [] }) },
+      organizations: {
+        createOrganizationInvitation: vi.fn().mockResolvedValueOnce({
+          id: "inv_owner",
+          emailAddress: "x@y.de",
+          status: "pending",
+        }),
+      },
+    });
+
+    const res = await invitePOST(makeReq({ email: "x@y.de" }), { params: { id: "rel_1" } });
+    expect(res.status).toBe(200);
+  });
+
   it("400 when email is invalid", async () => {
-    mockAuth.mockResolvedValueOnce({ userId: AGENCY_USER, orgId: AGENCY_ORG });
-    mockPrisma.orgRelationship.findFirst.mockResolvedValueOnce(ACTIVE_REL);
+    mockAuth.mockResolvedValueOnce({ userId: CALLER });
+    mockPrisma.subOrgMembership.findUnique.mockResolvedValueOnce(FULL_ACCESS_OWNER);
+    mockPrisma.orgRelationship.findUnique.mockResolvedValueOnce(ACTIVE_REL);
     const res = await invitePOST(makeReq({ email: "no-at-sign" }), { params: { id: "rel_1" } });
     expect(res.status).toBe(400);
   });
 
   it("400 when sub-org is archived", async () => {
-    mockAuth.mockResolvedValueOnce({ userId: AGENCY_USER, orgId: AGENCY_ORG });
-    mockPrisma.orgRelationship.findFirst.mockResolvedValueOnce({
+    mockAuth.mockResolvedValueOnce({ userId: CALLER });
+    mockPrisma.subOrgMembership.findUnique.mockResolvedValueOnce(FULL_ACCESS_OWNER);
+    mockPrisma.orgRelationship.findUnique.mockResolvedValueOnce({
       ...ACTIVE_REL,
       subOrgStatus: "ARCHIVED",
     });
@@ -76,8 +138,9 @@ describe("POST /api/agency/sub-orgs/[id]/invite", () => {
   });
 
   it("existing-user path creates SubOrgMembership directly with chosen role + permissionSet", async () => {
-    mockAuth.mockResolvedValueOnce({ userId: AGENCY_USER, orgId: AGENCY_ORG });
-    mockPrisma.orgRelationship.findFirst.mockResolvedValueOnce(ACTIVE_REL);
+    mockAuth.mockResolvedValueOnce({ userId: CALLER });
+    mockPrisma.subOrgMembership.findUnique.mockResolvedValueOnce(FULL_ACCESS_OWNER);
+    mockPrisma.orgRelationship.findUnique.mockResolvedValueOnce(ACTIVE_REL);
     const createMembership = vi.fn().mockResolvedValue({});
     mockClerkClient.mockResolvedValueOnce({
       users: {
@@ -117,8 +180,9 @@ describe("POST /api/agency/sub-orgs/[id]/invite", () => {
   });
 
   it("treats 'already a member' from Clerk as benign and still records the KILN membership", async () => {
-    mockAuth.mockResolvedValueOnce({ userId: AGENCY_USER, orgId: AGENCY_ORG });
-    mockPrisma.orgRelationship.findFirst.mockResolvedValueOnce(ACTIVE_REL);
+    mockAuth.mockResolvedValueOnce({ userId: CALLER });
+    mockPrisma.subOrgMembership.findUnique.mockResolvedValueOnce(FULL_ACCESS_OWNER);
+    mockPrisma.orgRelationship.findUnique.mockResolvedValueOnce(ACTIVE_REL);
     const createMembership = vi.fn().mockRejectedValueOnce(
       new Error("User is already a member of this organization"),
     );
@@ -136,8 +200,9 @@ describe("POST /api/agency/sub-orgs/[id]/invite", () => {
   });
 
   it("new-email path creates a Clerk invitation with publicMetadata { kilnRole, permissionSet }", async () => {
-    mockAuth.mockResolvedValueOnce({ userId: AGENCY_USER, orgId: AGENCY_ORG });
-    mockPrisma.orgRelationship.findFirst.mockResolvedValueOnce(ACTIVE_REL);
+    mockAuth.mockResolvedValueOnce({ userId: CALLER });
+    mockPrisma.subOrgMembership.findUnique.mockResolvedValueOnce(FULL_ACCESS_OWNER);
+    mockPrisma.orgRelationship.findUnique.mockResolvedValueOnce(ACTIVE_REL);
     const createInvitation = vi.fn().mockResolvedValueOnce({
       id: "inv_1",
       emailAddress: "new@example.com",
@@ -167,7 +232,7 @@ describe("POST /api/agency/sub-orgs/[id]/invite", () => {
       organizationId: "org_child_1",
       emailAddress: "new@example.com",
       role: "org:member",
-      inviterUserId: AGENCY_USER,
+      inviterUserId: CALLER,
       publicMetadata: {
         kilnRole: "VIEWER",
         permissionSet: "USE_AGENTS_PLUS_KNOWLEDGE",
@@ -176,8 +241,9 @@ describe("POST /api/agency/sub-orgs/[id]/invite", () => {
   });
 
   it("defaults role=MEMBER and permissionSet=READ_ONLY when omitted", async () => {
-    mockAuth.mockResolvedValueOnce({ userId: AGENCY_USER, orgId: AGENCY_ORG });
-    mockPrisma.orgRelationship.findFirst.mockResolvedValueOnce(ACTIVE_REL);
+    mockAuth.mockResolvedValueOnce({ userId: CALLER });
+    mockPrisma.subOrgMembership.findUnique.mockResolvedValueOnce(FULL_ACCESS_OWNER);
+    mockPrisma.orgRelationship.findUnique.mockResolvedValueOnce(ACTIVE_REL);
     const createInvitation = vi.fn().mockResolvedValueOnce({
       id: "inv_2",
       emailAddress: "new@example.com",
@@ -199,8 +265,9 @@ describe("POST /api/agency/sub-orgs/[id]/invite", () => {
   });
 
   it("ignores unknown role/permissionSet values and falls back to defaults", async () => {
-    mockAuth.mockResolvedValueOnce({ userId: AGENCY_USER, orgId: AGENCY_ORG });
-    mockPrisma.orgRelationship.findFirst.mockResolvedValueOnce(ACTIVE_REL);
+    mockAuth.mockResolvedValueOnce({ userId: CALLER });
+    mockPrisma.subOrgMembership.findUnique.mockResolvedValueOnce(FULL_ACCESS_OWNER);
+    mockPrisma.orgRelationship.findUnique.mockResolvedValueOnce(ACTIVE_REL);
     const createInvitation = vi.fn().mockResolvedValueOnce({
       id: "inv_3",
       emailAddress: "new@example.com",

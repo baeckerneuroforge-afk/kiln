@@ -9,13 +9,33 @@
  *      synchronously create the SubOrgMembership ourselves so the user
  *      can start using the workspace right away.
  *
- * Auth: caller must own the agency org that this sub-org belongs to.
- * Cross-agency access returns 404 (not 403) so existence cannot be
- * probed by ID-guessing.
+ * Auth (Sprint 19.7.6.2 rewrite): SubOrgMembership-driven, NOT agency-
+ * driven. Authorization is "does this user have an OWNER/ADMIN role on
+ * this sub-org, or a PermissionSet that includes memberships.manage"
+ * — see canManageSubOrgMembers. The old "must own the agency that
+ * this sub-org belongs to" gate broke for sub-org-mode end-users
+ * (their active Clerk org is the sub-org itself, not the parent
+ * agency, so the parentOrgId filter never matched) and was also the
+ * wrong mental model: the membership IS the source of truth.
+ *
+ * Cross-tenant access still returns 404 (not 403) so existence
+ * cannot be probed by ID-guessing.
+ *
+ * NOTE: this route now uses SubOrgMembership for auth, but the other
+ * /api/agency/sub-orgs/[id]/* routes still go through lib/agency/sub-
+ * org-auth.ts which keeps the old parentOrgId-driven model. They're
+ * not user-facing in sub-org-mode today (pages fetch via Prisma),
+ * but the inconsistency is architectural tech-debt. Consolidation is
+ * scheduled for Sprint 19.7.7 — see the TODO comment at the top of
+ * lib/agency/sub-org-auth.ts.
  */
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import type { PermissionSet, SubOrgRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import {
+  canManageSubOrgMembers,
+  getUserSubOrgMembership,
+} from "@/lib/permissions/sub-org-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -50,19 +70,30 @@ export async function POST(
   request: Request,
   { params }: { params: { id: string } },
 ) {
-  const { userId, orgId: agencyOrgId } = await auth();
+  const { userId } = await auth();
   if (!userId) return unauthorized();
-  if (!agencyOrgId) {
+
+  // Membership look-up is the auth gate AND the existence check: a
+  // user who has no row for this sub-org gets 404 either because the
+  // sub-org doesn't exist or because they can't see it — same surface,
+  // so IDs can't be probed.
+  const callerMembership = await getUserSubOrgMembership(userId, params.id);
+  if (!callerMembership) {
+    return Response.json({ error: "Sub-org not found" }, { status: 404 });
+  }
+  if (!canManageSubOrgMembers(callerMembership)) {
     return Response.json(
-      { error: "No active organization." },
-      { status: 400 },
+      { error: "Insufficient permission", permission: "memberships.manage" },
+      { status: 403 },
     );
   }
 
-  const relationship = await prisma.orgRelationship.findFirst({
-    where: { id: params.id, parentOrgId: agencyOrgId },
+  const relationship = await prisma.orgRelationship.findUnique({
+    where: { id: params.id },
+    select: { id: true, childOrgId: true, subOrgStatus: true },
   });
   if (!relationship) {
+    // FK on SubOrgMembership normally prevents this, but guard anyway.
     return Response.json({ error: "Sub-org not found" }, { status: 404 });
   }
   if (relationship.subOrgStatus !== "ACTIVE") {

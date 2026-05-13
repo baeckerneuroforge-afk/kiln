@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { SubOrgMembership } from "@prisma/client";
 import {
   canAccessSubOrg,
+  canManageSubOrgMembers,
   getUserSubOrgMembership,
   hasSubOrgPermission,
   permissionsFor,
@@ -149,5 +150,29 @@ describe("hasSubOrgPermission", () => {
     await expect(
       hasSubOrgPermission("user_1", "sub_1", "conversations.read", prisma),
     ).resolves.toBe(false);
+  });
+});
+
+describe("canManageSubOrgMembers (Sprint 19.7.6.2)", () => {
+  it("OWNER role always passes, even with READ_ONLY permissionSet", () => {
+    expect(canManageSubOrgMembers({ role: "OWNER", permissionSet: "READ_ONLY" })).toBe(true);
+  });
+
+  it("ADMIN role always passes, even with USE_AGENTS permissionSet", () => {
+    expect(canManageSubOrgMembers({ role: "ADMIN", permissionSet: "USE_AGENTS" })).toBe(true);
+  });
+
+  it("MEMBER role with FULL_ACCESS passes via permissionSet bypass", () => {
+    expect(canManageSubOrgMembers({ role: "MEMBER", permissionSet: "FULL_ACCESS" })).toBe(true);
+  });
+
+  it("MEMBER role with USE_AGENTS_PLUS_KNOWLEDGE is denied", () => {
+    expect(
+      canManageSubOrgMembers({ role: "MEMBER", permissionSet: "USE_AGENTS_PLUS_KNOWLEDGE" }),
+    ).toBe(false);
+  });
+
+  it("VIEWER role with READ_ONLY is denied", () => {
+    expect(canManageSubOrgMembers({ role: "VIEWER", permissionSet: "READ_ONLY" })).toBe(false);
   });
 });
