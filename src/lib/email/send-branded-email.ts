@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { resolveEmailBranding, formatFromHeader } from "./branding-resolver";
 import { renderEmail } from "./template-renderer";
+import { logEmailSend } from "./email-log";
 import type { EmailTemplateData, EmailTemplateName, RenderedEmail } from "./types";
 
 export interface SendBrandedEmailArgs<T extends EmailTemplateName> {
@@ -9,6 +10,12 @@ export interface SendBrandedEmailArgs<T extends EmailTemplateName> {
   to: string | string[];
   orgId: string | null;
   subOrgId?: string | null;
+  /**
+   * Optional caller-supplied recipient userId for EmailLog correlation.
+   * For sends to multiple recipients only the first user is logged on the
+   * row; multi-recipient sends should usually fan out to one call per user.
+   */
+  userId?: string | null;
 }
 
 export interface SendBrandedEmailResult {
@@ -38,8 +45,19 @@ export async function sendBrandedEmail<T extends EmailTemplateName>(
     subOrgId: args.subOrgId ?? null,
   });
 
+  const firstRecipient = Array.isArray(args.to) ? args.to[0] ?? "" : args.to;
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
+    await logEmailSend({
+      userId: args.userId ?? null,
+      orgId: args.orgId,
+      subOrgId: args.subOrgId ?? null,
+      template: args.template,
+      recipientEmail: firstRecipient,
+      status: "SKIPPED",
+      errorMessage: "missing_resend_api_key",
+    });
     return {
       ok: false,
       error: "missing_resend_api_key",
@@ -56,9 +74,19 @@ export async function sendBrandedEmail<T extends EmailTemplateName>(
       data: args.data,
     });
   } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "render_failed";
+    await logEmailSend({
+      userId: args.userId ?? null,
+      orgId: args.orgId,
+      subOrgId: args.subOrgId ?? null,
+      template: args.template,
+      recipientEmail: firstRecipient,
+      status: "FAILED",
+      errorMessage,
+    });
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "render_failed",
+      error: errorMessage,
       fromAddress: branding.fromAddress,
       brandName: branding.brandName,
     };
@@ -74,6 +102,15 @@ export async function sendBrandedEmail<T extends EmailTemplateName>(
       text: rendered.text,
       replyTo: branding.replyTo || undefined,
     });
+    await logEmailSend({
+      userId: args.userId ?? null,
+      orgId: args.orgId,
+      subOrgId: args.subOrgId ?? null,
+      template: args.template,
+      recipientEmail: firstRecipient,
+      status: "SENT",
+      externalId: response.data?.id ?? null,
+    });
     return {
       ok: true,
       externalId: response.data?.id,
@@ -81,9 +118,19 @@ export async function sendBrandedEmail<T extends EmailTemplateName>(
       brandName: branding.brandName,
     };
   } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "send_failed";
+    await logEmailSend({
+      userId: args.userId ?? null,
+      orgId: args.orgId,
+      subOrgId: args.subOrgId ?? null,
+      template: args.template,
+      recipientEmail: firstRecipient,
+      status: "FAILED",
+      errorMessage,
+    });
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "send_failed",
+      error: errorMessage,
       fromAddress: branding.fromAddress,
       brandName: branding.brandName,
     };
