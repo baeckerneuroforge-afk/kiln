@@ -36,6 +36,9 @@ import {
   canManageSubOrgMembers,
   getUserSubOrgMembership,
 } from "@/lib/permissions/sub-org-permissions";
+import { sendBrandedEmail } from "@/lib/email/send-branded-email";
+import { shouldSendEmail } from "@/lib/email/preferences";
+import { resolveLocale } from "@/lib/email/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -90,7 +93,13 @@ export async function POST(
 
   const relationship = await prisma.orgRelationship.findUnique({
     where: { id: params.id },
-    select: { id: true, childOrgId: true, subOrgStatus: true },
+    select: {
+      id: true,
+      childOrgId: true,
+      parentOrgId: true,
+      subOrgName: true,
+      subOrgStatus: true,
+    },
   });
   if (!relationship) {
     // FK on SubOrgMembership normally prevents this, but guard anyway.
@@ -125,6 +134,20 @@ export async function POST(
       : "READ_ONLY";
 
   const client = await clerkClient();
+
+  // Shared lookup for either email path. Falls back to "KILN" if the
+  // caller has no User row, which can happen in dev with a Clerk-only
+  // session that hasn't been backfilled.
+  const inviter = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { firstName: true, lastName: true, email: true },
+  });
+  const inviterName =
+    [inviter?.firstName, inviter?.lastName].filter(Boolean).join(" ") ||
+    inviter?.email ||
+    "KILN";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
+  const subOrgName = relationship.subOrgName ?? "the workspace";
 
   // Path 2 — does a Clerk user already exist for this email? If yes,
   // attach them directly so they have access immediately.
@@ -171,6 +194,45 @@ export async function POST(
       },
     });
 
+    // Path 2 notification — the user is now active, so this is the only
+    // signal they get that they were added. Send-failure must not break
+    // the API contract: the membership is already persisted.
+    try {
+      const recipient = await prisma.user.findUnique({
+        where: { id: existingClerkUserId },
+        select: { preferredLanguage: true, firstName: true, lastName: true },
+      });
+      const locale = resolveLocale(recipient?.preferredLanguage);
+      const recipientName =
+        [recipient?.firstName, recipient?.lastName].filter(Boolean).join(" ") ||
+        null;
+      const gate = await shouldSendEmail({
+        eventType: "sub_org_invited",
+        userId: existingClerkUserId,
+        recipientEmail: email,
+      });
+      if (gate.allow) {
+        await sendBrandedEmail({
+          template: "sub-org-member-invited-existing",
+          orgId: relationship.parentOrgId,
+          subOrgId: relationship.childOrgId,
+          userId: existingClerkUserId,
+          to: email,
+          data: {
+            locale,
+            recipientName,
+            inviterName,
+            subOrgName,
+            role,
+            permissionSet,
+            workspaceUrl: `${appUrl}/dashboard/sub-org/${relationship.id}`,
+          },
+        });
+      }
+    } catch (err) {
+      console.warn("[sub-org/invite] path-2 email send failed:", err);
+    }
+
     return Response.json({
       email,
       role,
@@ -190,6 +252,32 @@ export async function POST(
       inviterUserId: userId,
       publicMetadata: { kilnRole: role, permissionSet },
     });
+
+    // Path 1 supplemental notification — Clerk's invitation email is
+    // generic ("Join the org on Clerk"). Our branded mail tells the
+    // recipient who invited them, to which sub-org, with what role —
+    // context the Clerk default lacks. Failure is non-fatal; the Clerk
+    // invitation is already created and is what actually grants access.
+    try {
+      await sendBrandedEmail({
+        template: "sub-org-member-invited-new",
+        orgId: relationship.parentOrgId,
+        subOrgId: relationship.childOrgId,
+        userId: null,
+        to: email,
+        data: {
+          locale: "de",
+          inviterName,
+          subOrgName,
+          role,
+          permissionSet,
+          learnMoreUrl: appUrl,
+        },
+      });
+    } catch (err) {
+      console.warn("[sub-org/invite] path-1 email send failed:", err);
+    }
+
     return Response.json({
       id: invitation.id,
       email: invitation.emailAddress,

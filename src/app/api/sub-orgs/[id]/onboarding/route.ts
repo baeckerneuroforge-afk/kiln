@@ -24,6 +24,9 @@ import {
   ONBOARDING_SKIP_COOKIE,
   ONBOARDING_SKIP_MAX_AGE_SECONDS,
 } from "@/lib/sub-org/onboarding-redirect";
+import { sendBrandedEmail } from "@/lib/email/send-branded-email";
+import { shouldSendEmail } from "@/lib/email/preferences";
+import { resolveLocale } from "@/lib/email/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +60,9 @@ export async function POST(
   }
 
   if (body.completed === true) {
+    // Avoid re-sending a completion email on a redundant POST. Only mark
+    // & notify when this is the first completion for the row.
+    const wasAlreadyCompleted = membership.onboardingCompletedAt !== null;
     await prisma.subOrgMembership.update({
       where: { id: membership.id },
       data: {
@@ -64,6 +70,58 @@ export async function POST(
         onboardingStepCompleted: 3,
       },
     });
+
+    if (!wasAlreadyCompleted) {
+      try {
+        const relationship = await prisma.orgRelationship.findUnique({
+          where: { id: params.id },
+          select: {
+            parentOrgId: true,
+            childOrgId: true,
+            subOrgName: true,
+          },
+        });
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            email: true,
+            firstName: true,
+            lastName: true,
+            preferredLanguage: true,
+          },
+        });
+        if (relationship && user?.email) {
+          const gate = await shouldSendEmail({
+            eventType: "onboarding_completed",
+            userId,
+            recipientEmail: user.email,
+          });
+          if (gate.allow) {
+            const locale = resolveLocale(user.preferredLanguage);
+            const recipientName =
+              [user.firstName, user.lastName].filter(Boolean).join(" ") || null;
+            const appUrl =
+              process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
+            await sendBrandedEmail({
+              template: "sub-org-onboarding-completed",
+              orgId: relationship.parentOrgId,
+              subOrgId: relationship.childOrgId,
+              userId,
+              to: user.email,
+              data: {
+                locale,
+                recipientName,
+                subOrgName: relationship.subOrgName ?? "your workspace",
+                dashboardUrl: `${appUrl}/dashboard/sub-org/${params.id}`,
+              },
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("[sub-org/onboarding] completion email failed:", err);
+      }
+    }
+
     return Response.json({ ok: true, action: "completed" });
   }
 

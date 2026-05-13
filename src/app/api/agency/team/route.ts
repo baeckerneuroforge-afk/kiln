@@ -24,6 +24,9 @@ import type { AgencyRole, PermissionSet } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAgencyAccess } from "@/lib/permissions/require-agency-access";
 import { permissionsForAgencyRole } from "@/lib/permissions/agency-permissions";
+import { sendBrandedEmail } from "@/lib/email/send-branded-email";
+import { shouldSendEmail } from "@/lib/email/preferences";
+import { resolveLocale } from "@/lib/email/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -175,6 +178,17 @@ export async function POST(request: Request) {
 
   const client = await clerkClient();
 
+  // Inviter context for the email body. Mirrors the sub-org/invite route.
+  const inviter = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { firstName: true, lastName: true, email: true },
+  });
+  const inviterName =
+    [inviter?.firstName, inviter?.lastName].filter(Boolean).join(" ") ||
+    inviter?.email ||
+    "KILN";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://kilnbase.com";
+
   let existingClerkUserId: string | null = null;
   try {
     const users = await client.users.getUserList({ emailAddress: [email] });
@@ -228,6 +242,42 @@ export async function POST(request: Request) {
       ]);
     }
 
+    // Existing-user notification — they now have agency-team access, and
+    // this is the only signal they get. Failure is non-fatal.
+    try {
+      const recipient = await prisma.user.findUnique({
+        where: { id: existingClerkUserId },
+        select: { preferredLanguage: true, firstName: true, lastName: true },
+      });
+      const locale = resolveLocale(recipient?.preferredLanguage);
+      const recipientName =
+        [recipient?.firstName, recipient?.lastName].filter(Boolean).join(" ") ||
+        null;
+      const gate = await shouldSendEmail({
+        eventType: "agency_invited",
+        userId: existingClerkUserId,
+        recipientEmail: email,
+      });
+      if (gate.allow) {
+        await sendBrandedEmail({
+          template: "agency-member-invited",
+          orgId: agencyOrgId,
+          userId: existingClerkUserId,
+          to: email,
+          data: {
+            locale,
+            recipientName,
+            inviterName,
+            role,
+            assignmentCount: subOrgIds.length,
+            teamUrl: `${appUrl}/dashboard/agency/team`,
+          },
+        });
+      }
+    } catch (err) {
+      console.warn("[agency/team] existing-user email send failed:", err);
+    }
+
     return Response.json({
       id: membership.id,
       email,
@@ -252,6 +302,29 @@ export async function POST(request: Request) {
         kilnPermissionOverrides: permissionOverrides,
       },
     });
+
+    // New-email supplemental notification — adds team-specific context
+    // that Clerk's generic invitation email lacks. Failure is non-fatal:
+    // the Clerk invitation grants access regardless.
+    try {
+      await sendBrandedEmail({
+        template: "agency-member-invited",
+        orgId: agencyOrgId,
+        userId: null,
+        to: email,
+        data: {
+          locale: "de",
+          recipientName: null,
+          inviterName,
+          role,
+          assignmentCount: subOrgIds.length,
+          teamUrl: `${appUrl}/dashboard/agency/team`,
+        },
+      });
+    } catch (err) {
+      console.warn("[agency/team] new-email email send failed:", err);
+    }
+
     return Response.json({
       id: invitation.id,
       email: invitation.emailAddress,
