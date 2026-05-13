@@ -2783,6 +2783,11 @@ model OrgRelationship {
   // Sprint 19.7.4 — per-sub-org LLM provider API keys (BYO).
   apiKeys     SubOrgApiKey[]
 
+  // Sprint 19.7.6 — per-Sub-Org assignments for agency-members. Owners
+  // and admins skip this table (they see every sub-org); consultants
+  // and viewers only see what's explicitly linked here.
+  agencyMemberAccess AgencyMemberSubOrgAccess[]
+
   @@index([parentOrgId])
   @@index([childOrgId])
   @@index([parentOrgId, subOrgStatus])
@@ -3577,4 +3582,58 @@ model SubAccountModuleConfig {
   @@index([subAccountId])
   @@index([mode, isActive])
   @@index([moduleName, isActive])
+}
+
+/// Sprint 19.7.6 — agency-internal RBAC.
+///
+/// One row per (agencyClerkOrgId, userId). The agency owner can hand
+/// out four roles to their team: OWNER and ADMIN see every Sub-Org
+/// automatically; CONSULTANT and VIEWER only see Sub-Orgs explicitly
+/// linked via AgencyMemberSubOrgAccess. The agency-level role is
+/// separate from the Sub-Org-level PermissionSet — an agency-OWNER
+/// always has full access inside any of their Sub-Orgs, while a
+/// CONSULTANT can have their effective permission inside a specific
+/// Sub-Org bumped up via permissionOverride.
+model AgencyMembership {
+  id                String       @id @default(cuid())
+  /// Clerk Org ID of the agency this membership belongs to.
+  agencyClerkOrgId  String
+  userId            String       // Clerk user id
+  role              AgencyRole   @default(VIEWER)
+  invitedById       String?      // Clerk user id of the inviter
+  invitedAt         DateTime?
+  acceptedAt        DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  subOrgAccess      AgencyMemberSubOrgAccess[]
+
+  @@unique([agencyClerkOrgId, userId])
+  @@index([userId])
+  @@index([agencyClerkOrgId, role])
+}
+
+/// Many-to-many join between AgencyMembership and the Sub-Orgs it can
+/// see. Owners/admins skip this table (they have implicit access to all
+/// sub-orgs in their agency); consultants/viewers populate it. The
+/// optional permissionOverride lets an owner give a consultant a
+/// higher-than-default permission inside a single Sub-Org.
+model AgencyMemberSubOrgAccess {
+  id                 String           @id @default(cuid())
+  agencyMembershipId String
+  agencyMembership   AgencyMembership @relation(fields: [agencyMembershipId], references: [id], onDelete: Cascade)
+  subOrgId           String
+  subOrg             OrgRelationship  @relation(fields: [subOrgId], references: [id], onDelete: Cascade)
+  permissionOverride PermissionSet?
+  createdAt          DateTime         @default(now())
+
+  @@unique([agencyMembershipId, subOrgId])
+  @@index([subOrgId])
+}
+
+enum AgencyRole {
+  OWNER       // agency.manage + billing + members + everything
+  ADMIN       // everything except billing
+  CONSULTANT  // edit assigned sub-orgs, no member-management
+  VIEWER      // read-only on assigned sub-orgs
 }
