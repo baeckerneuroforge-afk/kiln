@@ -63,6 +63,16 @@ model User {
   dashboardPreference   String   @default("auto") // auto | onboarding | operations
   weeklyReportEnabled Boolean  @default(true)
   enableTrendAlerts   Boolean  @default(true)
+  // Sprint 19.7.8 — preferred language for transactional emails. "de" is
+  // the DACH-first default; "en" is the international fallback. Other
+  // values fall back to "de" in the i18n resolver.
+  preferredLanguage   String   @default("de")
+  // Sprint 19.7.8 — granular per-event opt-outs for membership/onboarding
+  // emails. Keys are event-type strings (e.g. "sub_org_invited",
+  // "agency_invited", "onboarding_completed"). Missing keys default to
+  // enabled. `emailNotifications=false` is a master kill-switch that
+  // suppresses every transactional email regardless of this map.
+  notificationPreferences Json?
 
   agents              Agent[]
   conversations       Conversation[]
@@ -3645,4 +3655,41 @@ enum AgencyRole {
   ADMIN       // everything except billing
   CONSULTANT  // edit assigned sub-orgs, no member-management
   VIEWER      // read-only on assigned sub-orgs
+}
+
+// Sprint 19.7.8 — append-only audit of transactional email sends.
+//
+// One row per attempted send: SENT means the Resend API accepted the
+// request (Resend then handles bounce/delivery), FAILED is any pre-send or
+// transport error, SKIPPED is the gate that fired (user opt-out, missing
+// API key in dev, etc.). `externalId` is the Resend `email.id` returned on
+// success — used to cross-reference Resend's dashboard or webhook events.
+//
+// userId is nullable because some sends target an email-only recipient who
+// has no KILN User row yet (e.g. fresh sub-org invitations).
+model EmailLog {
+  id             String          @id @default(cuid())
+  userId         String?
+  orgId          String?
+  subOrgId       String?
+  template       String
+  recipientEmail String
+  status         EmailLogStatus
+  externalId     String?
+  errorMessage   String?         @db.Text
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+
+  @@index([userId])
+  @@index([orgId])
+  @@index([subOrgId])
+  @@index([template])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum EmailLogStatus {
+  SENT
+  FAILED
+  SKIPPED
 }
