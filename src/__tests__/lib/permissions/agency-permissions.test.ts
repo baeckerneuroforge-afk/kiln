@@ -45,7 +45,7 @@ function makePrisma({
   membership?: AgencyMembership | null;
   subOrgRow?: Partial<OrgRelationship> | null;
   assignments?: { subOrgId: string }[];
-  assignment?: { permissionOverride: AgencyMembership["role"] | null } | null;
+  assignment?: { permissionOverride: string | null } | null;
 } = {}) {
   return {
     agencyMembership: {
