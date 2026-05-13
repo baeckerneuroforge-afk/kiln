@@ -69,7 +69,7 @@ export default async function OnboardingStep3({ params }: PageProps) {
         </Link>
 
         <p className="pt-1 text-xs text-muted-foreground">
-          Klicke „Fertig", um den Wizard abzuschließen — du kannst die Schritte
+          Klicke Fertig, um den Wizard abzuschließen — du kannst die Schritte
           jederzeit überspringen oder neu starten.
         </p>
       </div>

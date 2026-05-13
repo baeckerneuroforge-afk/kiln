@@ -49,7 +49,7 @@ export default async function OnboardingStep1({ params }: PageProps) {
           <p className="mt-1 text-sm text-muted-foreground">
             Avatar und Display-Name liegen in deinem Account-Profil. Diese Schritte
             zeigen dir, wie du den Workspace nutzt — sie sind optional, du kannst
-            jederzeit „Später erinnern" wählen.
+            jederzeit Später erinnern wählen.
           </p>
           <Link
             href="/dashboard/settings"

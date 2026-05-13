@@ -69,7 +69,7 @@ export default async function OnboardingStep2({ params }: PageProps) {
         </Link>
 
         <p className="pt-1 text-xs text-muted-foreground">
-          Du kannst alles auch später unter „Integrationen" einrichten.
+          Du kannst alles auch später unter Integrationen einrichten.
         </p>
       </div>
     </OnboardingShell>
