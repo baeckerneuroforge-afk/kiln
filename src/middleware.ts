@@ -76,6 +76,12 @@ const isPublicRoute = createRouteMatcher([
 export default clerkMiddleware(async (auth, request) => {
   const hostname = request.headers.get("host") || "";
 
+  // Sprint 19.7.6 — forward the pathname to server components so layouts
+  // (notably the sub-org onboarding-wizard detector) can know the route
+  // they're rendering for without re-parsing the URL.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+
   // Custom Domain Detection: requests on a non-kilnbase hostname route into
   // the resolver page at /a/_custom-domain, which looks up either an Agent
   // (legacy single-agent custom domains) or an OrgBranding row (Phase 2.3c
@@ -88,6 +94,7 @@ export default clerkMiddleware(async (auth, request) => {
     url.searchParams.set("domain", hostname.split(":")[0].toLowerCase());
     const rewritten = NextResponse.rewrite(url);
     rewritten.headers.set("x-kiln-host", hostname.split(":")[0].toLowerCase());
+    rewritten.headers.set("x-pathname", request.nextUrl.pathname);
     return rewritten;
   }
 
@@ -95,7 +102,7 @@ export default clerkMiddleware(async (auth, request) => {
   const refCode = request.nextUrl.searchParams.get("ref");
   let response: NextResponse | undefined;
   if (refCode && /^KILN-[A-Z0-9]{4}$/i.test(refCode)) {
-    response = NextResponse.next();
+    response = NextResponse.next({ request: { headers: requestHeaders } });
     response.cookies.set("kiln_ref", refCode.toUpperCase(), {
       maxAge: 60 * 60 * 24 * 30, // 30 Tage
       path: "/",
@@ -105,7 +112,7 @@ export default clerkMiddleware(async (auth, request) => {
 
   // MCP Server: eigene API-Key-Auth, Clerk überspringen
   if (request.nextUrl.pathname === "/api/mcp" || request.nextUrl.pathname.startsWith("/api/mcp/")) {
-    return response;
+    return response ?? NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   if (!isPublicRoute(request)) {
@@ -120,7 +127,7 @@ export default clerkMiddleware(async (auth, request) => {
     }
   }
 
-  return response;
+  return response ?? NextResponse.next({ request: { headers: requestHeaders } });
 });
 
 export const config = {

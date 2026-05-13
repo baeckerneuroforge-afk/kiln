@@ -13,9 +13,14 @@
  * extractNestedSubOrgIdFromPath).
  */
 import { auth } from "@clerk/nextjs/server";
+import { headers, cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getUserSubOrgMembership } from "@/lib/permissions/sub-org-permissions";
+import {
+  ONBOARDING_SKIP_COOKIE,
+  resolveOnboardingRedirect,
+} from "@/lib/sub-org/onboarding-redirect";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +51,27 @@ export default async function SubOrgLayout({ children, params }: LayoutProps) {
   });
   if (!subOrg) {
     notFound();
+  }
+
+  // Sprint 19.7.6 — onboarding wizard redirect.
+  // Skip when the user already finished, hasn't accepted yet, opted into
+  // "remind me later", or is already inside the wizard route. Pathname
+  // comes from the middleware's x-pathname header.
+  const hdrs = await headers();
+  const pathname = hdrs.get("x-pathname");
+  const cookieStore = await cookies();
+  const skipCookie = cookieStore.get(ONBOARDING_SKIP_COOKIE)?.value ?? null;
+
+  const onboardingTarget = resolveOnboardingRedirect({
+    subOrgId: params.subOrgId,
+    acceptedAt: membership.acceptedAt,
+    onboardingCompletedAt: membership.onboardingCompletedAt,
+    onboardingStepCompleted: membership.onboardingStepCompleted,
+    pathname,
+    skipCookie,
+  });
+  if (onboardingTarget) {
+    redirect(onboardingTarget);
   }
 
   return <>{children}</>;

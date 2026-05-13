@@ -20,6 +20,8 @@ function makeMembership(overrides: Partial<SubOrgMembership> = {}): SubOrgMember
     invitedById: null,
     invitedAt: null,
     acceptedAt: new Date(),
+    onboardingStepCompleted: null,
+    onboardingCompletedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

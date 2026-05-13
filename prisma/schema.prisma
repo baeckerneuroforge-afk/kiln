@@ -2813,6 +2813,15 @@ model SubOrgMembership {
   invitedById   String?       // Clerk user id of the inviter
   invitedAt     DateTime?
   acceptedAt    DateTime?
+
+  // Sprint 19.7.6 — per-user onboarding wizard state. Tracks the
+  // highest step the user has finished (1 / 2 / 3) and a terminal
+  // timestamp set when they hit "Finish" on step 3 (or skipped all
+  // steps). The wizard's detection logic uses these two fields to
+  // decide whether to redirect on next sub-org page load.
+  onboardingStepCompleted Int?
+  onboardingCompletedAt   DateTime?
+
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
