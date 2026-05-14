@@ -13,8 +13,11 @@ function isAppDomain(hostname: string): boolean {
   return APP_DOMAINS.has(clean) || clean.endsWith(".vercel.app") || clean === "localhost";
 }
 
-// Public routes (no auth required)
-const isPublicRoute = createRouteMatcher([
+// Public routes (no auth required). Exported so tests can re-build the
+// matcher and assert specific paths are / aren't covered without spinning
+// up the whole clerkMiddleware closure. Treat additions like security
+// changes — every entry here bypasses Clerk session auth.
+export const PUBLIC_ROUTE_PATTERNS: readonly string[] = [
   "/",
   "/impressum",
   "/privacy",
@@ -26,6 +29,14 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/api/webhook/(.*)",
+  // Sprint 19.7.7 — Clerk org/user webhook endpoint. Svix signature
+  // verification gates the handler itself (`CLERK_WEBHOOK_SECRET` +
+  // svix-* headers checked at route-handler start), so we don't need
+  // Clerk session auth here. Without this exemption, the endpoint
+  // returned 401 for every Clerk delivery — Clerk auto-disabled it
+  // after 92.9% error rate. Listed explicitly (no wildcard) so a typo
+  // in another webhook path can't accidentally bypass session auth.
+  "/api/webhooks/clerk",
   "/api/webhooks/agent/(.*)", // Inbound agent webhooks (eigene Auth)
   "/api/agents/:id/chat",  // Public Chat API
   "/a/:slug",              // Public Agent Pages
@@ -71,7 +82,9 @@ const isPublicRoute = createRouteMatcher([
   "/portal/(.*)",        // Client Portal (Token-basierte Auth)
   "/api/portal/:id",     // Portal API (dual auth: Clerk oder Token)
   "/api/webhooks/stripe-connect", // Stripe Connect Webhooks (eigene Signatur-Auth)
-]);
+] as const;
+
+const isPublicRoute = createRouteMatcher([...PUBLIC_ROUTE_PATTERNS]);
 
 export default clerkMiddleware(async (auth, request) => {
   const hostname = request.headers.get("host") || "";
