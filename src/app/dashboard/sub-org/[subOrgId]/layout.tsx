@@ -21,6 +21,7 @@ import {
   ONBOARDING_SKIP_COOKIE,
   resolveOnboardingRedirect,
 } from "@/lib/sub-org/onboarding-redirect";
+import { resolveAndCreateMembershipIfMissing } from "@/lib/sub-org/jit-membership-resolver";
 
 export const dynamic = "force-dynamic";
 
@@ -35,9 +36,22 @@ export default async function SubOrgLayout({ children, params }: LayoutProps) {
     redirect("/sign-in");
   }
 
-  const membership = await getUserSubOrgMembership(userId, params.subOrgId);
+  // Sprint 19.7.7 — JIT-fallback when the Clerk-webhook didn't (or
+  // hasn't yet) materialised the SubOrgMembership row. The resolver
+  // verifies the user is actually a Clerk-org-member of this sub-org
+  // before minting a row, so URL-typing can't grant access. If the
+  // user has no Clerk membership either, we still notFound() — the
+  // existence-hiding contract is preserved.
+  let membership = await getUserSubOrgMembership(userId, params.subOrgId);
   if (!membership) {
-    notFound();
+    const jit = await resolveAndCreateMembershipIfMissing({
+      userId,
+      subOrgId: params.subOrgId,
+    });
+    membership = jit.membership;
+    if (!membership) {
+      notFound();
+    }
   }
 
   const subOrg = await prisma.orgRelationship.findUnique({
