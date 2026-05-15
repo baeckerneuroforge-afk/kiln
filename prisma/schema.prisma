@@ -2798,6 +2798,13 @@ model OrgRelationship {
   // and viewers only see what's explicitly linked here.
   agencyMemberAccess AgencyMemberSubOrgAccess[]
 
+  // Sprint 19.8 — Custom-domains attached to this sub-org. End-users land
+  // on the sub-org's own URL (e.g. ai.muellergmbh.de) and middleware
+  // rewrites to /dashboard/sub-org/[id]/... while keeping the browser
+  // URL on the custom domain. One sub-org can register multiple
+  // hostnames; isPrimary marks the canonical one.
+  customDomains CustomDomain[]
+
   @@index([parentOrgId])
   @@index([childOrgId])
   @@index([parentOrgId, subOrgStatus])
@@ -3692,4 +3699,49 @@ enum EmailLogStatus {
   SENT
   FAILED
   SKIPPED
+}
+
+// Sprint 19.8 — Custom-domains for sub-orgs.
+//
+// A sub-org's owner adds a hostname (e.g. ai.muellergmbh.de), KILN
+// registers it with Vercel via the Domains API, Vercel issues a
+// Let's-Encrypt SSL cert after the CNAME is set, and middleware
+// rewrites incoming requests for that hostname to the sub-org's
+// /dashboard/sub-org/[id]/... routes while keeping the browser URL on
+// the custom domain.
+//
+// Status flow:
+//   PENDING    — row created, awaiting Vercel registration
+//   VERIFYING  — Vercel-registered, waiting for DNS/SSL to settle
+//   ACTIVE     — verified + SSL issued, routing live
+//   FAILED     — Vercel rejected the domain or SSL never issued
+//
+// `vercelDomainId` is the Vercel-internal identifier returned by the
+// Domains API and is needed for subsequent verify/remove calls.
+// `verificationToken` carries the TXT-record challenge for ownership
+// proofs when Vercel requires one (rare for fresh domains, common
+// when re-claiming a domain previously bound elsewhere).
+model CustomDomain {
+  id                String             @id @default(cuid())
+  subOrgId          String
+  subOrg            OrgRelationship    @relation(fields: [subOrgId], references: [id], onDelete: Cascade)
+  hostname          String             @unique
+  status            CustomDomainStatus @default(PENDING)
+  verificationToken String?
+  vercelDomainId    String?
+  sslStatus         String?
+  sslIssuedAt       DateTime?
+  isPrimary         Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([subOrgId])
+  @@index([status])
+}
+
+enum CustomDomainStatus {
+  PENDING
+  VERIFYING
+  ACTIVE
+  FAILED
 }
