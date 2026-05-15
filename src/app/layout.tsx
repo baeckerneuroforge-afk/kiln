@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { DM_Sans, DM_Mono, Instrument_Serif } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
@@ -47,11 +49,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Sprint 19.9 — i18n. Locale + messages come from src/i18n/request.ts
+  // which reads cookie / User.preferredLanguage / Accept-Language. The
+  // <html lang> tag follows so screen-readers, browser translation
+  // suggestions, and SEO bots see the correct language.
+  const locale = await getLocale();
+  const messages = await getMessages();
   return (
     <ClerkProvider
       appearance={{ baseTheme: dark }}
@@ -60,9 +68,14 @@ export default function RootLayout({
       signInFallbackRedirectUrl="/dashboard"
       signUpFallbackRedirectUrl="/dashboard"
     >
-      <html lang="en" className={`${dmSans.variable} ${dmMono.variable} ${instrumentSerif.variable}`}>
+      <html
+        lang={locale}
+        className={`${dmSans.variable} ${dmMono.variable} ${instrumentSerif.variable}`}
+      >
         <body className="font-sans antialiased">
-          <TooltipProvider>{children}</TooltipProvider>
+          <NextIntlClientProvider locale={locale} messages={messages}>
+            <TooltipProvider>{children}</TooltipProvider>
+          </NextIntlClientProvider>
         </body>
       </html>
     </ClerkProvider>
