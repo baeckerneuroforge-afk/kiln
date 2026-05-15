@@ -26,6 +26,13 @@ function makePrisma(opts: {
         verificationToken: string | null;
       }
     | null;
+  /**
+   * Sprint 19.8.1 — cross-table check. When set, the createCustomDomain
+   * code path sees an AgencyDomain row for this hostname and refuses.
+   */
+  existingAgencyDomain?:
+    | { agencyOrgId: string; hostname: string }
+    | null;
 }) {
   const created: Array<Record<string, unknown>> = [];
   const updated: Array<Record<string, unknown>> = [];
@@ -67,6 +74,19 @@ function makePrisma(opts: {
         delete: vi.fn().mockImplementation(async ({ where }: { where: { id: string } }) => {
           deleted.push(where);
           return { id: where.id };
+        }),
+      },
+      // Sprint 19.8.1 cross-table check — return any AgencyDomain row
+      // the test wants the create path to find for the same hostname.
+      agencyDomain: {
+        findUnique: vi.fn().mockImplementation(async (args) => {
+          if (
+            args.where?.hostname &&
+            opts.existingAgencyDomain?.hostname === args.where.hostname
+          ) {
+            return opts.existingAgencyDomain;
+          }
+          return null;
         }),
       },
     },
@@ -130,6 +150,21 @@ describe("createCustomDomain", () => {
     );
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe("hostname_taken");
+  });
+
+  it("Sprint 19.8.1 — refuses when hostname is already configured as an agency domain", async () => {
+    const { prisma } = makePrisma({
+      existingAgencyDomain: { agencyOrgId: "org_agency", hostname: "ai.x.de" },
+    });
+    const vercel = makeVercel({});
+    const r = await createCustomDomain(
+      { subOrgId: "sub_1", hostname: "ai.x.de" },
+      { prisma, vercel },
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe("hostname_taken");
+    // No Vercel call: cross-table conflict detected at DB layer.
+    expect(vercel.addDomain).not.toHaveBeenCalled();
   });
 
   it("returns the existing row when re-creating the same hostname on the same sub-org", async () => {
