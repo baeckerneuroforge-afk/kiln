@@ -24,10 +24,18 @@ import { cn } from "@/lib/utils";
 export function LocaleSwitcher({
   className,
   variant = "menu",
+  iconOnly = false,
 }: {
   className?: string;
   /** "menu" = popover trigger; "inline" = full row used in settings page */
   variant?: "menu" | "inline";
+  /**
+   * Sprint 19.9.1 — collapse the trigger to just the icon. Used by the
+   * sidebar when the user collapses it so the switcher stays usable
+   * without overflowing the narrow rail. Only meaningful for the
+   * "menu" variant.
+   */
+  iconOnly?: boolean;
 }) {
   const router = useRouter();
   const activeLocale = useLocale() as SupportedLocale;
@@ -89,15 +97,22 @@ export function LocaleSwitcher({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+        className={cn(
+          "flex items-center rounded-md border border-border bg-background text-xs text-muted-foreground hover:text-foreground",
+          iconOnly ? "h-7 w-7 justify-center" : "gap-1.5 px-2.5 py-1.5",
+        )}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t("switchLabel")}
         data-testid="locale-switcher-trigger"
       >
         <Languages className="h-3.5 w-3.5" />
-        <span className="uppercase tracking-wide">{activeLocale}</span>
-        <ChevronDown className="h-3 w-3" aria-hidden />
+        {!iconOnly && (
+          <>
+            <span className="uppercase tracking-wide">{activeLocale}</span>
+            <ChevronDown className="h-3 w-3" aria-hidden />
+          </>
+        )}
       </button>
       {open && (
         <div

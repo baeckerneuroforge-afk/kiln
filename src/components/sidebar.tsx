@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 import { WhatsNewBell } from "@/components/whats-new";
 import { OrgChangeRefresh } from "@/components/org-switcher";
@@ -816,6 +817,30 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
 
         {/* Bottom Section */}
         <div className={cn("flex flex-col gap-px border-t border-white/[0.06] pt-2 pb-2", isCollapsed ? "lg:px-1.5" : "px-2")}>
+          {/* Sprint 19.9.1 — Locale switcher in sidebar footer, above Help.
+              Persistent visibility for the i18n feature so customers find
+              it without digging into Settings. Compact menu-variant; the
+              `iconOnly` mode kicks in when the sidebar is collapsed so the
+              icon-only rail stays clean. */}
+          <NavTooltip label="Sprache / Language" show={isCollapsed}>
+            <div
+              className={cn(
+                "flex items-center rounded-md transition-all",
+                isCollapsed
+                  ? "lg:justify-center lg:px-0 lg:py-1 px-2.5 py-1 gap-2.5"
+                  : "gap-2.5 px-2.5 py-[5px] justify-between",
+              )}
+              data-testid="sidebar-locale-row"
+            >
+              {!isCollapsed && (
+                <span className="text-[13px] font-medium text-muted-foreground">
+                  Sprache
+                </span>
+              )}
+              <LocaleSwitcher iconOnly={isCollapsed} />
+            </div>
+          </NavTooltip>
+
           {/* Help */}
           <NavTooltip label="Help" show={isCollapsed}>
             <Link

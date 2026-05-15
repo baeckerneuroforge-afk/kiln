@@ -42,6 +42,13 @@ vi.mock("@/components/context-switcher", () => ({
   ContextSwitcher: () => <div data-testid="context-switcher" />,
 }));
 
+// Sprint 19.9.1 — LocaleSwitcher in the sidebar footer needs
+// next-intl + a real router. We stub it so the sidebar tests stay
+// next-intl-free; the switcher has its own dedicated test files.
+vi.mock("@/components/locale-switcher", () => ({
+  LocaleSwitcher: () => <div data-testid="locale-switcher-stub" />,
+}));
+
 vi.mock("@/components/agency-org-switcher", () => ({
   AgencyOrgSwitcher: () => <div data-testid="agency-org-switcher" />,
 }));
@@ -82,6 +89,19 @@ afterEach(() => {
 });
 
 describe("Sidebar polish", () => {
+  // Sprint 19.9.1 — LocaleSwitcher must render in the footer area so
+  // customers find the i18n feature without having to dig into
+  // /dashboard/settings/language. Two assertions: the row exists, and
+  // the (stubbed) switcher renders inside it.
+  it("renders the LocaleSwitcher row in the sidebar footer", async () => {
+    mockPathname.current = "/dashboard";
+    render(<Sidebar />);
+    const row = await screen.findByTestId("sidebar-locale-row");
+    expect(row).toBeTruthy();
+    // Stubbed switcher renders inside the row.
+    expect(row.querySelector('[data-testid="locale-switcher-stub"]')).toBeTruthy();
+  });
+
   it("marks the active item with kiln-orange styling", async () => {
     mockPathname.current = "/dashboard/agents";
     render(<Sidebar />);

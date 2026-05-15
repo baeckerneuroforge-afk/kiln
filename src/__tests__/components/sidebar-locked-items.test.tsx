@@ -43,6 +43,9 @@ vi.mock("@/components/whats-new", () => ({ WhatsNewBell: () => null }));
 vi.mock("@/components/org-switcher", () => ({ OrgChangeRefresh: () => null }));
 vi.mock("@/components/agency-org-switcher", () => ({ AgencyOrgSwitcher: () => null }));
 vi.mock("@/components/context-switcher", () => ({ ContextSwitcher: () => null }));
+// Sprint 19.9.1 — LocaleSwitcher needs next-intl + router; stub it out
+// for the lock-list assertions which don't exercise it.
+vi.mock("@/components/locale-switcher", () => ({ LocaleSwitcher: () => null }));
 
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
