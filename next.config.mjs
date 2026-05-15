@@ -1,4 +1,10 @@
 import { withSentryConfig } from "@sentry/nextjs";
+import createNextIntlPlugin from "next-intl/plugin";
+
+// Sprint 19.9 — i18n via next-intl. We point the plugin at our custom
+// request-config under src/i18n/request.ts. No URL-prefix routing in
+// this sprint — see src/i18n/config.ts for the rationale.
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -28,11 +34,13 @@ const nextConfig = {
 // Only wrap with Sentry if DSN is configured
 const hasSentry = !!process.env.SENTRY_DSN || !!process.env.NEXT_PUBLIC_SENTRY_DSN;
 
+const withI18n = withNextIntl(nextConfig);
+
 export default hasSentry
-  ? withSentryConfig(nextConfig, {
+  ? withSentryConfig(withI18n, {
       silent: true,
       hideSourceMaps: true,
       disableServerWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
       disableClientWebpackPlugin: !process.env.SENTRY_AUTH_TOKEN,
     })
-  : nextConfig;
+  : withI18n;
