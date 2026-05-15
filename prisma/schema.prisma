@@ -3745,3 +3745,51 @@ enum CustomDomainStatus {
   ACTIVE
   FAILED
 }
+
+// Sprint 19.8.1 — Agency-level custom domains.
+//
+// Sister table to CustomDomain. CustomDomain attaches to one sub-org
+// (a specific OrgRelationship); AgencyDomain attaches to an *agency*
+// Clerk org and serves as the whitelabel entry point for all of that
+// agency's sub-orgs.
+//
+// Use-case: Berlin AI Consulting (agency) sets ai.berlin-ai.de as
+// their AgencyDomain. Müller GmbH (sub-org of Berlin AI) staff visit
+// that URL → see Berlin-AI branding → after sign-in get smart-routed
+// to their sub-org workspace, all while the URL stays on
+// ai.berlin-ai.de.
+//
+// Precedence: a sub-org CustomDomain on the same hostname wins (it's
+// the premium override). The middleware checks CustomDomain first,
+// AgencyDomain second.
+//
+// agencyOrgId is the Clerk-Org-ID (TEXT, not a Prisma FK) to match
+// the existing pattern of OrgBranding / AgencyMembership — KILN has
+// no Org Prisma table; identity lives in Clerk.
+//
+// One AgencyDomain per agency in this sprint (isPrimary=true). The
+// column exists for future multi-domain support; the API enforces
+// the single-row invariant.
+model AgencyDomain {
+  id                String             @id @default(cuid())
+  agencyOrgId       String
+  hostname          String             @unique
+  status            AgencyDomainStatus @default(PENDING)
+  verificationToken String?
+  vercelDomainId    String?
+  sslStatus         String?
+  sslIssuedAt       DateTime?
+  isPrimary         Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([agencyOrgId])
+  @@index([status])
+}
+
+enum AgencyDomainStatus {
+  PENDING
+  VERIFYING
+  ACTIVE
+  FAILED
+}
