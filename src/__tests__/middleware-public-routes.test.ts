@@ -56,6 +56,14 @@ describe("middleware public routes", () => {
     expect(isPublic(buildRequest("/api/webhooks/unknown"))).toBe(false);
   });
 
+  it("includes /api/internal/resolve-hostname so middleware can call it", () => {
+    // Sprint 19.8 — the edge middleware fetches this endpoint to resolve
+    // hostname → sub-org-id without bundling Prisma. The call happens
+    // before Clerk auth, so the route must be public.
+    expect(PUBLIC_ROUTE_PATTERNS).toContain("/api/internal/resolve-hostname");
+    expect(isPublic(buildRequest("/api/internal/resolve-hostname"))).toBe(true);
+  });
+
   it("still protects /dashboard/* routes", () => {
     expect(isPublic(buildRequest("/dashboard"))).toBe(false);
     expect(isPublic(buildRequest("/dashboard/agency/team"))).toBe(false);

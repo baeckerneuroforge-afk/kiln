@@ -1,7 +1,13 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getDefaultHostnameCache } from "@/lib/domains/hostname-cache";
-import { resolveSubOrgIdForHostname } from "@/lib/domains/domain-manager";
+
+// NOTE — do NOT import @/lib/domains/domain-manager (or anything that
+// transitively loads `@/lib/prisma`) into this file. Middleware runs on
+// the Edge runtime, where the Prisma client bundle blows past the 1 MB
+// Function-size limit (Sprint 19.8 deploy attempt #1 fail mode). The
+// hostname lookup goes through a thin internal API route instead — see
+// `resolveSubOrgRewrite` below.
 
 // Bekannte App-Domains (nicht als Custom Domain behandeln)
 const APP_DOMAINS = new Set([
@@ -39,6 +45,10 @@ export const PUBLIC_ROUTE_PATTERNS: readonly string[] = [
   // after 92.9% error rate. Listed explicitly (no wildcard) so a typo
   // in another webhook path can't accidentally bypass session auth.
   "/api/webhooks/clerk",
+  // Sprint 19.8 — middleware calls this endpoint to resolve hostname →
+  // sub-org-id without bundling Prisma into the edge runtime. Listed
+  // here because the call happens before Clerk auth runs.
+  "/api/internal/resolve-hostname",
   "/api/webhooks/agent/(.*)", // Inbound agent webhooks (eigene Auth)
   "/api/agents/:id/chat",  // Public Chat API
   "/a/:slug",              // Public Agent Pages
@@ -115,7 +125,7 @@ export default clerkMiddleware(async (auth, request) => {
   //      single-agent custom-domain users continue to work.
   if (!isAppDomain(hostname) && !request.nextUrl.pathname.startsWith("/api/")) {
     const cleanHost = hostname.split(":")[0].toLowerCase();
-    const subOrgRoute = await resolveSubOrgRewrite(cleanHost);
+    const subOrgRoute = await resolveSubOrgRewrite(cleanHost, request.nextUrl.origin);
     if (subOrgRoute) {
       // Drop /dashboard/sub-org/[id] in front, preserving the request path
       // so /agents/abc renders the sub-org's /agents/abc, not the root.
@@ -186,8 +196,16 @@ export const config = {
  * Prisma-free. Cache misses (including registered-but-pending) are
  * also cached so we don't hammer the DB on every page-load of a
  * malformed hostname during DNS propagation.
+ *
+ * The DB lookup itself is delegated to `/api/internal/resolve-hostname`
+ * because Prisma can't ship in the edge-middleware bundle (1 MB plan
+ * limit). The fetch adds ~5-15ms on cache miss; happy-path hits return
+ * in <1ms straight from memory.
  */
-async function resolveSubOrgRewrite(hostname: string): Promise<string | null> {
+async function resolveSubOrgRewrite(
+  hostname: string,
+  origin: string,
+): Promise<string | null> {
   const cache = getDefaultHostnameCache();
   const cached = cache.get(hostname);
   if (cached) {
@@ -195,10 +213,19 @@ async function resolveSubOrgRewrite(hostname: string): Promise<string | null> {
   }
   let resolved: { subOrgId: string; status: string } | null = null;
   try {
-    resolved = await resolveSubOrgIdForHostname(hostname);
+    const url = `${origin}/api/internal/resolve-hostname?hostname=${encodeURIComponent(hostname)}`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (res.ok) {
+      const body = (await res.json()) as
+        | { found: false }
+        | { found: true; subOrgId: string; status: string };
+      if (body.found) {
+        resolved = { subOrgId: body.subOrgId, status: body.status };
+      }
+    }
   } catch (err) {
-    // DB failure shouldn't crash middleware. Fall back to "not found"
-    // and let the legacy /a/_custom-domain branch try.
+    // Network / serverless cold-start failure: fall through to the
+    // legacy custom-domain handler instead of crashing middleware.
     console.warn("[middleware] sub-org-hostname lookup failed:", err);
     return null;
   }
