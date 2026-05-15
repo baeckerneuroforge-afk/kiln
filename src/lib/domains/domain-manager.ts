@@ -23,8 +23,13 @@ import {
 } from "./vercel-domain-client";
 import { validateHostname } from "./hostname";
 
+// Sprint 19.8.1 — extended with agencyDomain for the cross-table
+// hostname-conflict check in createCustomDomain.
 export interface DomainManagerDeps {
-  prisma?: Pick<PrismaClient, "customDomain" | "orgRelationship">;
+  prisma?: Pick<
+    PrismaClient,
+    "customDomain" | "orgRelationship" | "agencyDomain"
+  >;
   vercel?: VercelDomainClient;
 }
 
@@ -87,6 +92,34 @@ export async function createCustomDomain(
       };
     }
     return { ok: true, domain: existing, verification: null };
+  }
+
+  // Sprint 19.8.1 — cross-table conflict check. The same hostname can
+  // legitimately exist as both an AgencyDomain and a CustomDomain
+  // (sub-org override on the agency domain), but only when the
+  // CustomDomain's parent agency is the AgencyDomain owner. Anything
+  // else is a hostname conflict.
+  const agencyMatch = await prisma.agencyDomain
+    .findUnique({
+      where: { hostname },
+      select: { agencyOrgId: true },
+    })
+    .catch(() => null);
+  if (agencyMatch) {
+    // Note: we don't enforce "your agency must own the AgencyDomain"
+    // here because that requires knowing the sub-org's parent agency
+    // — a 3-way query the API route already has at hand and can do
+    // its own enforcement on. The DB-level constraint is "no
+    // duplicate hostname across two different agencies".
+    // Keeping this guard as a hostname-taken signal for the typical
+    // case; the legitimate override flow is wired through a different
+    // entry point (createCustomDomainAsAgencyOverride) in a future
+    // sprint when we expose the UI for it.
+    return {
+      ok: false,
+      error: "Hostname is already configured as an agency domain",
+      code: "hostname_taken",
+    };
   }
 
   const vercel = deps.vercel ?? vercelDomainClientFromEnv();
