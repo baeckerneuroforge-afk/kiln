@@ -27,6 +27,7 @@ import { headers } from "next/headers";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { Building2, LogIn, ShieldAlert } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { loadAgencyBranding } from "@/lib/domains/agency-branding";
 
@@ -36,11 +37,12 @@ export default async function AgencyDomainEntryPage() {
   const hdrs = await headers();
   const agencyOrgId = hdrs.get("x-agency-org-id");
   const hostname = hdrs.get("x-agency-domain") ?? "";
+  const t = await getTranslations("auth.agencyEntry");
   if (!agencyOrgId) {
     // Should never happen — middleware sets this header. Render a
     // generic error to keep the user on the custom domain instead of
     // leaking back to kilnbase.com.
-    return <BrandedErrorShell title="Workspace nicht verfügbar" />;
+    return <BrandedErrorShell title={t("workspaceUnavailable")} />;
   }
 
   const branding = await loadAgencyBranding({ agencyOrgId, hostname });
@@ -48,7 +50,14 @@ export default async function AgencyDomainEntryPage() {
 
   // Unauthenticated → branded sign-in landing.
   if (!userId) {
-    return <UnauthenticatedLanding branding={branding} />;
+    return (
+      <UnauthenticatedLanding
+        branding={branding}
+        welcomeText={t("welcomeAt", { agencyName: branding.agencyName })}
+        signInPrompt={t("signInPrompt")}
+        signInLabel={(await getTranslations("auth"))("signIn")}
+      />
+    );
   }
 
   // Authenticated → look up the caller's memberships under THIS agency.
@@ -78,13 +87,26 @@ export default async function AgencyDomainEntryPage() {
   const active = memberships.filter((m) => m.subOrg.subOrgStatus === "ACTIVE");
 
   if (active.length === 0) {
-    return <NoMembershipForbidden branding={branding} />;
+    return (
+      <NoMembershipForbidden
+        branding={branding}
+        title={t("noAccess")}
+        body={t("noAccessBody", { agencyName: branding.agencyName })}
+      />
+    );
   }
   if (active.length === 1) {
     // Single membership → silent redirect into the sub-org workspace.
     redirect(`/dashboard/sub-org/${active[0].subOrgId}`);
   }
-  return <SubOrgSelector branding={branding} memberships={active} />;
+  return (
+    <SubOrgSelector
+      branding={branding}
+      memberships={active}
+      title={t("selectorTitle")}
+      body={t("selectorBody")}
+    />
+  );
 }
 
 function BrandedShell({
@@ -140,8 +162,14 @@ function BrandedErrorShell({ title }: { title: string }) {
 
 function UnauthenticatedLanding({
   branding,
+  welcomeText,
+  signInPrompt,
+  signInLabel,
 }: {
   branding: { agencyName: string; logoUrl: string | null; primaryColor: string };
+  welcomeText: string;
+  signInPrompt: string;
+  signInLabel: string;
 }) {
   return (
     <BrandedShell branding={branding}>
@@ -149,11 +177,9 @@ function UnauthenticatedLanding({
         className="max-w-md rounded-xl border border-border bg-card p-8 text-center"
         data-testid="agency-entry-unauthenticated"
       >
-        <p className="text-sm text-muted-foreground">
-          Willkommen bei {branding.agencyName}.
-        </p>
+        <p className="text-sm text-muted-foreground">{welcomeText}</p>
         <h2 className="mt-2 font-serif text-2xl text-foreground">
-          Melde dich an, um fortzufahren
+          {signInPrompt}
         </h2>
         <Link
           href="/sign-in"
@@ -162,7 +188,7 @@ function UnauthenticatedLanding({
           data-testid="agency-entry-sign-in"
         >
           <LogIn className="h-4 w-4" />
-          Anmelden
+          {signInLabel}
         </Link>
       </section>
     </BrandedShell>
@@ -171,8 +197,12 @@ function UnauthenticatedLanding({
 
 function NoMembershipForbidden({
   branding,
+  title,
+  body,
 }: {
   branding: { agencyName: string; logoUrl: string | null; primaryColor: string };
+  title: string;
+  body: string;
 }) {
   return (
     <BrandedShell branding={branding}>
@@ -181,13 +211,8 @@ function NoMembershipForbidden({
         data-testid="agency-entry-forbidden"
       >
         <ShieldAlert className="mx-auto h-8 w-8 text-red-400" />
-        <h2 className="mt-3 font-serif text-xl text-foreground">
-          Kein Zugriff auf diesen Workspace
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Dein Konto ist nicht Teil von {branding.agencyName}. Wenn das ein
-          Fehler ist, wende dich an deine Agency.
-        </p>
+        <h2 className="mt-3 font-serif text-xl text-foreground">{title}</h2>
+        <p className="mt-2 text-sm text-muted-foreground">{body}</p>
       </section>
     </BrandedShell>
   );
@@ -196,6 +221,8 @@ function NoMembershipForbidden({
 function SubOrgSelector({
   branding,
   memberships,
+  title,
+  body,
 }: {
   branding: { agencyName: string; logoUrl: string | null; primaryColor: string };
   memberships: Array<{
@@ -204,6 +231,8 @@ function SubOrgSelector({
     role: string;
     subOrg: { id: string; subOrgName: string };
   }>;
+  title: string;
+  body: string;
 }) {
   return (
     <BrandedShell branding={branding}>
@@ -212,12 +241,8 @@ function SubOrgSelector({
         data-testid="agency-entry-selector"
       >
         <header className="mb-4 text-center">
-          <h2 className="font-serif text-xl text-foreground">
-            Workspace auswählen
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Du bist Mitglied in mehreren Workspaces.
-          </p>
+          <h2 className="font-serif text-xl text-foreground">{title}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{body}</p>
         </header>
         <ul
           className="space-y-2"

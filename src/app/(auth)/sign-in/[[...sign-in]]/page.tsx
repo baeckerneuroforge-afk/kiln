@@ -2,6 +2,7 @@ import { SignIn } from "@clerk/nextjs";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { Building2 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { loadAgencyBranding } from "@/lib/domains/agency-branding";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,7 @@ export default async function SignInPage() {
   const branding = agencyOrgId && hostname
     ? await loadAgencyBranding({ agencyOrgId, hostname })
     : null;
+  const t = await getTranslations("auth");
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background">
@@ -73,9 +75,7 @@ export default async function SignInPage() {
           },
         }}
       />
-      <p className="mt-6 text-xs text-muted-foreground">
-        Sign in with email, Google, or GitHub
-      </p>
+      <p className="mt-6 text-xs text-muted-foreground">{t("signIn")}</p>
     </div>
   );
 }
