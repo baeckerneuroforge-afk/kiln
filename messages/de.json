@@ -1,0 +1,144 @@
+{
+  "common": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "add": "Hinzufügen",
+    "back": "Zurück",
+    "next": "Weiter",
+    "confirm": "Bestätigen",
+    "close": "Schließen",
+    "loading": "Lade…",
+    "error": "Fehler",
+    "success": "Erfolg",
+    "warning": "Warnung",
+    "info": "Info",
+    "search": "Suchen",
+    "filter": "Filtern",
+    "actions": "Aktionen",
+    "openExternal": "Öffnen",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "yes": "Ja",
+    "no": "Nein"
+  },
+  "auth": {
+    "signIn": "Anmelden",
+    "signUp": "Registrieren",
+    "signOut": "Abmelden",
+    "forgotPassword": "Passwort vergessen",
+    "welcomeBack": "Willkommen zurück",
+    "createAccount": "Konto erstellen",
+    "agencyEntry": {
+      "welcomeAt": "Willkommen bei {agencyName}.",
+      "signInPrompt": "Melde dich an, um fortzufahren",
+      "noAccess": "Kein Zugriff auf diesen Workspace",
+      "noAccessBody": "Dein Konto ist nicht Teil von {agencyName}. Wenn das ein Fehler ist, wende dich an deine Agency.",
+      "selectorTitle": "Workspace auswählen",
+      "selectorBody": "Du bist Mitglied in mehreren Workspaces.",
+      "workspaceUnavailable": "Workspace nicht verfügbar"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Willkommen",
+    "overview": "Übersicht",
+    "recentActivity": "Letzte Aktivität",
+    "stats": "Statistiken"
+  },
+  "agency": {
+    "team": "Team",
+    "subOrgs": "Sub-Orgs",
+    "settings": "Einstellungen",
+    "domain": "Whitelabel-Domain",
+    "branding": "Branding",
+    "billing": "Abrechnung",
+    "revenue": "Revenue",
+    "teamPage": {
+      "title": "Team",
+      "subtitle": "Lade Mitglieder ein, weise Sub-Orgs zu, verwalte Rollen.",
+      "inviteCta": "Mitglied einladen",
+      "empty": "Noch keine Team-Mitglieder. Lade jemanden ein.",
+      "columnName": "Name",
+      "columnEmail": "E-Mail",
+      "columnRole": "Rolle",
+      "columnSubOrgs": "Sub-Orgs",
+      "columnJoined": "Beigetreten"
+    },
+    "subOrgsPage": {
+      "title": "Sub-Orgs",
+      "subtitle": "Verwalte deine Sub-Org-Customers.",
+      "createCta": "Sub-Org erstellen",
+      "empty": "Noch keine Sub-Org angelegt. Erstelle die erste."
+    },
+    "domainPage": {
+      "title": "Custom-Domains",
+      "heroTitle": "Whitelabel-Custom-Domain für deine Agency",
+      "heroBody": "Deine Customers landen auf deiner Domain, sehen deine Marke. KILN unsichtbar im Hintergrund.",
+      "setupCta": "Domain konfigurieren",
+      "beforeLabel": "Vorher",
+      "afterLabel": "Nachher",
+      "ownerOnlyHint": "Nur der Agency-OWNER kann eine Whitelabel-Domain konfigurieren.",
+      "liveTitle": "Deine Whitelabel-Domain ist live",
+      "liveBody": "Customers landen auf deiner Marke. KILN unsichtbar.",
+      "sslIssued": "SSL-Zertifikat ausgestellt am {date}",
+      "openDomain": "Domain öffnen",
+      "remove": "Entfernen",
+      "verifyDns": "DNS prüfen",
+      "cancelSetup": "Setup abbrechen",
+      "verifyFailed": "Verifizierung fehlgeschlagen",
+      "verifyFailedBody": "Wir konnten den DNS-Record nicht finden. Prüfe ob du den CNAME-Record beim richtigen Provider gesetzt hast, und ob (bei Cloudflare) der Proxy deaktiviert ist (graue Wolke).",
+      "retry": "Erneut versuchen"
+    }
+  },
+  "subOrg": {
+    "agents": "Agenten",
+    "workflows": "Workflows",
+    "knowledge": "Wissensbasis",
+    "conversations": "Konversationen",
+    "customers": "Kunden",
+    "analytics": "Analytics",
+    "integrations": "Integrationen",
+    "memberships": "Mitglieder",
+    "settings": "Einstellungen",
+    "domainsPage": {
+      "title": "Custom-Domains",
+      "subtitle": "Verbinde deinen eigenen DNS-Namen mit dieser Sub-Org. Endkunden landen dann auf deiner Domain statt auf kilnbase.com.",
+      "empty": "Noch keine Custom-Domain hinterlegt.",
+      "addCta": "Domain hinzufügen",
+      "verifyCta": "Verify",
+      "addedOn": "Hinzugefügt {date}",
+      "statusPending": "Ausstehend",
+      "statusVerifying": "Wird verifiziert",
+      "statusActive": "Aktiv",
+      "statusFailed": "Fehlgeschlagen"
+    }
+  },
+  "settings": {
+    "profile": "Profil",
+    "notifications": "Benachrichtigungen",
+    "security": "Sicherheit",
+    "language": "Sprache",
+    "timezone": "Zeitzone",
+    "languagePage": {
+      "title": "Sprache",
+      "subtitle": "Wähle die Sprache der Benutzeroberfläche.",
+      "label": "Anzeigesprache",
+      "saveHint": "Änderung wird sofort wirksam."
+    }
+  },
+  "errors": {
+    "notFound": "Nicht gefunden",
+    "forbidden": "Zugriff verweigert",
+    "serverError": "Serverfehler",
+    "networkError": "Netzwerkfehler",
+    "validationError": "Validierungsfehler",
+    "unauthorized": "Nicht autorisiert"
+  },
+  "locale": {
+    "switchLabel": "Sprache",
+    "de": "Deutsch",
+    "en": "Englisch"
+  }
+}

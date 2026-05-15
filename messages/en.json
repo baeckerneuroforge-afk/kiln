@@ -1,0 +1,144 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "back": "Back",
+    "next": "Next",
+    "confirm": "Confirm",
+    "close": "Close",
+    "loading": "Loading…",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info",
+    "search": "Search",
+    "filter": "Filter",
+    "actions": "Actions",
+    "openExternal": "Open",
+    "copy": "Copy",
+    "copied": "Copied",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "signOut": "Sign out",
+    "forgotPassword": "Forgot password",
+    "welcomeBack": "Welcome back",
+    "createAccount": "Create account",
+    "agencyEntry": {
+      "welcomeAt": "Welcome to {agencyName}.",
+      "signInPrompt": "Sign in to continue",
+      "noAccess": "No access to this workspace",
+      "noAccessBody": "Your account isn't part of {agencyName}. If that's a mistake, reach out to your agency.",
+      "selectorTitle": "Select a workspace",
+      "selectorBody": "You're a member of multiple workspaces.",
+      "workspaceUnavailable": "Workspace unavailable"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome",
+    "overview": "Overview",
+    "recentActivity": "Recent activity",
+    "stats": "Stats"
+  },
+  "agency": {
+    "team": "Team",
+    "subOrgs": "Sub-Orgs",
+    "settings": "Settings",
+    "domain": "Whitelabel Domain",
+    "branding": "Branding",
+    "billing": "Billing",
+    "revenue": "Revenue",
+    "teamPage": {
+      "title": "Team",
+      "subtitle": "Invite members, assign sub-orgs, manage roles.",
+      "inviteCta": "Invite member",
+      "empty": "No team members yet. Invite someone.",
+      "columnName": "Name",
+      "columnEmail": "Email",
+      "columnRole": "Role",
+      "columnSubOrgs": "Sub-Orgs",
+      "columnJoined": "Joined"
+    },
+    "subOrgsPage": {
+      "title": "Sub-Orgs",
+      "subtitle": "Manage your sub-org customers.",
+      "createCta": "Create sub-org",
+      "empty": "No sub-orgs yet. Create your first."
+    },
+    "domainPage": {
+      "title": "Custom Domains",
+      "heroTitle": "Whitelabel custom domain for your agency",
+      "heroBody": "Your customers land on your domain, see your brand. KILN stays invisible in the background.",
+      "setupCta": "Configure domain",
+      "beforeLabel": "Before",
+      "afterLabel": "After",
+      "ownerOnlyHint": "Only the agency OWNER can configure a whitelabel domain.",
+      "liveTitle": "Your whitelabel domain is live",
+      "liveBody": "Customers land on your brand. KILN invisible.",
+      "sslIssued": "SSL certificate issued on {date}",
+      "openDomain": "Open domain",
+      "remove": "Remove",
+      "verifyDns": "Check DNS",
+      "cancelSetup": "Cancel setup",
+      "verifyFailed": "Verification failed",
+      "verifyFailedBody": "We couldn't find the DNS record. Check that you set the CNAME with the correct provider, and that (on Cloudflare) the proxy is disabled (grey cloud).",
+      "retry": "Try again"
+    }
+  },
+  "subOrg": {
+    "agents": "Agents",
+    "workflows": "Workflows",
+    "knowledge": "Knowledge base",
+    "conversations": "Conversations",
+    "customers": "Customers",
+    "analytics": "Analytics",
+    "integrations": "Integrations",
+    "memberships": "Members",
+    "settings": "Settings",
+    "domainsPage": {
+      "title": "Custom Domains",
+      "subtitle": "Connect your own DNS name to this sub-org. End customers will land on your domain instead of kilnbase.com.",
+      "empty": "No custom domain configured yet.",
+      "addCta": "Add domain",
+      "verifyCta": "Verify",
+      "addedOn": "Added {date}",
+      "statusPending": "Pending",
+      "statusVerifying": "Verifying",
+      "statusActive": "Active",
+      "statusFailed": "Failed"
+    }
+  },
+  "settings": {
+    "profile": "Profile",
+    "notifications": "Notifications",
+    "security": "Security",
+    "language": "Language",
+    "timezone": "Timezone",
+    "languagePage": {
+      "title": "Language",
+      "subtitle": "Choose your interface language.",
+      "label": "Display language",
+      "saveHint": "Change applies immediately."
+    }
+  },
+  "errors": {
+    "notFound": "Not found",
+    "forbidden": "Access denied",
+    "serverError": "Server error",
+    "networkError": "Network error",
+    "validationError": "Validation error",
+    "unauthorized": "Unauthorized"
+  },
+  "locale": {
+    "switchLabel": "Language",
+    "de": "German",
+    "en": "English"
+  }
+}
