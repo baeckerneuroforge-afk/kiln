@@ -1,5 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { getDefaultHostnameCache } from "@/lib/domains/hostname-cache";
+import { resolveSubOrgIdForHostname } from "@/lib/domains/domain-manager";
 
 // Bekannte App-Domains (nicht als Custom Domain behandeln)
 const APP_DOMAINS = new Set([
@@ -95,18 +97,44 @@ export default clerkMiddleware(async (auth, request) => {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-pathname", request.nextUrl.pathname);
 
-  // Custom Domain Detection: requests on a non-kilnbase hostname route into
-  // the resolver page at /a/_custom-domain, which looks up either an Agent
-  // (legacy single-agent custom domains) or an OrgBranding row (Phase 2.3c
-  // agency custom domains) and renders accordingly. The `x-kiln-host`
-  // header is attached for downstream debugging and to let server-side
-  // helpers detect agency-domain context without re-parsing the host.
+  // Custom Domain Detection. Two layers, in priority order:
+  //
+  //   1. Sprint 19.8 — sub-org custom domains. Hostname registered in
+  //      CustomDomain table (status=ACTIVE) is rewritten to
+  //      /dashboard/sub-org/[id]/... so the browser URL stays on the
+  //      custom domain while the app renders the sub-org workspace.
+  //      Resolution is cached in-memory for 5 min to avoid hitting the
+  //      DB on every page-load. Status != ACTIVE falls through to (2)
+  //      so a half-set-up domain doesn't accidentally serve the wrong
+  //      page; the user sees the legacy resolver's "not configured"
+  //      branch instead.
+  //
+  //   2. Legacy Agent / Agency-Branding custom domains route to
+  //      /a/_custom-domain, which decides between Agent vs OrgBranding
+  //      and renders accordingly. Kept as the fallback so existing
+  //      single-agent custom-domain users continue to work.
   if (!isAppDomain(hostname) && !request.nextUrl.pathname.startsWith("/api/")) {
+    const cleanHost = hostname.split(":")[0].toLowerCase();
+    const subOrgRoute = await resolveSubOrgRewrite(cleanHost);
+    if (subOrgRoute) {
+      // Drop /dashboard/sub-org/[id] in front, preserving the request path
+      // so /agents/abc renders the sub-org's /agents/abc, not the root.
+      const url = request.nextUrl.clone();
+      const incomingPath = request.nextUrl.pathname === "/" ? "" : request.nextUrl.pathname;
+      url.pathname = `/dashboard/sub-org/${subOrgRoute}${incomingPath}`;
+      const rewritten = NextResponse.rewrite(url);
+      rewritten.headers.set("x-kiln-host", cleanHost);
+      rewritten.headers.set("x-custom-domain", cleanHost);
+      rewritten.headers.set("x-sub-org-id", subOrgRoute);
+      rewritten.headers.set("x-pathname", request.nextUrl.pathname);
+      return rewritten;
+    }
+
     const url = request.nextUrl.clone();
     url.pathname = `/a/_custom-domain`;
-    url.searchParams.set("domain", hostname.split(":")[0].toLowerCase());
+    url.searchParams.set("domain", cleanHost);
     const rewritten = NextResponse.rewrite(url);
-    rewritten.headers.set("x-kiln-host", hostname.split(":")[0].toLowerCase());
+    rewritten.headers.set("x-kiln-host", cleanHost);
     rewritten.headers.set("x-pathname", request.nextUrl.pathname);
     return rewritten;
   }
@@ -146,3 +174,38 @@ export default clerkMiddleware(async (auth, request) => {
 export const config = {
   matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
 };
+
+/**
+ * Sprint 19.8 — resolve a custom hostname to its sub-org id, if any.
+ *
+ * Returns `null` if the hostname is unregistered or its CustomDomain
+ * status is anything other than ACTIVE (PENDING / VERIFYING / FAILED
+ * should not serve the rewrite — the user hasn't completed setup).
+ *
+ * Uses a short-lived in-memory cache to keep the happy path
+ * Prisma-free. Cache misses (including registered-but-pending) are
+ * also cached so we don't hammer the DB on every page-load of a
+ * malformed hostname during DNS propagation.
+ */
+async function resolveSubOrgRewrite(hostname: string): Promise<string | null> {
+  const cache = getDefaultHostnameCache();
+  const cached = cache.get(hostname);
+  if (cached) {
+    return cached.subOrgId && cached.status === "ACTIVE" ? cached.subOrgId : null;
+  }
+  let resolved: { subOrgId: string; status: string } | null = null;
+  try {
+    resolved = await resolveSubOrgIdForHostname(hostname);
+  } catch (err) {
+    // DB failure shouldn't crash middleware. Fall back to "not found"
+    // and let the legacy /a/_custom-domain branch try.
+    console.warn("[middleware] sub-org-hostname lookup failed:", err);
+    return null;
+  }
+  cache.set(hostname, {
+    subOrgId: resolved?.subOrgId ?? null,
+    status: resolved?.status ?? null,
+  });
+  if (!resolved) return null;
+  return resolved.status === "ACTIVE" ? resolved.subOrgId : null;
+}
