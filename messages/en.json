@@ -140,5 +140,248 @@
     "switchLabel": "Language",
     "de": "German",
     "en": "English"
+  },
+  "marketing": {
+    "nav": {
+      "features": "Features",
+      "pricing": "Pricing",
+      "faq": "FAQ",
+      "forAgencies": "For Agencies",
+      "docs": "Docs",
+      "login": "Sign in",
+      "startFree": "Start free"
+    },
+    "footer": {
+      "tagline": "The multi-tenant AI platform for AI agencies.",
+      "product": "Product",
+      "resources": "Resources",
+      "legal": "Legal",
+      "company": "Company",
+      "copyright": "© {year} Hephaistos Systems. All rights reserved.",
+      "byHephaistos": "Made by Hephaistos Systems in Giessen"
+    },
+    "pricing": {
+      "metaTitle": "Pricing — KILN",
+      "metaDescription": "Transparent pricing for AI agencies. Starter from €97/month. BYOK discount available. Unlimited sub-orgs from Agency Pro.",
+      "heroTitle": "Transparent pricing for every agency size",
+      "heroSubtitle": "One plan, four tiers, optional modules. Scale as your agency grows.",
+      "monthly": "Monthly",
+      "yearly": "Yearly (-20%)",
+      "perMonth": "/ month",
+      "custom": "Custom",
+      "mostPopular": "Most Popular",
+      "startNow": "Start now",
+      "contactSales": "Contact sales",
+      "tiers": {
+        "starter": {
+          "name": "Starter",
+          "subtitle": "For solo consultants + small teams",
+          "features": [
+            "1 owner + 2 member seats",
+            "Up to 10 sub-orgs",
+            "Unlimited AI agents",
+            "Sub-org whitelabel branding",
+            "GDPR-compliant, EU hosting",
+            "Email + chat support"
+          ]
+        },
+        "professional": {
+          "name": "Professional",
+          "subtitle": "For growing AI agencies",
+          "features": [
+            "1 owner + 10 member seats",
+            "Up to 50 sub-orgs",
+            "Custom domain for agency",
+            "Granular RBAC + sub-org permissions",
+            "Workflow templates + deployment",
+            "Priority support",
+            "OAuth integrations per sub-org"
+          ]
+        },
+        "agencyPro": {
+          "name": "Agency Pro",
+          "subtitle": "For established AI agencies",
+          "features": [
+            "Unlimited member seats",
+            "Unlimited sub-orgs",
+            "Multi-domain per agency (roadmap)",
+            "White-glove onboarding",
+            "Dedicated Slack channel",
+            "Custom SLA available",
+            "Stripe Connect reseller billing"
+          ]
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "subtitle": "Self-hosted, SLA, custom",
+          "features": [
+            "Self-hosting on-premise or your own cloud",
+            "Custom SLA + uptime guarantee",
+            "Audit logs + compliance reports",
+            "Dedicated account manager",
+            "Custom integrations",
+            "Source code escrow on request"
+          ]
+        }
+      },
+      "modulesTitle": "Module add-ons",
+      "modulesSubtitle": "Add to any plan. Enable only what you need.",
+      "modules": {
+        "voice": {
+          "name": "Voice module",
+          "description": "Voice agents via Twilio / Vonage. Inbound + outbound with transcripts."
+        },
+        "browser": {
+          "name": "Browser module",
+          "description": "Computer-use agents in a headless browser. Form filling, scraping, workflow automation."
+        },
+        "emailOutbound": {
+          "name": "Email outbound",
+          "description": "Branded email outbound via Resend. Sequencing, personalization, tracking."
+        },
+        "computerUse": {
+          "name": "Computer use",
+          "description": "Anthropic Computer-Use API. Agents operate software directly."
+        }
+      },
+      "byokTitle": "BYOK — Bring Your Own Keys",
+      "byokSubtitle": "Use your own API keys (OpenAI, Anthropic, Google) and save every month.",
+      "byokExplanation": "KILN supports BYOK for AI LLM calls. Your keys, your rate limits, your contract. KILN platform fee scales down accordingly.",
+      "byokColOriginal": "Standard",
+      "byokColBYOK": "With BYOK",
+      "comparisonTitle": "Feature comparison",
+      "comparisonSubtitle": "Which plan fits you?",
+      "comparison": {
+        "memberSeats": "Member seats",
+        "subOrgs": "Sub-orgs",
+        "customDomain": "Custom domain",
+        "agencyDomain": "Agency whitelabel domain",
+        "rbac": "Granular RBAC",
+        "templates": "Workflow templates",
+        "stripeConnect": "Stripe Connect reseller billing",
+        "support": "Support level",
+        "supportEmail": "Email",
+        "supportPriority": "Priority",
+        "supportSlack": "Dedicated Slack",
+        "supportDedicated": "Account manager",
+        "sla": "SLA guarantee"
+      },
+      "faqTitle": "Pricing FAQ",
+      "finalCtaTitle": "Ready to start?",
+      "finalCtaSubtitle": "Start with a 14-day trial. No credit card required.",
+      "finalCtaButton": "Start now"
+    },
+    "faq": {
+      "metaTitle": "FAQ — KILN",
+      "metaDescription": "Frequently asked questions about KILN, the multi-tenant AI platform for AI agencies. GDPR, pricing, tech, support.",
+      "heroTitle": "Frequently asked questions",
+      "heroSubtitle": "Answers to the most important questions about KILN.",
+      "categoryGeneral": "General",
+      "categoryWhitelabel": "Multi-tenant + whitelabel",
+      "categoryPricing": "Pricing + contract",
+      "categoryTech": "Tech",
+      "categorySupport": "Support",
+      "contactCtaTitle": "Question not answered?",
+      "contactCtaBody": "Drop us a line — we reply within 24 hours.",
+      "contactCtaButton": "Contact sales",
+      "items": {
+        "whatIsKiln": {
+          "q": "What is KILN?",
+          "a": "KILN is a multi-tenant AI platform for AI agencies. You create AI agents, workflows, and knowledge bases, then sell them under your own brand to your customers — via your whitelabel domain, with your logo, your branding."
+        },
+        "forWhom": {
+          "q": "Who is KILN for?",
+          "a": "Primarily for AI consulting boutiques, digital agencies with an AI service line, and solo AI consultants in DACH. Secondarily for industries that resell AI to their clients (law firms, tax advisors, etc.)."
+        },
+        "vsCompetitors": {
+          "q": "How is KILN different from n8n, Make, or Zapier?",
+          "a": "Those tools are general workflow automation. KILN is purpose-built for AI agencies: multi-tenant foundation, whitelabel by default, sub-org architecture, granular RBAC. Build agents once, deploy to every customer sub-org with their branding."
+        },
+        "dsgvo": {
+          "q": "Is KILN GDPR-compliant?",
+          "a": "Yes. Hosting on Vercel + Supabase EU region (Frankfurt). Data Processing Agreement (DPA) available. Audit logs in Enterprise tier. KILN itself uses no data for training. AI provider selection (OpenAI, Anthropic, Google) is steerable per GDPR requirement."
+        },
+        "dataLocation": {
+          "q": "Where is my data stored?",
+          "a": "Supabase Frankfurt (eu-central-1). Backups in the same region. Email templates via Resend (DPA with Resend). LLM calls go to your chosen provider — with BYOK direct from your account."
+        },
+        "multiTenant": {
+          "q": "What does multi-tenant mean?",
+          "a": "One KILN instance, many isolated customer workspaces (sub-orgs). Data, permissions, branding, integrations are separated per sub-org. As an agency you see all; your customer sees only their own."
+        },
+        "subOrg": {
+          "q": "How does a sub-org work?",
+          "a": "A sub-org is the workspace of one of your customers. It has its own agents, workflows, conversations, knowledge bases. Members of the sub-org see only their workspace. As agency owner you see everything, can deploy templates, set branding."
+        },
+        "ownDomain": {
+          "q": "Can I use my own domain?",
+          "a": "Yes. On Professional tier an agency whitelabel domain (e.g. ai.your-agency.com). Sub-org-specific custom domains (e.g. ai.muellergmbh.de for a specific client) also supported. Vercel registers + SSL automatically via Let's Encrypt."
+        },
+        "customerSeesBranding": {
+          "q": "Do my customers see KILN branding?",
+          "a": "No, when configured correctly. Custom domain + logo + colors + email sender — all your brand. KILN stays invisible in the background. Sole exception: powered-by-KILN footer on Free tier (removable from Starter)."
+        },
+        "howManyCustomers": {
+          "q": "How many customers can I manage?",
+          "a": "Starter: 10 sub-orgs. Professional: 50. Agency Pro: unlimited. Enterprise: unlimited + self-hosting option for particularly sensitive industries."
+        },
+        "paymentMethods": {
+          "q": "What payment methods?",
+          "a": "Credit card via Stripe (all major cards). SEPA direct debit on request for DACH customers. Invoice payment from Agency Pro on request."
+        },
+        "cancelMonthly": {
+          "q": "Can I cancel monthly?",
+          "a": "Yes, all plans cancellable monthly at month end. With annual payment (-20%) minimum term 12 months, then cancellable monthly."
+        },
+        "freeTrial": {
+          "q": "Is there a free trial?",
+          "a": "14-day trial on every plan, no credit card needed to start. Full functionality. After 14 days conversion or account pauses (data retained 30 days)."
+        },
+        "afterCancellation": {
+          "q": "What happens after cancellation?",
+          "a": "Account data is retained for 30 days, then deleted. Within those 30 days reactivation is possible. GDPR data export is available free of charge at any time."
+        },
+        "annualContract": {
+          "q": "Do I need an annual contract?",
+          "a": "No. Monthly by default. Yearly (-20%) optional on every tier."
+        },
+        "aiModels": {
+          "q": "Which AI models does KILN use?",
+          "a": "Primarily Claude 3.5 Sonnet (Anthropic) for quality. GPT-4 (OpenAI) as an alternative. Gemini (Google) for multi-modal. You pick the model per agent — or let KILN auto-select the best for the task."
+        },
+        "byok": {
+          "q": "Can I use my own API keys (BYOK)?",
+          "a": "Yes. BYOK reduces your monthly KILN fee significantly (see the pricing page). You use your own OpenAI/Anthropic/Google account, your rate limits, your contract with the provider."
+        },
+        "integrations": {
+          "q": "Which integrations are available?",
+          "a": "Slack, Stripe, Calendly, Google Calendar, HubSpot, Notion, Zapier, email (Resend), WhatsApp Business API. Configurable per sub-org separately. Custom MCP servers for your own integrations available (BYOK MCP)."
+        },
+        "api": {
+          "q": "Is there an API?",
+          "a": "Yes. REST + MCP. Programmatic sub-org management, template deployment, webhook triggers. API keys per sub-org."
+        },
+        "security": {
+          "q": "How secure is my data?",
+          "a": "Encryption at rest (Supabase standard). Encryption in transit (TLS 1.3). Clerk for auth (SOC 2 Type II). Row-level security via sub-org-membership checks. SSO + MFA available."
+        },
+        "whoIsBehindKiln": {
+          "q": "Who's behind KILN?",
+          "a": "Hephaistos Systems, founded by André Bäcker. Solo founder, based in Giessen, Germany. Full focus on KILN. Reachable directly by email or Slack channel (Agency Pro+)."
+        },
+        "supportSpeed": {
+          "q": "How fast is support?",
+          "a": "Free / Starter: 48h business hours. Professional: 24h. Agency Pro: 4h business hours + dedicated Slack. Enterprise: 1h response + phone support."
+        },
+        "onboardingHelp": {
+          "q": "Is there onboarding help?",
+          "a": "Yes, self-serve onboarding wizard on every account. Plus: white-glove onboarding (1:1 setup call) from Agency Pro. Workflow templates for standard use cases available."
+        },
+        "maxSubOrgs": {
+          "q": "What's in the Enterprise tier?",
+          "a": "Self-hosting option, custom SLA, dedicated account manager, audit logs, compliance reports (SOC 2 Type II on roadmap), source code escrow on request. Pricing custom — contact us."
+        }
+      }
+    }
   }
 }
