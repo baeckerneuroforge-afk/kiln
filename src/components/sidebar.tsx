@@ -29,6 +29,7 @@ import {
   ShieldCheck,
   Lock,
   Users,
+  Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -187,6 +188,16 @@ export const AGENCY_NAV_SECTIONS: NavSection[] = [
       },
       { name: "Revenue", href: "/dashboard/agency/revenue", icon: TrendingUp, requiresBusiness: true },
       { name: "Branding", href: "/dashboard/agency/branding", icon: Settings, requiresBusiness: true },
+      // Sprint 19.8.1 — whitelabel domain. Gated on agency.manage which
+      // is OWNER+ADMIN; the page itself further restricts POST/DELETE to
+      // OWNER. Sidebar visibility for ADMIN is intentional so they can
+      // see the configured domain (read-only) without needing to ask.
+      {
+        name: "Whitelabel-Domain",
+        href: "/dashboard/agency/settings/domain",
+        icon: Globe,
+        requiresAgencyPermission: "agency.manage",
+      },
       { name: "Settings", href: "/dashboard/settings", icon: Settings },
     ],
   },
