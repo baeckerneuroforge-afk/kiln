@@ -1,0 +1,166 @@
+/**
+ * Sprint 19.10 — public /pricing page.
+ *
+ * Server component pulls translations + the static tier/module/BYOK
+ * data structure, hands it to a tiny client wrapper for the
+ * monthly/yearly toggle. Everything below the toggle is server-rendered
+ * for SEO + speed.
+ */
+import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
+import { PricingClient } from "@/components/marketing/pricing-client";
+
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("marketing.pricing");
+  return {
+    title: t("metaTitle"),
+    description: t("metaDescription"),
+    openGraph: {
+      title: t("metaTitle"),
+      description: t("metaDescription"),
+      type: "website",
+    },
+  };
+}
+
+// Tiers: monthly EUR (with -20% applied to yearly).
+const TIERS = [
+  {
+    key: "starter" as const,
+    monthly: 97,
+    byok: 67,
+    cta: "startNow" as const,
+    href: "/sign-up?tier=starter",
+    highlighted: false,
+  },
+  {
+    key: "professional" as const,
+    monthly: 297,
+    byok: 197,
+    cta: "startNow" as const,
+    href: "/sign-up?tier=professional",
+    highlighted: true,
+  },
+  {
+    key: "agencyPro" as const,
+    monthly: 497,
+    byok: 347,
+    cta: "startNow" as const,
+    href: "/sign-up?tier=agency-pro",
+    highlighted: false,
+  },
+  {
+    key: "enterprise" as const,
+    monthly: null,
+    byok: null,
+    cta: "contactSales" as const,
+    href: "mailto:sales@kilnbase.com?subject=KILN%20Enterprise",
+    highlighted: false,
+  },
+];
+
+const MODULES = [
+  { key: "voice" as const, monthly: 200 },
+  { key: "browser" as const, monthly: 150 },
+  { key: "emailOutbound" as const, monthly: 150 },
+  { key: "computerUse" as const, monthly: 250 },
+];
+
+const COMPARISON_ROWS = [
+  { key: "memberSeats", starter: "3", pro: "11", agencyPro: "Unlimited", enterprise: "Unlimited" },
+  { key: "subOrgs", starter: "10", pro: "50", agencyPro: "Unlimited", enterprise: "Unlimited" },
+  { key: "customDomain", starter: "✓ Sub-Org", pro: "✓ Sub-Org", agencyPro: "✓ Sub-Org", enterprise: "✓" },
+  { key: "agencyDomain", starter: "—", pro: "✓", agencyPro: "✓", enterprise: "✓" },
+  { key: "rbac", starter: "✓", pro: "✓", agencyPro: "✓", enterprise: "✓" },
+  { key: "templates", starter: "✓", pro: "✓", agencyPro: "✓", enterprise: "✓" },
+  { key: "stripeConnect", starter: "—", pro: "—", agencyPro: "✓", enterprise: "✓" },
+  {
+    key: "support",
+    starter: "supportEmail" as const,
+    pro: "supportPriority" as const,
+    agencyPro: "supportSlack" as const,
+    enterprise: "supportDedicated" as const,
+  },
+  { key: "sla", starter: "—", pro: "—", agencyPro: "Optional", enterprise: "✓" },
+];
+
+export default async function PricingPage() {
+  const t = await getTranslations("marketing.pricing");
+  return (
+    <PricingClient
+      tiers={TIERS}
+      modules={MODULES}
+      comparisonRows={COMPARISON_ROWS}
+      labels={{
+        heroTitle: t("heroTitle"),
+        heroSubtitle: t("heroSubtitle"),
+        monthly: t("monthly"),
+        yearly: t("yearly"),
+        perMonth: t("perMonth"),
+        custom: t("custom"),
+        mostPopular: t("mostPopular"),
+        startNow: t("startNow"),
+        contactSales: t("contactSales"),
+        modulesTitle: t("modulesTitle"),
+        modulesSubtitle: t("modulesSubtitle"),
+        byokTitle: t("byokTitle"),
+        byokSubtitle: t("byokSubtitle"),
+        byokExplanation: t("byokExplanation"),
+        byokColOriginal: t("byokColOriginal"),
+        byokColBYOK: t("byokColBYOK"),
+        comparisonTitle: t("comparisonTitle"),
+        comparisonSubtitle: t("comparisonSubtitle"),
+        finalCtaTitle: t("finalCtaTitle"),
+        finalCtaSubtitle: t("finalCtaSubtitle"),
+        finalCtaButton: t("finalCtaButton"),
+        tierNames: {
+          starter: t("tiers.starter.name"),
+          professional: t("tiers.professional.name"),
+          agencyPro: t("tiers.agencyPro.name"),
+          enterprise: t("tiers.enterprise.name"),
+        },
+        tierSubtitles: {
+          starter: t("tiers.starter.subtitle"),
+          professional: t("tiers.professional.subtitle"),
+          agencyPro: t("tiers.agencyPro.subtitle"),
+          enterprise: t("tiers.enterprise.subtitle"),
+        },
+        tierFeatures: {
+          starter: t.raw("tiers.starter.features") as string[],
+          professional: t.raw("tiers.professional.features") as string[],
+          agencyPro: t.raw("tiers.agencyPro.features") as string[],
+          enterprise: t.raw("tiers.enterprise.features") as string[],
+        },
+        moduleNames: {
+          voice: t("modules.voice.name"),
+          browser: t("modules.browser.name"),
+          emailOutbound: t("modules.emailOutbound.name"),
+          computerUse: t("modules.computerUse.name"),
+        },
+        moduleDescriptions: {
+          voice: t("modules.voice.description"),
+          browser: t("modules.browser.description"),
+          emailOutbound: t("modules.emailOutbound.description"),
+          computerUse: t("modules.computerUse.description"),
+        },
+        comparisonLabels: {
+          memberSeats: t("comparison.memberSeats"),
+          subOrgs: t("comparison.subOrgs"),
+          customDomain: t("comparison.customDomain"),
+          agencyDomain: t("comparison.agencyDomain"),
+          rbac: t("comparison.rbac"),
+          templates: t("comparison.templates"),
+          stripeConnect: t("comparison.stripeConnect"),
+          support: t("comparison.support"),
+          supportEmail: t("comparison.supportEmail"),
+          supportPriority: t("comparison.supportPriority"),
+          supportSlack: t("comparison.supportSlack"),
+          supportDedicated: t("comparison.supportDedicated"),
+          sla: t("comparison.sla"),
+        },
+      }}
+    />
+  );
+}
