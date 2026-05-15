@@ -18,9 +18,21 @@
  * migrate to Vercel Edge Config in a follow-up sprint.
  */
 
+/**
+ * Sprint 19.8.1 — extended to carry agency-domain matches too. The
+ * middleware decides routing based on `type`:
+ *   - "sub-org": rewrite to /dashboard/sub-org/[subOrgId]/...
+ *   - "agency":  rewrite to /a/_agency-entry (smart-routing page)
+ *   - null:      hostname is registered but neither (shouldn't happen
+ *                in practice) — fall through to legacy resolver
+ */
 export interface CachedHostname {
-  /** Resolved sub-org id, or null when the hostname is known-unregistered. */
+  /** Sprint 19.8 — sub-org id when type==="sub-org". null otherwise. */
   subOrgId: string | null;
+  /** Sprint 19.8.1 — agency Clerk-org id when type==="agency". null otherwise. */
+  agencyOrgId: string | null;
+  /** Match type. null means cache-miss-as-not-found (negative cache). */
+  type: "sub-org" | "agency" | null;
   /** Domain status — middleware uses this to refuse routing for non-ACTIVE domains. */
   status: string | null;
   /** Epoch ms when this entry expires. */

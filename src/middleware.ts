@@ -107,39 +107,85 @@ export default clerkMiddleware(async (auth, request) => {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-pathname", request.nextUrl.pathname);
 
-  // Custom Domain Detection. Two layers, in priority order:
+  // Custom Domain Detection. Three layers, in priority order:
   //
   //   1. Sprint 19.8 — sub-org custom domains. Hostname registered in
   //      CustomDomain table (status=ACTIVE) is rewritten to
   //      /dashboard/sub-org/[id]/... so the browser URL stays on the
   //      custom domain while the app renders the sub-org workspace.
-  //      Resolution is cached in-memory for 5 min to avoid hitting the
-  //      DB on every page-load. Status != ACTIVE falls through to (2)
-  //      so a half-set-up domain doesn't accidentally serve the wrong
-  //      page; the user sees the legacy resolver's "not configured"
-  //      branch instead.
   //
-  //   2. Legacy Agent / Agency-Branding custom domains route to
-  //      /a/_custom-domain, which decides between Agent vs OrgBranding
-  //      and renders accordingly. Kept as the fallback so existing
+  //   2. Sprint 19.8.1 — agency-level whitelabel domains. Hostname
+  //      registered in AgencyDomain table → rewrite to
+  //      /a/_agency-entry which handles smart-routing based on the
+  //      caller's sub-org memberships (0 → 403, 1 → direct to
+  //      sub-org, many → selector). Pass-through for paths that
+  //      already point to a sub-org workspace or to /sign-in so the
+  //      redirect chain after smart-routing doesn't loop.
+  //
+  //   3. Legacy Agent / Agency-Branding custom domains route to
+  //      /a/_custom-domain. Kept as the final fallback so existing
   //      single-agent custom-domain users continue to work.
+  //
+  // Resolution is cached in-memory for 5 min to avoid hitting the
+  // internal resolver API on every page-load. Status != ACTIVE falls
+  // through so a half-set-up domain doesn't accidentally serve the
+  // wrong page.
   if (!isAppDomain(hostname) && !request.nextUrl.pathname.startsWith("/api/")) {
     const cleanHost = hostname.split(":")[0].toLowerCase();
-    const subOrgRoute = await resolveSubOrgRewrite(cleanHost, request.nextUrl.origin);
-    if (subOrgRoute) {
-      // Drop /dashboard/sub-org/[id] in front, preserving the request path
-      // so /agents/abc renders the sub-org's /agents/abc, not the root.
+    const match = await resolveHostnameRewrite(cleanHost, request.nextUrl.origin);
+
+    if (match?.type === "sub-org") {
       const url = request.nextUrl.clone();
-      const incomingPath = request.nextUrl.pathname === "/" ? "" : request.nextUrl.pathname;
-      url.pathname = `/dashboard/sub-org/${subOrgRoute}${incomingPath}`;
+      const incomingPath =
+        request.nextUrl.pathname === "/" ? "" : request.nextUrl.pathname;
+      url.pathname = `/dashboard/sub-org/${match.id}${incomingPath}`;
       const rewritten = NextResponse.rewrite(url);
       rewritten.headers.set("x-kiln-host", cleanHost);
       rewritten.headers.set("x-custom-domain", cleanHost);
-      rewritten.headers.set("x-sub-org-id", subOrgRoute);
+      rewritten.headers.set("x-sub-org-id", match.id);
       rewritten.headers.set("x-pathname", request.nextUrl.pathname);
       return rewritten;
     }
 
+    if (match?.type === "agency") {
+      const path = request.nextUrl.pathname;
+      // Paths the agency-domain user is allowed to keep traversing
+      // without going through the smart-router again. Sub-org admin
+      // areas stay reachable; sign-in/up land on Clerk's pages with
+      // agency branding context attached.
+      const passThrough =
+        path.startsWith("/dashboard/sub-org/") ||
+        path.startsWith("/sign-in") ||
+        path.startsWith("/sign-up") ||
+        path.startsWith("/_next") ||
+        path.startsWith("/api/");
+      if (passThrough) {
+        const passResponse = NextResponse.next({
+          request: { headers: requestHeaders },
+        });
+        passResponse.headers.set("x-kiln-host", cleanHost);
+        passResponse.headers.set("x-agency-domain", cleanHost);
+        passResponse.headers.set("x-agency-org-id", match.id);
+        passResponse.headers.set("x-pathname", path);
+        // Make these visible to server components via requestHeaders too,
+        // otherwise the rewritten /sign-in render can't read them.
+        requestHeaders.set("x-agency-domain", cleanHost);
+        requestHeaders.set("x-agency-org-id", match.id);
+        return passResponse;
+      }
+      const url = request.nextUrl.clone();
+      url.pathname = `/a/_agency-entry`;
+      url.searchParams.set("intended", path);
+      const rewritten = NextResponse.rewrite(url);
+      rewritten.headers.set("x-kiln-host", cleanHost);
+      rewritten.headers.set("x-agency-domain", cleanHost);
+      rewritten.headers.set("x-agency-org-id", match.id);
+      rewritten.headers.set("x-pathname", path);
+      return rewritten;
+    }
+
+    // Fallback for unregistered hostnames — legacy Agent / Agency-Branding
+    // resolver decides what to render.
     const url = request.nextUrl.clone();
     url.pathname = `/a/_custom-domain`;
     url.searchParams.set("domain", cleanHost);
@@ -186,53 +232,82 @@ export const config = {
 };
 
 /**
- * Sprint 19.8 — resolve a custom hostname to its sub-org id, if any.
+ * Sprint 19.8.1 — resolve a custom hostname to either a sub-org or
+ * an agency, with sub-org taking precedence.
  *
- * Returns `null` if the hostname is unregistered or its CustomDomain
- * status is anything other than ACTIVE (PENDING / VERIFYING / FAILED
- * should not serve the rewrite — the user hasn't completed setup).
+ * Returns:
+ *   { type: "sub-org", id: <subOrgId> }     if CustomDomain ACTIVE
+ *   { type: "agency",  id: <agencyOrgId> }  if AgencyDomain ACTIVE
+ *   null                                     otherwise
  *
  * Uses a short-lived in-memory cache to keep the happy path
  * Prisma-free. Cache misses (including registered-but-pending) are
- * also cached so we don't hammer the DB on every page-load of a
- * malformed hostname during DNS propagation.
+ * also cached so we don't hammer the resolver on every page-load
+ * during DNS propagation.
  *
  * The DB lookup itself is delegated to `/api/internal/resolve-hostname`
  * because Prisma can't ship in the edge-middleware bundle (1 MB plan
- * limit). The fetch adds ~5-15ms on cache miss; happy-path hits return
- * in <1ms straight from memory.
+ * limit, learned the hard way in Sprint 19.8). The fetch adds ~5-15ms
+ * on cache miss; happy-path hits return in <1ms straight from memory.
  */
-async function resolveSubOrgRewrite(
+type HostnameRewrite = { type: "sub-org" | "agency"; id: string };
+
+async function resolveHostnameRewrite(
   hostname: string,
   origin: string,
-): Promise<string | null> {
+): Promise<HostnameRewrite | null> {
   const cache = getDefaultHostnameCache();
   const cached = cache.get(hostname);
   if (cached) {
-    return cached.subOrgId && cached.status === "ACTIVE" ? cached.subOrgId : null;
+    if (cached.status !== "ACTIVE") return null;
+    if (cached.type === "sub-org" && cached.subOrgId) {
+      return { type: "sub-org", id: cached.subOrgId };
+    }
+    if (cached.type === "agency" && cached.agencyOrgId) {
+      return { type: "agency", id: cached.agencyOrgId };
+    }
+    return null;
   }
-  let resolved: { subOrgId: string; status: string } | null = null;
+
+  let resolved:
+    | { type: "sub-org"; subOrgId: string; status: string }
+    | { type: "agency"; agencyOrgId: string; status: string }
+    | null = null;
   try {
     const url = `${origin}/api/internal/resolve-hostname?hostname=${encodeURIComponent(hostname)}`;
     const res = await fetch(url, { cache: "no-store" });
     if (res.ok) {
       const body = (await res.json()) as
         | { found: false }
-        | { found: true; subOrgId: string; status: string };
-      if (body.found) {
-        resolved = { subOrgId: body.subOrgId, status: body.status };
-      }
+        | {
+            found: true;
+            type: "sub-org";
+            subOrgId: string;
+            status: string;
+          }
+        | {
+            found: true;
+            type: "agency";
+            agencyOrgId: string;
+            status: string;
+          };
+      if (body.found) resolved = body;
     }
   } catch (err) {
-    // Network / serverless cold-start failure: fall through to the
-    // legacy custom-domain handler instead of crashing middleware.
-    console.warn("[middleware] sub-org-hostname lookup failed:", err);
+    console.warn("[middleware] hostname lookup failed:", err);
     return null;
   }
+
   cache.set(hostname, {
-    subOrgId: resolved?.subOrgId ?? null,
+    subOrgId: resolved?.type === "sub-org" ? resolved.subOrgId : null,
+    agencyOrgId: resolved?.type === "agency" ? resolved.agencyOrgId : null,
+    type: resolved?.type ?? null,
     status: resolved?.status ?? null,
   });
-  if (!resolved) return null;
-  return resolved.status === "ACTIVE" ? resolved.subOrgId : null;
+
+  if (!resolved || resolved.status !== "ACTIVE") return null;
+  if (resolved.type === "sub-org") {
+    return { type: "sub-org", id: resolved.subOrgId };
+  }
+  return { type: "agency", id: resolved.agencyOrgId };
 }
