@@ -27,21 +27,31 @@ describe("Landing buttons resolve to public, working hrefs", () => {
     );
   });
 
-  it("nav anchor links use leading slash so they work from sub-pages", () => {
+  it("nav anchor + page links resolve correctly", () => {
+    // Sprint 19.10 — Pricing + FAQ moved from landing anchors to full
+    // pages under (marketing) route group. Features stays in-page.
     render(<LandingNav />);
     expect(
       screen.getByRole("link", { name: /^features$/i }),
     ).toHaveAttribute("href", "/#features");
     expect(
       screen.getByRole("link", { name: /^pricing$/i }),
-    ).toHaveAttribute("href", "/#pricing");
+    ).toHaveAttribute("href", "/pricing");
+    expect(
+      screen.getByRole("link", { name: /^faq$/i }),
+    ).toHaveAttribute("href", "/faq");
   });
 
-  it("nav surfaces /services link (Done-for-you offering reachable)", () => {
+  it("nav surfaces /agencies + /docs (Services moved to footer)", () => {
+    // Sprint 19.10 — Services dropped from primary nav to make room
+    // for /pricing + /faq. Still reachable via the marketing-footer.
     render(<LandingNav />);
     expect(
-      screen.getByRole("link", { name: /^services$/i }),
-    ).toHaveAttribute("href", "/services");
+      screen.getByRole("link", { name: /agencies/i }),
+    ).toHaveAttribute("href", "/agencies");
+    expect(
+      screen.getByRole("link", { name: /^docs$/i }),
+    ).toHaveAttribute("href", "/docs");
   });
 
   it("hero primary CTA → /sign-up", () => {

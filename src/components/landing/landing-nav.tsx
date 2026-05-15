@@ -16,11 +16,15 @@ import Link from "next/link";
 import { ArrowRight, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Sprint 19.10 — Pricing + FAQ are now full pages (under /pricing
+// and /faq via the (marketing) route group). Linking the inline
+// #pricing anchor would dead-end at the teaser instead of the
+// detailed plan comparison.
 const NAV_ITEMS = [
   { label: "Features", href: "/#features" },
-  { label: "Pricing", href: "/#pricing" },
+  { label: "Pricing", href: "/pricing" },
+  { label: "FAQ", href: "/faq" },
   { label: "For Agencies", href: "/agencies" },
-  { label: "Services", href: "/services" },
   { label: "Docs", href: "/docs" },
 ];
 
