@@ -89,7 +89,7 @@ describe("organizationMembership.created", () => {
     expect(mockPrisma.subOrgMembership.upsert).not.toHaveBeenCalled();
   });
 
-  it("upserts a SubOrgMembership for sub-org events; defaults to READ_ONLY when no invitation found", async () => {
+  it("upserts a SubOrgMembership for sub-org events; defaults to USE_AGENTS when no invitation found (Sprint 20.1 — aligned with JIT-resolver)", async () => {
     mockVerify.mockReturnValueOnce(subOrgEvent("organizationMembership.created"));
     mockPrisma.orgRelationship.findUnique.mockResolvedValueOnce({ id: "sub_1" });
     mockClerkClient.mockResolvedValueOnce({
@@ -107,7 +107,11 @@ describe("organizationMembership.created", () => {
           subOrgId: "sub_1",
           userId: "user_invited",
           role: "MEMBER",
-          permissionSet: "READ_ONLY",
+          // Sprint 20.1 — Default permissionSet was READ_ONLY, now
+          // USE_AGENTS so members can immediately use existing agents.
+          // Inviters can still pin READ_ONLY via invitation publicMetadata
+          // (see next test case for the override path).
+          permissionSet: "USE_AGENTS",
         }),
       }),
     );

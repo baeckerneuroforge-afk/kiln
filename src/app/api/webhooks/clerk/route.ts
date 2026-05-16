@@ -158,9 +158,17 @@ async function handleUserCreated(data: ClerkUserCreatedData) {
  *
  * The event payload carries `organization.public_metadata` which we use
  * to filter for sub-org events — agency or personal-workspace events
- * fall through as no-ops. Permission set defaults to READ_ONLY on
- * webhook-driven creation; the invite endpoint may overwrite it
- * post-acceptance via the pending-invite lookup (Phase C).
+ * fall through as no-ops.
+ *
+ * Sprint 20.1 — Permission-set default aligned with the JIT-resolver
+ * fallback (was READ_ONLY, now USE_AGENTS). The two paths converge when
+ * a Clerk org invitation is accepted without explicit publicMetadata:
+ * before this fix, users invited the normal Clerk way arrived with no
+ * agent-execution rights, but users who went through the JIT-fallback
+ * (Sprint 19.7.7) got USE_AGENTS — same person, same intent, different
+ * landing state depending on which code path raced first. USE_AGENTS
+ * is the safer "can do useful work, can't change configuration" floor;
+ * READ_ONLY is opt-in via invitation publicMetadata.
  */
 function isSubOrgEvent(data: ClerkOrgMembershipData): boolean {
   const meta = data.organization?.public_metadata;
@@ -227,7 +235,9 @@ async function handleMembershipCreated(data: ClerkOrgMembershipData) {
   });
 
   const role = invited?.role ?? fromClerkRole;
-  const permissionSet: PermissionSet = invited?.permissionSet ?? "READ_ONLY";
+  // Sprint 20.1 — aligned with JIT-resolver default. Inviters can still
+  // pin READ_ONLY explicitly via invitation publicMetadata.permissionSet.
+  const permissionSet: PermissionSet = invited?.permissionSet ?? "USE_AGENTS";
 
   await prisma.subOrgMembership.upsert({
     where: { subOrgId_userId: { subOrgId, userId } },

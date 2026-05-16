@@ -10,14 +10,19 @@
  *      permissionSet` if found
  *   2. Sensible defaults (MEMBER + USE_AGENTS) otherwise
  *
- * Why "MEMBER + USE_AGENTS" as the default (rather than the webhook's
- * READ_ONLY): if we're hitting this path, the user actually accepted
- * an invitation and the webhook lost the metadata. The agency's
- * intent in the typical invite is "let them work" — USE_AGENTS is the
- * weakest tier that achieves that. READ_ONLY would silently demote
- * users below what the agency picked. The matching-invitation lookup
- * still wins when available — defaults only kick in when invitations
- * have already been GC'd by Clerk (older than 30 days).
+ * Why "MEMBER + USE_AGENTS" as the default: if we're hitting this path,
+ * the user actually accepted an invitation and the webhook lost the
+ * metadata. The agency's intent in the typical invite is "let them
+ * work" — USE_AGENTS is the weakest tier that achieves that. The
+ * matching-invitation lookup still wins when available — defaults
+ * only kick in when invitations have already been GC'd by Clerk
+ * (older than 30 days).
+ *
+ * Sprint 20.1 — the webhook path now agrees with this default
+ * (READ_ONLY → USE_AGENTS in src/app/api/webhooks/clerk/route.ts), so
+ * race-paths between webhook and JIT-resolver land on the same
+ * permission-set instead of silently demoting users depending on
+ * which path won.
  *
  * Idempotent: a race between webhook and JIT-resolver is safe because
  * the create call uses the (subOrgId, userId) unique constraint — the
