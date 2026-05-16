@@ -3793,3 +3793,37 @@ enum AgencyDomainStatus {
   ACTIVE
   FAILED
 }
+
+/// Sprint 20 — Per-org monthly usage counters that gate Free-Tier
+/// enforcement. One row per (orgId, periodMonth).
+///
+/// `orgId` is the Clerk Org ID — for a personal user it is
+/// User.personalOrgId, for an agency's sub-org it is
+/// OrgRelationship.childOrgId. Counters that are inherently "current
+/// state" (agent count, oauth-connection count, sub-org count) are
+/// queried directly via prisma.<model>.count() in the enforcement
+/// layer — only the monthly conversation counter is persisted here
+/// because it has to survive resets.
+///
+/// `notifiedAt{80,95,100}` ensures we don't spam the user at every
+/// increment past a threshold; each gets stamped once per period and
+/// stays until the next month rolls over (a fresh row is created on
+/// the first increment in the new month).
+model TierUsageCounter {
+  id                  String   @id @default(cuid())
+  orgId               String   // Clerk Org ID (sub-org or personal-org)
+  periodMonth         String   // ISO month, e.g. "2026-05"
+
+  conversationsCount  Int      @default(0)
+
+  notifiedAt80        DateTime?
+  notifiedAt95        DateTime?
+  notifiedAt100       DateTime?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([orgId, periodMonth])
+  @@index([orgId])
+  @@index([periodMonth])
+}
