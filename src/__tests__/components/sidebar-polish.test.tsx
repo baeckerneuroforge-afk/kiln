@@ -49,6 +49,13 @@ vi.mock("@/components/locale-switcher", () => ({
   LocaleSwitcher: () => <div data-testid="locale-switcher-stub" />,
 }));
 
+// Sprint 20 — PlanBadge in the sidebar footer self-fetches
+// /api/billing/usage and uses next-intl + Link. Stub for the same
+// reason as the locale-switcher; the badge has its own dedicated tests.
+vi.mock("@/components/billing/plan-badge", () => ({
+  PlanBadge: () => <div data-testid="plan-badge-stub" />,
+}));
+
 vi.mock("@/components/agency-org-switcher", () => ({
   AgencyOrgSwitcher: () => <div data-testid="agency-org-switcher" />,
 }));

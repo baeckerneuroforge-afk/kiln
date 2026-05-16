@@ -46,6 +46,9 @@ vi.mock("@/components/context-switcher", () => ({ ContextSwitcher: () => null })
 // Sprint 19.9.1 — LocaleSwitcher needs next-intl + router; stub it out
 // for the lock-list assertions which don't exercise it.
 vi.mock("@/components/locale-switcher", () => ({ LocaleSwitcher: () => null }));
+// Sprint 20 — PlanBadge self-fetches /api/billing/usage + next-intl;
+// stub out for the lock-list assertions which don't need it.
+vi.mock("@/components/billing/plan-badge", () => ({ PlanBadge: () => null }));
 
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);

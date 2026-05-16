@@ -34,6 +34,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { PlanBadge } from "@/components/billing/plan-badge";
 import { useAdvancedMode } from "@/hooks/use-advanced-mode";
 import { WhatsNewBell } from "@/components/whats-new";
 import { OrgChangeRefresh } from "@/components/org-switcher";
@@ -817,6 +818,30 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
 
         {/* Bottom Section */}
         <div className={cn("flex flex-col gap-px border-t border-white/[0.06] pt-2 pb-2", isCollapsed ? "lg:px-1.5" : "px-2")}>
+          {/* Sprint 20 — Plan badge above the locale row. Shows the
+              active tier (Free in green, paid tiers in orange) and
+              links to Settings → Billing. Self-fetches /api/billing/usage
+              so no prop wiring needed; renders null until the fetch
+              resolves so it doesn't flash a default state. */}
+          <NavTooltip label="Plan" show={isCollapsed}>
+            <div
+              className={cn(
+                "flex items-center rounded-md transition-all",
+                isCollapsed
+                  ? "lg:justify-center lg:px-0 lg:py-1 px-2.5 py-1 gap-2.5"
+                  : "gap-2.5 px-2.5 py-[5px] justify-between",
+              )}
+              data-testid="sidebar-plan-row"
+            >
+              {!isCollapsed && (
+                <span className="text-[13px] font-medium text-muted-foreground">
+                  Plan
+                </span>
+              )}
+              <PlanBadge compact={isCollapsed} />
+            </div>
+          </NavTooltip>
+
           {/* Sprint 19.9.1 — Locale switcher in sidebar footer, above Help.
               Persistent visibility for the i18n feature so customers find
               it without digging into Settings. Compact menu-variant; the
