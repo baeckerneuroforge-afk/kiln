@@ -7,7 +7,8 @@
  * "must keep at least one admin" rule and surfaces it as an error).
  */
 import { clerkClient } from "@clerk/nextjs/server";
-import { requireSubOrgAccess } from "@/lib/agency/sub-org-auth";
+// Sprint 20.1 — DELETE removes a sub-org member; gate to OWNER/ADMIN.
+import { requireAgencyMutation } from "@/lib/agency/require-agency-mutation";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export async function DELETE(
   _request: Request,
   { params }: { params: { id: string; membershipId: string } },
 ) {
-  const access = await requireSubOrgAccess(params.id);
+  const access = await requireAgencyMutation(params.id);
   if (!access.ok) return access.response;
   const orgId = access.relationship.childOrgId;
 

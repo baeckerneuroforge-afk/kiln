@@ -1,5 +1,7 @@
 import { installIndustryPack } from "@/lib/industries/shared/industry-installer";
-import { requireSubOrgAccess } from "@/lib/agency/sub-org-auth";
+// Sprint 20.1 — refreshing an industry-pack rewrites agents + knowledge;
+// gate to OWNER/ADMIN.
+import { requireAgencyMutation } from "@/lib/agency/require-agency-mutation";
 import { isOnboardingIndustry } from "@/lib/onboarding/wizard-state";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +10,7 @@ export async function POST(
   _request: Request,
   { params }: { params: { id: string } },
 ) {
-  const access = await requireSubOrgAccess(params.id);
+  const access = await requireAgencyMutation(params.id);
   if (!access.ok) return access.response;
 
   const industry = access.relationship.industry;

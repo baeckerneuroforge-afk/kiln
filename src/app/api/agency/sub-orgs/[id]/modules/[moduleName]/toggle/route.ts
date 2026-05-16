@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { requireSubOrgAccess } from "@/lib/agency/sub-org-auth";
+// Sprint 20.1 — toggling a module mutates billing state; OWNER/ADMIN only.
+import { requireAgencyMutation } from "@/lib/agency/require-agency-mutation";
 import { findModuleConfig, toggleModuleActive } from "@/lib/modules/store";
 import { isModuleName } from "@/lib/modules/types";
 import { logAudit } from "@/lib/audit/logger";
@@ -14,7 +15,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string; moduleName: string } },
 ) {
-  const auth = await requireSubOrgAccess(params.id);
+  const auth = await requireAgencyMutation(params.id);
   if (!auth.ok) return auth.response;
 
   if (!isModuleName(params.moduleName)) {

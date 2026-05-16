@@ -13,6 +13,9 @@
  */
 import { prisma } from "@/lib/prisma";
 import { requireSubOrgAccess } from "@/lib/agency/sub-org-auth";
+// Sprint 20.1 — DELETE (archive) requires OWNER/ADMIN; GET keeps the
+// existing visibility-only gate so assigned CONSULTANT/VIEWER can read.
+import { requireAgencyMutation } from "@/lib/agency/require-agency-mutation";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +55,7 @@ export async function DELETE(
   _request: Request,
   { params }: { params: { id: string } }
 ) {
-  const access = await requireSubOrgAccess(params.id);
+  const access = await requireAgencyMutation(params.id);
   if (!access.ok) return access.response;
 
   await prisma.orgRelationship.update({

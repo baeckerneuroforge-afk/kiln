@@ -14,6 +14,9 @@
  */
 import { prisma } from "@/lib/prisma";
 import { requireSubOrgAccess } from "@/lib/agency/sub-org-auth";
+// Sprint 20.1 — PATCH (branding-write) requires OWNER/ADMIN; GET keeps
+// requireSubOrgAccess so assigned CONSULTANT/VIEWER can read.
+import { requireAgencyMutation } from "@/lib/agency/require-agency-mutation";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +59,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: { id: string } },
 ) {
-  const access = await requireSubOrgAccess(params.id);
+  const access = await requireAgencyMutation(params.id);
   if (!access.ok) return access.response;
   const orgId = access.relationship.childOrgId;
 
