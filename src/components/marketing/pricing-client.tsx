@@ -3,16 +3,31 @@
 /**
  * Sprint 19.10 — pricing-page client orchestrator.
  *
- * Single client component because the only interactive piece is the
- * monthly/yearly toggle. Everything else is markup driven by the
- * server-component-resolved labels passed in as props.
+ * Single client component because the interactive pieces are the
+ * monthly/yearly toggle and (Sprint 20.1.1) the tier-card CTA, which
+ * branches by auth state instead of always linking to /sign-up.
  *
  * yearly = monthly × 12 × 0.8 (20% discount), rounded to whole EUR.
+ *
+ * Sprint 20.1.1 — Tier-CTA flow:
+ *   logged out + paid       → router.push("/sign-up?tier=<api>")
+ *   logged out + free       → router.push("/sign-up?tier=free")
+ *   logged in  + free       → router.push("/dashboard")
+ *   logged in  + enterprise → window.location = "mailto:sales@..."
+ *   logged in  + paid       → fetch("/api/billing/upgrade") then
+ *                              window.location = checkoutUrl
+ *
+ * The fetch path shows a per-tier loading spinner + an inline error
+ * row underneath the cards when Stripe is misconfigured (503 from
+ * the upgrade endpoint when STRIPE_PRICE_TIER_X is missing).
  */
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowRight, Check, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
+import { ArrowRight, Check, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { uiTierToApiTier } from "@/lib/billing/tier-limits";
 
 type TierKey = "free" | "starter" | "professional" | "agencyPro" | "enterprise";
 type ModuleKey = "voice" | "browser" | "emailOutbound" | "computerUse";
@@ -78,6 +93,8 @@ function yearlyMonthly(monthly: number): number {
   return Math.round(monthly * 0.8);
 }
 
+const ENTERPRISE_MAILTO = "mailto:sales@kilnbase.com?subject=KILN%20Enterprise";
+
 export function PricingClient({
   tiers,
   modules,
@@ -85,6 +102,86 @@ export function PricingClient({
   labels,
 }: PricingClientProps) {
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
+  // Sprint 20.1.1 — per-tier loading state for the upgrade fetch +
+  // a single error slot (only one upgrade can be in flight; clicking
+  // a different tier resets the error).
+  const [loadingTier, setLoadingTier] = useState<TierKey | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const { isLoaded, isSignedIn } = useUser();
+
+  async function handleTierClick(tier: PricingClientProps["tiers"][number]) {
+    setError(null);
+
+    // While Clerk is still resolving on first paint, default to the
+    // logged-out flow so the click doesn't silently no-op.
+    if (!isLoaded || !isSignedIn) {
+      if (tier.cta === "contactSales") {
+        window.location.href = ENTERPRISE_MAILTO;
+        return;
+      }
+      // tier.href already encodes the canonical /sign-up?tier=<api>
+      // — paid tiers use the underscored ids, free uses free.
+      router.push(tier.href);
+      return;
+    }
+
+    // Logged in.
+    if (tier.key === "free") {
+      // Anyone signed in already has at least free; route to the app.
+      router.push("/dashboard");
+      return;
+    }
+    if (tier.cta === "contactSales") {
+      window.location.href = ENTERPRISE_MAILTO;
+      return;
+    }
+
+    // Logged in + paid tier → trigger the Stripe checkout flow.
+    const apiTier = uiTierToApiTier(tier.key);
+    setLoadingTier(tier.key);
+    try {
+      const res = await fetch("/api/billing/upgrade", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetTier: apiTier }),
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        // 503 from the upgrade endpoint means STRIPE_PRICE_TIER_<TIER>
+        // is missing in Vercel env. Surface a generic message — the
+        // raw error mentions Stripe internals we don't want to leak.
+        const friendly =
+          res.status === 503
+            ? "Checkout is temporarily unavailable. Please try again in a moment."
+            : payload.error || "Could not start checkout. Please try again.";
+        setError(friendly);
+        setLoadingTier(null);
+        return;
+      }
+      const data = (await res.json()) as {
+        checkoutUrl?: string;
+        ok?: boolean;
+        tier?: string;
+      };
+      if (data.checkoutUrl) {
+        // Fresh-checkout path — redirect into Stripe Checkout.
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+      if (data.ok) {
+        // In-place tier-change succeeded (existing healthy subscription).
+        router.push("/dashboard?upgrade=success");
+        router.refresh();
+        return;
+      }
+      setError("Unexpected response from checkout. Please try again.");
+      setLoadingTier(null);
+    } catch {
+      setError("Network error. Check your connection and try again.");
+      setLoadingTier(null);
+    }
+  }
 
   return (
     <div data-testid="pricing-page">
@@ -195,27 +292,44 @@ export function PricingClient({
                     </li>
                   ))}
                 </ul>
-                <Link
-                  href={tier.href}
+                <button
+                  type="button"
+                  onClick={() => handleTierClick(tier)}
+                  disabled={loadingTier !== null}
                   className={cn(
-                    "mt-6 inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all",
+                    "mt-6 inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60",
                     tier.highlighted
                       ? "bg-kiln-orange text-white shadow-md shadow-kiln-orange/30 hover:bg-kiln-orange/95"
                       : "border border-border text-foreground hover:border-foreground/40",
                   )}
                   data-testid={`pricing-tier-${tier.key}-cta`}
+                  data-loading={loadingTier === tier.key || undefined}
                 >
+                  {loadingTier === tier.key ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : null}
                   {tier.cta === "contactSales"
                     ? labels.contactSales
                     : tier.cta === "startFree"
                       ? labels.startFree
                       : labels.startNow}
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
+                  {loadingTier === tier.key ? null : (
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  )}
+                </button>
               </div>
             );
           })}
         </div>
+        {error ? (
+          <div
+            role="alert"
+            data-testid="pricing-tier-error"
+            className="mx-auto mt-6 max-w-md rounded-lg border border-kiln-ember/30 bg-kiln-ember/5 px-4 py-3 text-center text-sm text-kiln-ember"
+          >
+            {error}
+          </div>
+        ) : null}
       </section>
 
       <section
