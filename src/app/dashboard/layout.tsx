@@ -22,6 +22,10 @@ import { ClientModeBanner } from "@/components/client-mode-banner";
 import { SubOrgWelcomeModal } from "@/components/sub-org-welcome-modal";
 import { FreePlanWelcomeBanner } from "@/components/billing/free-plan-welcome-banner";
 import { TierLimitBanner } from "@/components/billing/tier-limit-banner";
+// Sprint 20.1.1 — Reads the kiln-pending-tier cookie set by /sign-up
+// and routes the new user straight into Stripe Checkout. Renders null
+// when no cookie is present, so it's safe to mount unconditionally.
+import { PendingTierHandler } from "@/components/billing/pending-tier-handler";
 
 export default function DashboardLayout({
   children,
@@ -50,9 +54,18 @@ export default function DashboardLayout({
     checkOnboarding();
   }, [checkOnboarding]);
 
-  // Show onboarding wizard if needed
+  // Show onboarding wizard if needed.
+  // Sprint 20.1.1 — PendingTierHandler is mounted alongside the
+  // OnboardingWizard so a paid-tier sign-up still gets routed into
+  // Stripe Checkout (its full-screen overlay covers the wizard
+  // while the redirect is in flight).
   if (showOnboarding === true) {
-    return <OnboardingWizard onSkip={() => setShowOnboarding(false)} />;
+    return (
+      <>
+        <OnboardingWizard onSkip={() => setShowOnboarding(false)} />
+        <PendingTierHandler />
+      </>
+    );
   }
 
   // Render the dashboard shell immediately — don't block on onboarding check.
@@ -105,6 +118,7 @@ export default function DashboardLayout({
           </div>
         </div>
         {showOnboarding === false && <OnboardingChecklist />}
+        <PendingTierHandler />
         {showTour && <ProductTour onComplete={completeTour} onSkip={skipTour} />}
         <CookieBanner />
         <MetaAgentChat />

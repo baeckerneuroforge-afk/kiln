@@ -424,6 +424,13 @@
       "upgradeCta": "Upgrade",
       "upgradeShort": "Plan upgraden"
     },
+    "pendingTier": {
+      "title": "Du startest mit dem {tier}-Plan",
+      "subtitle": "Account anlegen — wir leiten dich direkt zu Stripe Checkout weiter.",
+      "redirectingTitle": "Weiterleitung zu Stripe …",
+      "redirectingSubtitle": "Wir richten dein {tier}-Abo ein. Das dauert nur ein paar Sekunden.",
+      "redirectError": "Checkout konnte nicht gestartet werden. Öffne Einstellungen → Abrechnung, um es erneut zu versuchen."
+    },
     "limits": {
       "maxAgents": "KI-Agenten",
       "monthlyConversations": "Konversationen diesen Monat",

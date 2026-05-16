@@ -424,6 +424,13 @@
       "upgradeCta": "Upgrade",
       "upgradeShort": "Upgrade plan"
     },
+    "pendingTier": {
+      "title": "You're starting on the {tier} plan",
+      "subtitle": "Finish creating your account — we'll take you straight to Stripe Checkout.",
+      "redirectingTitle": "Redirecting to Stripe…",
+      "redirectingSubtitle": "Setting up your {tier} subscription. This takes a few seconds.",
+      "redirectError": "We couldn't start checkout. Visit Settings → Billing to try again."
+    },
     "limits": {
       "maxAgents": "AI agents",
       "monthlyConversations": "Conversations this month",
