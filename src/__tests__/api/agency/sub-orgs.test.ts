@@ -243,6 +243,14 @@ describe("DELETE /api/agency/sub-orgs/[id]", () => {
       id: "rel_1",
       parentOrgId: AGENCY_ORG,
     });
+    // Sprint 20.1 — archive now requires OWNER/ADMIN role via
+    // requireAgencyMutation. Mock the membership lookup as OWNER.
+    mockPrisma.agencyMembership.findUnique.mockResolvedValueOnce({
+      id: "mem_1",
+      agencyClerkOrgId: AGENCY_ORG,
+      userId: AGENCY_USER,
+      role: "OWNER",
+    });
     mockPrisma.orgRelationship.update.mockResolvedValueOnce({});
     const res = await archiveDELETE(new Request("http://localhost/x"), {
       params: { id: "rel_1" },
@@ -252,5 +260,24 @@ describe("DELETE /api/agency/sub-orgs/[id]", () => {
       where: { id: "rel_1" },
       data: { subOrgStatus: "ARCHIVED" },
     });
+  });
+
+  it("403 when caller is CONSULTANT (Sprint 20.1 — OWNER/ADMIN only for archive)", async () => {
+    mockAuth.mockResolvedValueOnce({ userId: AGENCY_USER, orgId: AGENCY_ORG });
+    mockPrisma.orgRelationship.findFirst.mockResolvedValueOnce({
+      id: "rel_1",
+      parentOrgId: AGENCY_ORG,
+    });
+    mockPrisma.agencyMembership.findUnique.mockResolvedValueOnce({
+      id: "mem_1",
+      agencyClerkOrgId: AGENCY_ORG,
+      userId: AGENCY_USER,
+      role: "CONSULTANT",
+    });
+    const res = await archiveDELETE(new Request("http://localhost/x"), {
+      params: { id: "rel_1" },
+    });
+    expect(res.status).toBe(403);
+    expect(mockPrisma.orgRelationship.update).not.toHaveBeenCalled();
   });
 });

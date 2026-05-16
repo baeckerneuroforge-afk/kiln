@@ -21,6 +21,28 @@ const mockAuth = vi.hoisted(() =>
   })),
 );
 
+// Sprint 20.1 — module routes switched from requireSubOrgAccess to
+// requireAgencyMutation (OWNER/ADMIN gate). Mock the new helper to
+// return an authorized result with an OWNER membership; the routes
+// don't read `membership` for behavioural decisions so the shape is
+// minimal.
+const mockMutationAuth = vi.hoisted(() =>
+  vi.fn<() => Promise<{
+    ok: boolean;
+    relationship?: { id: string; childOrgId: string };
+    userId?: string;
+    agencyOrgId?: string;
+    membership?: { id: string; role: string };
+    response?: Response;
+  }>>(async () => ({
+    ok: true,
+    relationship: { id: "rel_1", childOrgId: "sub_a" },
+    userId: "user_a",
+    agencyOrgId: "org_agency",
+    membership: { id: "mem_1", role: "OWNER" },
+  })),
+);
+
 const mockPrisma = vi.hoisted(() => ({
   subAccountModuleConfig: {
     findUnique: vi.fn(),
@@ -32,6 +54,9 @@ const mockPrisma = vi.hoisted(() => ({
 
 vi.mock("@/lib/agency/sub-org-auth", () => ({
   requireSubOrgAccess: mockAuth,
+}));
+vi.mock("@/lib/agency/require-agency-mutation", () => ({
+  requireAgencyMutation: mockMutationAuth,
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
 
@@ -150,7 +175,13 @@ describe("POST configure route", () => {
   });
 
   it("propagates auth failure response", async () => {
-    mockAuth.mockResolvedValueOnce({ ok: false, response: Response.json({ error: "Unauthorized" }, { status: 401 }) });
+    // Sprint 20.1 — configure route now uses requireAgencyMutation;
+    // override that mock (not requireSubOrgAccess) to simulate the
+    // 401 propagation from the underlying auth helper.
+    mockMutationAuth.mockResolvedValueOnce({
+      ok: false,
+      response: Response.json({ error: "Unauthorized" }, { status: 401 }),
+    });
     const { POST } = await import("@/app/api/agency/sub-orgs/[id]/modules/[moduleName]/configure/route");
     const response = await POST(makeJsonRequest({ mode: "pool" }), {
       params: { id: "rel_1", moduleName: "ai" },

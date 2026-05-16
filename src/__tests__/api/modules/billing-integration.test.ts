@@ -45,6 +45,18 @@ const mockRemove = vi.hoisted(() =>
 );
 
 vi.mock("@/lib/agency/sub-org-auth", () => ({ requireSubOrgAccess: mockAuth }));
+// Sprint 20.1 — configure + toggle now use requireAgencyMutation
+// (OWNER/ADMIN gate). Stub it to return an authorized OWNER result;
+// the billing-wiring tests don't exercise the role floor.
+vi.mock("@/lib/agency/require-agency-mutation", () => ({
+  requireAgencyMutation: vi.fn(async () => ({
+    ok: true,
+    relationship: { id: "rel_1", childOrgId: "sub_a" },
+    userId: "user_a",
+    agencyOrgId: "org_agency",
+    membership: { id: "mem_1", role: "OWNER" },
+  })),
+}));
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/billing/module-billing", () => ({
   addModuleSubscriptionItem: mockAdd,
