@@ -12,6 +12,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const TIERS = [
+  { key: "free" as const, monthly: 0, byok: null, cta: "startFree" as const, href: "/sign-up?tier=free", highlighted: false },
   { key: "starter" as const, monthly: 97, byok: 67, cta: "startNow" as const, href: "/sign-up?tier=starter", highlighted: false },
   { key: "professional" as const, monthly: 297, byok: 197, cta: "startNow" as const, href: "/sign-up?tier=professional", highlighted: true },
   { key: "agencyPro" as const, monthly: 497, byok: 347, cta: "startNow" as const, href: "/sign-up?tier=agency-pro", highlighted: false },
@@ -26,9 +27,9 @@ const MODULES = [
 ];
 
 const COMPARISON = [
-  { key: "memberSeats", starter: "3", pro: "11", agencyPro: "Unlimited", enterprise: "Unlimited" },
-  { key: "subOrgs", starter: "10", pro: "50", agencyPro: "Unlimited", enterprise: "Unlimited" },
-  { key: "support", starter: "supportEmail", pro: "supportPriority", agencyPro: "supportSlack", enterprise: "supportDedicated" },
+  { key: "memberSeats", free: "1", starter: "3", pro: "11", agencyPro: "Unlimited", enterprise: "Unlimited" },
+  { key: "subOrgs", free: "1", starter: "10", pro: "50", agencyPro: "Unlimited", enterprise: "Unlimited" },
+  { key: "support", free: "supportCommunity", starter: "supportEmail", pro: "supportPriority", agencyPro: "supportSlack", enterprise: "supportDedicated" },
 ];
 
 const LABELS = {
@@ -40,6 +41,8 @@ const LABELS = {
   custom: "Custom",
   mostPopular: "Most Popular",
   startNow: "Jetzt starten",
+  startFree: "Kostenlos starten",
+  forever: "Dauerhaft kostenlos",
   contactSales: "Sales kontaktieren",
   modulesTitle: "Module",
   modulesSubtitle: "Zubuchbar",
@@ -53,9 +56,10 @@ const LABELS = {
   finalCtaTitle: "Bereit?",
   finalCtaSubtitle: "14 Tage trial",
   finalCtaButton: "Jetzt starten",
-  tierNames: { starter: "Starter", professional: "Professional", agencyPro: "Agency Pro", enterprise: "Enterprise" },
-  tierSubtitles: { starter: "S sub", professional: "P sub", agencyPro: "AP sub", enterprise: "E sub" },
+  tierNames: { free: "Free", starter: "Starter", professional: "Professional", agencyPro: "Agency Pro", enterprise: "Enterprise" },
+  tierSubtitles: { free: "F sub", starter: "S sub", professional: "P sub", agencyPro: "AP sub", enterprise: "E sub" },
   tierFeatures: {
+    free: ["f0a", "f0b"],
     starter: ["f1", "f2"],
     professional: ["f3", "f4"],
     agencyPro: ["f5"],
@@ -66,7 +70,10 @@ const LABELS = {
   comparisonLabels: {
     memberSeats: "Member-Seats",
     subOrgs: "Sub-Orgs",
+    monthlyConversations: "Conversations / Monat",
+    agents: "Agenten",
     support: "Support",
+    supportCommunity: "Community",
     supportEmail: "Email",
     supportPriority: "Priority",
     supportSlack: "Slack",
@@ -79,7 +86,7 @@ beforeEach(() => {
 });
 
 describe("PricingClient", () => {
-  it("renders all 4 tier cards", () => {
+  it("renders all 5 tier cards (incl. Free)", () => {
     render(
       <PricingClient
         tiers={TIERS}
@@ -88,10 +95,56 @@ describe("PricingClient", () => {
         labels={LABELS}
       />,
     );
+    expect(screen.getByTestId("pricing-tier-free")).toBeTruthy();
     expect(screen.getByTestId("pricing-tier-starter")).toBeTruthy();
     expect(screen.getByTestId("pricing-tier-professional")).toBeTruthy();
     expect(screen.getByTestId("pricing-tier-agencyPro")).toBeTruthy();
     expect(screen.getByTestId("pricing-tier-enterprise")).toBeTruthy();
+  });
+
+  it("Free tier renders €0 + forever label (no yearly discount applied)", () => {
+    render(
+      <PricingClient
+        tiers={TIERS}
+        modules={MODULES}
+        comparisonRows={COMPARISON}
+        labels={LABELS}
+      />,
+    );
+    const free = screen.getByTestId("pricing-tier-free");
+    expect(free.textContent).toContain("€0");
+    expect(free.textContent).toContain("Dauerhaft kostenlos");
+    expect(free.textContent).not.toContain("/ Monat");
+
+    // Toggle to yearly — Free should not change (stays €0 forever).
+    fireEvent.click(screen.getByTestId("billing-toggle-yearly"));
+    expect(free.textContent).toContain("€0");
+  });
+
+  it("Free tier CTA renders startFree label and links to /sign-up?tier=free", () => {
+    render(
+      <PricingClient
+        tiers={TIERS}
+        modules={MODULES}
+        comparisonRows={COMPARISON}
+        labels={LABELS}
+      />,
+    );
+    const cta = screen.getByTestId("pricing-tier-free-cta");
+    expect(cta.textContent).toContain("Kostenlos starten");
+    expect(cta.getAttribute("href")).toBe("/sign-up?tier=free");
+  });
+
+  it("BYOK table does not list a row for Free (byok=null)", () => {
+    render(
+      <PricingClient
+        tiers={TIERS}
+        modules={MODULES}
+        comparisonRows={COMPARISON}
+        labels={LABELS}
+      />,
+    );
+    expect(screen.queryByTestId("pricing-byok-row-free")).toBeNull();
   });
 
   it("renders monthly tier prices: 97 / 297 / 497", () => {
