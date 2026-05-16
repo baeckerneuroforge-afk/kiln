@@ -26,7 +26,17 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // Tiers: monthly EUR (with -20% applied to yearly).
+// Sprint 20 — "free" is the entry tier. Free=0 → no BYOK row in the
+// BYOK table (filtered by `monthly !== null`).
 const TIERS = [
+  {
+    key: "free" as const,
+    monthly: 0,
+    byok: null,
+    cta: "startFree" as const,
+    href: "/sign-up?tier=free",
+    highlighted: false,
+  },
   {
     key: "starter" as const,
     monthly: 97,
@@ -68,22 +78,28 @@ const MODULES = [
   { key: "computerUse" as const, monthly: 250 },
 ];
 
+// Sprint 20 — added `free` cells across every row + new
+// `monthlyConversations` / `agents` rows so Free's headline limits show
+// up directly in the comparison table.
 const COMPARISON_ROWS = [
-  { key: "memberSeats", starter: "3", pro: "11", agencyPro: "Unlimited", enterprise: "Unlimited" },
-  { key: "subOrgs", starter: "10", pro: "50", agencyPro: "Unlimited", enterprise: "Unlimited" },
-  { key: "customDomain", starter: "✓ Sub-Org", pro: "✓ Sub-Org", agencyPro: "✓ Sub-Org", enterprise: "✓" },
-  { key: "agencyDomain", starter: "—", pro: "✓", agencyPro: "✓", enterprise: "✓" },
-  { key: "rbac", starter: "✓", pro: "✓", agencyPro: "✓", enterprise: "✓" },
-  { key: "templates", starter: "✓", pro: "✓", agencyPro: "✓", enterprise: "✓" },
-  { key: "stripeConnect", starter: "—", pro: "—", agencyPro: "✓", enterprise: "✓" },
+  { key: "memberSeats", free: "1", starter: "3", pro: "11", agencyPro: "Unlimited", enterprise: "Unlimited" },
+  { key: "subOrgs", free: "1", starter: "10", pro: "50", agencyPro: "Unlimited", enterprise: "Unlimited" },
+  { key: "agents", free: "3", starter: "Unlimited", pro: "Unlimited", agencyPro: "Unlimited", enterprise: "Unlimited" },
+  { key: "monthlyConversations", free: "100", starter: "1.000", pro: "5.000", agencyPro: "25.000", enterprise: "Unlimited" },
+  { key: "customDomain", free: "—", starter: "✓ Sub-Org", pro: "✓ Sub-Org", agencyPro: "✓ Sub-Org", enterprise: "✓" },
+  { key: "agencyDomain", free: "—", starter: "—", pro: "✓", agencyPro: "✓", enterprise: "✓" },
+  { key: "rbac", free: "—", starter: "✓", pro: "✓", agencyPro: "✓", enterprise: "✓" },
+  { key: "templates", free: "—", starter: "✓", pro: "✓", agencyPro: "✓", enterprise: "✓" },
+  { key: "stripeConnect", free: "—", starter: "—", pro: "—", agencyPro: "✓", enterprise: "✓" },
   {
     key: "support",
+    free: "supportCommunity" as const,
     starter: "supportEmail" as const,
     pro: "supportPriority" as const,
     agencyPro: "supportSlack" as const,
     enterprise: "supportDedicated" as const,
   },
-  { key: "sla", starter: "—", pro: "—", agencyPro: "Optional", enterprise: "✓" },
+  { key: "sla", free: "—", starter: "—", pro: "—", agencyPro: "Optional", enterprise: "✓" },
 ];
 
 export default async function PricingPage() {
@@ -102,6 +118,8 @@ export default async function PricingPage() {
         custom: t("custom"),
         mostPopular: t("mostPopular"),
         startNow: t("startNow"),
+        startFree: t("startFree"),
+        forever: t("forever"),
         contactSales: t("contactSales"),
         modulesTitle: t("modulesTitle"),
         modulesSubtitle: t("modulesSubtitle"),
@@ -116,18 +134,21 @@ export default async function PricingPage() {
         finalCtaSubtitle: t("finalCtaSubtitle"),
         finalCtaButton: t("finalCtaButton"),
         tierNames: {
+          free: t("tiers.free.name"),
           starter: t("tiers.starter.name"),
           professional: t("tiers.professional.name"),
           agencyPro: t("tiers.agencyPro.name"),
           enterprise: t("tiers.enterprise.name"),
         },
         tierSubtitles: {
+          free: t("tiers.free.subtitle"),
           starter: t("tiers.starter.subtitle"),
           professional: t("tiers.professional.subtitle"),
           agencyPro: t("tiers.agencyPro.subtitle"),
           enterprise: t("tiers.enterprise.subtitle"),
         },
         tierFeatures: {
+          free: t.raw("tiers.free.features") as string[],
           starter: t.raw("tiers.starter.features") as string[],
           professional: t.raw("tiers.professional.features") as string[],
           agencyPro: t.raw("tiers.agencyPro.features") as string[],
@@ -148,12 +169,15 @@ export default async function PricingPage() {
         comparisonLabels: {
           memberSeats: t("comparison.memberSeats"),
           subOrgs: t("comparison.subOrgs"),
+          monthlyConversations: t("comparison.monthlyConversations"),
+          agents: t("comparison.agents"),
           customDomain: t("comparison.customDomain"),
           agencyDomain: t("comparison.agencyDomain"),
           rbac: t("comparison.rbac"),
           templates: t("comparison.templates"),
           stripeConnect: t("comparison.stripeConnect"),
           support: t("comparison.support"),
+          supportCommunity: t("comparison.supportCommunity"),
           supportEmail: t("comparison.supportEmail"),
           supportPriority: t("comparison.supportPriority"),
           supportSlack: t("comparison.supportSlack"),

@@ -14,9 +14,10 @@ import { useState } from "react";
 import { ArrowRight, Check, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type TierKey = "starter" | "professional" | "agencyPro" | "enterprise";
+type TierKey = "free" | "starter" | "professional" | "agencyPro" | "enterprise";
 type ModuleKey = "voice" | "browser" | "emailOutbound" | "computerUse";
 type SupportLevel =
+  | "supportCommunity"
   | "supportEmail"
   | "supportPriority"
   | "supportSlack"
@@ -27,13 +28,14 @@ export interface PricingClientProps {
     key: TierKey;
     monthly: number | null;
     byok: number | null;
-    cta: "startNow" | "contactSales";
+    cta: "startNow" | "startFree" | "contactSales";
     href: string;
     highlighted: boolean;
   }>;
   modules: Array<{ key: ModuleKey; monthly: number }>;
   comparisonRows: Array<{
     key: string;
+    free: string;
     starter: string;
     pro: string;
     agencyPro: string;
@@ -48,6 +50,8 @@ export interface PricingClientProps {
     custom: string;
     mostPopular: string;
     startNow: string;
+    startFree: string;
+    forever: string;
     contactSales: string;
     modulesTitle: string;
     modulesSubtitle: string;
@@ -118,14 +122,20 @@ export function PricingClient({
         className="mx-auto max-w-6xl px-6"
         data-testid="pricing-tiers"
       >
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {tiers.map((tier) => {
             const isCustom = tier.monthly === null;
+            // Sprint 20 — Free (monthly=0) renders €0 / forever, no
+            // yearly-discount math. Custom tier (monthly=null) renders
+            // "Custom". Everything else applies the -20% yearly toggle.
+            const isFree = tier.monthly === 0;
             const price = isCustom
               ? null
-              : billing === "monthly"
-                ? tier.monthly
-                : yearlyMonthly(tier.monthly!);
+              : isFree
+                ? 0
+                : billing === "monthly"
+                  ? tier.monthly
+                  : yearlyMonthly(tier.monthly!);
             return (
               <div
                 key={tier.key}
@@ -157,6 +167,15 @@ export function PricingClient({
                     <span className="font-serif text-3xl text-foreground">
                       {labels.custom}
                     </span>
+                  ) : isFree ? (
+                    <>
+                      <span className="font-serif text-4xl text-foreground">
+                        €0
+                      </span>
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        {labels.forever}
+                      </span>
+                    </>
                   ) : (
                     <>
                       <span className="font-serif text-4xl text-foreground">
@@ -188,7 +207,9 @@ export function PricingClient({
                 >
                   {tier.cta === "contactSales"
                     ? labels.contactSales
-                    : labels.startNow}
+                    : tier.cta === "startFree"
+                      ? labels.startFree
+                      : labels.startNow}
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
@@ -300,10 +321,13 @@ export function PricingClient({
         </header>
         <div className="overflow-hidden rounded-xl border border-border bg-card">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
                   <th className="px-4 py-3 text-left">&nbsp;</th>
+                  <th className="px-4 py-3 text-center">
+                    {labels.tierNames.free}
+                  </th>
                   <th className="px-4 py-3 text-center">
                     {labels.tierNames.starter}
                   </th>
@@ -327,6 +351,9 @@ export function PricingClient({
                   >
                     <td className="px-4 py-3 font-medium text-foreground">
                       {labels.comparisonLabels[row.key]}
+                    </td>
+                    <td className="px-4 py-3 text-center text-muted-foreground">
+                      {resolveCell(row.free, labels)}
                     </td>
                     <td className="px-4 py-3 text-center text-muted-foreground">
                       {resolveCell(row.starter, labels)}
@@ -378,6 +405,7 @@ function resolveCell(
   // Support-level cells are keyed by their i18n token (supportEmail,
   // supportPriority, …) so localization stays consistent.
   const supportKeys = new Set<SupportLevel>([
+    "supportCommunity",
     "supportEmail",
     "supportPriority",
     "supportSlack",

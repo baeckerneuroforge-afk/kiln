@@ -86,6 +86,8 @@ describe("translation file parity", () => {
       "locale",
       // Sprint 19.10 — marketing-pages namespace (nav, footer, pricing, faq)
       "marketing",
+      // Sprint 20 — Free-Tier UI (welcome banner, upgrade modal, usage labels)
+      "billing",
     ];
     for (const ns of expected) {
       expect(Object.keys(deMessages)).toContain(ns);

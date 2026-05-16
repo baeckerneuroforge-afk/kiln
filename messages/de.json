@@ -171,8 +171,22 @@
       "custom": "Custom",
       "mostPopular": "Most Popular",
       "startNow": "Jetzt starten",
+      "startFree": "Kostenlos starten",
+      "forever": "Dauerhaft kostenlos",
       "contactSales": "Sales kontaktieren",
       "tiers": {
+        "free": {
+          "name": "Free",
+          "subtitle": "KILN dauerhaft kostenlos testen, ohne Kreditkarte",
+          "features": [
+            "Bis zu 3 KI-Agenten",
+            "100 Konversationen/Monat",
+            "1 Sub-Org",
+            "1 OAuth-Verbindung",
+            "1 GB Speicher",
+            "Community-Support"
+          ]
+        },
         "starter": {
           "name": "Starter",
           "subtitle": "Für Solo-Consultants + kleine Teams",
@@ -254,12 +268,15 @@
       "comparison": {
         "memberSeats": "Member-Seats",
         "subOrgs": "Sub-Orgs",
+        "monthlyConversations": "Konversationen / Monat",
+        "agents": "KI-Agenten",
         "customDomain": "Custom-Domain",
         "agencyDomain": "Agency-Whitelabel-Domain",
         "rbac": "Granular RBAC",
         "templates": "Workflow-Templates",
         "stripeConnect": "Stripe Connect Reseller-Billing",
         "support": "Support-Level",
+        "supportCommunity": "Community",
         "supportEmail": "Email",
         "supportPriority": "Priority",
         "supportSlack": "Dedicated Slack",
@@ -381,6 +398,65 @@
           "q": "Was ist im Enterprise-Tier?",
           "a": "Self-Hosting-Option, Custom-SLA, dedicated Account-Manager, Audit-Logs, Compliance-Reports (SOC 2 Type II auf Roadmap), Source-Code-Escrow auf Anfrage. Pricing custom — kontaktiere uns."
         }
+      }
+    }
+  },
+  "billing": {
+    "freePlan": {
+      "label": "Free Plan",
+      "signUpBannerTitle": "Free Plan registrieren",
+      "signUpBannerSubtitle": "Dauerhaft kostenlos. Keine Kreditkarte nötig.",
+      "signUpBannerBullets": {
+        "agents": "Bis zu 3 KI-Agenten",
+        "conversations": "100 Konversationen/Monat",
+        "subOrgs": "1 Sub-Organisation",
+        "storage": "1 GB Speicher"
+      },
+      "welcomeBannerTitle": "Du bist im Free Plan",
+      "welcomeBannerSubtitle": "Dauerhaft kostenlos. Jederzeit upgraden.",
+      "welcomeBannerCta": "Bezahlpläne ansehen",
+      "welcomeBannerDismiss": "Verstanden",
+      "upgradeCta": "Upgrade",
+      "upgradeShort": "Plan upgraden"
+    },
+    "limits": {
+      "maxAgents": "KI-Agenten",
+      "monthlyConversations": "Konversationen diesen Monat",
+      "maxSubOrgs": "Sub-Organisationen",
+      "maxOAuthConnections": "OAuth-Verbindungen",
+      "maxStorageBytes": "Speicher",
+      "customDomain": "Eigene Domain",
+      "emailSender": "Eigener E-Mail-Absender",
+      "moduleAddOns": "Modul-Add-Ons",
+      "removeBranding": "KILN-Branding entfernen"
+    },
+    "upgradeModal": {
+      "title": "Limit für {resource} erreicht",
+      "description": "Du nutzt {current} von {limit} im {tier}-Plan. Upgrade auf {nextTier} für mehr Spielraum.",
+      "premiumTitle": "{resource} ist ein Premium-Feature",
+      "premiumDescription": "{resource} ist ab {nextTier} verfügbar. Upgrade jetzt, um es zu nutzen.",
+      "ctaUpgrade": "Upgrade auf {nextTier}",
+      "ctaCancel": "Später",
+      "ctaSeeAllPlans": "Alle Pläne vergleichen"
+    },
+    "usageProgress": {
+      "ofLimit": "{current} von {limit}",
+      "ofLimitShort": "{current}/{limit}",
+      "unlimited": "Unbegrenzt",
+      "notTracked": "Demnächst"
+    },
+    "notifications": {
+      "approaching80": {
+        "title": "Limit für {resource} nähert sich",
+        "body": "Du hast diesen Monat {current} von {limit} {resource} genutzt. Erwäge ein Upgrade, bevor du 100 % erreichst."
+      },
+      "approaching95": {
+        "title": "Limit für {resource} fast erreicht",
+        "body": "Du hast diesen Monat {current} von {limit} {resource} genutzt. Upgrade jetzt, um Unterbrechungen zu vermeiden."
+      },
+      "reached100": {
+        "title": "Limit für {resource} erreicht",
+        "body": "Du hast alle {limit} {resource} im {tier}-Plan aufgebraucht. Upgrade auf {nextTier}, um weiterzumachen."
       }
     }
   }

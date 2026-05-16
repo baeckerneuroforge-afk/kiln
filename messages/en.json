@@ -171,8 +171,22 @@
       "custom": "Custom",
       "mostPopular": "Most Popular",
       "startNow": "Start now",
+      "startFree": "Start free",
+      "forever": "Forever-free",
       "contactSales": "Contact sales",
       "tiers": {
+        "free": {
+          "name": "Free",
+          "subtitle": "Try KILN forever-free, no card required",
+          "features": [
+            "Up to 3 AI agents",
+            "100 conversations/month",
+            "1 sub-org",
+            "1 OAuth connection",
+            "1 GB storage",
+            "Community support"
+          ]
+        },
         "starter": {
           "name": "Starter",
           "subtitle": "For solo consultants + small teams",
@@ -254,12 +268,15 @@
       "comparison": {
         "memberSeats": "Member seats",
         "subOrgs": "Sub-orgs",
+        "monthlyConversations": "Conversations / month",
+        "agents": "AI agents",
         "customDomain": "Custom domain",
         "agencyDomain": "Agency whitelabel domain",
         "rbac": "Granular RBAC",
         "templates": "Workflow templates",
         "stripeConnect": "Stripe Connect reseller billing",
         "support": "Support level",
+        "supportCommunity": "Community",
         "supportEmail": "Email",
         "supportPriority": "Priority",
         "supportSlack": "Dedicated Slack",
@@ -381,6 +398,65 @@
           "q": "What's in the Enterprise tier?",
           "a": "Self-hosting option, custom SLA, dedicated account manager, audit logs, compliance reports (SOC 2 Type II on roadmap), source code escrow on request. Pricing custom — contact us."
         }
+      }
+    }
+  },
+  "billing": {
+    "freePlan": {
+      "label": "Free Plan",
+      "signUpBannerTitle": "Sign up for the Free Plan",
+      "signUpBannerSubtitle": "Forever-free. No credit card required.",
+      "signUpBannerBullets": {
+        "agents": "Up to 3 AI agents",
+        "conversations": "100 conversations/month",
+        "subOrgs": "1 sub-organization",
+        "storage": "1 GB storage"
+      },
+      "welcomeBannerTitle": "You're on the Free Plan",
+      "welcomeBannerSubtitle": "Forever free. Upgrade anytime to unlock more.",
+      "welcomeBannerCta": "See paid plans",
+      "welcomeBannerDismiss": "Got it",
+      "upgradeCta": "Upgrade",
+      "upgradeShort": "Upgrade plan"
+    },
+    "limits": {
+      "maxAgents": "AI agents",
+      "monthlyConversations": "Conversations this month",
+      "maxSubOrgs": "Sub-organizations",
+      "maxOAuthConnections": "OAuth connections",
+      "maxStorageBytes": "Storage",
+      "customDomain": "Custom domain",
+      "emailSender": "Custom email sender",
+      "moduleAddOns": "Module add-ons",
+      "removeBranding": "Remove KILN branding"
+    },
+    "upgradeModal": {
+      "title": "You've reached your {resource} limit",
+      "description": "You're using {current} of {limit} on the {tier} plan. Upgrade to {nextTier} for more headroom.",
+      "premiumTitle": "{resource} is a premium feature",
+      "premiumDescription": "{resource} is available on {nextTier} and higher. Upgrade to unlock it.",
+      "ctaUpgrade": "Upgrade to {nextTier}",
+      "ctaCancel": "Maybe later",
+      "ctaSeeAllPlans": "Compare all plans"
+    },
+    "usageProgress": {
+      "ofLimit": "{current} of {limit}",
+      "ofLimitShort": "{current}/{limit}",
+      "unlimited": "Unlimited",
+      "notTracked": "Coming soon"
+    },
+    "notifications": {
+      "approaching80": {
+        "title": "Approaching your {resource} limit",
+        "body": "You've used {current} of {limit} {resource} this month. Consider upgrading before you hit 100%."
+      },
+      "approaching95": {
+        "title": "You're almost at your {resource} limit",
+        "body": "You've used {current} of {limit} {resource} this month. Upgrade now to avoid interruption."
+      },
+      "reached100": {
+        "title": "{resource} limit reached",
+        "body": "You've used all {limit} {resource} on the {tier} plan. Upgrade to {nextTier} to continue."
       }
     }
   }
