@@ -15,7 +15,7 @@ const TIERS = [
   { key: "free" as const, monthly: 0, byok: null, cta: "startFree" as const, href: "/sign-up?tier=free", highlighted: false },
   { key: "starter" as const, monthly: 97, byok: 67, cta: "startNow" as const, href: "/sign-up?tier=starter", highlighted: false },
   { key: "professional" as const, monthly: 297, byok: 197, cta: "startNow" as const, href: "/sign-up?tier=professional", highlighted: true },
-  { key: "agencyPro" as const, monthly: 497, byok: 347, cta: "startNow" as const, href: "/sign-up?tier=agency-pro", highlighted: false },
+  { key: "agencyPro" as const, monthly: 497, byok: 347, cta: "startNow" as const, href: "/sign-up?tier=agency_pro", highlighted: false },
   { key: "enterprise" as const, monthly: null, byok: null, cta: "contactSales" as const, href: "mailto:sales@x", highlighted: false },
 ];
 

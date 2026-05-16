@@ -58,7 +58,10 @@ const TIERS = [
     monthly: 497,
     byok: 347,
     cta: "startNow" as const,
-    href: "/sign-up?tier=agency-pro",
+    // Sprint 20.1.1 — underscore matches the API tier-id
+    // (agency_pro) — the dash form was a typo that signed up users
+    // with a tier param the sign-up page silently ignored.
+    href: "/sign-up?tier=agency_pro",
     highlighted: false,
   },
   {

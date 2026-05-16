@@ -189,6 +189,40 @@ export function tierHasFeature(
 }
 
 /**
+ * Sprint 20.1.1 — UI ↔ API tier-id translation.
+ *
+ * The marketing pricing-client uses camelCase property keys
+ * (`agencyPro`) for object lookups (label tables, comparison rows)
+ * because those keys live in TypeScript-record-style dictionaries
+ * where the convention is camelCase. The API + Stripe price-id
+ * mapping (agency-tier.ts) and the canonical TierId here use
+ * underscored ids (`agency_pro`) because that's what Stripe
+ * metadata and the env-var suffix expect.
+ *
+ * This helper bridges the two: it accepts the UI camelCase form and
+ * returns the canonical underscored TierId. Used by the
+ * PricingClient click-handler before POSTing to /api/billing/upgrade.
+ */
+export type UITierKey =
+  | "free"
+  | "starter"
+  | "professional"
+  | "agencyPro"
+  | "enterprise";
+
+const UI_TO_API: Record<UITierKey, TierId> = {
+  free: "free",
+  starter: "starter",
+  professional: "professional",
+  agencyPro: "agency_pro",
+  enterprise: "enterprise",
+};
+
+export function uiTierToApiTier(key: UITierKey): TierId {
+  return UI_TO_API[key];
+}
+
+/**
  * Counter-key names that map to TierLimits numeric fields. Used by
  * the enforcement layer to reflect on which limit was hit.
  */
