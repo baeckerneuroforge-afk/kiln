@@ -431,6 +431,10 @@
       "redirectingSubtitle": "Setting up your {tier} subscription. This takes a few seconds.",
       "redirectError": "We couldn't start checkout. Visit Settings → Billing to try again."
     },
+    "upgradeResult": {
+      "success": "Upgrade complete! Welcome to {tier}.",
+      "cancelled": "Upgrade cancelled. You can try again anytime."
+    },
     "limits": {
       "maxAgents": "AI agents",
       "monthlyConversations": "Conversations this month",

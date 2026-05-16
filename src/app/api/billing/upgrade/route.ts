@@ -177,8 +177,13 @@ export async function POST(request: NextRequest) {
     customer: customerId,
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${appUrl}/dashboard/settings/billing?upgraded=true&tier=${targetTier}`,
-    cancel_url: `${appUrl}/dashboard/settings/billing?canceled=true`,
+    // Sprint 20.1.1 — Land users on the dashboard with a result toast
+    // instead of Billing settings, so the post-upgrade celebration is
+    // visible even to first-time users who haven't seen Settings yet.
+    // The UpgradeResultToast component clears the search params after
+    // showing the message so a refresh doesn't re-fire it.
+    success_url: `${appUrl}/dashboard?upgrade=success&tier=${targetTier}`,
+    cancel_url: `${appUrl}/dashboard?upgrade=cancelled`,
     metadata: {
       kiln_agency_org_id: orgId,
       kiln_owner_user_id: userId,

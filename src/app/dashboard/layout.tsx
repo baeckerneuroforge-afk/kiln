@@ -26,6 +26,10 @@ import { TierLimitBanner } from "@/components/billing/tier-limit-banner";
 // and routes the new user straight into Stripe Checkout. Renders null
 // when no cookie is present, so it's safe to mount unconditionally.
 import { PendingTierHandler } from "@/components/billing/pending-tier-handler";
+// Sprint 20.1.1 — Reads ?upgrade=success/cancelled from the URL
+// (Stripe Checkout return target), fires a toast, then clears the
+// params so a refresh doesn't replay the toast.
+import { UpgradeResultToast } from "@/components/billing/upgrade-result-toast";
 
 export default function DashboardLayout({
   children,
@@ -119,6 +123,7 @@ export default function DashboardLayout({
         </div>
         {showOnboarding === false && <OnboardingChecklist />}
         <PendingTierHandler />
+        <UpgradeResultToast />
         {showTour && <ProductTour onComplete={completeTour} onSkip={skipTour} />}
         <CookieBanner />
         <MetaAgentChat />

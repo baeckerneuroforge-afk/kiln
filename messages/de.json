@@ -431,6 +431,10 @@
       "redirectingSubtitle": "Wir richten dein {tier}-Abo ein. Das dauert nur ein paar Sekunden.",
       "redirectError": "Checkout konnte nicht gestartet werden. Öffne Einstellungen → Abrechnung, um es erneut zu versuchen."
     },
+    "upgradeResult": {
+      "success": "Upgrade abgeschlossen! Willkommen im {tier}-Plan.",
+      "cancelled": "Upgrade abgebrochen. Du kannst es jederzeit erneut versuchen."
+    },
     "limits": {
       "maxAgents": "KI-Agenten",
       "monthlyConversations": "Konversationen diesen Monat",
