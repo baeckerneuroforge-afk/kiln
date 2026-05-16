@@ -177,15 +177,16 @@
       "tiers": {
         "free": {
           "name": "Free",
-          "subtitle": "Try KILN forever-free, no card required",
+          "subtitle": "Personal-use & first experiments. Multi-tenant from Starter.",
           "features": [
-            "Up to 3 AI agents",
-            "100 conversations/month",
-            "1 sub-org",
+            "1 AI agent",
+            "50 conversations/month",
+            "Personal workspace (no sub-orgs)",
             "1 OAuth connection",
-            "1 GB storage",
+            "100 MB storage",
             "Community support"
-          ]
+          ],
+          "upgradeReason": "Multi-tenant (sub-orgs, sub-org branding, white-label) is a Starter feature."
         },
         "starter": {
           "name": "Starter",
@@ -326,6 +327,10 @@
           "q": "What does multi-tenant mean?",
           "a": "One KILN instance, many isolated customer workspaces (sub-orgs). Data, permissions, branding, integrations are separated per sub-org. As an agency you see all; your customer sees only their own."
         },
+        "whyStarterForMultiTenant": {
+          "q": "Why do I need Starter for multi-tenant?",
+          "a": "Multi-tenant is what makes KILN an agency platform — sub-org isolation, white-label branding per client, OAuth integrations scoped per customer. Free is positioned for personal use + first experiments, so it ships with a single personal workspace. Starter (€97/month) unlocks up to 10 sub-orgs and the full agency stack."
+        },
         "subOrg": {
           "q": "How does a sub-org work?",
           "a": "A sub-org is the workspace of one of your customers. It has its own agents, workflows, conversations, knowledge bases. Members of the sub-org see only their workspace. As agency owner you see everything, can deploy templates, set branding."
@@ -405,12 +410,12 @@
     "freePlan": {
       "label": "Free Plan",
       "signUpBannerTitle": "Sign up for the Free Plan",
-      "signUpBannerSubtitle": "Forever-free. No credit card required.",
+      "signUpBannerSubtitle": "Forever-free for personal use. No credit card required.",
       "signUpBannerBullets": {
-        "agents": "Up to 3 AI agents",
-        "conversations": "100 conversations/month",
-        "subOrgs": "1 sub-organization",
-        "storage": "1 GB storage"
+        "agents": "1 AI agent",
+        "conversations": "50 conversations/month",
+        "subOrgs": "Personal workspace (no sub-orgs)",
+        "storage": "100 MB storage"
       },
       "welcomeBannerTitle": "You're on the Free Plan",
       "welcomeBannerSubtitle": "Forever free. Upgrade anytime to unlock more.",

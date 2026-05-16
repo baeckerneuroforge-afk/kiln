@@ -18,10 +18,13 @@ describe("Sprint 20 — tier-limits", () => {
       }
     });
 
-    it("Free Tier has the spec'd headline limits", () => {
-      expect(TIER_LIMITS.free.maxSubOrgs).toBe(1);
-      expect(TIER_LIMITS.free.monthlyConversations).toBe(100);
-      expect(TIER_LIMITS.free.maxAgents).toBe(3);
+    it("Free Tier has the spec'd headline limits (Sprint 20.1 — Personal-Use-only)", () => {
+      // Sprint 20.1 tightened these to match the legacy PLAN_LIMITS.FREE
+      // values in stripe.ts so enforcement + marketing can't diverge.
+      // Multi-tenant moves to Starter (maxSubOrgs = 0 on Free).
+      expect(TIER_LIMITS.free.maxSubOrgs).toBe(0);
+      expect(TIER_LIMITS.free.monthlyConversations).toBe(50);
+      expect(TIER_LIMITS.free.maxAgents).toBe(1);
       expect(TIER_LIMITS.free.maxOAuthConnections).toBe(1);
       expect(TIER_LIMITS.free.monthlyPriceEur).toBe(0);
     });

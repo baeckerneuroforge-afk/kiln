@@ -70,16 +70,22 @@ export interface TierLimits {
 }
 
 const GB = 1024 * 1024 * 1024;
+const MB = 1024 * 1024;
 
 export const TIER_LIMITS: Record<TierId, TierLimits> = {
+  // Sprint 20.1 — Free is now scoped to Personal-Use only. Multi-Tenant
+  // (sub-orgs) starts at Starter. These numbers intentionally match the
+  // legacy PLAN_LIMITS.FREE in src/lib/stripe.ts so enforcement and
+  // marketing copy can't diverge again — Sprint 20.2 will collapse the
+  // two configs into one source of truth.
   free: {
     tier: "free",
     displayName: "Free",
     monthlyPriceEur: 0,
-    maxSubOrgs: 1,
-    monthlyConversations: 100,
-    maxAgents: 3,
-    maxStorageBytes: 1 * GB,
+    maxSubOrgs: 0,
+    monthlyConversations: 50,
+    maxAgents: 1,
+    maxStorageBytes: 100 * MB,
     maxOAuthConnections: 1,
     customDomain: false,
     emailSender: false,

@@ -88,11 +88,12 @@ describe("Sprint 20 — limit-enforcement", () => {
   });
 
   describe("enforceLimit — conversation counter", () => {
+    // Sprint 20.1 — Free tier conversation cap is now 50 (matches the
+    // legacy PLAN_LIMITS.FREE in stripe.ts, no longer 100).
     it("passes when under the limit", async () => {
       mockPrisma.tierUsageCounter.findUnique.mockResolvedValueOnce({
-        conversationsCount: 50,
+        conversationsCount: 25,
       });
-      // Free tier → 100 monthly conversations
       await expect(
         enforceLimit("org_x", "conversation", { tier: "free" }),
       ).resolves.toBeUndefined();
@@ -100,7 +101,7 @@ describe("Sprint 20 — limit-enforcement", () => {
 
     it("throws LimitReachedError when at the cap", async () => {
       mockPrisma.tierUsageCounter.findUnique.mockResolvedValueOnce({
-        conversationsCount: 100,
+        conversationsCount: 50,
       });
       await expect(
         enforceLimit("org_y", "conversation", { tier: "free" }),
@@ -109,7 +110,7 @@ describe("Sprint 20 — limit-enforcement", () => {
 
     it("attaches nextTier suggestion to the error", async () => {
       mockPrisma.tierUsageCounter.findUnique.mockResolvedValueOnce({
-        conversationsCount: 100,
+        conversationsCount: 50,
       });
       try {
         await enforceLimit("org_y", "conversation", { tier: "free" });
@@ -123,8 +124,8 @@ describe("Sprint 20 — limit-enforcement", () => {
           code: "LIMIT_REACHED",
           resource: "conversation",
           tier: "free",
-          limit: 100,
-          current: 100,
+          limit: 50,
+          current: 50,
           nextTier: "starter",
         });
       }
@@ -154,14 +155,15 @@ describe("Sprint 20 — limit-enforcement", () => {
   });
 
   describe("checkLimit", () => {
+    // Sprint 20.1 — Free.maxAgents is 1 (was 3). 0/1 = allowed, 1/1 = blocked.
     it("returns { allowed: true } when under the cap", async () => {
-      mockPrisma.agent.count.mockResolvedValueOnce(1);
+      mockPrisma.agent.count.mockResolvedValueOnce(0);
       const result = await checkLimit("org_w", "agent", { tier: "free" });
       expect(result.allowed).toBe(true);
     });
 
-    it("returns { allowed: false, error } when over the cap", async () => {
-      mockPrisma.agent.count.mockResolvedValueOnce(3);
+    it("returns { allowed: false, error } when at the cap", async () => {
+      mockPrisma.agent.count.mockResolvedValueOnce(1);
       const result = await checkLimit("org_w", "agent", { tier: "free" });
       if (result.allowed) throw new Error("expected blocked");
       expect(result.error).toBeInstanceOf(LimitReachedError);

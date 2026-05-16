@@ -64,10 +64,11 @@ describe("Sprint 20 — tier-notifications", () => {
   });
 
   describe("evaluateAndNotifyConversations", () => {
+    // Sprint 20.1 — Free cap is 50 monthly conversations.
     it("returns fired=null when usage is under 80%", async () => {
       mockPrisma.user.findUnique.mockResolvedValueOnce({ plan: "FREE" });
       mockPrisma.tierUsageCounter.findUnique.mockResolvedValueOnce({
-        conversationsCount: 50,
+        conversationsCount: 25, // 50% of 50
       });
       const result = await evaluateAndNotifyConversations("org_low");
       expect(result.fired).toBeNull();
@@ -78,7 +79,7 @@ describe("Sprint 20 — tier-notifications", () => {
     it("fires the 80% threshold and marks it notified", async () => {
       mockPrisma.user.findUnique.mockResolvedValueOnce({ plan: "FREE" });
       mockPrisma.tierUsageCounter.findUnique.mockResolvedValueOnce({
-        conversationsCount: 80, // 80% of 100
+        conversationsCount: 40, // 80% of 50
       });
       mockPrisma.tierUsageCounter.updateMany.mockResolvedValueOnce({ count: 1 });
       const result = await evaluateAndNotifyConversations("org_med");
@@ -89,19 +90,19 @@ describe("Sprint 20 — tier-notifications", () => {
     it("does not double-fire the same threshold within a period", async () => {
       mockPrisma.user.findUnique.mockResolvedValueOnce({ plan: "FREE" });
       mockPrisma.tierUsageCounter.findUnique.mockResolvedValueOnce({
-        conversationsCount: 85,
+        conversationsCount: 43, // 86% of 50
       });
       // Compare-and-set returns 0 → already notified earlier in the period.
       mockPrisma.tierUsageCounter.updateMany.mockResolvedValueOnce({ count: 0 });
       const result = await evaluateAndNotifyConversations("org_repeat");
       expect(result.fired).toBeNull();
-      expect(result.percentage).toBe(85);
+      expect(result.percentage).toBe(86);
     });
 
     it("fires 100% with the highest-tier upgrade pointer", async () => {
       mockPrisma.user.findUnique.mockResolvedValueOnce({ plan: "FREE" });
       mockPrisma.tierUsageCounter.findUnique.mockResolvedValueOnce({
-        conversationsCount: 100,
+        conversationsCount: 50, // 100% of 50
       });
       mockPrisma.tierUsageCounter.updateMany.mockResolvedValueOnce({ count: 1 });
       const result = await evaluateAndNotifyConversations("org_max");
@@ -124,11 +125,12 @@ describe("Sprint 20 — tier-notifications", () => {
   describe("recordConversationAndEvaluate", () => {
     it("increments then evaluates in one call", async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ plan: "FREE" });
+      // 40/50 = 80% on Free
       mockPrisma.tierUsageCounter.upsert.mockResolvedValueOnce({
-        conversationsCount: 80,
+        conversationsCount: 40,
       });
       mockPrisma.tierUsageCounter.findUnique.mockResolvedValueOnce({
-        conversationsCount: 80,
+        conversationsCount: 40,
       });
       mockPrisma.tierUsageCounter.updateMany.mockResolvedValueOnce({ count: 1 });
       const result = await recordConversationAndEvaluate("org_combined");

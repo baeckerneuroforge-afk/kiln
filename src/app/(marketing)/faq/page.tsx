@@ -32,7 +32,10 @@ const FAQ_CATEGORIES = [
   },
   {
     titleKey: "categoryWhitelabel" as const,
-    items: ["multiTenant", "subOrg", "ownDomain", "customerSeesBranding", "howManyCustomers"] as const,
+    // Sprint 20.1 — Added whyStarterForMultiTenant so Free-Tier visitors
+    // who hit the "no sub-orgs" limit find an answer in the same category
+    // as the multi-tenant explainer.
+    items: ["multiTenant", "whyStarterForMultiTenant", "subOrg", "ownDomain", "customerSeesBranding", "howManyCustomers"] as const,
   },
   {
     titleKey: "categoryPricing" as const,

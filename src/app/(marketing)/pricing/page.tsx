@@ -82,10 +82,13 @@ const MODULES = [
 // `monthlyConversations` / `agents` rows so Free's headline limits show
 // up directly in the comparison table.
 const COMPARISON_ROWS = [
+  // Sprint 20.1 — Free is Personal-Use-only: 1 seat, 0 sub-orgs,
+  // 1 agent, 50 conversations. Aligned with TIER_LIMITS.free + the
+  // legacy PLAN_LIMITS.FREE in src/lib/stripe.ts.
   { key: "memberSeats", free: "1", starter: "3", pro: "11", agencyPro: "Unlimited", enterprise: "Unlimited" },
-  { key: "subOrgs", free: "1", starter: "10", pro: "50", agencyPro: "Unlimited", enterprise: "Unlimited" },
-  { key: "agents", free: "3", starter: "Unlimited", pro: "Unlimited", agencyPro: "Unlimited", enterprise: "Unlimited" },
-  { key: "monthlyConversations", free: "100", starter: "1.000", pro: "5.000", agencyPro: "25.000", enterprise: "Unlimited" },
+  { key: "subOrgs", free: "—", starter: "10", pro: "50", agencyPro: "Unlimited", enterprise: "Unlimited" },
+  { key: "agents", free: "1", starter: "Unlimited", pro: "Unlimited", agencyPro: "Unlimited", enterprise: "Unlimited" },
+  { key: "monthlyConversations", free: "50", starter: "1.000", pro: "5.000", agencyPro: "25.000", enterprise: "Unlimited" },
   { key: "customDomain", free: "—", starter: "✓ Sub-Org", pro: "✓ Sub-Org", agencyPro: "✓ Sub-Org", enterprise: "✓" },
   { key: "agencyDomain", free: "—", starter: "—", pro: "✓", agencyPro: "✓", enterprise: "✓" },
   { key: "rbac", free: "—", starter: "✓", pro: "✓", agencyPro: "✓", enterprise: "✓" },

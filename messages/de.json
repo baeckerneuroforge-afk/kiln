@@ -177,15 +177,16 @@
       "tiers": {
         "free": {
           "name": "Free",
-          "subtitle": "KILN dauerhaft kostenlos testen, ohne Kreditkarte",
+          "subtitle": "Für Personal-Use & erste Experimente. Multi-Tenant ab Starter.",
           "features": [
-            "Bis zu 3 KI-Agenten",
-            "100 Konversationen/Monat",
-            "1 Sub-Org",
+            "1 KI-Agent",
+            "50 Konversationen/Monat",
+            "Personal-Workspace (keine Sub-Orgs)",
             "1 OAuth-Verbindung",
-            "1 GB Speicher",
+            "100 MB Speicher",
             "Community-Support"
-          ]
+          ],
+          "upgradeReason": "Multi-Tenant (Sub-Orgs, Sub-Org-Branding, White-Label) ist ein Starter-Feature."
         },
         "starter": {
           "name": "Starter",
@@ -326,6 +327,10 @@
           "q": "Was bedeutet Multi-Tenant?",
           "a": "Eine KILN-Instanz, viele isolierte Customer-Workspaces (Sub-Orgs). Daten, Permissions, Branding, Integrations sind pro Sub-Org getrennt. Du als Agency siehst alle, deine Customer sieht nur ihre eigene."
         },
+        "whyStarterForMultiTenant": {
+          "q": "Warum brauche ich Starter für Multi-Tenant?",
+          "a": "Multi-Tenant ist das, was KILN zur Agency-Plattform macht — Sub-Org-Isolation, White-Label-Branding pro Kunde, OAuth-Integrations scoped pro Customer. Free ist positioniert für Personal-Use + erste Experimente und liefert daher einen einzelnen Personal-Workspace aus. Starter (97 €/Monat) schaltet bis zu 10 Sub-Orgs und den vollen Agency-Stack frei."
+        },
         "subOrg": {
           "q": "Wie funktioniert eine Sub-Org?",
           "a": "Eine Sub-Org ist der Workspace eines deiner Customers. Sie hat eigene Agents, Workflows, Konversationen, Knowledge-Bases. Members der Sub-Org sehen nur ihre Workspace. Du als Agency-Owner siehst alles, kannst Templates deployen und Branding setzen."
@@ -405,12 +410,12 @@
     "freePlan": {
       "label": "Free Plan",
       "signUpBannerTitle": "Free Plan registrieren",
-      "signUpBannerSubtitle": "Dauerhaft kostenlos. Keine Kreditkarte nötig.",
+      "signUpBannerSubtitle": "Dauerhaft kostenlos für Personal-Use. Keine Kreditkarte nötig.",
       "signUpBannerBullets": {
-        "agents": "Bis zu 3 KI-Agenten",
-        "conversations": "100 Konversationen/Monat",
-        "subOrgs": "1 Sub-Organisation",
-        "storage": "1 GB Speicher"
+        "agents": "1 KI-Agent",
+        "conversations": "50 Konversationen/Monat",
+        "subOrgs": "Personal-Workspace (keine Sub-Orgs)",
+        "storage": "100 MB Speicher"
       },
       "welcomeBannerTitle": "Du bist im Free Plan",
       "welcomeBannerSubtitle": "Dauerhaft kostenlos. Jederzeit upgraden.",
