@@ -21,7 +21,6 @@
  */
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ArrowRight, X, AlertTriangle, AlertOctagon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,6 +29,7 @@ import {
   type LimitCounterKey,
   type TierLimits,
 } from "@/lib/billing/tier-limits";
+import { UpgradeModal } from "@/components/billing/upgrade-modal";
 
 interface UsageResponse {
   tier: TierId;
@@ -114,6 +114,11 @@ export function TierLimitBanner({
   const t = useTranslations("billing");
   const [data, setData] = useState<UsageResponse | null>(initialData ?? null);
   const [dismissed, setDismissed] = useState(false);
+  // Sprint 20.1.1 — clicking the CTA opens the in-app UpgradeModal
+  // instead of forwarding to /pricing. The modal POSTs
+  // /api/billing/upgrade directly so the user never has to find
+  // their tier card again.
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     if (initialData !== undefined) return;
@@ -185,14 +190,15 @@ export function TierLimitBanner({
             nextTier: nextTier ?? "Enterprise",
           })}
         </p>
-        <Link
-          href="/pricing"
+        <button
+          type="button"
+          onClick={() => setModalOpen(true)}
           data-testid="tier-limit-banner-cta"
           className="mt-2 inline-flex items-center gap-1 text-xs font-semibold underline-offset-2 hover:underline"
         >
           {t("freePlan.upgradeCta")}
           <ArrowRight className="h-3 w-3" />
-        </Link>
+        </button>
       </div>
       <button
         type="button"
@@ -202,6 +208,16 @@ export function TierLimitBanner({
       >
         <X className="h-4 w-4" />
       </button>
+      <UpgradeModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        variant="quota"
+        resource={warning.resource}
+        currentTier={data.tier}
+        nextTier={nextTier}
+        current={warning.current}
+        limit={warning.limit}
+      />
     </div>
   );
 }
