@@ -2,13 +2,24 @@
 
 /**
  * Sprint 19.10 — PricingClient rendering + billing toggle math.
+ * Sprint 20.1.1 — Tier-CTA click handler (logged-in direct checkout,
+ * logged-out sign-up redirect, enterprise mailto).
  */
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { PricingClient } from "@/components/marketing/pricing-client";
 
+const mockPush = vi.hoisted(() => vi.fn());
+const mockUseUser = vi.hoisted(() =>
+  vi.fn(() => ({ isLoaded: true, isSignedIn: false })),
+);
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+  useRouter: () => ({ refresh: vi.fn(), push: mockPush }),
+}));
+
+vi.mock("@clerk/nextjs", () => ({
+  useUser: mockUseUser,
 }));
 
 const TIERS = [
@@ -83,6 +94,10 @@ const LABELS = {
 
 beforeEach(() => {
   global.fetch = vi.fn();
+  mockPush.mockReset();
+  // Default to logged-out so existing tests behave the same as
+  // Sprint 19.10. Logged-in tests override via mockUseUser.mockReturnValueOnce.
+  mockUseUser.mockReturnValue({ isLoaded: true, isSignedIn: false });
 });
 
 describe("PricingClient", () => {
@@ -132,7 +147,9 @@ describe("PricingClient", () => {
     );
     const cta = screen.getByTestId("pricing-tier-free-cta");
     expect(cta.textContent).toContain("Kostenlos starten");
-    expect(cta.getAttribute("href")).toBe("/sign-up?tier=free");
+    // Sprint 20.1.1 — CTA is now a <button>; click routes to /sign-up.
+    fireEvent.click(cta);
+    expect(mockPush).toHaveBeenCalledWith("/sign-up?tier=free");
   });
 
   it("BYOK table does not list a row for Free (byok=null)", () => {
@@ -194,7 +211,7 @@ describe("PricingClient", () => {
     expect(screen.queryByTestId("pricing-tier-agencyPro-badge")).toBeNull();
   });
 
-  it("Enterprise CTA links to mailto, others link to /sign-up?tier=…", () => {
+  it("Logged-out: paid CTA pushes /sign-up?tier=<api> via router", () => {
     render(
       <PricingClient
         tiers={TIERS}
@@ -203,12 +220,38 @@ describe("PricingClient", () => {
         labels={LABELS}
       />,
     );
-    expect(
-      screen.getByTestId("pricing-tier-starter-cta").getAttribute("href"),
-    ).toBe("/sign-up?tier=starter");
-    expect(
-      screen.getByTestId("pricing-tier-enterprise-cta").getAttribute("href"),
-    ).toMatch(/^mailto:/);
+    fireEvent.click(screen.getByTestId("pricing-tier-starter-cta"));
+    expect(mockPush).toHaveBeenCalledWith("/sign-up?tier=starter");
+
+    // Agency Pro uses underscore (Sprint 20.1.1 fix — was "agency-pro").
+    fireEvent.click(screen.getByTestId("pricing-tier-agencyPro-cta"));
+    expect(mockPush).toHaveBeenCalledWith("/sign-up?tier=agency_pro");
+  });
+
+  it("Enterprise CTA always redirects to mailto, regardless of auth state", () => {
+    // Mock window.location so we can detect the mailto navigation.
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", {
+      writable: true,
+      value: { href: "" },
+    });
+    try {
+      render(
+        <PricingClient
+          tiers={TIERS}
+          modules={MODULES}
+          comparisonRows={COMPARISON}
+          labels={LABELS}
+        />,
+      );
+      fireEvent.click(screen.getByTestId("pricing-tier-enterprise-cta"));
+      expect(window.location.href).toMatch(/^mailto:sales@/);
+    } finally {
+      Object.defineProperty(window, "location", {
+        writable: true,
+        value: originalLocation,
+      });
+    }
   });
 
   it("renders all 4 module cards with correct prices", () => {
@@ -271,5 +314,153 @@ describe("PricingClient", () => {
     expect(
       screen.getByTestId("pricing-final-cta-button").getAttribute("href"),
     ).toBe("/sign-up");
+  });
+});
+
+/* ── Sprint 20.1.1 — Logged-in tier-CTA branch ────────────────────────── */
+
+describe("PricingClient — logged-in click handler", () => {
+  beforeEach(() => {
+    mockPush.mockReset();
+    // window.location.href is mutated by the enterprise + Stripe-redirect
+    // branches; reset per test to avoid leakage.
+    Object.defineProperty(window, "location", {
+      writable: true,
+      value: { href: "" },
+    });
+    mockUseUser.mockReturnValue({ isLoaded: true, isSignedIn: true });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function renderClient() {
+    return render(
+      <PricingClient
+        tiers={TIERS}
+        modules={MODULES}
+        comparisonRows={COMPARISON}
+        labels={LABELS}
+      />,
+    );
+  }
+
+  it("Logged-in + free → router.push /dashboard (not /sign-up)", () => {
+    renderClient();
+    fireEvent.click(screen.getByTestId("pricing-tier-free-cta"));
+    expect(mockPush).toHaveBeenCalledWith("/dashboard");
+  });
+
+  it("Logged-in + paid → POST /api/billing/upgrade with API tier id", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ checkoutUrl: "https://checkout.stripe.com/abc" }),
+    });
+    renderClient();
+    fireEvent.click(screen.getByTestId("pricing-tier-agencyPro-cta"));
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/billing/upgrade",
+        expect.objectContaining({
+          method: "POST",
+          // Sprint 20.1.1 — underscore is the API contract.
+          body: JSON.stringify({ targetTier: "agency_pro" }),
+        }),
+      );
+    });
+  });
+
+  it("Logged-in + paid → window.location redirects to checkoutUrl on success", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ checkoutUrl: "https://checkout.stripe.com/abc" }),
+    });
+    renderClient();
+    fireEvent.click(screen.getByTestId("pricing-tier-starter-cta"));
+    await waitFor(() => {
+      expect(window.location.href).toBe("https://checkout.stripe.com/abc");
+    });
+  });
+
+  it("Logged-in + paid → loading spinner while fetch is in flight", async () => {
+    let resolve: ((v: unknown) => void) | undefined;
+    global.fetch = vi.fn().mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
+    renderClient();
+    fireEvent.click(screen.getByTestId("pricing-tier-starter-cta"));
+    await waitFor(() => {
+      expect(
+        screen
+          .getByTestId("pricing-tier-starter-cta")
+          .getAttribute("data-loading"),
+      ).toBe("true");
+    });
+    // Unblock — let the promise resolve so the test doesn't dangle.
+    resolve?.({ ok: true, json: async () => ({ checkoutUrl: "https://x" }) });
+  });
+
+  it("Logged-in + paid → 503 surfaces user-friendly Stripe-not-configured copy", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({ error: "Stripe price not configured for tier starter" }),
+    });
+    renderClient();
+    fireEvent.click(screen.getByTestId("pricing-tier-starter-cta"));
+    await waitFor(() => {
+      const err = screen.getByTestId("pricing-tier-error");
+      expect(err.textContent).toContain("temporarily unavailable");
+      // Raw Stripe error must NOT leak through.
+      expect(err.textContent).not.toContain("Stripe price not configured");
+    });
+  });
+
+  it("Logged-in + paid → network throw renders 'Network error' message", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error("ENETDOWN"));
+    renderClient();
+    fireEvent.click(screen.getByTestId("pricing-tier-starter-cta"));
+    await waitFor(() => {
+      expect(screen.getByTestId("pricing-tier-error").textContent).toContain(
+        "Network error",
+      );
+    });
+  });
+
+  it("Logged-in + enterprise → mailto, no API call", () => {
+    global.fetch = vi.fn();
+    renderClient();
+    fireEvent.click(screen.getByTestId("pricing-tier-enterprise-cta"));
+    expect(window.location.href).toMatch(/^mailto:sales@/);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("Clerk still loading → falls back to logged-out flow (router.push /sign-up)", () => {
+    mockUseUser.mockReturnValue({ isLoaded: false, isSignedIn: false });
+    renderClient();
+    fireEvent.click(screen.getByTestId("pricing-tier-starter-cta"));
+    expect(mockPush).toHaveBeenCalledWith("/sign-up?tier=starter");
+  });
+
+  it("Buttons disable while a tier-fetch is in flight (no concurrent upgrades)", async () => {
+    let resolve: ((v: unknown) => void) | undefined;
+    global.fetch = vi.fn().mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
+    renderClient();
+    fireEvent.click(screen.getByTestId("pricing-tier-starter-cta"));
+    await waitFor(() => {
+      expect(
+        screen
+          .getByTestId("pricing-tier-professional-cta")
+          .hasAttribute("disabled"),
+      ).toBe(true);
+    });
+    resolve?.({ ok: true, json: async () => ({ checkoutUrl: "https://x" }) });
   });
 });

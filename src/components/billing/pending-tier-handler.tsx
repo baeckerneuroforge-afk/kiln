@@ -55,35 +55,10 @@ export function PendingTierHandler({
   });
 
   useEffect(() => {
-    if (state.status === "redirecting") {
-      // Mounted with a known tier (test path or post-resolve) — kick
-      // off the upgrade fetch immediately.
-      void triggerCheckout(state.tier);
-      return;
-    }
-    if (state.status !== "resolving") return;
-
+    // `cancelled` has to be hoisted above the early-return for the
+    // "redirecting" branch — otherwise its TDZ is hit when the
+    // checkout fetch closure reads it before this point is reached.
     let cancelled = false;
-    fetch("/api/billing/pending-tier")
-      .then((r) => (r.ok ? r.json() : { pendingTier: null }))
-      .then((data: { pendingTier?: string | null }) => {
-        if (cancelled) return;
-        const tier = data.pendingTier;
-        if (isPendingTier(tier)) {
-          setState({ status: "redirecting", tier });
-          void triggerCheckout(tier);
-        } else {
-          setState({ status: "idle" });
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setState({ status: "idle" });
-      });
-
-    return () => {
-      cancelled = true;
-    };
 
     async function triggerCheckout(tier: PendingTier) {
       try {
@@ -109,6 +84,37 @@ export function PendingTierHandler({
         setState({ status: "error", tier });
       }
     }
+
+    if (state.status === "redirecting") {
+      // Mounted with a known tier (test path or post-resolve) — kick
+      // off the upgrade fetch immediately.
+      void triggerCheckout(state.tier);
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (state.status !== "resolving") return;
+
+    fetch("/api/billing/pending-tier")
+      .then((r) => (r.ok ? r.json() : { pendingTier: null }))
+      .then((data: { pendingTier?: string | null }) => {
+        if (cancelled) return;
+        const tier = data.pendingTier;
+        if (isPendingTier(tier)) {
+          setState({ status: "redirecting", tier });
+          void triggerCheckout(tier);
+        } else {
+          setState({ status: "idle" });
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setState({ status: "idle" });
+      });
+
+    return () => {
+      cancelled = true;
+    };
     // initialTier is captured at mount only; subsequent renders use
     // state.status. ESLint flags `t` as a missing dep but next-intl
     // returns a stable reference.
