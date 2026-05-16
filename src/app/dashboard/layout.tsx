@@ -21,6 +21,7 @@ import { OrgRequired } from "@/components/org-required";
 import { ClientModeBanner } from "@/components/client-mode-banner";
 import { SubOrgWelcomeModal } from "@/components/sub-org-welcome-modal";
 import { FreePlanWelcomeBanner } from "@/components/billing/free-plan-welcome-banner";
+import { TierLimitBanner } from "@/components/billing/tier-limit-banner";
 
 export default function DashboardLayout({
   children,
@@ -94,6 +95,7 @@ export default function DashboardLayout({
                 <DashboardSkeleton />
               ) : (
                 <>
+                  <TierLimitBanner />
                   <FreePlanWelcomeBanner />
                   {children}
                 </>
