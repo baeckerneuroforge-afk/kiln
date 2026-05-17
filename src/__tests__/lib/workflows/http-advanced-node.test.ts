@@ -1,9 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockPickMockData = vi.hoisted(() => vi.fn<(args: { orgId: string; workflowId: string; nodeId: string; name?: string }) => Promise<unknown | null>>(async () => null));
+const mockResolve4 = vi.hoisted(() => vi.fn());
+const mockResolve6 = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/workflows/mock-data", () => ({
   pickMockData: mockPickMockData,
+}));
+
+vi.mock("dns/promises", () => ({
+  default: {
+    resolve4: mockResolve4,
+    resolve6: mockResolve6,
+  },
 }));
 
 import { executeHttpAdvanced } from "@/lib/workflow-nodes/http-advanced-node";
@@ -14,6 +23,8 @@ describe("HTTP-Request-Advanced node", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPickMockData.mockResolvedValue(null);
+    mockResolve4.mockResolvedValue(["93.184.216.34"]);
+    mockResolve6.mockResolvedValue([]);
   });
 
   afterEach(() => {

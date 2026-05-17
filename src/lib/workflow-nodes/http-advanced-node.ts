@@ -21,9 +21,22 @@ import {
   type WorkflowErrorType,
 } from "@/lib/workflows/error-handling";
 import { pickMockData } from "@/lib/workflows/mock-data";
+import { logAudit } from "@/lib/audit/logger";
+import {
+  readResponseWithLimit,
+  safeFetch,
+  SizeLimitExceededError,
+  SSRFBlockedError,
+} from "@/lib/url-validation";
 import type { ActionNodeResult } from "./action-nodes";
 
 export type HttpAuthType = "NONE" | "BEARER" | "BASIC" | "API_KEY_HEADER" | "API_KEY_QUERY";
+const BLOCKED_CUSTOM_HEADER_NAMES = new Set([
+  "authorization",
+  "cookie",
+  "proxy-authorization",
+  "set-cookie",
+]);
 
 export interface HttpAdvancedConfig {
   url?: string;
@@ -80,15 +93,27 @@ export async function executeHttpAdvanced(
 
   const method = String(config.method || "GET").toUpperCase();
   const headers: Record<string, string> = {};
+  const blockedHeaders: string[] = [];
   for (const [key, value] of Object.entries(config.headers ?? {})) {
+    if (isBlockedCustomHeaderName(key)) {
+      blockedHeaders.push(key);
+      continue;
+    }
     headers[key] = resolveExpression(value, context);
   }
+  if (blockedHeaders.length > 0) {
+    return blockedHeaderResult(resultKey, blockedHeaders);
+  }
+
   const query: Record<string, string> = {};
   for (const [key, value] of Object.entries(config.query ?? {})) {
     query[key] = resolveExpression(value, context);
   }
 
-  applyAuth(headers, query, config, context);
+  const authHeaderError = applyAuth(headers, query, config, context);
+  if (authHeaderError) {
+    return blockedHeaderResult(resultKey, [authHeaderError]);
+  }
 
   const timeoutMs = Math.min(120_000, Math.max(1_000, Number(config.timeoutMs) || 30_000));
   const fullUrl = appendQuery(url, query);
@@ -109,10 +134,35 @@ export async function executeHttpAdvanced(
     }
   }
 
+  let blockedUrlReason: string | null = null;
+  let sizeLimitExceeded = false;
+
   const result = await runWithRetry(
     async () => {
-      const response = await fetch(fullUrl, init);
-      const text = await response.text();
+      let response: Response;
+      try {
+        response = await safeFetch(fullUrl, {
+          ...init,
+          timeoutMs,
+        });
+      } catch (err) {
+        if (err instanceof SSRFBlockedError) {
+          blockedUrlReason = err.message;
+          await auditBlockedWorkflowUrl(context, "http_advanced", fullUrl, err.message);
+        }
+        throw err;
+      }
+
+      let text: string;
+      try {
+        text = await readResponseWithLimit(response);
+      } catch (err) {
+        if (err instanceof SizeLimitExceededError) {
+          sizeLimitExceeded = true;
+        }
+        throw err;
+      }
+
       let parsed: unknown = text;
       try {
         parsed = JSON.parse(text);
@@ -137,6 +187,24 @@ export async function executeHttpAdvanced(
       retryOn: config.retryOn,
     },
   );
+
+  if (blockedUrlReason) {
+    return {
+      contextDelta: { [resultKey]: { error: "URL not allowed" } },
+      success: false,
+      error: "URL not allowed",
+      meta: { blocked: true, reason: blockedUrlReason },
+    };
+  }
+
+  if (sizeLimitExceeded) {
+    return {
+      contextDelta: { [resultKey]: { error: "Response too large" } },
+      success: false,
+      error: "Response too large",
+      meta: { blocked: true, reason: "size_limit_exceeded" },
+    };
+  }
 
   if (!result.ok) {
     const classified = result.error ?? classifyWorkflowError(new Error("unknown"));
@@ -163,35 +231,37 @@ function applyAuth(
   query: Record<string, string>,
   config: HttpAdvancedConfig,
   context: ExpressionContext,
-): void {
+): string | null {
   const authType: HttpAuthType = config.authType ?? "NONE";
   switch (authType) {
     case "NONE":
-      return;
+      return null;
     case "BEARER": {
       const token = resolveExpression(String(config.authToken || ""), context);
       if (token) headers.Authorization = `Bearer ${token}`;
-      return;
+      return null;
     }
     case "BASIC": {
       const user = resolveExpression(String(config.authUsername || ""), context);
       const pass = resolveExpression(String(config.authPassword || ""), context);
       if (user) headers.Authorization = `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`;
-      return;
+      return null;
     }
     case "API_KEY_HEADER": {
       const name = resolveExpression(String(config.authKeyName || "X-API-Key"), context);
       const value = resolveExpression(String(config.authKeyValue || ""), context);
+      if (isBlockedCustomHeaderName(name)) return name;
       if (name && value) headers[name] = value;
-      return;
+      return null;
     }
     case "API_KEY_QUERY": {
       const name = resolveExpression(String(config.authKeyName || "api_key"), context);
       const value = resolveExpression(String(config.authKeyValue || ""), context);
       if (name && value) query[name] = value;
-      return;
+      return null;
     }
   }
+  return null;
 }
 
 function appendQuery(url: string, query: Record<string, string>): string {
@@ -202,4 +272,56 @@ function appendQuery(url: string, query: Record<string, string>): string {
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
     .join("&");
   return `${url}${join}${qs}`;
+}
+
+function isBlockedCustomHeaderName(name: string): boolean {
+  return BLOCKED_CUSTOM_HEADER_NAMES.has(name.trim().toLowerCase());
+}
+
+function blockedHeaderResult(resultKey: string, blockedHeaders: string[]): ActionNodeResult {
+  return {
+    contextDelta: { [resultKey]: { error: "Header not allowed", blockedHeaders } },
+    success: false,
+    error: "Header not allowed",
+    meta: { blockedHeaders },
+  };
+}
+
+async function auditBlockedWorkflowUrl(
+  context: ExpressionContext,
+  nodeType: string,
+  url: string,
+  reason: string,
+): Promise<void> {
+  const orgId = typeof context._orgId === "string" ? context._orgId : null;
+  if (!orgId) return;
+
+  await logAudit({
+    orgId,
+    action: "WORKFLOW_SSRF_BLOCKED",
+    resourceType: "Workflow",
+    resourceId: typeof context._workflowId === "string" ? context._workflowId : null,
+    actorUserId: typeof context._userId === "string" ? context._userId : null,
+    actorType: typeof context._userId === "string" ? "USER" : "SYSTEM",
+    description: "Blocked workflow node request to a disallowed URL.",
+    metadata: {
+      nodeType,
+      url: redactUrlForAudit(url),
+      reason,
+    },
+    severity: "CRITICAL",
+  });
+}
+
+function redactUrlForAudit(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.username = "";
+    parsed.password = "";
+    parsed.hash = "";
+    parsed.search = parsed.search ? "?[redacted]" : "";
+    return parsed.toString();
+  } catch {
+    return "[invalid-url]";
+  }
 }
