@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockResolve4 = vi.hoisted(() => vi.fn());
 const mockResolve6 = vi.hoisted(() => vi.fn());
@@ -10,7 +10,12 @@ vi.mock("dns/promises", () => ({
   },
 }));
 
-import { validateUrl } from "@/lib/url-validation";
+import {
+  readResponseWithLimit,
+  safeFetch,
+  SizeLimitExceededError,
+  validateUrl,
+} from "@/lib/url-validation";
 
 describe("validateUrl", () => {
   beforeEach(() => {
@@ -18,6 +23,10 @@ describe("validateUrl", () => {
     mockResolve6.mockReset();
     mockResolve4.mockResolvedValue(["93.184.216.34"]);
     mockResolve6.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("allows https://example.com", async () => {
@@ -35,5 +44,21 @@ describe("validateUrl", () => {
   it("blocks file:// and ftp:// protocols", async () => {
     await expect(validateUrl("file:///etc/passwd")).resolves.toMatchObject({ safe: false });
     await expect(validateUrl("ftp://example.com/file.txt")).resolves.toMatchObject({ safe: false });
+  });
+
+  it("safeFetch throws SizeLimitExceededError when content-length exceeds the limit", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response("too-large", { status: 200, headers: { "content-length": "11" } }),
+    );
+
+    await expect(safeFetch("https://example.com/big", { maxResponseSize: 10 })).rejects.toBeInstanceOf(
+      SizeLimitExceededError,
+    );
+  });
+
+  it("readResponseWithLimit throws SizeLimitExceededError when streamed body exceeds the limit", async () => {
+    const response = new Response("12345678901", { status: 200 });
+
+    await expect(readResponseWithLimit(response, 10)).rejects.toBeInstanceOf(SizeLimitExceededError);
   });
 });
