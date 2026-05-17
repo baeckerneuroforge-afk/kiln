@@ -9,6 +9,13 @@ import {
   type ExpressionContext,
 } from "@/lib/workflow-expressions";
 import { sendA2AMessage } from "@/lib/a2a-protocol";
+import { logAudit } from "@/lib/audit/logger";
+import {
+  readResponseWithLimit,
+  safeFetch,
+  SizeLimitExceededError,
+  SSRFBlockedError,
+} from "@/lib/url-validation";
 
 export interface ActionNodeResult {
   /** Daten die in den Kontext geschrieben werden */
@@ -58,8 +65,8 @@ export async function executeHttpRequest(
   }
 
   try {
-    const response = await fetch(url, fetchOptions);
-    const responseText = await response.text();
+    const response = await safeFetch(url, fetchOptions);
+    const responseText = await readResponseWithLimit(response);
 
     let responseData: unknown = responseText;
     try {
@@ -96,10 +103,25 @@ export async function executeHttpRequest(
       meta: { url, method, status: response.status },
     };
   } catch (err) {
+    if (err instanceof SSRFBlockedError) {
+      await auditBlockedWorkflowUrl(context, "http_request", url, err.message);
+      return {
+        contextDelta: {},
+        success: false,
+        error: "URL not allowed",
+        meta: { url, method, blocked: true, reason: err.message },
+      };
+    }
+
     return {
       contextDelta: {},
       success: false,
-      error: err instanceof Error ? err.message : "HTTP Request fehlgeschlagen",
+      error:
+        err instanceof SizeLimitExceededError
+          ? "Response too large"
+          : err instanceof Error
+            ? err.message
+            : "HTTP Request fehlgeschlagen",
       meta: { url, method },
     };
   }
@@ -204,11 +226,12 @@ export async function executeSendSlack(
   }
 
   try {
-    const response = await fetch(webhookUrl, {
+    const response = await safeFetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: message }),
       signal: AbortSignal.timeout(10_000),
+      timeoutMs: 10_000,
     });
 
     if (!response.ok) {
@@ -230,6 +253,15 @@ export async function executeSendSlack(
       meta: { channel: config.channel },
     };
   } catch (err) {
+    if (err instanceof SSRFBlockedError) {
+      await auditBlockedWorkflowUrl(context, "send_slack", webhookUrl, err.message);
+      return {
+        contextDelta: {},
+        success: false,
+        error: "URL not allowed",
+      };
+    }
+
     return {
       contextDelta: {},
       success: false,
@@ -394,5 +426,44 @@ export async function executeActionNode(
       return executeA2ACall(config, context);
     default:
       throw new Error(`Unbekannter Action-Node-Typ: ${nodeType}`);
+  }
+}
+
+async function auditBlockedWorkflowUrl(
+  context: ExpressionContext,
+  nodeType: string,
+  url: string,
+  reason: string,
+): Promise<void> {
+  const orgId = typeof context._orgId === "string" ? context._orgId : null;
+  if (!orgId) return;
+
+  await logAudit({
+    orgId,
+    action: "WORKFLOW_SSRF_BLOCKED",
+    resourceType: "Workflow",
+    resourceId: typeof context._workflowId === "string" ? context._workflowId : null,
+    actorUserId: typeof context._userId === "string" ? context._userId : null,
+    actorType: typeof context._userId === "string" ? "USER" : "SYSTEM",
+    description: "Blocked workflow node request to a disallowed URL.",
+    metadata: {
+      nodeType,
+      url: redactUrlForAudit(url),
+      reason,
+    },
+    severity: "CRITICAL",
+  });
+}
+
+function redactUrlForAudit(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.username = "";
+    parsed.password = "";
+    parsed.hash = "";
+    parsed.search = parsed.search ? "?[redacted]" : "";
+    return parsed.toString();
+  } catch {
+    return "[invalid-url]";
   }
 }
