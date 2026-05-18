@@ -2,8 +2,8 @@
  * GET   /api/email-branding/sub-org/[id] — read sub-org email override
  * PATCH /api/email-branding/sub-org/[id] — set / clear override fields
  *
- * Auth via the existing requireSubOrgAccess helper — the agency owner
- * must be operating in their agency org and own the referenced sub-org.
+ * Auth via the Sprint 20.2 agency-role helper — reads require
+ * CONSULTANT+, writes require ADMIN+.
  *
  * The override is stored as a JSON bag on OrgRelationship.emailBrandOverride.
  * Empty / null values clear individual fields; passing `null` as the body
@@ -11,7 +11,7 @@
  */
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireSubOrgAccess } from "@/lib/agency/sub-org-auth";
+import { requireSubOrgAccess } from "@/lib/permissions/require-sub-org-access";
 import {
   isValidEmailAddress,
   isValidHexColor,
@@ -38,17 +38,15 @@ export async function GET(
   _request: Request,
   { params }: { params: { id: string } }
 ) {
-  const access = await requireSubOrgAccess(params.id);
-  if (!access.ok) return access.response;
-
-  const relationship = await prisma.orgRelationship.findUnique({
-    where: { id: params.id },
-    select: { emailBrandOverride: true },
+  const access = await requireSubOrgAccess(params.id, {
+    requiredAgencyRole: ["OWNER", "ADMIN", "CONSULTANT"],
   });
+  if (!access.ok) return access.response;
+  const { relationship } = access;
 
   return Response.json({
-    enabled: relationship?.emailBrandOverride !== null,
-    override: parseOverride(relationship?.emailBrandOverride),
+    enabled: relationship.emailBrandOverride !== null,
+    override: parseOverride(relationship.emailBrandOverride),
   });
 }
 
@@ -56,8 +54,11 @@ export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const access = await requireSubOrgAccess(params.id);
+  const access = await requireSubOrgAccess(params.id, {
+    requiredAgencyRole: ["OWNER", "ADMIN"],
+  });
   if (!access.ok) return access.response;
+  const { relationship } = access;
 
   const body = (await request.json().catch(() => ({}))) as PatchBody;
 
@@ -69,12 +70,7 @@ export async function PATCH(
     return Response.json({ enabled: false, override: null });
   }
 
-  const existing = await prisma.orgRelationship.findUnique({
-    where: { id: params.id },
-    select: { emailBrandOverride: true },
-  });
-
-  const current = parseOverride(existing?.emailBrandOverride) || {};
+  const current = parseOverride(relationship.emailBrandOverride) || {};
   const next: EmailBrandOverride = { ...current };
 
   const errors: string[] = [];

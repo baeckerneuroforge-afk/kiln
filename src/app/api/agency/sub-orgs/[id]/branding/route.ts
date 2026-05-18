@@ -10,12 +10,12 @@
  * to set up a sub-org's domain. We surface the read-side here so the
  * detail page's Branding tab can show what's currently configured.
  *
- * Auth: see @/lib/agency/sub-org-auth.
+ * Auth: GET uses the Sprint 20.2 agency-role helper; PATCH stays on the
+ * Sprint 20.1 mutation gate until the write-route migration phase.
  */
 import { prisma } from "@/lib/prisma";
-import { requireSubOrgAccess } from "@/lib/agency/sub-org-auth";
-// Sprint 20.1 — PATCH (branding-write) requires OWNER/ADMIN; GET keeps
-// requireSubOrgAccess so assigned CONSULTANT/VIEWER can read.
+import { requireSubOrgAccess } from "@/lib/permissions/require-sub-org-access";
+// Sprint 20.1 — PATCH (branding-write) requires OWNER/ADMIN.
 import { requireAgencyMutation } from "@/lib/agency/require-agency-mutation";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,9 @@ export async function GET(
   _request: Request,
   { params }: { params: { id: string } },
 ) {
-  const access = await requireSubOrgAccess(params.id);
+  const access = await requireSubOrgAccess(params.id, {
+    requiredAgencyRole: ["OWNER", "ADMIN", "CONSULTANT"],
+  });
   if (!access.ok) return access.response;
   const orgId = access.relationship.childOrgId;
 
