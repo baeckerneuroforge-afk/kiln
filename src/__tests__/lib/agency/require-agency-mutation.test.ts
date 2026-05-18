@@ -94,18 +94,14 @@ describe("Sprint 20.1 — requireAgencyMutation", () => {
     expect(result.response.status).toBe(403);
   });
 
-  it("blocks a Clerk-org admin with no AgencyMembership row (403, not 401)", async () => {
-    // No withMembership() call → findUnique returns null. Anyone who
-    // wandered into the agency-org context via Clerk org-admin status
-    // but never accepted the KILN-side invite must be rejected here,
-    // not silently treated as an OWNER.
+  it("hides the sub-org when the caller has no AgencyMembership row", async () => {
     mockPrisma.agencyMembership.findUnique.mockResolvedValueOnce(null);
     const result = await requireAgencyMutation(REL_ID);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected blocked");
-    expect(result.response.status).toBe(403);
+    expect(result.response.status).toBe(404);
     const body = await result.response.json();
-    expect(body.errorCode).toBe("INSUFFICIENT_AGENCY_ROLE");
+    expect(body).toEqual({ error: "Sub-org not found" });
   });
 
   it("propagates 401 from requireSubOrgAccess when caller is unauthenticated", async () => {
@@ -138,19 +134,15 @@ describe("Sprint 20.1 — requireAgencyMutation", () => {
   });
 
   it("does not leak the caller's actual role in the 403 body", async () => {
-    // Defense-in-depth — both CONSULTANT and "no membership" produce
-    // the same error envelope. A probing client cannot enumerate roles.
     withMembership("CONSULTANT");
     const consultantRes = await requireAgencyMutation(REL_ID);
     if (consultantRes.ok) throw new Error("expected blocked");
     const consultantBody = await consultantRes.response.json();
 
-    mockPrisma.agencyMembership.findUnique.mockResolvedValueOnce(null);
-    const noMemRes = await requireAgencyMutation(REL_ID);
-    if (noMemRes.ok) throw new Error("expected blocked");
-    const noMemBody = await noMemRes.response.json();
-
-    expect(consultantBody).toEqual(noMemBody);
     expect(JSON.stringify(consultantBody)).not.toContain("CONSULTANT");
+    expect(consultantBody).toMatchObject({
+      error: "Insufficient role for this action",
+      errorCode: "INSUFFICIENT_AGENCY_ROLE",
+    });
   });
 });

@@ -1,42 +1,34 @@
 /**
  * Sprint 20.1 — Mutation-gate helper for /api/agency/sub-orgs/[id]/* routes.
  *
- * Wraps the existing requireSubOrgAccess() helper (which proves the
- * caller is acting in their agency org AND the sub-org belongs to
- * that agency) and adds a role-floor check on top:
+ * Wraps the unified Sprint 20.2 requireSubOrgAccess() helper to prove the
+ * caller is acting in their agency org, the sub-org belongs to that agency,
+ * and the caller's AgencyMembership role is high enough:
  *
  *   - OWNER  → allowed
  *   - ADMIN  → allowed
  *   - CONSULTANT, VIEWER → 403 forbidden
  *
- * This closes the Sprint 19.7.6 gap flagged in sub-org-auth.ts: until
- * each mutating route declares its own SubOrgPermission floor (planned
- * for the Sprint 20.2 auth-migration), every mutation goes through
- * this one gate. CONSULTANT + VIEWER can still hit the read-only GET
- * routes — those keep using requireSubOrgAccess() directly.
+ * CONSULTANT + VIEWER can still hit the read-only GET routes according
+ * to each route's own role matrix, but every mutation goes through this
+ * single OWNER/ADMIN gate.
  *
- * The 403 carries `errorCode: "INSUFFICIENT_AGENCY_ROLE"` so the
- * client can render a "Ask your agency owner" prompt without parsing
- * free-text. We do NOT leak the user's actual role in the response —
- * a CONSULTANT trying to mutate sees the same 403 as a non-member
- * (defense-in-depth against enumeration via role-probing).
+ * The 403 carries `errorCode: "INSUFFICIENT_AGENCY_ROLE"` so the client
+ * can render a "Ask your agency owner" prompt without parsing free-text.
+ * Missing AgencyMembership rows collapse to 404 inside the unified helper
+ * so a Clerk org member cannot probe sub-org existence without KILN RBAC.
  *
  * Cross-agency probing stays a 404 (handled by requireSubOrgAccess),
  * so the existence of a sub-org under a different agency cannot be
  * confirmed via this endpoint either.
  *
- * NOTE — this helper does NOT replace sub-org-auth.ts. Read-only
- * routes (GET /activity, /agents, /invoices, /members, /modules,
- * /stats, /workflows, /branding GET, /[id] GET) keep using
- * requireSubOrgAccess() directly so CONSULTANT + VIEWER stay
- * able to see what they're assigned to.
+ * NOTE — this helper keeps the Sprint 20.1 return shape stable for route
+ * callers while the underlying auth source moves off legacy sub-org-auth.ts.
  */
-import type { AgencyRole, AgencyMembership, OrgRelationship } from "@prisma/client";
+import type { AgencyMembership, OrgRelationship } from "@prisma/client";
 import {
   requireSubOrgAccess,
-  type SubOrgAuthResult,
-} from "./sub-org-auth";
-import { getAgencyMembership } from "@/lib/permissions/agency-permissions";
+} from "@/lib/permissions/require-sub-org-access";
 
 export type AgencyMutationAuthResult =
   | {
@@ -47,11 +39,6 @@ export type AgencyMutationAuthResult =
       membership: AgencyMembership;
     }
   | { ok: false; response: Response };
-
-const MUTATION_ROLES: ReadonlySet<AgencyRole> = new Set<AgencyRole>([
-  "OWNER",
-  "ADMIN",
-]);
 
 /**
  * Mutation-only auth gate. Returns the resolved relationship +
@@ -66,32 +53,16 @@ const MUTATION_ROLES: ReadonlySet<AgencyRole> = new Set<AgencyRole>([
 export async function requireAgencyMutation(
   relationshipId: string,
 ): Promise<AgencyMutationAuthResult> {
-  const base: SubOrgAuthResult = await requireSubOrgAccess(relationshipId);
-  if (!base.ok) return { ok: false, response: base.response };
-
-  const membership = await getAgencyMembership(base.userId, base.agencyOrgId);
-  // No agency-membership row at all → treat like a non-member trying
-  // to mutate. Clerk owns the org-side identity but our RBAC is
-  // KILN-side: a Clerk org admin who never accepted the AgencyMembership
-  // invitation has no business mutating sub-org state.
-  if (!membership || !MUTATION_ROLES.has(membership.role)) {
-    return {
-      ok: false,
-      response: Response.json(
-        {
-          error: "Insufficient role for this action",
-          errorCode: "INSUFFICIENT_AGENCY_ROLE",
-        },
-        { status: 403 },
-      ),
-    };
-  }
+  const access = await requireSubOrgAccess(relationshipId, {
+    requiredAgencyRole: ["OWNER", "ADMIN"],
+  });
+  if (!access.ok) return { ok: false, response: access.response };
 
   return {
     ok: true,
-    relationship: base.relationship,
-    userId: base.userId,
-    agencyOrgId: base.agencyOrgId,
-    membership,
+    relationship: access.relationship,
+    userId: access.userId,
+    agencyOrgId: access.agencyOrgId,
+    membership: access.agencyMembership,
   };
 }
