@@ -4,10 +4,10 @@
  * SubOrgInvoice mirror that's populated by Stripe webhooks — no
  * Stripe round-trip needed.
  *
- * Auth: see @/lib/agency/sub-org-auth.
+ * Auth: agency-role helper; invoices are restricted to OWNER/ADMIN.
  */
 import { prisma } from "@/lib/prisma";
-import { requireSubOrgAccess } from "@/lib/agency/sub-org-auth";
+import { requireSubOrgAccess } from "@/lib/permissions/require-sub-org-access";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,9 @@ export async function GET(
   _request: Request,
   { params }: { params: { id: string } },
 ) {
-  const access = await requireSubOrgAccess(params.id);
+  const access = await requireSubOrgAccess(params.id, {
+    requiredAgencyRole: ["OWNER", "ADMIN"],
+  });
   if (!access.ok) return access.response;
   const orgId = access.relationship.childOrgId;
 

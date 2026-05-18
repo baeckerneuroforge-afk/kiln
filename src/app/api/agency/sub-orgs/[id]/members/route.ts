@@ -3,10 +3,10 @@
  * the sub-org. Pulls org memberships from Clerk and joins minimal
  * user metadata (name, email, role, last active).
  *
- * Auth: see @/lib/agency/sub-org-auth.
+ * Auth: agency-role helper; members are visible to CONSULTANT+.
  */
 import { clerkClient } from "@clerk/nextjs/server";
-import { requireSubOrgAccess } from "@/lib/agency/sub-org-auth";
+import { requireSubOrgAccess } from "@/lib/permissions/require-sub-org-access";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,9 @@ export async function GET(
   _request: Request,
   { params }: { params: { id: string } },
 ) {
-  const access = await requireSubOrgAccess(params.id);
+  const access = await requireSubOrgAccess(params.id, {
+    requiredAgencyRole: ["OWNER", "ADMIN", "CONSULTANT"],
+  });
   if (!access.ok) return access.response;
   const orgId = access.relationship.childOrgId;
 
