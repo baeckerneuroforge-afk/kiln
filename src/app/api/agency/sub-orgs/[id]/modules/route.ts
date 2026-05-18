@@ -1,12 +1,14 @@
 import { NextRequest } from "next/server";
-import { requireSubOrgAccess } from "@/lib/agency/sub-org-auth";
+import { requireSubOrgAccess } from "@/lib/permissions/require-sub-org-access";
 import { ensureDefaultModuleConfigs, listModuleConfigs } from "@/lib/modules/store";
 import { MODULE_NAMES } from "@/lib/modules/types";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireSubOrgAccess(params.id);
+  const auth = await requireSubOrgAccess(params.id, {
+    requiredAgencyRole: ["OWNER", "ADMIN", "CONSULTANT"],
+  });
   if (!auth.ok) return auth.response;
 
   // Backfill default rows on first read so the UI sees all 4 module slots.

@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { AgencyRole } from "@prisma/client";
 
 beforeAll(() => {
   if (!process.env.ENCRYPTION_KEY) {
@@ -6,20 +7,7 @@ beforeAll(() => {
   }
 });
 
-const mockAuth = vi.hoisted(() =>
-  vi.fn<() => Promise<{
-    ok: boolean;
-    relationship?: { id: string; childOrgId: string };
-    userId?: string;
-    agencyOrgId?: string;
-    response?: Response;
-  }>>(async () => ({
-    ok: true,
-    relationship: { id: "rel_1", childOrgId: "sub_a" },
-    userId: "user_a",
-    agencyOrgId: "org_agency",
-  })),
-);
+const mockClerkAuth = vi.hoisted(() => vi.fn());
 
 // Sprint 20.1 — module routes switched from requireSubOrgAccess to
 // requireAgencyMutation (OWNER/ADMIN gate). Mock the new helper to
@@ -44,6 +32,8 @@ const mockMutationAuth = vi.hoisted(() =>
 );
 
 const mockPrisma = vi.hoisted(() => ({
+  orgRelationship: { findFirst: vi.fn() },
+  agencyMembership: { findUnique: vi.fn() },
   subAccountModuleConfig: {
     findUnique: vi.fn(),
     findMany: vi.fn(),
@@ -52,13 +42,16 @@ const mockPrisma = vi.hoisted(() => ({
   auditLog: { create: vi.fn() },
 }));
 
-vi.mock("@/lib/agency/sub-org-auth", () => ({
-  requireSubOrgAccess: mockAuth,
-}));
+vi.mock("@clerk/nextjs/server", () => ({ auth: mockClerkAuth }));
 vi.mock("@/lib/agency/require-agency-mutation", () => ({
   requireAgencyMutation: mockMutationAuth,
 }));
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
+
+const REL_ID = "rel_1";
+const AGENCY_ORG_ID = "org_agency";
+const CHILD_ORG_ID = "sub_a";
+const USER_ID = "user_a";
 
 function makeJsonRequest(body: unknown): import("next/server").NextRequest {
   return new Request("https://example.com/x", {
@@ -68,15 +61,27 @@ function makeJsonRequest(body: unknown): import("next/server").NextRequest {
   }) as unknown as import("next/server").NextRequest;
 }
 
+function mockRelationship() {
+  mockPrisma.orgRelationship.findFirst.mockResolvedValue({
+    id: REL_ID,
+    parentOrgId: AGENCY_ORG_ID,
+    childOrgId: CHILD_ORG_ID,
+  });
+}
+
+function mockAgencyRole(role: AgencyRole) {
+  mockPrisma.agencyMembership.findUnique.mockResolvedValue({
+    id: `mem_${role}`,
+    agencyClerkOrgId: AGENCY_ORG_ID,
+    userId: USER_ID,
+    role,
+  });
+}
+
 describe("POST configure route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAuth.mockResolvedValue({
-      ok: true,
-      relationship: { id: "rel_1", childOrgId: "sub_a" },
-      userId: "user_a",
-      agencyOrgId: "org_agency",
-    });
+    mockClerkAuth.mockResolvedValue({ userId: USER_ID, orgId: AGENCY_ORG_ID });
     mockPrisma.subAccountModuleConfig.upsert.mockImplementation(async ({ create }: { create: Record<string, unknown> }) => ({
       id: "smc_new",
       ...create,
@@ -193,12 +198,7 @@ describe("POST configure route", () => {
 describe("POST toggle route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAuth.mockResolvedValue({
-      ok: true,
-      relationship: { id: "rel_1", childOrgId: "sub_a" },
-      userId: "user_a",
-      agencyOrgId: "org_agency",
-    });
+    mockClerkAuth.mockResolvedValue({ userId: USER_ID, orgId: AGENCY_ORG_ID });
     mockPrisma.subAccountModuleConfig.upsert.mockImplementation(async ({ create, update }: { create: Record<string, unknown>; update: Record<string, unknown> }) => ({
       id: "smc_1",
       moduleName: create.moduleName ?? "ai",
@@ -234,12 +234,9 @@ describe("POST toggle route", () => {
 describe("GET modules route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAuth.mockResolvedValue({
-      ok: true,
-      relationship: { id: "rel_1", childOrgId: "sub_a" },
-      userId: "user_a",
-      agencyOrgId: "org_agency",
-    });
+    mockClerkAuth.mockResolvedValue({ userId: USER_ID, orgId: AGENCY_ORG_ID });
+    mockRelationship();
+    mockAgencyRole("OWNER");
     mockPrisma.subAccountModuleConfig.findMany.mockResolvedValue([]);
     mockPrisma.subAccountModuleConfig.upsert.mockImplementation(async () => ({
       id: "x",
@@ -254,6 +251,69 @@ describe("GET modules route", () => {
       updatedAt: new Date(),
     }));
   });
+
+  it("returns 401 when the caller is not signed in", async () => {
+    mockClerkAuth.mockResolvedValueOnce({ userId: null, orgId: null });
+    const { GET } = await import("@/app/api/agency/sub-orgs/[id]/modules/route");
+    const response = await GET(
+      new Request("https://example.com/x") as unknown as import("next/server").NextRequest,
+      { params: { id: REL_ID } },
+    );
+    expect(response.status).toBe(401);
+    expect(mockPrisma.orgRelationship.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the relationship belongs to a different agency", async () => {
+    mockPrisma.orgRelationship.findFirst.mockResolvedValueOnce(null);
+    const { GET } = await import("@/app/api/agency/sub-orgs/[id]/modules/route");
+    const response = await GET(
+      new Request("https://example.com/x") as unknown as import("next/server").NextRequest,
+      { params: { id: REL_ID } },
+    );
+    expect(response.status).toBe(404);
+    expect(mockPrisma.agencyMembership.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the caller has no AgencyMembership", async () => {
+    mockPrisma.agencyMembership.findUnique.mockResolvedValueOnce(null);
+    const { GET } = await import("@/app/api/agency/sub-orgs/[id]/modules/route");
+    const response = await GET(
+      new Request("https://example.com/x") as unknown as import("next/server").NextRequest,
+      { params: { id: REL_ID } },
+    );
+    expect(response.status).toBe(404);
+    expect(mockPrisma.subAccountModuleConfig.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for VIEWER", async () => {
+    mockAgencyRole("VIEWER");
+    const { GET } = await import("@/app/api/agency/sub-orgs/[id]/modules/route");
+    const response = await GET(
+      new Request("https://example.com/x") as unknown as import("next/server").NextRequest,
+      { params: { id: REL_ID } },
+    );
+    const body = await response.json();
+    expect(response.status).toBe(403);
+    expect(body.errorCode).toBe("INSUFFICIENT_AGENCY_ROLE");
+    expect(mockPrisma.subAccountModuleConfig.findMany).not.toHaveBeenCalled();
+  });
+
+  it.each<AgencyRole>(["OWNER", "ADMIN", "CONSULTANT"])(
+    "allows %s to read module configuration",
+    async (role) => {
+      mockAgencyRole(role);
+      const { GET } = await import("@/app/api/agency/sub-orgs/[id]/modules/route");
+      const response = await GET(
+        new Request("https://example.com/x") as unknown as import("next/server").NextRequest,
+        { params: { id: REL_ID } },
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.subAccountId).toBe(CHILD_ORG_ID);
+      expect(body.moduleNames).toEqual(["ai", "sms", "voice", "whatsapp"]);
+    },
+  );
 
   it("returns the four module names and never leaks encrypted credentials", async () => {
     mockPrisma.subAccountModuleConfig.findMany.mockResolvedValueOnce([

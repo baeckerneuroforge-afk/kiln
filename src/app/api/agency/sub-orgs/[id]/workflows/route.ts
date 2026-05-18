@@ -3,10 +3,10 @@
  * owned by the sub-org. Workflow runs come from TeamExecution; we
  * aggregate the last 30 days for success-rate / avg-duration / last-run.
  *
- * Auth: see @/lib/agency/sub-org-auth.
+ * Auth: agency-mode access via the unified requireSubOrgAccess helper.
  */
 import { prisma } from "@/lib/prisma";
-import { requireSubOrgAccess } from "@/lib/agency/sub-org-auth";
+import { requireSubOrgAccess } from "@/lib/permissions/require-sub-org-access";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,9 @@ export async function GET(
   _request: Request,
   { params }: { params: { id: string } },
 ) {
-  const access = await requireSubOrgAccess(params.id);
+  const access = await requireSubOrgAccess(params.id, {
+    requiredAgencyRole: ["OWNER", "ADMIN", "CONSULTANT"],
+  });
   if (!access.ok) return access.response;
   const orgId = access.relationship.childOrgId;
 
