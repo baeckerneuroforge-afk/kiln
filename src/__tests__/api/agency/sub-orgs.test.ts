@@ -36,6 +36,7 @@ const mockPrisma = vi.hoisted(() => ({
     create: vi.fn(),
     update: vi.fn(),
   },
+  industryTemplate: { findUnique: vi.fn() },
   subOrgMembership: { upsert: vi.fn() },
   agent: { groupBy: vi.fn() },
   // Sprint 19.7.6 — sub-orgs.create permission gate touches this table.
@@ -52,13 +53,42 @@ vi.mock("@clerk/nextjs/server", () => ({
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
 
 import { POST as listOrCreatePOST, GET as listGET } from "@/app/api/agency/sub-orgs/route";
-import { DELETE as archiveDELETE } from "@/app/api/agency/sub-orgs/[id]/route";
+import {
+  DELETE as archiveDELETE,
+  GET as detailGET,
+} from "@/app/api/agency/sub-orgs/[id]/route";
 
 function makePostRequest(body: unknown) {
   return new Request("http://localhost/api/agency/sub-orgs", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+  });
+}
+
+function makeRelationship() {
+  return {
+    id: "rel_1",
+    parentOrgId: AGENCY_ORG,
+    childOrgId: "org_child_1",
+    createdBy: AGENCY_USER,
+    subOrgName: "Acme",
+    subOrgStatus: "ACTIVE",
+    createdAt: new Date("2026-05-01T00:00:00Z"),
+    industry: null,
+    pricingMode: "NONE",
+    monthlyPriceCents: null,
+    setupFeeCents: null,
+    pricingCurrency: "eur",
+  };
+}
+
+function mockAgencyMembership(role: "OWNER" | "ADMIN" | "CONSULTANT" | "VIEWER") {
+  mockPrisma.agencyMembership.findUnique.mockResolvedValueOnce({
+    id: `mem_${role}`,
+    agencyClerkOrgId: AGENCY_ORG,
+    userId: AGENCY_USER,
+    role,
   });
 }
 
@@ -218,6 +248,66 @@ describe("GET /api/agency/sub-orgs", () => {
       agentCount: 0,
     });
   });
+});
+
+describe("GET /api/agency/sub-orgs/[id]", () => {
+  beforeEach(() => {
+    Object.values(mockPrisma).forEach((m) =>
+      Object.values(m).forEach((fn) => fn.mockReset())
+    );
+    mockAuth.mockReset();
+  });
+
+  it("401 when not authenticated", async () => {
+    mockAuth.mockResolvedValueOnce({ userId: null, orgId: null });
+    const res = await detailGET(new Request("http://localhost/x"), {
+      params: { id: "rel_1" },
+    });
+    expect(res.status).toBe(401);
+    expect(mockPrisma.orgRelationship.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("404 when the relationship belongs to a different agency", async () => {
+    mockAuth.mockResolvedValueOnce({ userId: AGENCY_USER, orgId: AGENCY_ORG });
+    mockPrisma.orgRelationship.findFirst.mockResolvedValueOnce(null);
+    const res = await detailGET(new Request("http://localhost/x"), {
+      params: { id: "rel_other" },
+    });
+    expect(res.status).toBe(404);
+    expect(mockPrisma.agencyMembership.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("404 when the caller has no AgencyMembership", async () => {
+    mockAuth.mockResolvedValueOnce({ userId: AGENCY_USER, orgId: AGENCY_ORG });
+    mockPrisma.orgRelationship.findFirst.mockResolvedValueOnce(makeRelationship());
+    mockPrisma.agencyMembership.findUnique.mockResolvedValueOnce(null);
+    const res = await detailGET(new Request("http://localhost/x"), {
+      params: { id: "rel_1" },
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it.each(["OWNER", "ADMIN", "CONSULTANT", "VIEWER"] as const)(
+    "returns metadata for %s",
+    async (role) => {
+      mockAuth.mockResolvedValueOnce({ userId: AGENCY_USER, orgId: AGENCY_ORG });
+      mockPrisma.orgRelationship.findFirst.mockResolvedValueOnce(makeRelationship());
+      mockAgencyMembership(role);
+
+      const res = await detailGET(new Request("http://localhost/x"), {
+        params: { id: "rel_1" },
+      });
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body).toMatchObject({
+        id: "rel_1",
+        childOrgId: "org_child_1",
+        name: "Acme",
+        status: "ACTIVE",
+      });
+    },
+  );
 });
 
 describe("DELETE /api/agency/sub-orgs/[id]", () => {

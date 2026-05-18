@@ -12,9 +12,9 @@
  * sub-org existence.
  */
 import { prisma } from "@/lib/prisma";
-import { requireSubOrgAccess } from "@/lib/agency/sub-org-auth";
-// Sprint 20.1 — DELETE (archive) requires OWNER/ADMIN; GET keeps the
-// existing visibility-only gate so assigned CONSULTANT/VIEWER can read.
+import { requireSubOrgAccess } from "@/lib/permissions/require-sub-org-access";
+// Sprint 20.1 — DELETE (archive) requires OWNER/ADMIN; Sprint 20.2
+// keeps GET readable for every agency role via the unified helper.
 import { requireAgencyMutation } from "@/lib/agency/require-agency-mutation";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,9 @@ export async function GET(
   _request: Request,
   { params }: { params: { id: string } },
 ) {
-  const access = await requireSubOrgAccess(params.id);
+  const access = await requireSubOrgAccess(params.id, {
+    requiredAgencyRole: ["OWNER", "ADMIN", "CONSULTANT", "VIEWER"],
+  });
   if (!access.ok) return access.response;
   const r = access.relationship;
   const template = r.industry

@@ -10,11 +10,10 @@
  * MRR comes from the active SubOrgSubscription row (priceAmount in
  * cents). When no subscription exists or it's CANCELED, MRR is 0.
  *
- * Auth: same pattern as the rest of /api/agency/sub-orgs/[id]/* — see
- * @/lib/agency/sub-org-auth.
+ * Auth: agency-mode access via the unified requireSubOrgAccess helper.
  */
 import { prisma } from "@/lib/prisma";
-import { requireSubOrgAccess } from "@/lib/agency/sub-org-auth";
+import { requireSubOrgAccess } from "@/lib/permissions/require-sub-org-access";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +21,9 @@ export async function GET(
   _request: Request,
   { params }: { params: { id: string } },
 ) {
-  const access = await requireSubOrgAccess(params.id);
+  const access = await requireSubOrgAccess(params.id, {
+    requiredAgencyRole: ["OWNER", "ADMIN", "CONSULTANT", "VIEWER"],
+  });
   if (!access.ok) return access.response;
   const orgId = access.relationship.childOrgId;
 
