@@ -144,10 +144,14 @@ export async function requireSubOrgAccess(
     }
 
     agencyMembership = await getAgencyMembership(userId, agencyOrgId);
-    if (
-      !agencyMembership ||
-      !requiredAgencyRole.includes(agencyMembership.role)
-    ) {
+    if (!agencyMembership) {
+      return {
+        ok: false,
+        response: Response.json({ error: "Sub-org not found" }, { status: 404 }),
+      };
+    }
+
+    if (!requiredAgencyRole.includes(agencyMembership.role)) {
       return {
         ok: false,
         response: Response.json(

@@ -166,7 +166,7 @@ describe("requireSubOrgAccess", () => {
     },
   );
 
-  it("blocks agency-mode VIEWER when the role is below the required set", async () => {
+  it("keeps agency-mode access as 403 when AgencyMembership exists but role is too low", async () => {
     mockAuth.mockResolvedValueOnce({ userId: USER_ID, orgId: AGENCY_ORG_ID });
     mockOrgRelationshipFindFirst.mockResolvedValueOnce(baseRelationship);
     mockAgencyMembershipFindUnique.mockResolvedValueOnce(agencyMembership("VIEWER"));
@@ -182,7 +182,7 @@ describe("requireSubOrgAccess", () => {
     expect(body.errorCode).toBe("INSUFFICIENT_AGENCY_ROLE");
   });
 
-  it("blocks agency-mode access when no AgencyMembership exists", async () => {
+  it("404s agency-mode access when no AgencyMembership exists", async () => {
     mockAuth.mockResolvedValueOnce({ userId: USER_ID, orgId: AGENCY_ORG_ID });
     mockOrgRelationshipFindFirst.mockResolvedValueOnce(baseRelationship);
     mockAgencyMembershipFindUnique.mockResolvedValueOnce(null);
@@ -193,7 +193,9 @@ describe("requireSubOrgAccess", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected blocked");
-    expect(result.response.status).toBe(403);
+    expect(result.response.status).toBe(404);
+    const body = await result.response.json();
+    expect(body.error).toBe("Sub-org not found");
   });
 
   it("404s agency-mode access from a different agency", async () => {
