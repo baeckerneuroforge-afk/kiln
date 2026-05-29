@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { canAffordExecution, estimateGenericCost } from "@/lib/cost/cost-estimator";
 import { deductCreditsByAmount, getCreditCost } from "@/lib/credits";
 import { checkFeatureAccess } from "@/lib/feature-access";
+import { rateLimit, rateLimitedResponse } from "@/lib/rate-limit-distributed";
 import {
   QUICK_USE_STREAM_HEADERS,
   createQuickUseExecutionContext,
@@ -115,6 +116,9 @@ export async function POST(request: NextRequest) {
   if (!userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const rl = await rateLimit(`deep-research:${userId}`, { limit: 10, windowSeconds: 60 });
+  if (!rl.ok) return rateLimitedResponse(rl);
 
   const access = await checkFeatureAccess(userId, "deepResearch");
   if (!access.allowed) {

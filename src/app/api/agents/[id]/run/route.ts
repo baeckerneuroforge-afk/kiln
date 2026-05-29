@@ -16,6 +16,7 @@ import { executeTaskTool, evalCondition, executeOutputAction, executeBranchOutpu
 import { emitEvent } from "@/lib/events";
 import { AgentHealthMonitor } from "@/lib/monitoring/agent-health-monitor";
 import { validateAgentInput, validateAgentOutput } from "@/lib/agents/io-schema-validator";
+import { rateLimit, rateLimitedResponse } from "@/lib/rate-limit-distributed";
 
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
@@ -33,6 +34,9 @@ export async function POST(
     if (!userId) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const rl = await rateLimit(`agent-run:${userId}`, { limit: 30, windowSeconds: 60 });
+    if (!rl.ok) return rateLimitedResponse(rl);
 
     const agentId = params.id;
 
