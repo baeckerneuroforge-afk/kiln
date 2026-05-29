@@ -2,14 +2,14 @@ import { NextRequest } from "next/server";
 import { createHmac } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { generateWeeklyReport, buildWeeklyReportHtml } from "@/lib/weekly-kb-report";
+import { verifyCronSecret } from "@/lib/api-auth";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 // POST /api/cron/weekly-report — Wöchentlicher KB-Report jeden Montag 9:00 UTC
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -1,15 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { createAgencyOpsSnapshot } from "@/lib/operations/aggregation";
-
-function isAuthorized(req: Request): boolean {
-  const expected = process.env.CRON_SECRET;
-  if (!expected) return process.env.NODE_ENV !== "production";
-  const header = req.headers.get("authorization");
-  return header === `Bearer ${expected}`;
-}
+import { verifyCronSecret } from "@/lib/api-auth";
 
 export async function POST(req: Request) {
-  if (!isAuthorized(req)) {
+  if (!verifyCronSecret(req)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -46,6 +46,47 @@ export function generateApiKey(): string {
   return `sk-kiln-${random}`;
 }
 
+/**
+ * Timing-sicherer Vergleich eines `Bearer <token>` Authorization-Headers gegen
+ * ein erwartetes Secret. Nutzt crypto.timingSafeEqual mit vorgelagertem
+ * Längen-Check (timingSafeEqual wirft bei ungleicher Länge) und verhindert so
+ * Timing-Angriffe — anders als ein nackter `===`-Vergleich, der die Laufzeit
+ * an der ersten abweichenden Stelle abbricht.
+ *
+ * Gibt IMMER false zurück, wenn kein Secret konfiguriert ist (KEIN fail-open) —
+ * der Aufrufer entscheidet über etwaiges Fallback-Verhalten. Wiederverwendbar
+ * für CRON_SECRET, per-Webhook-Secrets etc.
+ */
+export function timingSafeBearer(
+  authHeader: string | null,
+  expected: string | null | undefined,
+): boolean {
+  if (!expected) return false;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return false;
+
+  const token = authHeader.slice(7);
+  const tokenBuf = Buffer.from(token);
+  const expectedBuf = Buffer.from(expected);
+  if (tokenBuf.length !== expectedBuf.length) return false;
+  return crypto.timingSafeEqual(tokenBuf, expectedBuf);
+}
+
+/**
+ * Verifiziert den CRON_SECRET Bearer-Token aus dem Authorization-Header
+ * (timing-sicher via timingSafeBearer).
+ *
+ * Verhalten wenn CRON_SECRET NICHT gesetzt ist:
+ *   - Development: erlaubt (true), damit Crons lokal triggerbar sind
+ *   - Production:  verweigert (false), fail-closed gegen Fehlkonfiguration
+ *
+ * Akzeptiert sowohl `Request` als auch `NextRequest` (NextRequest erbt von Request).
+ */
+export function verifyCronSecret(req: Request): boolean {
+  const expected = process.env.CRON_SECRET;
+  if (!expected) return process.env.NODE_ENV !== "production";
+  return timingSafeBearer(req.headers.get("authorization"), expected);
+}
+
 // API Key aus Authorization Header validieren → userId zurückgeben
 export async function authenticateApiKey(
   authHeader: string | null

@@ -7,6 +7,7 @@ import { decrypt } from "@/lib/encryption";
 import { deductCredits } from "@/lib/credits";
 import { syncLeadToAirtableIfConfigured } from "@/lib/integrations/airtable";
 import { validateUrl } from "@/lib/url-validation";
+import { timingSafeBearer } from "@/lib/api-auth";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import crypto from "crypto";
@@ -53,7 +54,7 @@ async function handleWebhookRequest(
     // Auth validation
     if (webhook.authType === "HEADER_AUTH") {
       const authHeader = request.headers.get("authorization") || request.headers.get("x-webhook-token");
-      if (!authHeader || authHeader !== `Bearer ${webhook.authValue}`) {
+      if (!timingSafeBearer(authHeader, webhook.authValue)) {
         return Response.json({ error: "Unauthorized" }, { status: 401 });
       }
     } else if (webhook.authType === "HMAC") {

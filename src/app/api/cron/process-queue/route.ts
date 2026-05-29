@@ -12,6 +12,7 @@ import { expireOldExports } from "@/lib/dsgvo/export-service";
 import { runReportCron } from "@/lib/reporting/cron";
 import { runPaymentGraceSweep } from "@/lib/billing/module-billing-webhooks";
 import { prisma } from "@/lib/prisma";
+import { verifyCronSecret } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -28,12 +29,8 @@ export const maxDuration = 60;
  * cron every 5-15 minutes.
  */
 export async function GET(request: Request) {
-  // Verify cron secret in production
-  const authHeader = request.headers.get("authorization");
-  if (
-    process.env.CRON_SECRET &&
-    authHeader !== `Bearer ${process.env.CRON_SECRET}`
-  ) {
+  // Verify cron secret (timing-safe; fail-closed in production)
+  if (!verifyCronSecret(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 

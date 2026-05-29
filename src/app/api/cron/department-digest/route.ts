@@ -1,14 +1,11 @@
 import { runDailyApprovalDigest } from "@/lib/departments/notifications/digest-builder";
+import { verifyCronSecret } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (
-    process.env.CRON_SECRET &&
-    authHeader !== `Bearer ${process.env.CRON_SECRET}`
-  ) {
+  if (!verifyCronSecret(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 

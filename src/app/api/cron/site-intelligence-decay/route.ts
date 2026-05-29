@@ -6,13 +6,13 @@
 
 import { NextRequest } from "next/server";
 import { decayAndPrune, getIntelligenceStats } from "@/lib/browser/collective-learning";
+import { verifyCronSecret } from "@/lib/api-auth";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 

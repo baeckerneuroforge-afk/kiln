@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { verifyCronSecret } from "@/lib/api-auth";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 // POST /api/cron/monthly-report — Send monthly ROI emails to all active users
 export async function POST(request: NextRequest) {
-  // Verify Vercel Cron secret
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Verify Vercel Cron secret (timing-safe)
+  if (!verifyCronSecret(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
