@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getConnectAccount } from "@/lib/stripe/connect";
 import { createBrandedCheckoutSession } from "@/lib/stripe/connect-pricing";
+import { resolveSafeCheckoutUrl } from "@/lib/stripe/checkout-url";
 import { getUserEmailOrPlaceholder } from "@/lib/clerk-user-email";
 
 export const dynamic = "force-dynamic";
@@ -68,10 +69,18 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-  const successUrl =
-    body.successUrl || `${appUrl}/dashboard?subscription=success`;
-  const cancelUrl =
-    body.cancelUrl || `${appUrl}/dashboard?subscription=canceled`;
+  // Open-Redirect-Schutz (siehe onboarding/[id]/checkout): nur App- oder
+  // verifizierte Agency-Custom-Domains als Return-URL zulassen.
+  const successUrl = await resolveSafeCheckoutUrl(
+    body.successUrl,
+    relationship.parentOrgId,
+    `${appUrl}/dashboard?subscription=success`,
+  );
+  const cancelUrl = await resolveSafeCheckoutUrl(
+    body.cancelUrl,
+    relationship.parentOrgId,
+    `${appUrl}/dashboard?subscription=canceled`,
+  );
 
   const email = await getUserEmailOrPlaceholder(userId);
 
