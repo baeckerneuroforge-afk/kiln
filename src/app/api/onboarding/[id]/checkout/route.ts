@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getConnectAccount } from "@/lib/stripe/connect";
 import { createBrandedCheckoutSession } from "@/lib/stripe/connect-pricing";
+import { resolveSafeCheckoutUrl } from "@/lib/stripe/checkout-url";
 
 export const dynamic = "force-dynamic";
 
@@ -75,9 +76,18 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-  const successUrl =
-    body.successUrl || `${appUrl}/onboarding/${id}/success`;
-  const cancelUrl = body.cancelUrl || `${appUrl}/onboarding/${id}`;
+  // Open-Redirect-Schutz: client-gelieferte Return-URLs nur zulassen, wenn sie
+  // auf die App oder eine verifizierte Custom-Domain dieser Agency zeigen.
+  const successUrl = await resolveSafeCheckoutUrl(
+    body.successUrl,
+    relationship.parentOrgId,
+    `${appUrl}/onboarding/${id}/success`,
+  );
+  const cancelUrl = await resolveSafeCheckoutUrl(
+    body.cancelUrl,
+    relationship.parentOrgId,
+    `${appUrl}/onboarding/${id}`,
+  );
 
   try {
     const session = await createBrandedCheckoutSession({
