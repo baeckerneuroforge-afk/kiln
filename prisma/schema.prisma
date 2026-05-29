@@ -494,6 +494,7 @@ model Lead {
   @@index([agentId])
   @@index([email])
   @@index([orgId])
+  @@index([agentId, createdAt])
 }
 
 // Agent Memory — persistent user memories across conversations

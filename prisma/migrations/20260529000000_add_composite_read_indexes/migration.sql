@@ -12,3 +12,4 @@
 CREATE INDEX IF NOT EXISTS "Conversation_agentId_createdAt_idx" ON "Conversation"("agentId", "createdAt");
 CREATE INDEX IF NOT EXISTS "Message_conversationId_createdAt_idx" ON "Message"("conversationId", "createdAt");
 CREATE INDEX IF NOT EXISTS "AiCreditUsage_orgId_createdAt_idx" ON "AiCreditUsage"("orgId", "createdAt");
+CREATE INDEX IF NOT EXISTS "Lead_agentId_createdAt_idx" ON "Lead"("agentId", "createdAt");
