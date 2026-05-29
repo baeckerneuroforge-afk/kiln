@@ -10,7 +10,7 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
 
-import { verifyCronSecret } from "@/lib/api-auth";
+import { verifyCronSecret, timingSafeBearer } from "@/lib/api-auth";
 
 function reqWith(authorization?: string): Request {
   return new Request("https://app.test/api/cron/x", {
@@ -20,6 +20,28 @@ function reqWith(authorization?: string): Request {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+});
+
+describe("timingSafeBearer", () => {
+  const SECRET = "per-webhook-secret-abcdef0123456789";
+
+  it("verweigert immer, wenn kein Secret konfiguriert ist (kein fail-open)", () => {
+    expect(timingSafeBearer(`Bearer ${SECRET}`, "")).toBe(false);
+    expect(timingSafeBearer(`Bearer ${SECRET}`, null)).toBe(false);
+    expect(timingSafeBearer(`Bearer ${SECRET}`, undefined)).toBe(false);
+  });
+
+  it("erlaubt bei korrektem Token", () => {
+    expect(timingSafeBearer(`Bearer ${SECRET}`, SECRET)).toBe(true);
+  });
+
+  it("verweigert bei falschem Token / falscher Länge / fehlendem Header", () => {
+    expect(timingSafeBearer(`Bearer ${"x".repeat(SECRET.length)}`, SECRET)).toBe(false);
+    expect(timingSafeBearer(`Bearer ${SECRET}extra`, SECRET)).toBe(false);
+    expect(timingSafeBearer(null, SECRET)).toBe(false);
+    expect(timingSafeBearer(SECRET, SECRET)).toBe(false); // kein Bearer-Präfix
+    expect(timingSafeBearer("Bearer ", SECRET)).toBe(false);
+  });
 });
 
 describe("verifyCronSecret", () => {

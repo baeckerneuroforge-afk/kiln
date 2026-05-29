@@ -6,6 +6,7 @@ import {
   storeChunks,
 } from "@/lib/rag";
 import { deductEmbeddingCredits } from "@/lib/credits";
+import { timingSafeBearer } from "@/lib/api-auth";
 
 /** Hard timeout — leave 10s margin for Vercel function limit */
 const EMBED_TIMEOUT_MS = 50_000;
@@ -21,10 +22,10 @@ export async function POST(
 ) {
   console.warn(`[EMBED] === Handler entered, kbId: ${params.kbId}, agentId: ${params.id}`);
 
-  // Auth: CRON_SECRET (server-side trigger) or Clerk (client-side retry)
-  const authHeader = request.headers.get("authorization") || "";
-  const cronSecret = process.env.CRON_SECRET;
-  const isCronAuth = cronSecret && authHeader === `Bearer ${cronSecret}`;
+  // Auth: CRON_SECRET (server-side trigger) or Clerk (client-side retry).
+  // Strict timing-safe check (no dev fail-open) so the Clerk fallback below
+  // stays reachable when CRON_SECRET is unset.
+  const isCronAuth = timingSafeBearer(request.headers.get("authorization"), process.env.CRON_SECRET);
 
   let userId: string;
 

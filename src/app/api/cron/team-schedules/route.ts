@@ -6,6 +6,7 @@ import { getClaudeClient } from "@/lib/ai";
 import { checkCredits, deductCredits } from "@/lib/credits";
 import { sendTeamScheduleCompletionEmail } from "@/lib/email-notifications";
 import { prisma } from "@/lib/prisma";
+import { verifyCronSecret } from "@/lib/api-auth";
 import {
   setExecutionContextMeta,
   type TeamExecutionTrigger,
@@ -238,13 +239,7 @@ async function runScheduledTeamExecution(params: {
 }
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    return Response.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  }
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  if (!verifyCronSecret(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
