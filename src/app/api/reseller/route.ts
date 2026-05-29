@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { ResellerBilling } from "@/lib/billing/reseller-billing";
 import { checkFeatureAccess } from "@/lib/feature-access";
 import { AuditLogger } from "@/lib/audit/audit-logger";
+import { resolveSafeOrigin } from "@/lib/safe-origin";
 
 // GET /api/reseller — Reseller Dashboard Daten
 export async function GET() {
@@ -29,7 +30,9 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json();
-  const origin = body.origin || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  // Open-Redirect-Schutz: client-gelieferte origin gegen Allowlist validieren,
+  // bevor sie in die Stripe-Connect-Return-URLs einfließt.
+  const origin = resolveSafeOrigin(body.origin);
 
   const result = await ResellerBilling.setupConnectAccount(
     userId,
