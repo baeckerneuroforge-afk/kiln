@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { canAffordExecution, estimateComputerUseCost } from "@/lib/cost/cost-estimator";
 import { deductCreditsByAmount } from "@/lib/credits";
 import { checkFeatureAccess } from "@/lib/feature-access";
+import { rateLimit, rateLimitedResponse } from "@/lib/rate-limit-distributed";
 import {
   QUICK_USE_STREAM_HEADERS,
   createQuickUseExecutionContext,
@@ -173,6 +174,9 @@ export async function POST(request: NextRequest) {
   if (!userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const rl = await rateLimit(`computer-use:${userId}`, { limit: 10, windowSeconds: 60 });
+  if (!rl.ok) return rateLimitedResponse(rl);
 
   const access = await checkFeatureAccess(userId, "computerUse");
   if (!access.allowed) {

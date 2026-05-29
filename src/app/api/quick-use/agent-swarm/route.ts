@@ -6,6 +6,7 @@ import { isAdmin } from "@/lib/admin";
 import { decomposeGoal } from "@/lib/execution/task-decomposer";
 import { SwarmEventStream, type SwarmEvent } from "@/lib/execution/swarm-event-stream";
 import { checkFeatureAccess } from "@/lib/feature-access";
+import { rateLimit, rateLimitedResponse } from "@/lib/rate-limit-distributed";
 import {
   QUICK_USE_STREAM_HEADERS,
   createQuickUseExecutionContext,
@@ -251,6 +252,9 @@ export async function POST(request: NextRequest) {
   if (!userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const rl = await rateLimit(`agent-swarm:${userId}`, { limit: 10, windowSeconds: 60 });
+  if (!rl.ok) return rateLimitedResponse(rl);
 
   const access = await checkFeatureAccess(userId, "agentSwarm");
   if (!access.allowed) {
