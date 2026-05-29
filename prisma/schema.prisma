@@ -437,6 +437,7 @@ model Conversation {
   @@index([agentId])
   @@index([sessionId])
   @@index([orgId])
+  @@index([agentId, createdAt])
 }
 
 // Chat-Nachrichten
@@ -453,6 +454,7 @@ model Message {
   createdAt DateTime @default(now())
 
   @@index([conversationId])
+  @@index([conversationId, createdAt])
 }
 
 enum MessageRole {
@@ -492,6 +494,7 @@ model Lead {
   @@index([agentId])
   @@index([email])
   @@index([orgId])
+  @@index([agentId, createdAt])
 }
 
 // Agent Memory — persistent user memories across conversations
@@ -1643,6 +1646,7 @@ model AiCreditUsage {
   @@index([userId, createdAt])
   @@index([type])
   @@index([orgId])
+  @@index([orgId, createdAt])
 }
 
 // Quick Use background tasks — persists execution state across tab close/reconnect
