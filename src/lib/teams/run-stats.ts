@@ -28,8 +28,10 @@ export interface RunStats {
  *   (identical rounding/filtering to the previous implementation).
  * - The latest run per team is a single `distinct` query ordered by startedAt.
  *
- * All three queries run concurrently. Output shape is byte-for-byte
- * compatible with the previous single-findMany + in-memory-filter version.
+ * All three queries run concurrently. On PostgreSQL (the project's provider)
+ * the output equals the previous single-findMany + in-memory-filter version;
+ * the latest-run leg relies on Prisma compiling distinct + orderBy desc to
+ * `DISTINCT ON ("teamId") ... ORDER BY "teamId","startedAt" DESC`.
  */
 export async function fetchRunStatsByTeamId(
   teamIds: string[],

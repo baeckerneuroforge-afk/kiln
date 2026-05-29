@@ -107,4 +107,22 @@ describe("fetchRunStatsByTeamId", () => {
     );
     expect(completedCall).toBeTruthy();
   });
+
+  it("holt den letzten Run pro Team via distinct + orderBy startedAt DESC", async () => {
+    // Diese Annahme ist tragend für die Äquivalenz: der letzte Run = der mit
+    // dem größten startedAt. Würde orderBy auf 'asc' kippen, wäre lastRunAt
+    // falsch — dieser Test fängt das ab.
+    groupBy.mockResolvedValue([]);
+    findMany.mockResolvedValue([]);
+
+    await fetchRunStatsByTeamId(["a", "b"]);
+
+    const distinctCall = findMany.mock.calls.find(
+      ([args]) => (args as { distinct?: unknown }).distinct,
+    );
+    expect(distinctCall?.[0]).toMatchObject({
+      distinct: ["teamId"],
+      orderBy: { startedAt: "desc" },
+    });
+  });
 });
