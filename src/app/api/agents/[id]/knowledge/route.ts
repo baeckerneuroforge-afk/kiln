@@ -4,6 +4,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { fetchUrlContent } from "@/lib/rag";
 import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
 import { orgScopeFilter } from "@/lib/auth/org-scope";
+import { validateBody } from "@/lib/api/validate-body";
+import { knowledgeCreateSchema } from "@/lib/api/request-schemas";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -146,7 +148,10 @@ export async function POST(
       textContent = pdfData.text;
     } else {
       // JSON Body: URL, FAQ, or Text
-      const body = await request.json();
+      const rawBody = await request.json();
+      const validation = validateBody(knowledgeCreateSchema, rawBody);
+      if (!validation.ok) return validation.response;
+      const body = rawBody;
 
       if (body.type === "URL") {
         type = "URL";

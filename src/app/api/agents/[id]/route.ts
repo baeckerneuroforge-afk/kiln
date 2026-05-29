@@ -9,6 +9,8 @@ import { validateSchema } from "@/lib/agents/io-schema-validator";
 import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
 import { orgScopeFilter } from "@/lib/auth/org-scope";
 import { markTemplateInstanceCustomized } from "@/lib/templates/service";
+import { validateBody } from "@/lib/api/validate-body";
+import { agentUpdateSchema } from "@/lib/api/request-schemas";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -84,6 +86,8 @@ export async function PATCH(
     }
 
     const rawBody = await request.json();
+    const validation = validateBody(agentUpdateSchema, rawBody);
+    if (!validation.ok) return validation.response;
     // Backward-compat: translate legacy field names from older API consumers
     // before the rest of the pipeline runs.
     const body = {

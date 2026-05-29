@@ -8,6 +8,8 @@ import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
 import { orgScopeFilter } from "@/lib/auth/org-scope";
 import { resolveCreateTargetOrgId } from "@/lib/sub-org/resolve-create-target";
 import { fetchRunStatsByTeamId } from "@/lib/teams/run-stats";
+import { validateBody } from "@/lib/api/validate-body";
+import { teamCreateSchema } from "@/lib/api/request-schemas";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -100,15 +102,11 @@ export async function POST(request: NextRequest) {
     }
     const { userId, orgId } = scope;
 
-    const body = await request.json();
+    const rawBody = await request.json();
+    const validation = validateBody(teamCreateSchema, rawBody);
+    if (!validation.ok) return validation.response;
+    const body = rawBody;
     const { name, description, goal, template: templateKey, isSubWorkflow, subOrgId } = body;
-
-    if (!name && !templateKey) {
-      return Response.json(
-        { error: "Name is required." },
-        { status: 400 }
-      );
-    }
 
     // Sprint 19.7.4 — sub-org-scoped create. When the client is in a
     // sub-org page it passes the OrgRelationship.id so the new workflow

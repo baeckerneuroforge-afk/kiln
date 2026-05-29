@@ -86,8 +86,10 @@ describe("POST /api/agents", () => {
     );
 
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
-      error: "Name, slug, and system prompt are required.",
+    // Sprint 20.2: missing required fields now fail Zod validation up front
+    // with the standardized { error: "Validation failed", details } shape.
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Validation failed",
     });
     expect(mockPrisma.agent.create).not.toHaveBeenCalled();
   });
