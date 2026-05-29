@@ -82,6 +82,10 @@ describe("agentUpdateSchema", () => {
     expect(agentUpdateSchema.safeParse({ status: "LIVE" }).success).toBe(true);
   });
 
+  it("erlaubt leere name/systemPrompt (PATCH war früher unvalidiert)", () => {
+    expect(agentUpdateSchema.safeParse({ name: "", systemPrompt: "" }).success).toBe(true);
+  });
+
   it("erhält unbekannte Felder (passthrough, da PATCH ins Prisma spreaded)", () => {
     const parsed = agentUpdateSchema.parse({ whiteLabel: { customCss: ".x{}" }, foo: 1 });
     expect(parsed.whiteLabel).toEqual({ customCss: ".x{}" });

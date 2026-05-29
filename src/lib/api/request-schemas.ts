@@ -40,9 +40,12 @@ export const agentCreateSchema = z
 // PATCH /api/agents/[id] — Agent aktualisieren (alle Felder optional)
 export const agentUpdateSchema = z
   .object({
-    name: z.string().min(1).max(300).optional(),
-    slug: z.string().min(1).max(300).optional(),
-    systemPrompt: z.string().min(1).max(200_000).optional(),
+    // Kein min(1) auf PATCH: die alte Route hatte keine Validierung und ließ
+    // leere Strings zu (z.B. User leert das Feld und speichert). Wir behalten
+    // dieses Verhalten bei und prüfen nur Typ + Längenobergrenze.
+    name: z.string().max(300).optional(),
+    slug: z.string().max(300).optional(),
+    systemPrompt: z.string().max(200_000).optional(),
     description: z.string().max(10_000).optional(),
     mode: z.enum(AGENT_MODE).optional(),
     agentMode: z.enum(AGENT_MODE).optional(), // legacy alias
