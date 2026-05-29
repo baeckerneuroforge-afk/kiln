@@ -4,12 +4,17 @@ import { Redis } from "@upstash/redis";
 /**
  * Verteiltes Rate-Limiting für teure Endpoints (LLM-Aufrufe etc.).
  *
- * Nutzt Upstash Redis, wenn UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN
- * gesetzt sind (funktioniert dann korrekt über mehrere Vercel-Instanzen
- * hinweg). Ist Upstash nicht konfiguriert (z.B. lokal), fällt der Helper auf
- * einen In-Memory-Sliding-Window pro Instanz zurück — wie das bestehende
- * Muster in agents/[id]/chat. So bleibt der Code überall lauffähig und wird in
- * Produktion automatisch verteilt, sobald die Env-Vars vorhanden sind.
+ * Nutzt Upstash Redis (Sliding-Window), wenn UPSTASH_REDIS_REST_URL +
+ * UPSTASH_REDIS_REST_TOKEN gesetzt sind (funktioniert dann korrekt über
+ * mehrere Vercel-Instanzen hinweg). Ist Upstash nicht konfiguriert (z.B.
+ * lokal), fällt der Helper auf einen In-Memory-FIXED-Window pro Instanz zurück
+ * — wie das bestehende Muster in agents/[id]/chat. So bleibt der Code überall
+ * lauffähig und wird in Produktion automatisch verteilt, sobald die Env-Vars
+ * vorhanden sind.
+ *
+ * WICHTIG (Ops): In Produktion MÜSSEN die UPSTASH_*-Vars gesetzt sein. Der
+ * Fixed-Window-Fallback erlaubt an der Fenstergrenze kurzzeitig bis ~2× das
+ * Limit und gilt nur pro Instanz — also kein echter verteilter Schutz.
  *
  * Hinweis: Der ältere synchrone checkRateLimit() in rate-limit.ts (v1-API)
  * bleibt unverändert; diese Datei ist die async/Redis-fähige Variante für
