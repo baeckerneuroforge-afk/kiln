@@ -6,14 +6,14 @@ import {
   updateWeeklyHistory,
   buildTrendAlertEmail,
 } from "@/lib/enterprise-alerts";
+import { verifyCronSecret } from "@/lib/api-auth";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 // POST /api/cron/trend-alerts — Wöchentlich: Trends erkennen, Alerts erstellen, E-Mails senden
 export async function POST(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!verifyCronSecret(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 

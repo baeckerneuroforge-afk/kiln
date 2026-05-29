@@ -46,6 +46,35 @@ export function generateApiKey(): string {
   return `sk-kiln-${random}`;
 }
 
+/**
+ * Verifiziert den CRON_SECRET Bearer-Token aus dem Authorization-Header.
+ *
+ * Nutzt einen timing-sicheren Vergleich (crypto.timingSafeEqual mit
+ * vorgelagertem Längen-Check), um Timing-Angriffe auf das Secret zu
+ * verhindern — anders als ein nackter `===`-Vergleich, der die Laufzeit
+ * an der ersten abweichenden Stelle abbricht.
+ *
+ * Verhalten wenn CRON_SECRET NICHT gesetzt ist:
+ *   - Development: erlaubt (true), damit Crons lokal triggerbar sind
+ *   - Production:  verweigert (false), fail-closed gegen Fehlkonfiguration
+ *
+ * Akzeptiert sowohl `Request` als auch `NextRequest` (NextRequest erbt von Request).
+ */
+export function verifyCronSecret(req: Request): boolean {
+  const expected = process.env.CRON_SECRET;
+  if (!expected) return process.env.NODE_ENV !== "production";
+
+  const header = req.headers.get("authorization");
+  if (!header || !header.startsWith("Bearer ")) return false;
+
+  const token = header.slice(7);
+  const tokenBuf = Buffer.from(token);
+  const expectedBuf = Buffer.from(expected);
+  // Längen-Check zuerst: timingSafeEqual wirft bei ungleicher Länge.
+  if (tokenBuf.length !== expectedBuf.length) return false;
+  return crypto.timingSafeEqual(tokenBuf, expectedBuf);
+}
+
 // API Key aus Authorization Header validieren → userId zurückgeben
 export async function authenticateApiKey(
   authHeader: string | null

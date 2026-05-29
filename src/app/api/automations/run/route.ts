@@ -7,6 +7,7 @@ import { getClaudeClient, getClaudeClientWithKey, MODEL_PROVIDER_MAP } from "@/l
 import { searchRelevantChunks } from "@/lib/rag";
 import { decrypt } from "@/lib/encryption";
 import { checkCredits, deductCredits } from "@/lib/credits";
+import { verifyCronSecret } from "@/lib/api-auth";
 
 // Cron-Expression Parser: Prüft ob eine Automation jetzt fällig ist
 // Unterstützt: "0 * * * *" (stündlich), "0 9 * * *" (täglich 9h),
@@ -38,14 +39,8 @@ function isDue(cronExpression: string, lastRunAt: Date | null): boolean {
 
 // Cron-Endpoint: wird von Vercel Cron oder externem Service aufgerufen
 export async function GET(request: NextRequest) {
-  // Vercel Cron Authorization prüfen
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    return Response.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  }
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  // Vercel Cron Authorization prüfen (timing-safe)
+  if (!verifyCronSecret(request)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 

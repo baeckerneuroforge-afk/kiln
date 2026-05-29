@@ -15,6 +15,7 @@ import {
   seedKnownUrls,
 } from "@/lib/browser/collective-learning";
 import { getRecipeForUrl } from "@/lib/browser/site-recipes";
+import { verifyCronSecret } from "@/lib/api-auth";
 
 // Domains matching SITE_RECIPES keys
 const SEED_DOMAINS = [
@@ -27,9 +28,8 @@ const SEED_DOMAINS = [
  * Checks admin access via Clerk session OR CRON_SECRET Bearer token.
  */
 async function isAuthorized(request: NextRequest): Promise<boolean> {
-  // Option 1: CRON_SECRET Bearer token
-  const authHeader = request.headers.get("authorization");
-  if (authHeader && process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`) {
+  // Option 1: CRON_SECRET Bearer token (timing-safe)
+  if (verifyCronSecret(request)) {
     return true;
   }
 
