@@ -6,6 +6,8 @@ import { validateSchema } from "@/lib/agents/io-schema-validator";
 import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
 import { orgScopeFilter } from "@/lib/auth/org-scope";
 import { resolveCreateTargetOrgId } from "@/lib/sub-org/resolve-create-target";
+import { validateBody } from "@/lib/api/validate-body";
+import { agentCreateSchema } from "@/lib/api/request-schemas";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -54,7 +56,12 @@ export async function POST(request: NextRequest) {
     }
     const { userId, orgId } = scope;
 
-    const body = await request.json();
+    const rawBody = await request.json();
+    const validation = validateBody(agentCreateSchema, rawBody);
+    if (!validation.ok) return validation.response;
+    // Validierung ist ein Runtime-Gate; body bleibt der rohe (untransformierte)
+    // Payload, damit die nachgelagerte Typisierung der Route unverändert bleibt.
+    const body = rawBody;
     const {
       name,
       slug,

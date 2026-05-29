@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
 import { identifyCustomer } from "@/lib/customer-memory/identifier";
+import { validateBody } from "@/lib/api/validate-body";
+import { customerIdentifySchema } from "@/lib/api/request-schemas";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -9,7 +11,9 @@ function unauthorized() {
 export async function POST(request: NextRequest) {
   try {
     const scope = await requireOrgId();
-    const body = await request.json().catch(() => ({}));
+    const validation = validateBody(customerIdentifySchema, await request.json().catch(() => ({})));
+    if (!validation.ok) return validation.response;
+    const body = validation.data;
     const profile = await identifyCustomer({
       orgId: scope.orgId,
       email: typeof body.email === "string" ? body.email : null,

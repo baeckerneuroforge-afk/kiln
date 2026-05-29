@@ -4,6 +4,8 @@ import { orgScopeFilter } from "@/lib/auth/org-scope";
 import { encryptConfigJson } from "@/lib/integrations/config-storage";
 import { logAudit } from "@/lib/audit/logger";
 import { revokeIntegrationToken } from "@/lib/integrations/revoke";
+import { validateBody } from "@/lib/api/validate-body";
+import { integrationCreateSchema } from "@/lib/api/request-schemas";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -49,10 +51,9 @@ export async function POST(request: Request) {
     }
     const { userId, orgId } = scope;
 
-    const { provider, name, config, isCustom } = await request.json();
-    if (!provider || !name) {
-      return Response.json({ error: "Provider and name required" }, { status: 400 });
-    }
+    const validation = validateBody(integrationCreateSchema, await request.json());
+    if (!validation.ok) return validation.response;
+    const { provider, name, config, isCustom } = validation.data;
 
     // Always encrypt before persistence (Sprint 18 security fix). Legacy
     // plaintext rows are still readable via readConfigJson on the read path.
