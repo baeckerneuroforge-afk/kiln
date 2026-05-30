@@ -1,5 +1,6 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { env } from "@/lib/env";
 
 /**
  * Verteiltes Rate-Limiting für teure Endpoints (LLM-Aufrufe etc.).
@@ -33,8 +34,8 @@ let redisChecked = false;
 function getRedis(): Redis | null {
   if (redisChecked) return redisClient;
   redisChecked = true;
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const url = env.UPSTASH_REDIS_REST_URL;
+  const token = env.UPSTASH_REDIS_REST_TOKEN;
   if (url && token) {
     redisClient = new Redis({ url, token });
   }
