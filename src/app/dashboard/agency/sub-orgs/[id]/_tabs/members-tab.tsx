@@ -189,7 +189,8 @@ export function MembersTab({ subOrgId, subOrgName, readOnly }: MembersTabProps) 
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={m.imageUrl}
-                      alt=""
+                      alt={`Avatar von ${m.name}`}
+                      loading="lazy"
                       className="h-full w-full rounded-full object-cover"
                     />
                   ) : (

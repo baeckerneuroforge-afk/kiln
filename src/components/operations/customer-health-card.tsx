@@ -30,7 +30,7 @@ export function CustomerHealthCard({ customer }: { customer: CustomerHealth }) {
         <div className="flex min-w-0 items-center gap-3">
           {customer.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={customer.logoUrl} alt="" className="h-10 w-10 rounded-md object-cover" />
+            <img src={customer.logoUrl} alt="" loading="lazy" className="h-10 w-10 rounded-md object-cover" />
           ) : (
             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted text-sm font-semibold text-muted-foreground">
               {customer.name.slice(0, 1).toUpperCase()}
