@@ -6,17 +6,17 @@ import { MODULE_NAMES } from "@/lib/modules/types";
 export const dynamic = "force-dynamic";
 
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
-  const auth = await requireSubOrgAccess(params.id, {
+  const access = await requireSubOrgAccess(params.id, {
     requiredAgencyRole: ["OWNER", "ADMIN", "CONSULTANT"],
   });
-  if (!auth.ok) return auth.response;
+  if (!access.ok) return access.response;
 
   // Backfill default rows on first read so the UI sees all 4 module slots.
-  await ensureDefaultModuleConfigs(auth.relationship.childOrgId);
+  await ensureDefaultModuleConfigs(access.relationship.childOrgId);
 
-  const configs = await listModuleConfigs(auth.relationship.childOrgId);
+  const configs = await listModuleConfigs(access.relationship.childOrgId);
   return Response.json({
-    subAccountId: auth.relationship.childOrgId,
+    subAccountId: access.relationship.childOrgId,
     configs: configs.map((row) => ({
       id: row.id,
       moduleName: row.moduleName,

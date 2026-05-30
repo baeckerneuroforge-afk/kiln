@@ -5,14 +5,22 @@
  * the addressed sub-org. Routes lift the resolved membership off the
  * success branch and skip their own auth boilerplate.
  *
- * The shape mirrors lib/agency/sub-org-auth.ts so call sites stay
- * familiar:
+ * Call sites stay terse:
  *   const access = await requireSubOrgAccess(subOrgId, "agents.write");
  *   if (!access.ok) return access.response;
  *   const { membership, userId } = access;
  *
  * Cross-tenant access is denied with 404 (not 403) — same
  * existence-hiding rationale as the agency-side helper.
+ *
+ * Agency-role policy (each route passes its own `requiredAgencyRole`):
+ *   - VIEWER is granted only to low-sensitivity, aggregate READ endpoints
+ *     (root GET, stats, activity).
+ *   - Detail/listing endpoints that expose agents, workflows, members,
+ *     modules or branding require CONSULTANT or above.
+ *   - Financial data (invoices) is restricted to OWNER/ADMIN.
+ * This asymmetry is intentional: VIEWER is a read-only "dashboard" role,
+ * so it sees KPIs but not the underlying config/PII.
  */
 import { auth } from "@clerk/nextjs/server";
 import type {

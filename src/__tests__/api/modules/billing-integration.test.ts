@@ -6,21 +6,6 @@ beforeAll(() => {
   }
 });
 
-const mockAuth = vi.hoisted(() =>
-  vi.fn<() => Promise<{
-    ok: boolean;
-    relationship?: { id: string; childOrgId: string };
-    userId?: string;
-    agencyOrgId?: string;
-    response?: Response;
-  }>>(async () => ({
-    ok: true,
-    relationship: { id: "rel_1", childOrgId: "sub_a" },
-    userId: "user_a",
-    agencyOrgId: "org_agency",
-  })),
-);
-
 const mockPrisma = vi.hoisted(() => ({
   subAccountModuleConfig: {
     findUnique: vi.fn(),
@@ -44,7 +29,6 @@ const mockRemove = vi.hoisted(() =>
   })),
 );
 
-vi.mock("@/lib/agency/sub-org-auth", () => ({ requireSubOrgAccess: mockAuth }));
 // Sprint 20.1 — configure + toggle now use requireAgencyMutation
 // (OWNER/ADMIN gate). Stub it to return an authorized OWNER result;
 // the billing-wiring tests don't exercise the role floor.
@@ -74,12 +58,6 @@ function makeJsonRequest(body: unknown): import("next/server").NextRequest {
 describe("configure endpoint billing wiring", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAuth.mockResolvedValue({
-      ok: true,
-      relationship: { id: "rel_1", childOrgId: "sub_a" },
-      userId: "user_a",
-      agencyOrgId: "org_agency",
-    });
     mockPrisma.subAccountModuleConfig.upsert.mockImplementation(async ({ create }: { create: Record<string, unknown> }) => ({
       id: "smc_new",
       ...create,
@@ -162,12 +140,6 @@ describe("configure endpoint billing wiring", () => {
 describe("toggle endpoint billing wiring", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAuth.mockResolvedValue({
-      ok: true,
-      relationship: { id: "rel_1", childOrgId: "sub_a" },
-      userId: "user_a",
-      agencyOrgId: "org_agency",
-    });
     mockPrisma.subAccountModuleConfig.upsert.mockImplementation(async ({ create, update }: { create: Record<string, unknown>; update: Record<string, unknown> }) => ({
       id: "smc_1",
       mode: create.mode ?? "pool",
