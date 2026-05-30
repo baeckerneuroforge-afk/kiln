@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
 import { orgScopeFilter } from "@/lib/auth/org-scope";
 import { prisma } from "@/lib/prisma";
+import { apiError } from "@/lib/api/response";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,7 +26,7 @@ export async function GET() {
     return Response.json(departments);
   } catch (error) {
     if (error instanceof OrgContextError) return unauthorized();
-    return Response.json({ error: "Failed to list departments" }, { status: 500 });
+    return apiError("Failed to list departments", 500);
   }
 }
 
@@ -55,6 +56,6 @@ export async function POST(request: NextRequest) {
     return Response.json(department, { status: 201 });
   } catch (error) {
     if (error instanceof OrgContextError) return unauthorized();
-    return Response.json({ error: "Failed to create department" }, { status: 500 });
+    return apiError("Failed to create department", 500);
   }
 }
