@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { OrgContextError, requireOrgId } from "@/lib/auth/org-context";
 import { orgScopeFilter } from "@/lib/auth/org-scope";
 import { prisma } from "@/lib/prisma";
+import { apiError } from "@/lib/api/response";
 
 function unauthorized() {
   return Response.json({ error: "Unauthorized" }, { status: 401 });
