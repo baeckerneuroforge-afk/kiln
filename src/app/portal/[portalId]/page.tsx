@@ -79,7 +79,7 @@ export default function PortalPage() {
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {branding?.logo ? (
-              <img src={branding.logo} alt="" className="h-8 w-8 rounded-lg object-cover" />
+              <img src={branding.logo} alt="" loading="lazy" className="h-8 w-8 rounded-lg object-cover" />
             ) : (
               <div
                 className="flex h-8 w-8 items-center justify-center rounded-lg"

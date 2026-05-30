@@ -34,7 +34,7 @@ export function ClientOnboarding({ agencyName, agencyLogo, accentColor = "#F9731
           {agencyLogo ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={agencyLogo} alt="" className="h-10 w-10 rounded-lg object-cover" />
+              <img src={agencyLogo} alt="" loading="lazy" className="h-10 w-10 rounded-lg object-cover" />
             </>
           ) : (
             <div
